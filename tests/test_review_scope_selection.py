@@ -67,6 +67,16 @@ def _packet(**overrides: object) -> dict[str, object]:
         "requests": [],
         "discovery": {"requests_complete": True, "reviews_complete": True},
         "options": {},
+        "review_readiness": {
+            "state": "ready",
+            "known_material_findings_complete": True,
+            "finding_families": [],
+            "planned_candidate_mutations": [],
+            "remaining_material_gaps": [],
+            "reasons": [],
+            "exception": None,
+            "review_acquisition_allowed": True,
+        },
     }
     packet.update(overrides)
     return packet
@@ -424,6 +434,343 @@ def test_early_diagnostic_requires_explicit_selection() -> None:
     result = planner.plan(packet)
 
     assert result["action"] == planner.ACTION_EARLY
+
+
+def _open_family_readiness(*, family_id: str = "revision-bound-evidence") -> dict[str, object]:
+    return {
+        "state": "not_ready",
+        "known_material_findings_complete": True,
+        "finding_families": [
+            {
+                "id": family_id,
+                "finding_refs": [f"finding://{family_id}"],
+                "status": "gap",
+                "sibling_audit_complete": False,
+                "remaining_material_gaps": ["pending-review-stale-base"],
+            }
+        ],
+        "planned_candidate_mutations": [],
+        "exception": None,
+    }
+
+
+def test_open_finding_family_blocks_new_expensive_review_request() -> None:
+    packet = _packet(review_readiness=_open_family_readiness())
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_MISSING
+    assert "review_readiness_incomplete" in result["reason"]
+    assert "sibling_audit_incomplete:revision-bound-evidence" in result["reason"]
+    assert result["review_acquisition_allowed"] is False
+
+
+def test_closed_finding_family_allows_normally_selected_review() -> None:
+    packet = _packet(
+        review_readiness={
+            "state": "ready",
+            "known_material_findings_complete": True,
+            "finding_families": [
+                {
+                    "id": "revision-bound-evidence",
+                    "finding_refs": ["finding://revision-bound-evidence"],
+                    "status": "closed",
+                    "sibling_audit_complete": True,
+                    "remaining_material_gaps": [],
+                }
+            ],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_DELTA
+    assert result["review_acquisition_allowed"] is True
+
+
+def test_reopening_one_family_preserves_unrelated_closed_family() -> None:
+    packet = _packet(
+        review_readiness={
+            "state": "not_ready",
+            "known_material_findings_complete": True,
+            "finding_families": [
+                {
+                    "id": "family-a",
+                    "finding_refs": ["finding://a"],
+                    "status": "gap",
+                    "sibling_audit_complete": False,
+                    "remaining_material_gaps": ["new-sibling"],
+                },
+                {
+                    "id": "family-b",
+                    "finding_refs": ["finding://b"],
+                    "status": "closed",
+                    "sibling_audit_complete": True,
+                    "remaining_material_gaps": [],
+                },
+            ],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    result = planner.plan(packet)
+    families = {item["id"]: item for item in result["review_readiness"]["finding_families"]}
+
+    assert result["action"] == planner.ACTION_MISSING
+    assert families["family-a"]["sibling_audit_complete"] is False
+    assert families["family-b"]["sibling_audit_complete"] is True
+
+
+def test_incomplete_readiness_does_not_block_reuse_of_applicable_completed_result() -> None:
+    packet = _packet(review_readiness=_open_family_readiness())
+    initial = planner.plan(packet)
+    binding = _binding(packet)
+    packet["reviews"] = [
+        {
+            "key": initial["request_key"],
+            "status": "completed",
+            **_record_binding(packet),
+            "purpose": packet["purpose"],
+            "reviewed_scope": initial["selected_scope"],
+            "candidate_binding": binding,
+            "candidate_binding_digest": planner._digest(binding),
+            "input_binding": packet["input_binding"],
+            "input_binding_digest": planner._digest(packet["input_binding"]),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": {
+                "purposes": [packet["purpose"]],
+                "members": ["policy-p1"],
+                "invariants": ["review-scope"],
+                "limitations": [],
+            },
+            "locator": "review-existing",
+        }
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_REUSE
+    assert result["reusable_evidence"] == ["review-existing"]
+
+
+def test_explicit_review_exception_allows_new_request_without_erasing_gap() -> None:
+    packet = _packet(
+        review_readiness={
+            **_open_family_readiness(),
+            "exception": {
+                "allow_new_review": True,
+                "authority_ref": "incident://urgent-integrity-boundary",
+                "reason": "urgent integrity boundary requires current evidence",
+            },
+        }
+    )
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_DELTA
+    assert result["review_readiness"]["state"] == "not_ready"
+    assert result["review_acquisition_allowed"] is True
+    assert "material_gap:revision-bound-evidence:pending-review-stale-base" in result[
+        "review_readiness"
+    ]["reasons"]
+    blocked_key = planner.plan(
+        _packet(review_readiness=_open_family_readiness())
+    )["request_key"]
+    assert result["request_key"] == blocked_key
+
+
+def test_readiness_changes_do_not_change_historical_request_identity() -> None:
+    ready = _packet()
+    blocked = _packet(review_readiness=_open_family_readiness())
+
+    assert planner.plan(ready)["request_key"] == planner.plan(blocked)["request_key"]
+
+
+def test_inflight_request_remains_reconcilable_after_readiness_changes() -> None:
+    packet = _packet()
+    initial = planner.plan(packet)
+    request = _active_request(packet, initial["request_key"], "in_progress", handle="request")
+    packet["requests"] = [request]
+    blocked = _packet(review_readiness=_open_family_readiness())
+    blocked["requests"] = [request]
+    blocked["discovery"]["latest_request_cycle"] = "cycle-1"
+
+    result = planner.plan(blocked)
+
+    assert result["action"] == planner.ACTION_RECONCILE
+    assert result["request_key"] == initial["request_key"]
+
+
+def test_completed_review_remains_reusable_after_readiness_changes() -> None:
+    packet = _packet()
+    review = _complete_review(packet)
+    blocked = _packet(review_readiness=_open_family_readiness())
+    blocked["reviews"] = [review]
+
+    result = planner.plan(blocked)
+
+    assert result["action"] == planner.ACTION_REUSE
+    assert result["reusable_evidence"] == ["provider-result"]
+
+
+def test_legacy_readiness_in_request_binding_remains_applicable() -> None:
+    packet = _packet()
+    review = _complete_review(packet)
+    review["request_binding"]["review_readiness"] = copy.deepcopy(packet["review_readiness"])
+    review["request_binding_digest"] = planner._digest(review["request_binding"])
+    review["binding_key"] = planner._digest(review["request_binding"])
+    review["key"] = planner._digest(
+        {**review["request_binding"], "scope": review["reviewed_scope"]}
+    )
+    packet["reviews"] = [review]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_REUSE
+
+
+def test_legacy_readiness_in_active_request_remains_reconcilable() -> None:
+    packet = _packet()
+    initial = planner.plan(packet)
+    request = _active_request(packet, initial["request_key"], "in_progress", handle="request")
+    request["request_binding"]["review_readiness"] = copy.deepcopy(packet["review_readiness"])
+    request["request_binding_digest"] = planner._digest(request["request_binding"])
+    request["binding_key"] = planner._digest(request["request_binding"])
+    request["key"] = planner._digest(
+        {**request["request_binding"], "scope": request["requested_scope"]}
+    )
+    packet["requests"] = [request]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_RECONCILE
+
+
+@pytest.mark.parametrize("status", ["closed", "gap", "deliberately_untested"])
+def test_supported_family_statuses_are_accepted(status: str) -> None:
+    packet = _packet(
+        review_readiness={
+            "known_material_findings_complete": True,
+            "finding_families": [
+                {
+                    "id": "family",
+                    "finding_refs": [],
+                    "status": status,
+                    "sibling_audit_complete": True,
+                    "remaining_material_gaps": [],
+                }
+            ],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    result = planner.plan(packet)
+
+    assert result["review_readiness"]["finding_families"][0]["status"] == status
+
+
+@pytest.mark.parametrize(
+    "status,include_status",
+    [(None, True), (None, False), ("unsupported", True)],
+    ids=["null", "missing", "unsupported"],
+)
+def test_missing_or_unsupported_family_status_fails_closed_at_planner_boundary(
+    status: object,
+    include_status: bool,
+) -> None:
+    family = {
+        "id": "family",
+        "finding_refs": [],
+        "sibling_audit_complete": True,
+        "remaining_material_gaps": [],
+    }
+    if include_status:
+        family["status"] = status
+    packet = _packet(
+        review_readiness={
+            "known_material_findings_complete": True,
+            "finding_families": [family],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    with pytest.raises(planner.RoutingInputError, match="status"):
+        planner.plan(packet)
+
+
+def test_duplicate_family_ids_fail_closed_at_planner_boundary() -> None:
+    family = {
+        "id": "family",
+        "finding_refs": [],
+        "status": "closed",
+        "sibling_audit_complete": True,
+        "remaining_material_gaps": [],
+    }
+    packet = _packet(
+        review_readiness={
+            "known_material_findings_complete": True,
+            "finding_families": [family, copy.deepcopy(family)],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    with pytest.raises(planner.RoutingInputError, match="unique"):
+        planner.plan(packet)
+
+
+def test_missing_sibling_completion_fails_closed_at_planner_boundary() -> None:
+    family = {
+        "id": "family",
+        "finding_refs": [],
+        "status": "closed",
+        "remaining_material_gaps": [],
+    }
+    packet = _packet(
+        review_readiness={
+            "known_material_findings_complete": True,
+            "finding_families": [family],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    with pytest.raises(planner.RoutingInputError, match="sibling_audit_complete"):
+        planner.plan(packet)
+
+
+def test_legacy_v2_packet_without_readiness_requires_regeneration_before_request() -> None:
+    packet = _packet()
+    packet.pop("review_readiness")
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_MISSING
+    assert "review_readiness_not_supplied" in result["reason"]
+
+
+def test_planned_candidate_mutation_blocks_new_request_until_candidate_is_stable() -> None:
+    packet = _packet(
+        review_readiness={
+            "state": "not_ready",
+            "known_material_findings_complete": True,
+            "finding_families": [],
+            "planned_candidate_mutations": ["restack upper member"],
+            "exception": None,
+        }
+    )
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_MISSING
+    assert "planned_candidate_mutation" in result["reason"]
 
 
 def test_request_key_is_not_head_only() -> None:

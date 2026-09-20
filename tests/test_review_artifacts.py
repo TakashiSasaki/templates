@@ -258,6 +258,11 @@ def _source() -> dict[str, object]:
             "unresolved_finding_refs": ["finding://review/1"],
             "next_safe_action": "run the focused tests",
             "stopping_boundary": "stop after the whole-stack Codex review request",
+            "review_readiness": {
+                "known_material_findings_complete": True,
+                "planned_candidate_mutations": [],
+                "exception": None,
+            },
         },
     }
     normalized_candidate = artifacts._normalize_candidate(source)
@@ -287,6 +292,16 @@ def _source() -> dict[str, object]:
         "requests": [],
         "discovery": source["planner"]["discovery"],
         "options": {},
+        "review_readiness": {
+            "state": "ready",
+            "known_material_findings_complete": True,
+            "finding_families": [],
+            "planned_candidate_mutations": [],
+            "remaining_material_gaps": [],
+            "reasons": [],
+            "exception": None,
+            "review_acquisition_allowed": True,
+        },
     }
     planner_result = artifacts.execute_bound_planner(
         source["planner"]["source"], packet
@@ -315,6 +330,28 @@ def _source() -> dict[str, object]:
         "evidence": {"exact_head": _sha("b")},
     }
     return source
+
+
+def _refresh_gate_for_source(source: dict[str, object]) -> None:
+    candidate = artifacts._normalize_candidate(source)
+    _bindings, revision_digest = artifacts._normalize_revision_bindings(
+        source,
+        candidate,
+        candidate_file_resolver=_fixture_candidate_file,
+    )
+    planner_source = source["planner"]["source"]
+    planner_binding = {
+        **source["input_binding"],
+        "artifact_binding": artifacts._artifact_binding(
+            source, candidate, revision_digest, planner_source
+        ),
+        "planner_source": copy.deepcopy(planner_source),
+    }
+    _, packet, result = artifacts._planner_packet(source, candidate, planner_binding)
+    binding = source["gate"]["input_binding"]
+    binding["planner_input_digest"] = artifacts.semantic_digest(packet)
+    binding["planner_result_digest"] = artifacts.semantic_digest(result)
+    source["gate"]["input_binding_digest"] = artifacts.semantic_digest(binding)
 
 
 def test_divergent_revision_roles_survive_normalization_and_rendering() -> None:
@@ -410,7 +447,7 @@ def test_dependency_change_refuses_gate_bound_to_earlier_dependency_set() -> Non
 def test_stale_declared_planner_result_is_rejected() -> None:
     source = _source()
     normalized_candidate = artifacts._normalize_candidate(source)
-    bindings, revision_digest = artifacts._normalize_revision_bindings(
+    _bindings, revision_digest = artifacts._normalize_revision_bindings(
         source,
         normalized_candidate,
         candidate_file_resolver=_fixture_candidate_file,
@@ -749,11 +786,14 @@ def test_planner_missing_information_is_returned_not_fabricated() -> None:
         source["gate"]["input_binding"]
     )
     normalized = artifacts.normalize(source)
-    request = artifacts.render(normalized).files["review-request.md"]
+    rendered = artifacts.render(normalized)
 
     assert normalized.planner_result["action"] == "acquire_missing_input_or_handoff"
-    assert "Not ready for a new request" in request
-    assert "planner_reviews_complete_not_established" in request
+    assert "Not ready for a new request" not in rendered.files["review-request.md"]
+    assert "planner_reviews_complete_not_established" in rendered.files[
+        "work-ledger-checkpoint.md"
+    ]
+    assert "Review readiness:" in rendered.files["pr-generated-region.md"]
 
 
 def test_incomplete_observation_cannot_render_success() -> None:
@@ -1006,6 +1046,33 @@ def test_work_checkpoint_records_invariant_closure_without_copying_transcript() 
         },
     ]
 
+    candidate = artifacts._normalize_candidate(source)
+    _bindings, revision_digest = artifacts._normalize_revision_bindings(
+        source,
+        candidate,
+        candidate_file_resolver=_fixture_candidate_file,
+    )
+    planner_source = source["planner"]["source"]
+    planner_binding = {
+        **source["input_binding"],
+        "artifact_binding": artifacts._artifact_binding(
+            source, candidate, revision_digest, planner_source
+        ),
+        "planner_source": copy.deepcopy(planner_source),
+    }
+    _, planner_packet, planner_result = artifacts._planner_packet(
+        source, candidate, planner_binding
+    )
+    source["gate"]["input_binding"]["planner_input_digest"] = artifacts.semantic_digest(
+        planner_packet
+    )
+    source["gate"]["input_binding"]["planner_result_digest"] = artifacts.semantic_digest(
+        planner_result
+    )
+    source["gate"]["input_binding_digest"] = artifacts.semantic_digest(
+        source["gate"]["input_binding"]
+    )
+
     checkpoint = artifacts.render(artifacts.normalize(source)).files[
         "work-ledger-checkpoint.md"
     ]
@@ -1017,15 +1084,202 @@ def test_work_checkpoint_records_invariant_closure_without_copying_transcript() 
     assert "transcript" not in checkpoint
 
 
+@pytest.mark.parametrize("sibling_value", [False, None])
+def test_legacy_closed_closure_record_never_implies_sibling_completion(
+    sibling_value: bool | None,
+) -> None:
+    source = _source()
+    family = {
+        "family": "legacy-family",
+        "status": "closed",
+        "evidence": ["legacy evidence"],
+        "gaps": [],
+    }
+    if sibling_value is not None:
+        family["sibling_audit_complete"] = sibling_value
+    source["work"]["closure_audit"] = [family]
+    _refresh_gate_for_source(source)
+
+    normalized = artifacts.normalize(source)
+
+    assert normalized.data["work"]["closure_audit"][0]["sibling_audit_complete"] is False
+    assert normalized.planner_packet["review_readiness"]["state"] == "not_ready"
+    assert normalized.planner_result["action"] == "acquire_missing_input_or_handoff"
+
+
+@pytest.mark.parametrize(
+    "status,expected_action",
+    [
+        ("closed", "request_independent_delta_review"),
+        ("gap", "acquire_missing_input_or_handoff"),
+        ("deliberately_untested", "acquire_missing_input_or_handoff"),
+    ],
+)
+def test_closure_audit_and_planner_readiness_share_one_normalized_state(
+    status: str, expected_action: str
+) -> None:
+    source = _source()
+    source["work"]["closure_audit"] = [
+        {
+            "family": "revision_bound_evidence",
+            "status": status,
+            "evidence": ["parameterized applicability matrix"],
+            "gaps": [] if status == "closed" else ["stale-pending-review"],
+            "finding_refs": ["finding://review/17"],
+            "sibling_audit_complete": status == "closed",
+        }
+    ]
+    _refresh_gate_for_source(source)
+
+    normalized = artifacts.normalize(source)
+    checkpoint = artifacts.render(normalized).files["work-ledger-checkpoint.md"]
+    readiness = normalized.planner_packet["review_readiness"]
+
+    assert normalized.planner_result["action"] == expected_action
+    assert readiness["state"] == ("ready" if status == "closed" else "not_ready")
+    assert f"- State: `{readiness['state']}`" in checkpoint
+    assert "revision\\_bound\\_evidence" in checkpoint
+    assert "finding://review/17" in checkpoint
+    if status != "closed":
+        assert "review_readiness_incomplete" in normalized.planner_result["reason"]
+        assert "stale-pending-review" in checkpoint
+
+
+def test_open_family_status_blocks_even_when_sibling_audit_is_complete() -> None:
+    source = _source()
+    source["work"]["closure_audit"] = [
+        {
+            "family": "revision_bound_evidence",
+            "status": "gap",
+            "evidence": ["applicability matrix"],
+            "gaps": [],
+            "sibling_audit_complete": True,
+        }
+    ]
+    _refresh_gate_for_source(source)
+
+    normalized = artifacts.normalize(source)
+
+    assert normalized.planner_result["action"] == "acquire_missing_input_or_handoff"
+    assert normalized.planner_packet["review_readiness"]["state"] == "not_ready"
+    assert "family_open:revision_bound_evidence" in normalized.planner_result["reason"]
+
+
+def test_missing_review_readiness_is_unknown_and_cannot_authorize_new_request() -> None:
+    source = _source()
+    source["work"].pop("review_readiness")
+    _refresh_gate_for_source(source)
+
+    normalized = artifacts.normalize(source)
+
+    assert normalized.planner_packet["review_readiness"]["state"] == "unknown"
+    assert normalized.planner_result["action"] == "acquire_missing_input_or_handoff"
+    assert "review_readiness_incomplete" in normalized.planner_result["reason"]
+
+
+@pytest.mark.parametrize("ci_status", ["success", "failure", "pending"])
+def test_review_freeze_keeps_required_ci_state_visible(ci_status: str) -> None:
+    source = _source()
+    source["work"]["closure_audit"] = [
+        {
+            "family": "revision_bound_evidence",
+            "status": "gap",
+            "evidence": ["applicability matrix"],
+            "gaps": ["current base evidence"],
+        }
+    ]
+    ci = source["observed"]["facts"]["ci"]
+    ci["status"] = ci_status
+    _refresh_gate_for_source(source)
+
+    normalized = artifacts.normalize(source)
+    region = artifacts.render(normalized).files["pr-generated-region.md"]
+
+    assert normalized.planner_result["action"] == "acquire_missing_input_or_handoff"
+    assert f"CI: `{ci_status}`" in region
+
+
+def test_readiness_change_keeps_review_identity_but_updates_checkpoint_identity() -> None:
+    ready = artifacts.normalize(_source())
+    blocked_source = _source()
+    blocked_source["work"]["closure_audit"] = [
+        {
+            "family": "remote_mutation_protocol",
+            "status": "gap",
+            "evidence": ["mutation matrix"],
+            "gaps": ["HTTP-error body truncation"],
+        }
+    ]
+    _refresh_gate_for_source(blocked_source)
+    blocked = artifacts.normalize(blocked_source)
+
+    assert artifacts.idempotency_key(ready, "review-request") == artifacts.idempotency_key(
+        blocked, "review-request"
+    )
+    assert artifacts.idempotency_key(ready, "work-ledger-checkpoint") != artifacts.idempotency_key(
+        blocked, "work-ledger-checkpoint"
+    )
+
+
+def test_review_request_body_is_readiness_independent_but_operational_views_are_not() -> None:
+    ready_source = _source()
+    ready = artifacts.normalize(ready_source)
+
+    blocked_source = _source()
+    blocked_source["work"]["closure_audit"] = [
+        {
+            "family": "remote_mutation_protocol",
+            "status": "gap",
+            "evidence": ["mutation matrix"],
+            "gaps": ["HTTP-error body truncation"],
+        }
+    ]
+    _refresh_gate_for_source(blocked_source)
+    blocked = artifacts.normalize(blocked_source)
+
+    exception_source = _source()
+    exception_source["work"]["review_readiness"]["exception"] = {
+        "allow_new_review": True,
+        "authority_ref": "authority://urgent-review",
+        "reason": "current authority boundary requires evidence",
+    }
+    _refresh_gate_for_source(exception_source)
+    exception = artifacts.normalize(exception_source)
+
+    closed_family_source = _source()
+    closed_family_source["work"]["closure_audit"] = [
+        {
+            "family": "remote_mutation_protocol",
+            "status": "closed",
+            "evidence": ["mutation matrix"],
+            "gaps": [],
+            "finding_refs": [],
+            "sibling_audit_complete": True,
+        }
+    ]
+    _refresh_gate_for_source(closed_family_source)
+    closed_family = artifacts.normalize(closed_family_source)
+
+    rendered = [artifacts.render(item) for item in (ready, blocked, exception, closed_family)]
+    request_bodies = [item.files["review-request.md"] for item in rendered]
+
+    assert len(set(request_bodies)) == 1
+    assert "Review readiness:" not in request_bodies[0]
+    assert "Planner action:" not in request_bodies[0]
+    for item in rendered:
+        assert "Review readiness:" in item.files["pr-generated-region.md"]
+        assert "### Review readiness" in item.files["work-ledger-checkpoint.md"]
+
+
 def test_all_projections_share_one_source_identity_and_checkpoint_uses_refs() -> None:
     normalized = artifacts.normalize(_source())
     rendered = artifacts.render(normalized)
 
     assert artifacts.review_projection_digest(normalized) in rendered.files[
-        "review-request.md"
-    ]
-    assert artifacts.review_projection_digest(normalized) in rendered.files[
         "pr-generated-region.md"
+    ]
+    assert artifacts.idempotency_key(normalized, "review-request") in rendered.files[
+        "review-request.md"
     ]
     assert normalized.semantic_digest in rendered.files["work-ledger-checkpoint.md"]
     assert "finding://review/1" in rendered.files["work-ledger-checkpoint.md"]

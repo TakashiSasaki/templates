@@ -74,6 +74,12 @@ REVIEW_STATES = {
     "unknown",
     "unobserved",
 }
+REVIEW_READINESS_STATES = {"ready", "not_ready", "unknown"}
+REVIEW_ACQUISITION_ACTIONS = {
+    "run_fixed_snapshot_diagnostic",
+    "request_independent_delta_review",
+    "request_related_stack_review",
+}
 GATE_STATES = {
     "not_evaluated",
     "pending",
@@ -154,6 +160,124 @@ def _json_data(value: Any, name: str) -> Any:
     if isinstance(value, list):
         return [_json_data(item, f"{name}[]") for item in value]
     raise ArtifactInputError(f"{name} must contain JSON data")
+
+
+def _string_list(value: Any, name: str) -> list[str]:
+    values = _require_list(value, name)
+    if any(not isinstance(item, str) or not item.strip() for item in values):
+        raise ArtifactInputError(f"{name} must contain non-empty strings")
+    return sorted(set(values))
+
+
+def _normalize_review_readiness(work: Mapping[str, Any]) -> dict[str, Any]:
+    """Derive planner readiness from the existing Work-ledger closure audit."""
+
+    raw = work.get("review_readiness")
+    if raw is None:
+        raw_readiness: dict[str, Any] = {}
+    else:
+        raw_readiness = _require_object(raw, "work.review_readiness")
+    declared_state = raw_readiness.get("state")
+    if declared_state is not None:
+        declared_state = _require_string(declared_state, "work.review_readiness.state")
+        if declared_state not in REVIEW_READINESS_STATES:
+            raise ArtifactInputError(
+                "work.review_readiness.state must be ready, not_ready, or unknown"
+            )
+
+    known = raw_readiness.get("known_material_findings_complete")
+    if known is not None and type(known) is not bool:
+        raise ArtifactInputError(
+            "work.review_readiness.known_material_findings_complete must be a boolean or null"
+        )
+    closure = work.get("closure_audit", [])
+    if not isinstance(closure, list):
+        raise ArtifactInputError("work.closure_audit must be a list")
+
+    families: list[dict[str, Any]] = []
+    reasons: list[str] = []
+    remaining: list[str] = []
+    for item in closure:
+        family_id = str(item["family"])
+        status = str(item["status"])
+        sibling_complete = item.get("sibling_audit_complete", status == "closed")
+        gaps = list(item.get("gaps", []))
+        if not sibling_complete:
+            reason = f"sibling_audit_incomplete:{family_id}"
+            reasons.append(reason)
+            if not gaps:
+                gaps = [reason]
+        if gaps:
+            reasons.extend(f"material_gap:{family_id}:{gap}" for gap in gaps)
+            remaining.extend(f"{family_id}:{gap}" for gap in gaps)
+        if status == "gap":
+            reasons.append(f"family_open:{family_id}")
+        if status == "deliberately_untested":
+            reasons.append(f"deliberate_gap:{family_id}")
+        families.append(
+            {
+                "id": family_id,
+                "finding_refs": sorted(set(item.get("finding_refs", []))),
+                "status": status,
+                "sibling_audit_complete": sibling_complete,
+                "remaining_material_gaps": sorted(set(gaps)),
+            }
+        )
+
+    planned = _string_list(
+        raw_readiness.get("planned_candidate_mutations", []),
+        "work.review_readiness.planned_candidate_mutations",
+    )
+    if planned:
+        reasons.append("planned_candidate_mutation")
+        remaining.extend(f"planned_candidate_mutation:{item}" for item in planned)
+    if known is None:
+        reasons.append("review_readiness_unknown")
+    elif known is not True:
+        reasons.append("known_material_findings_incomplete")
+
+    exception_value = raw_readiness.get("exception")
+    exception: dict[str, Any] | None
+    if exception_value is None:
+        exception = None
+    else:
+        exception = _require_object(exception_value, "work.review_readiness.exception")
+        if type(exception.get("allow_new_review")) is not bool:
+            raise ArtifactInputError(
+                "work.review_readiness.exception.allow_new_review must be a boolean"
+            )
+        _require_string(exception.get("reason"), "work.review_readiness.exception.reason")
+        _require_string(
+            exception.get("authority_ref"),
+            "work.review_readiness.exception.authority_ref",
+        )
+        exception = {
+            "allow_new_review": exception["allow_new_review"],
+            "authority_ref": exception["authority_ref"],
+            "reason": exception["reason"],
+        }
+        if exception["allow_new_review"]:
+            reasons.append("explicit_review_exception")
+
+    blocking_reasons = [reason for reason in reasons if reason != "explicit_review_exception"]
+    derived_state = (
+        "unknown" if known is None else ("ready" if not blocking_reasons else "not_ready")
+    )
+    allowed = derived_state == "ready" or bool(exception and exception["allow_new_review"])
+    if declared_state is not None and declared_state != derived_state:
+        raise ArtifactInputError(
+            "work.review_readiness.state does not match its structured evidence"
+        )
+    return {
+        "state": derived_state,
+        "known_material_findings_complete": known,
+        "finding_families": sorted(families, key=lambda item: item["id"]),
+        "planned_candidate_mutations": planned,
+        "remaining_material_gaps": sorted(set(remaining)),
+        "reasons": sorted(set(reasons)),
+        "exception": exception,
+        "review_acquisition_allowed": allowed,
+    }
 
 
 def canonical_json(value: Any) -> str:
@@ -489,7 +613,33 @@ def execute_bound_planner(
         ) from exc
     if not isinstance(result, Mapping):
         raise ArtifactInputError("immutable planner returned a non-object result")
-    return _json_data(dict(result), "planner result")
+    normalized_result = _json_data(dict(result), "planner result")
+    readiness = packet.get("review_readiness")
+    if not isinstance(readiness, Mapping):
+        readiness = {
+            "state": "unknown",
+            "review_acquisition_allowed": False,
+            "reasons": ["review_readiness_not_supplied"],
+        }
+    if (
+        normalized_result.get("action") in REVIEW_ACQUISITION_ACTIONS
+        and readiness.get("review_acquisition_allowed") is not True
+    ):
+        reasons = readiness.get("reasons", [])
+        if not isinstance(reasons, list) or any(
+            not isinstance(item, str) or not item.strip() for item in reasons
+        ):
+            reasons = ["review_readiness_unknown"]
+        normalized_result = {
+            **normalized_result,
+            "action": "acquire_missing_input_or_handoff",
+            "reason": ["review_readiness_incomplete", *sorted(set(reasons))],
+            "missing_confirmation": sorted(set(reasons)),
+            "request_state": "not_requested",
+            "review_readiness": copy.deepcopy(dict(readiness)),
+            "review_acquisition_allowed": False,
+        }
+    return normalized_result
 
 
 def _normalize_pull_request(candidate: dict[str, Any]) -> dict[str, Any]:
@@ -978,8 +1128,12 @@ def _planner_packet(
     source: dict[str, Any],
     candidate: dict[str, Any],
     planner_input_binding: dict[str, Any],
+    *,
+    work: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     planner_input = _require_object(source.get("planner"), "planner")
+    normalized_work = dict(work) if work is not None else _normalize_work(source)
+    review_readiness = copy.deepcopy(normalized_work["review_readiness"])
     planner_source = _source_identity(
         planner_input.get("source"), "planner.source", path=PLANNER_PATH
     )
@@ -998,6 +1152,7 @@ def _planner_packet(
             "requests": copy.deepcopy(planner_input.get("requests", [])),
             "discovery": copy.deepcopy(planner_input.get("discovery")),
             "options": copy.deepcopy(planner_input.get("options", {})),
+            "review_readiness": review_readiness,
         }
     else:
         packet = _require_object(raw_packet, "planner.packet")
@@ -1009,12 +1164,23 @@ def _planner_packet(
             "candidate": _planner_candidate(candidate),
             "change": source["change"],
             "input_binding": planner_input_binding,
+            "review_readiness": review_readiness,
         }
         for key, expected_value in expected.items():
-            if key not in packet or semantic_digest(packet[key]) != semantic_digest(expected_value):
+            if key not in packet:
+                if key == "review_readiness":
+                    raise ArtifactInputError(
+                        "planner.packet.review_readiness is missing; regenerate the "
+                        "schema-version-2 packet"
+                    )
                 raise ArtifactInputError(
                     f"planner.packet.{key} is not bound to the structured input"
                 )
+            if semantic_digest(packet[key]) != semantic_digest(expected_value):
+                raise ArtifactInputError(
+                    f"planner.packet.{key} is not bound to the structured input"
+                )
+        packet["review_readiness"] = review_readiness
     packet = _json_data(packet, "planner.packet")
     try:
         result = execute_bound_planner(planner_source, packet)
@@ -1282,17 +1448,35 @@ def _normalize_work(source: dict[str, Any]) -> dict[str, Any]:
                 raise ArtifactInputError(
                     f"work.closure_audit[{index}].gaps must contain strings"
                 )
+            finding_refs = _require_list(
+                item.get("finding_refs", []), f"work.closure_audit[{index}].finding_refs"
+            )
+            if any(not isinstance(value, str) or not value.strip() for value in finding_refs):
+                raise ArtifactInputError(
+                    f"work.closure_audit[{index}].finding_refs must contain strings"
+                )
+            # A legacy closure record does not prove that the bounded sibling
+            # audit happened.  Normalize the absent field to incomplete so
+            # the planner can never treat old ``closed`` prose as readiness.
+            sibling_audit_complete = item.get("sibling_audit_complete", False)
+            _require_bool(
+                sibling_audit_complete,
+                f"work.closure_audit[{index}].sibling_audit_complete",
+            )
             normalized_closure.append(
                 {
                     "family": family,
                     "status": status,
                     "evidence": sorted(set(evidence)),
                     "gaps": sorted(set(gaps)),
+                    "finding_refs": sorted(set(finding_refs)),
+                    "sibling_audit_complete": sibling_audit_complete,
                 }
             )
         normalized["closure_audit"] = sorted(
             normalized_closure, key=lambda item: item["family"]
         )
+    normalized["review_readiness"] = _normalize_review_readiness(normalized)
     return normalized
 
 
@@ -1424,6 +1608,7 @@ def normalize(
         candidate,
         trusted_base_sha=trusted_base_sha,
     )
+    work = _normalize_work(raw)
     planner_binding = {
         **copy.deepcopy(input_binding),
         "artifact_binding": _artifact_binding(
@@ -1435,11 +1620,11 @@ def normalize(
         {**raw, "contract": contract, "change": change, "purpose": purpose},
         candidate,
         planner_binding,
+        work=work,
     )
     observation = _normalize_observation(raw, candidate)
     gate = _normalize_gate(raw, candidate, revision_digest, planner_packet, planner_result)
     judgments = _normalize_judgments(raw, candidate)
-    work = _normalize_work(raw)
     normalized = {
         "schema_version": INPUT_SCHEMA_VERSION,
         "kind": INPUT_KIND,
@@ -1516,6 +1701,17 @@ def _blocking_reasons(data: dict[str, Any], planner_result: dict[str, Any]) -> l
         blockers.extend(f"planner_{item}" for item in missing if isinstance(item, str))
     if planner_result.get("action") == "acquire_missing_input_or_handoff":
         blockers.append("planner_requires_input_or_judgment")
+    readiness = data["work"].get("review_readiness")
+    if isinstance(readiness, Mapping) and readiness.get("review_acquisition_allowed") is not True:
+        state = readiness.get("state", "unknown")
+        blockers.append(f"review_readiness_{state}")
+        reasons = readiness.get("reasons", [])
+        if isinstance(reasons, list):
+            blockers.extend(
+                f"review_readiness_{reason}"
+                for reason in reasons
+                if isinstance(reason, str) and reason.strip()
+            )
     return list(dict.fromkeys(blockers))
 
 
@@ -1703,10 +1899,50 @@ def _closure_checkpoint_lines(work: Mapping[str, Any]) -> list[str]:
         )
         if evidence:
             line += f"; evidence: {_safe_text(evidence)}"
+        refs = ", ".join(str(value) for value in item.get("finding_refs", []))
+        if refs:
+            line += f"; findings: {_safe_text(refs)}"
+        if "sibling_audit_complete" in item:
+            line += (
+                "; sibling audit: "
+                f"{_code(item.get('sibling_audit_complete'))}"
+            )
         gaps = ", ".join(str(value) for value in item.get("gaps", []))
         if gaps:
             line += f"; gaps: {_safe_text(gaps)}"
         lines.append(line)
+    return lines
+
+
+def _readiness_checkpoint_lines(work: Mapping[str, Any]) -> list[str]:
+    readiness = work.get("review_readiness")
+    if not isinstance(readiness, Mapping):
+        return ["- State: `unknown`; readiness was not supplied."]
+    lines = [
+        f"- State: {_code(readiness.get('state', 'unknown'))}",
+        "- New review acquisition allowed: "
+        f"{_code(readiness.get('review_acquisition_allowed', False))}",
+        "- Known material findings complete: "
+        f"{_code(readiness.get('known_material_findings_complete'))}",
+    ]
+    planned = readiness.get("planned_candidate_mutations", [])
+    if planned:
+        lines.append(
+            "- Planned candidate mutations: "
+            f"{_safe_text(_compact_work_value(planned))}"
+        )
+    exception = readiness.get("exception")
+    if exception:
+        lines.append(
+            "- Explicit exception: "
+            f"{_safe_text(_compact_work_value(exception))}"
+        )
+    gaps = readiness.get("remaining_material_gaps", [])
+    if gaps:
+        lines.append(
+            "- Remaining material gaps: "
+            f"{_safe_text(_compact_work_value(gaps))}"
+        )
     return lines
 
 
@@ -1764,11 +2000,15 @@ def idempotency_key(normalized: NormalizedReviewArtifacts, request_type: str) ->
         "review_contract": normalized.data["contract"],
         "request_type": request_type,
     }
+    # Current review-acquisition readiness is mutable routing state.  It must
+    # not create a second historical request identity after an equivalent
+    # request has already been submitted.  Checkpoint identity deliberately
+    # remains separate and includes resumable Work state above.
     return semantic_digest(material)
 
 
 def _review_contract_lines(
-    data: Mapping[str, Any], action: Any, scope: Any
+    data: Mapping[str, Any], scope: Any
 ) -> list[str]:
     contract = data["contract"]
     lines = ["", "## Review contract"]
@@ -1777,9 +2017,7 @@ def _review_contract_lines(
         rendered = canonical_json(value) if isinstance(value, (Mapping, list)) else value
         lines.append(f"- {_safe_text(key)}: {_safe_text(rendered)}")
 
-    is_whole_stack = action == "request_related_stack_review" or (
-        isinstance(scope, Mapping) and scope.get("kind") == "whole-stack"
-    )
+    is_whole_stack = isinstance(scope, Mapping) and scope.get("kind") == "whole-stack"
     if is_whole_stack:
         integration_base_tree = data["candidate"].get("integration_base_tree_sha")
         if isinstance(integration_base_tree, str) and integration_base_tree:
@@ -1810,7 +2048,6 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     candidate = data["candidate"]
     pr = candidate["pull_request"]
     planner = normalized.planner_result
-    action = planner.get("action", "unknown")
     scope = planner.get("selected_scope", {})
     request_identity = idempotency_key(normalized, "review-request")
     lines = [
@@ -1823,7 +2060,6 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
         "Base: "
         f"{_code(candidate['base_sha'])}; effective base: "
         f"{_code(candidate['effective_base_sha'])}",
-        f"Planner action: {_code(action)}",
     ]
     if isinstance(scope, Mapping):
         lines.append(
@@ -1839,59 +2075,23 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     lines.extend(
         [
             "",
-            "## Bound evidence",
-            "- CI state: "
-            f"{_code(_ci_state(data['observed']['facts'].get('ci', {}), candidate)['state'])}",
-            f"- Review evidence state: {_code(_review_state(data))}",
-            "- Existing gate result: "
-            f"{_code(data['gate']['status'])} (not reinterpreted by this renderer)",
-            f"- Render identity: {_code(review_projection_digest(normalized))}",
-            "",
             "## Revision roles",
             *_role_lines(data),
         ]
     )
-    lines.extend(_review_contract_lines(data, action, scope))
-    planner_blockers = [
-        reason
-        for reason in normalized.blockers
-        if reason.startswith("planner_") or reason.startswith("observation_")
-    ]
-    if action == "acquire_missing_input_or_handoff" or planner_blockers:
-        lines.extend(["", "## Not ready for a new request"])
-        lines.append(
-            "The existing planner or bound evidence requires reconciliation before publication:"
-        )
-        for blocker in planner_blockers or normalized.blockers:
-            lines.append(f"- {_code(blocker)}")
-        lines.append("A clean sentence or empty finding list is not approval or resolution.")
-    elif action == "reuse_existing_result":
-        lines.extend(
-            [
-                "",
-                "The existing planner found applicable review evidence. Reuse its "
-                "locator; do not post a duplicate request.",
-            ]
-        )
-        for locator in planner.get("reusable_evidence", []):
-            lines.append(f"- Existing evidence: {_safe_text(locator)}")
-    elif action == "reconcile_existing_request":
-        lines.extend(
-            [
-                "",
-                "An equivalent request is already active or has an unknown submission "
-                "result. Reconcile it before retrying.",
-            ]
-        )
-    else:
-        lines.extend(
-            [
-                "",
-                "Please review the selected scope against the candidate and bound "
-                "evidence. This request is not acceptance or merge authorization.",
-                f"Request identity: {_code(request_identity)}",
-            ]
-        )
+    lines.extend(_review_contract_lines(data, scope))
+    # This projection is the historical request presentation.  Mutable
+    # readiness, routing action, current evidence, gate state, and diagnostics
+    # remain visible in the packet, PR region, and Work checkpoint, but must not
+    # make an already-issued logical request non-equivalent.
+    lines.extend(
+        [
+            "",
+            "Please review the selected scope against the candidate and bound "
+            "evidence. This request is not acceptance or merge authorization.",
+            f"Request identity: {_code(request_identity)}",
+        ]
+    )
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -1911,6 +2111,7 @@ def render_pr_description_region(normalized: NormalizedReviewArtifacts) -> str:
         f"- Planner: {_code(planner.get('action', 'unknown'))}",
         f"- CI: {_code(ci['state'])}",
         f"- Review evidence: {_code(_review_state(data))}",
+        f"- Review readiness: {_code(data['work']['review_readiness']['state'])}",
         "- Existing gate result: "
         f"{_code(data['gate']['status'])}; merge authorization remains "
         f"{_code('not established')}",
@@ -1982,6 +2183,7 @@ def render_work_checkpoint(
     pr = candidate["pull_request"]
     diagnostic_lines = _diagnostic_checkpoint_lines(work)
     closure_lines = _closure_checkpoint_lines(work)
+    readiness_lines = _readiness_checkpoint_lines(work)
     lines = [
         f"<!-- {WORK_CHECKPOINT_MARKER}:key={checkpoint_identity} -->",
         "## Work ledger checkpoint",
@@ -2006,6 +2208,7 @@ def render_work_checkpoint(
         f"{_code(_ci_state(data['observed']['facts'].get('ci', {}), candidate)['state'])}",
         f"- Review evidence state: {_code(_review_state(data))}",
     ]
+    lines.extend(["", "### Review readiness", *readiness_lines])
     if diagnostic_lines:
         lines.extend(["", "### Diagnostic resume state", *diagnostic_lines])
     if closure_lines:

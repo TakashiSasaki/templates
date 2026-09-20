@@ -1409,6 +1409,17 @@ class GitHubLiveRevalidationAdapter:
                 raise PublicationError(
                     "live planner packet is not bound to the current candidate/base"
                 )
+            expected_readiness = normalized.data["work"].get("review_readiness")
+            packet_readiness = packet.get("review_readiness")
+            if (
+                not isinstance(expected_readiness, Mapping)
+                or not isinstance(packet_readiness, Mapping)
+                or renderer.semantic_digest(packet_readiness)
+                != renderer.semantic_digest(expected_readiness)
+            ):
+                raise PublicationError(
+                    "live planner packet readiness is not bound to the normalized Work state"
+                )
             planner_source = normalized.data["planner"]["source"]
             planner_file = provider.read_file_at_revision(
                 normalized.data["repository"],

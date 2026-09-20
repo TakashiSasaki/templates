@@ -238,6 +238,43 @@ python3 repository-skills/land-templates-stack/scripts/publish_review_artifacts.
 when `--apply` is selected; a caller-supplied static JSON file can never
 authorize a remote write.
 
+### Finding-family review readiness
+
+The shared Policy rule `testing.require-adversarial-invariant-coverage` remains
+the semantic authority for closing a materially reachable finding family. The
+maintenance Skill operationalizes that rule by recording compact family
+references, sibling-audit evidence, deliberate gaps, and the next safe action
+in the existing `work.closure_audit` projection. It is not a second finding
+ledger or an acceptance gate.
+
+The normalized Work state also supplies the planner packet's optional
+schema-version-2 `review_readiness` field. Missing or unknown readiness, an open
+family, an incomplete sibling audit, a material gap, or a planned candidate
+mutation blocks a new intentional expensive review request. Repairing the exact
+reviewer example is not family closure by itself. During this bounded review
+freeze, required automatic CI, focused tests, read-only observation, and
+additional justified repair remain active; applicable completed review results
+may still be reused and in-flight or ambiguous requests reconciled. An explicit
+urgent/authority-bound exception must include its reason and authority
+reference, and does not erase the underlying gap.
+
+The packet, review request, generated PR region, and Work-ledger checkpoint are
+derived from the same normalized state. Candidate Policy changes do not
+self-authorize their own readiness: use the currently trusted planner and
+maintenance Skill until the proposed source has passed its normal review and
+adoption boundaries.
+
+The readiness projection is mutable routing state, not historical review or
+request applicability identity. Existing request/review records are matched by
+candidate, contract, input, and scope bindings without readiness; the canonical
+review-request body likewise excludes mutable readiness and routing diagnostics.
+A former recorded readiness field is ignored only after its original record
+digest is validated. Checkpoint identity and the generated PR region remain
+readiness-sensitive because blockers and resume instructions are operational
+state. Legacy closure records without explicit sibling-audit evidence, or
+planner family records without explicit status, fail closed instead of being
+upgraded to ready.
+
 ## Dogfood the two frontiers without self-adoption
 
 For a Policy stack `A -> B -> C`, continue safe B/C source changes and focused tests while A's CI or review is pending. Track construction separately from qualification and defer deliberately expensive descendant evidence when a known prerequisite mutation will stale its bindings. Review latency alone is not a gate. Once no current planned prerequisite mutation remains, restack only if actual state or bindings require it and qualify the intended heads at the applicable boundary. Required automatic CI continues throughout.

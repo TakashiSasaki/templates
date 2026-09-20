@@ -6,6 +6,7 @@ import hashlib
 import http.client
 import importlib.util
 import json
+import subprocess
 import sys
 import threading
 import types
@@ -54,6 +55,21 @@ def _bound_source(body: str = "Human PR text\n", *, with_region: bool = False):
         source["observed"]["pr_body"]["body"] = body + region
         normalized = publisher.renderer.normalize(source)
     return normalized
+
+
+def _blocked_bound_source():
+    source = source_fixture._source()
+    source["observed"]["pr_body"] = {"revision": "body-1", "body": "Human PR text\n"}
+    source["work"]["closure_audit"] = [
+        {
+            "family": "remote_mutation_protocol",
+            "status": "gap",
+            "evidence": ["mutation matrix"],
+            "gaps": ["HTTP-error body truncation"],
+        }
+    ]
+    source_fixture._refresh_gate_for_source(source)
+    return publisher.renderer.normalize(source)
 
 
 class FakeProvider(publisher.RemoteProvider):
@@ -812,6 +828,35 @@ def test_github_equivalent_request_requires_canonical_body_and_publisher_owner()
         key,
         expected_body=neutral_body,
         context=normalized,
+    )
+
+
+def test_github_request_equivalence_ignores_readiness_but_requires_owner() -> None:
+    ready = _bound_source()
+    blocked = _blocked_bound_source()
+    provider = publisher.GitHubProvider("token", publisher_login="publisher")
+    key = publisher.renderer.idempotency_key(blocked, "review-request")
+    ready_body = publisher.renderer.render(ready).files["review-request.md"]
+    blocked_body = publisher.renderer.render(blocked).files["review-request.md"]
+
+    assert ready_body == blocked_body
+    assert provider.is_equivalent_review_request(
+        {
+            "body": provider._codex_review_body(ready_body, ready),
+            "user": {"login": "publisher"},
+        },
+        key,
+        expected_body=blocked_body,
+        context=blocked,
+    )
+    assert not provider.is_equivalent_review_request(
+        {
+            "body": provider._codex_review_body(ready_body, ready),
+            "user": {"login": "contributor"},
+        },
+        key,
+        expected_body=blocked_body,
+        context=blocked,
     )
 
 
@@ -1824,6 +1869,48 @@ def test_publish_revalidates_after_comment_duplicate_scan() -> None:
     assert provider.create_calls == 0
 
 
+def test_final_review_duplicate_scan_reuses_request_after_readiness_changes() -> None:
+    normalized = _bound_source()
+    changed_readiness = _blocked_bound_source()
+    changed_body = publisher.renderer.render(changed_readiness).files["review-request.md"]
+
+    class RequestAppearsDuringReviewScan(FakeProvider):
+        def __init__(self, normalized_input, alternate_body: str) -> None:
+            super().__init__(normalized_input)
+            self.alternate_body = alternate_body
+            self.checkpoint_created = False
+            self.injected = False
+
+        def create_comment(self, repository: str, number: int, body: str):
+            result = super().create_comment(repository, number, body)
+            if publisher.renderer.WORK_CHECKPOINT_MARKER in body:
+                self.checkpoint_created = True
+            return result
+
+        def list_comments(self, repository: str, number: int) -> list[dict[str, object]]:
+            super().list_comments(repository, number)
+            if (
+                self.checkpoint_created
+                and not self.injected
+                and any(
+                    publisher.renderer.WORK_CHECKPOINT_MARKER in str(item.get("body"))
+                    for item in self.comments
+                )
+            ):
+                self.comments.append({"id": 99, "body": self.alternate_body})
+                self.injected = True
+            return copy.deepcopy(self.comments)
+
+    provider = RequestAppearsDuringReviewScan(normalized, changed_body)
+    result = _publish(provider)
+
+    assert result.status == "published"
+    assert provider.injected is True
+    assert provider.create_calls == 1
+    review = next(item for item in result.operations if item["type"] == "review_request")
+    assert review["status"] == "already_present"
+
+
 class _ObservedTransportGitHub(publisher.GitHubProvider):
     def __init__(self, normalized):
         super().__init__("token", publisher_login="publisher")
@@ -1843,13 +1930,11 @@ class _ObservedTransportGitHub(publisher.GitHubProvider):
             "content": base64.b64encode(content).decode(),
         }
         planner_path = publisher.renderer.PLANNER_PATH
-        planner_content = (
-            ROOT
-            / "repository-skills"
-            / "land-templates-stack"
-            / "scripts"
-            / "plan_review_scope.py"
-        ).read_bytes()
+        planner_revision = normalized.data["planner"]["source"]["revision"]
+        planner_content = subprocess.check_output(
+            ["git", "show", f"{planner_revision}:{publisher.renderer.PLANNER_PATH}"],
+            cwd=ROOT,
+        )
         planner_blob_sha = hashlib.sha1(
             f"blob {len(planner_content)}\0".encode() + planner_content
         ).hexdigest()
@@ -1974,6 +2059,23 @@ def test_real_live_adapter_composes_observer_planner_gate_and_exact_file_binding
     )
     assert state["integration_base_tree_sha"] == integration_tree
     assert any("/git/commits/" in path for _, path in provider.calls)
+
+    def mismatched_planner_packet_builder(context, snapshot):
+        del snapshot
+        packet = copy.deepcopy(context.planner_packet)
+        packet["review_readiness"] = {
+            **packet["review_readiness"],
+            "state": "not_ready",
+        }
+        return packet
+
+    mismatched_adapter = publisher.GitHubLiveRevalidationAdapter(
+        planner_packet_builder=mismatched_planner_packet_builder,
+        gate_resolver=gate_resolver,
+        effective_base_resolver=effective_base_resolver,
+    )
+    with pytest.raises(publisher.PublicationError, match="readiness"):
+        mismatched_adapter(normalized, provider.metadata, provider)
     assert any("check-runs" in path for _, path in provider.calls)
     assert any("contents/.agent-policy.yml" in path for _, path in provider.calls)
 

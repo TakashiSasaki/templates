@@ -61,6 +61,55 @@ interprets semantic test results, or authorizes a merge. Use the existing Work
 ledger action-ownership/CAS procedure when an adopted backend provides it; do
 not invent an idempotency guarantee or a lock service.
 
+## Finding-family closure before expensive review acquisition
+
+When a material review finding is accepted as valid, record the compact
+finding-family reference and closure evidence in the existing Work-ledger
+`work.closure_audit`. The remediation procedure is bounded and semantic:
+
+1. state the reported symptom and the violated invariant;
+2. identify the safety-critical boundary and every canonical entry point that
+   relies on it;
+3. inspect only materially reachable sibling dimensions, including opposite
+   statuses, stale bindings, incomplete retrieval, alternate mutation paths,
+   and ownership/identity variants that share the same root cause;
+4. record the existing regression evidence, deliberate exclusions, and any
+   remaining material gaps; and
+5. mark the family closed only when its bounded sibling audit is complete and
+   the current candidate has evidence for every materially reachable case.
+
+Repairing the exact reviewer example does not itself close the family. Do not
+create a second finding ledger, transcript, or Work ledger. Keep finding text
+in the existing review-finding authority and store only references and compact
+closure evidence in the checkpoint.
+
+The renderer derives the planner packet's structured `review_readiness` from
+this same normalized Work state. The field is intentionally fail-closed:
+missing/unknown readiness, an open family, an incomplete sibling audit, a
+material gap, or a known planned candidate mutation prevents a new intentional
+expensive review request. The canonical planner may still reuse an applicable
+completed result, reconcile an existing or submission-unknown request, acquire
+missing facts, or hand off. Required automatic CI, focused tests, repair work,
+and read-only observation continue during this review-freeze state.
+
+Readiness is current routing state, not historical request/review applicability
+identity. It is therefore excluded from the planner request binding and review
+request marker key and the canonical review-request body. Existing records that
+carry the former readiness field are accepted only after their stored digest is
+validated and that field is removed for applicability comparison. The Work-ledger
+checkpoint and generated PR region keep readiness visible and have their own
+identities because resumable blockers and next actions are mutable durable state.
+Legacy closure families without explicit sibling-audit evidence, and planner
+families without an explicit disposition status, remain unknown/incomplete and
+cannot authorize a new request.
+
+An explicit urgent or authority-bound exception may permit new review
+acquisition only when its reason and authority reference are recorded in the
+structured readiness input. The exception does not erase the underlying gap.
+The readiness gate is not a finding classifier, acceptance gate, or merge
+authorization surface; the human/model judgment and existing shared gate keep
+those responsibilities.
+
 ## 1.1 Observe read-only PR state before routing
 
 For a specified PR set, invoke
