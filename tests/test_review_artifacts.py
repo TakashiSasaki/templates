@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,25 @@ def _sha(letter: str) -> str:
     return letter * 40
 
 
+def _trusted_planner_source() -> dict[str, object]:
+    revision = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+    blob_sha = subprocess.check_output(
+        ["git", "rev-parse", f"{revision}:{artifacts.PLANNER_PATH}"],
+        cwd=ROOT,
+        text=True,
+    ).strip()
+    return {
+        "repository": "TakashiSasaki/templates",
+        "authority": "policy",
+        "revision": revision,
+        "path": artifacts.PLANNER_PATH,
+        "blob_sha": blob_sha,
+        "trusted": True,
+    }
+
+
 def _source() -> dict[str, object]:
     candidate = {
         "repository": "TakashiSasaki/templates",
@@ -34,6 +54,14 @@ def _source() -> dict[str, object]:
                 "authority": "policy",
                 "base_sha": _sha("a"),
                 "head_sha": _sha("b"),
+                "pull_request": {
+                    "number": 123,
+                    "provider_identity": {
+                        "provider": "github",
+                        "repository_id": "9",
+                        "resource_id": "123",
+                    },
+                },
             }
         ],
         "pull_request": {
@@ -110,7 +138,7 @@ def _source() -> dict[str, object]:
             "source": {
                 "repository": "TakashiSasaki/templates",
                 "authority": "policy",
-                "revision": _sha("f"),
+                **_trusted_planner_source(),
                 "path": "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
                 "trusted": True,
             },
@@ -147,11 +175,13 @@ def _source() -> dict[str, object]:
     }
     normalized_candidate = artifacts._normalize_candidate(source)
     _, revision_digest = artifacts._normalize_revision_bindings(source, normalized_candidate)
+    planner_source = source["planner"]["source"]
     planner_binding = {
         **source["input_binding"],
         "artifact_binding": artifacts._artifact_binding(
-            source, normalized_candidate, revision_digest
+            source, normalized_candidate, revision_digest, planner_source
         ),
+        "planner_source": copy.deepcopy(planner_source),
     }
     packet = {
         "schema_version": 2,
@@ -167,7 +197,9 @@ def _source() -> dict[str, object]:
         "discovery": source["planner"]["discovery"],
         "options": {},
     }
-    planner_result = artifacts._planner_module().plan(packet)
+    planner_result = artifacts.execute_bound_planner(
+        source["planner"]["source"], packet
+    )
     gate_binding = {
         "repository": "TakashiSasaki/templates",
         "pull_request_id": "PR_node_123",
@@ -259,11 +291,13 @@ def test_stale_declared_planner_result_is_rejected() -> None:
     source = _source()
     normalized_candidate = artifacts._normalize_candidate(source)
     bindings, revision_digest = artifacts._normalize_revision_bindings(source, normalized_candidate)
+    planner_source = source["planner"]["source"]
     planner_binding = {
         **source["input_binding"],
         "artifact_binding": artifacts._artifact_binding(
-            source, normalized_candidate, revision_digest
+            source, normalized_candidate, revision_digest, planner_source
         ),
+        "planner_source": copy.deepcopy(planner_source),
     }
     _, _, planner_result = artifacts._planner_packet(source, normalized_candidate, planner_binding)
     source["planner"]["result"] = planner_result
@@ -369,9 +403,13 @@ def test_planner_missing_information_is_returned_not_fabricated() -> None:
     source["gate"]["status"] = "pending"
     candidate = artifacts._normalize_candidate(source)
     _, revision_digest = artifacts._normalize_revision_bindings(source, candidate)
+    planner_source = source["planner"]["source"]
     planner_binding = {
         **source["input_binding"],
-        "artifact_binding": artifacts._artifact_binding(source, candidate, revision_digest),
+        "artifact_binding": artifacts._artifact_binding(
+            source, candidate, revision_digest, planner_source
+        ),
+        "planner_source": copy.deepcopy(planner_source),
     }
     _, planner_packet, planner_result = artifacts._planner_packet(
         source, candidate, planner_binding
@@ -419,3 +457,92 @@ def test_all_projections_share_one_source_identity_and_checkpoint_uses_refs() ->
         assert normalized.semantic_digest in rendered.files[filename]
     assert "finding://review/1" in rendered.files["work-ledger-checkpoint.md"]
     assert "full_findings" not in rendered.files["work-ledger-checkpoint.md"]
+
+
+def test_candidate_topology_requires_one_target_and_unique_provider_bindings() -> None:
+    duplicate_target = _source()
+    duplicate_target["candidate"]["members"].append(copy.deepcopy(
+        duplicate_target["candidate"]["members"][0]
+    ))
+    duplicate_target["candidate"]["members"][1]["id"] = "duplicate-target"
+    with pytest.raises(artifacts.ArtifactInputError, match="pull-request numbers"):
+        artifacts.normalize(duplicate_target)
+
+    duplicate_provider = _source()
+    duplicate_provider["candidate"]["members"].append({
+        "id": "another-member",
+        "authority": "policy",
+        "base_sha": _sha("a"),
+        "head_sha": _sha("c"),
+        "pull_request": {
+            "number": 124,
+            "provider_identity": {
+                "provider": "github",
+                "repository_id": "9",
+                "resource_id": "123",
+            },
+        },
+    })
+    with pytest.raises(artifacts.ArtifactInputError, match="provider identities"):
+        artifacts.normalize(duplicate_provider)
+
+    missing_target = _source()
+    member = missing_target["candidate"]["members"][0]
+    member["id"] = "other-member"
+    member["pull_request"]["number"] = 124
+    member["pull_request"]["provider_identity"]["resource_id"] = "124"
+    with pytest.raises(artifacts.ArtifactInputError, match="target pull request"):
+        artifacts.normalize(missing_target)
+
+
+def test_bound_planner_uses_trusted_commit_not_modified_checkout(tmp_path: Path) -> None:
+    planner_path = tmp_path / artifacts.PLANNER_PATH
+    planner_path.parent.mkdir(parents=True)
+    planner_path.write_text(
+        "def plan(packet):\n    return {'action': 'trusted-planner'}\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "add", artifacts.PLANNER_PATH], cwd=tmp_path, check=True
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=review-test",
+            "-c",
+            "user.email=review-test@example.invalid",
+            "commit",
+            "-qm",
+            "trusted planner",
+        ],
+        cwd=tmp_path,
+        check=True,
+    )
+    trusted_revision = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path, text=True
+    ).strip()
+    trusted_blob = subprocess.check_output(
+        ["git", "rev-parse", f"HEAD:{artifacts.PLANNER_PATH}"],
+        cwd=tmp_path,
+        text=True,
+    ).strip()
+    planner_path.write_text(
+        "def plan(packet):\n    return {'action': 'candidate-planner'}\n",
+        encoding="utf-8",
+    )
+
+    result = artifacts.execute_bound_planner(
+        {
+            "repository": "TakashiSasaki/templates",
+            "revision": trusted_revision,
+            "path": artifacts.PLANNER_PATH,
+            "blob_sha": trusted_blob,
+            "trusted": True,
+        },
+        {"candidate": {"head_sha": _sha("b")}},
+        repository_root=tmp_path,
+    )
+
+    assert result == {"action": "trusted-planner"}

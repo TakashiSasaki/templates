@@ -76,8 +76,10 @@ Its input kind is `repository-change-review-artifacts` version `1`. The input
 contains the candidate PR/head and base, observed facts, the existing planner
 inputs, the existing gate result, explicit judgment records, role-labelled
 revision bindings, and the Work-ledger resume fields. The renderer invokes the
-existing immutable review-scope planner; it does not replace the planner or
-the merge gate.
+existing review-scope planner only from the exact trusted `planner.source`
+revision and declared blob identity; it does not replace the planner or the
+merge gate. Every stack member carries one distinct provider pull-request
+identity, and exactly one member must identify the target PR.
 
 For a local preview:
 
@@ -93,7 +95,9 @@ packet but are not part of generated-content identity. In particular,
 `consumer_actual_toolchain` must be sourced from the consumer configuration at
 the target candidate head, while `prospective_canonical_candidate` remains a
 separate binding. An unknown or not-applicable role is explicit; it is never
-silently filled from another worktree's HEAD.
+silently filled from another worktree's HEAD. A planner source without a full
+trusted blob identity is rejected, so a candidate checkout cannot substitute
+its sibling planner implementation.
 
 Rendering is local and side-effect free with respect to GitHub, PR bodies,
 review requests, and Work-ledger storage. The generated PR region is owned only

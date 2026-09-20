@@ -207,15 +207,30 @@ def _load_sibling(path: str, name: str) -> Any:
     return module
 
 
-def _planner_module() -> Any:
-    return _load_sibling("plan_review_scope.py", "templates_plan_review_scope")
-
-
 def _observer_module() -> Any:
     return _load_sibling("pr_state_observation.py", "templates_pr_state_observation")
 
 
-def _source_identity(value: Any, name: str, *, path: str | None = None) -> dict[str, Any]:
+def _source_verifier() -> Any:
+    verifier_path = Path(__file__).parents[3] / "scripts" / "verify_maintainer_source_reference.py"
+    spec = importlib.util.spec_from_file_location(
+        "templates_verify_maintainer_source_reference", verifier_path
+    )
+    if spec is None or spec.loader is None:
+        raise ArtifactInputError("cannot load the immutable source verifier")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _source_identity(
+    value: Any,
+    name: str,
+    *,
+    path: str | None = None,
+    require_blob: bool = False,
+) -> dict[str, Any]:
     source = _require_object(value, name)
     _require_string(source.get("repository"), f"{name}.repository")
     if source["repository"] != REPOSITORY:
@@ -224,6 +239,8 @@ def _source_identity(value: Any, name: str, *, path: str | None = None) -> dict[
     actual_path = _require_string(source.get("path"), f"{name}.path")
     if path is not None and actual_path != path:
         raise ArtifactInputError(f"{name}.path must be {path}")
+    if require_blob and "blob_sha" not in source:
+        raise ArtifactInputError(f"{name}.blob_sha is required for immutable execution")
     if "blob_sha" in source:
         _require_sha(source["blob_sha"], f"{name}.blob_sha")
     if "trusted" in source:
@@ -233,6 +250,56 @@ def _source_identity(value: Any, name: str, *, path: str | None = None) -> dict[
     if source.get("trusted") is not True:
         raise ArtifactInputError(f"{name} must explicitly identify a trusted source")
     return source
+
+
+def execute_bound_planner(
+    source: Mapping[str, Any],
+    packet: Mapping[str, Any],
+    *,
+    content: bytes | None = None,
+    actual_blob: str | None = None,
+    repository_root: Path | None = None,
+) -> dict[str, Any]:
+    """Execute only planner bytes proven to match ``planner.source``.
+
+    Local normalization reads the source from the exact Git commit. Live
+    publication supplies bytes fetched from the provider at that same full
+    commit SHA. Neither path may execute the candidate checkout's sibling
+    planner.
+    """
+
+    normalized_source = _source_identity(
+        source, "planner.source", path=PLANNER_PATH, require_blob=True
+    )
+    verifier = _source_verifier()
+    try:
+        if content is None:
+            verified = verifier.verify_blob_source(
+                normalized_source,
+                repo=repository_root or Path(__file__).parents[3],
+                expected_path=PLANNER_PATH,
+            )
+        else:
+            verified = verifier.verify_blob_payload(
+                normalized_source,
+                content=content,
+                actual_blob=actual_blob,
+                expected_path=PLANNER_PATH,
+            )
+        module = verifier.load_python_module(verified, "templates_bound_review_planner")
+        planner = getattr(module, "plan", None)
+        if not callable(planner):
+            raise ArtifactInputError("verified planner source does not expose plan(packet)")
+        result = planner(dict(packet))
+    except ArtifactInputError:
+        raise
+    except Exception as exc:
+        raise ArtifactInputError(
+            f"immutable planner source could not be loaded or executed: {exc}"
+        ) from exc
+    if not isinstance(result, Mapping):
+        raise ArtifactInputError("immutable planner returned a non-object result")
+    return _json_data(dict(result), "planner result")
 
 
 def _normalize_pull_request(candidate: dict[str, Any]) -> dict[str, Any]:
@@ -247,6 +314,31 @@ def _normalize_pull_request(candidate: dict[str, Any]) -> dict[str, Any]:
     if "body_revision" in pull_request:
         _require_string(pull_request["body_revision"], "candidate.pull_request.body_revision")
     return pull_request
+
+
+def _provider_identifier(value: Any, name: str) -> str:
+    if type(value) is int and value > 0:
+        return str(value)
+    return _require_string(value, name)
+
+
+def _normalize_provider_identity(value: Any, name: str) -> dict[str, Any]:
+    identity = _require_object(value, name)
+    return {
+        "provider": _require_string(identity.get("provider"), f"{name}.provider"),
+        "repository_id": _provider_identifier(
+            identity.get("repository_id"), f"{name}.repository_id"
+        ),
+        "resource_id": _provider_identifier(identity.get("resource_id"), f"{name}.resource_id"),
+    }
+
+
+def _provider_identity_key(identity: Mapping[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(identity["provider"]),
+        str(identity["repository_id"]),
+        str(identity["resource_id"]),
+    )
 
 
 def _normalize_candidate(source: dict[str, Any]) -> dict[str, Any]:
@@ -264,6 +356,8 @@ def _normalize_candidate(source: dict[str, Any]) -> dict[str, Any]:
     if not members:
         raise ArtifactInputError("candidate.members must not be empty")
     seen: set[str] = set()
+    seen_pr_numbers: set[int] = set()
+    seen_provider_identities: set[tuple[str, str, str]] = set()
     normalized_members: list[dict[str, Any]] = []
     for index, raw_member in enumerate(members):
         member = _require_object(raw_member, f"candidate.members[{index}]")
@@ -274,11 +368,67 @@ def _normalize_candidate(source: dict[str, Any]) -> dict[str, Any]:
         _require_string(member.get("authority"), f"candidate.members[{index}].authority")
         _require_sha(member.get("base_sha"), f"candidate.members[{index}].base_sha")
         _require_sha(member.get("head_sha"), f"candidate.members[{index}].head_sha")
+        member_pr = _require_object(
+            member.get("pull_request"), f"candidate.members[{index}].pull_request"
+        )
+        member_number = member_pr.get("number")
+        if type(member_number) is not int or member_number <= 0:
+            raise ArtifactInputError(
+                f"candidate.members[{index}].pull_request.number must be positive"
+            )
+        if member_number in seen_pr_numbers:
+            raise ArtifactInputError("candidate member pull-request numbers must be unique")
+        seen_pr_numbers.add(member_number)
+        provider_identity = _normalize_provider_identity(
+            member_pr.get("provider_identity"),
+            f"candidate.members[{index}].pull_request.provider_identity",
+        )
+        provider_key = _provider_identity_key(provider_identity)
+        if provider_key in seen_provider_identities:
+            raise ArtifactInputError("candidate member provider identities must be unique")
+        seen_provider_identities.add(provider_key)
+        provider_path = _require_string(
+            member_pr.get("provider_path", f"/repos/{repository}/pulls/{member_number}"),
+            f"candidate.members[{index}].pull_request.provider_path",
+        )
+        member["pull_request"] = {
+            **member_pr,
+            "number": member_number,
+            "provider_identity": provider_identity,
+            "provider_path": provider_path,
+        }
         normalized_members.append(member)
     candidate["members"] = normalized_members
     pull_request = _normalize_pull_request(candidate)
     candidate["pull_request"] = pull_request
     candidate.pop("pr", None)
+    target_members = [
+        member
+        for member in normalized_members
+        if member["pull_request"]["number"] == pull_request["number"]
+    ]
+    if len(target_members) != 1:
+        raise ArtifactInputError(
+            "candidate.members must identify the target pull request exactly once"
+        )
+    target_member = target_members[0]
+    if target_member["head_sha"] != head_sha:
+        raise ArtifactInputError("target member head must match candidate.head_sha")
+    if target_member["base_sha"] != candidate["base_sha"]:
+        raise ArtifactInputError("target member base must match candidate.base_sha")
+    target_identity = target_member["pull_request"]["provider_identity"]
+    declared_identity = pull_request.get("provider_identity")
+    if declared_identity is not None:
+        normalized_identity = _normalize_provider_identity(
+            declared_identity, "candidate.pull_request.provider_identity"
+        )
+        if _provider_identity_key(normalized_identity) != _provider_identity_key(target_identity):
+            raise ArtifactInputError(
+                "candidate.pull_request provider identity does not match target member"
+            )
+        pull_request["provider_identity"] = normalized_identity
+    else:
+        pull_request["provider_identity"] = copy.deepcopy(target_identity)
     if pull_request.get("head_sha") is not None and pull_request["head_sha"] != head_sha:
         raise ArtifactInputError(
             "candidate.pull_request.head_sha does not match candidate.head_sha"
@@ -434,12 +584,9 @@ def _planner_packet(
                 )
     packet = _json_data(packet, "planner.packet")
     try:
-        result = _planner_module().plan(packet)
-    except Exception as exc:  # Normalize the planner's boundary without copying its errors.
-        planner_error = getattr(exc, "__class__", type(exc)).__name__
-        raise ArtifactInputError(
-            f"existing review-scope planner rejected input: {planner_error}: {exc}"
-        ) from exc
+        result = execute_bound_planner(planner_source, packet)
+    except ArtifactInputError as exc:
+        raise ArtifactInputError(f"existing review-scope planner rejected input: {exc}") from exc
     declared_result = planner_input.get("result")
     if declared_result is not None:
         declared = _json_data(declared_result, "planner.result")
@@ -635,7 +782,10 @@ def _optional_binding_consistency(
 
 
 def _artifact_binding(
-    source: dict[str, Any], candidate: dict[str, Any], revision_digest: str
+    source: dict[str, Any],
+    candidate: dict[str, Any],
+    revision_digest: str,
+    planner_source: Mapping[str, Any],
 ) -> dict[str, Any]:
     pull_request = candidate["pull_request"]
     return {
@@ -648,6 +798,7 @@ def _artifact_binding(
         "effective_base_sha": candidate["effective_base_sha"],
         "candidate_head_sha": candidate["head_sha"],
         "revision_bindings_digest": revision_digest,
+        "planner_source": copy.deepcopy(dict(planner_source)),
         "input_binding": copy.deepcopy(source["input_binding"]),
     }
 
@@ -711,9 +862,16 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
     candidate = _normalize_candidate(raw)
     revisions, revision_digest = _normalize_revision_bindings(raw, candidate)
     _optional_binding_consistency(input_binding, candidate, revision_digest)
+    planner_input = _require_object(raw.get("planner"), "planner")
+    planner_source = _source_identity(
+        planner_input.get("source"), "planner.source", path=PLANNER_PATH, require_blob=True
+    )
     planner_binding = {
         **copy.deepcopy(input_binding),
-        "artifact_binding": _artifact_binding(raw, candidate, revision_digest),
+        "artifact_binding": _artifact_binding(
+            raw, candidate, revision_digest, planner_source
+        ),
+        "planner_source": copy.deepcopy(planner_source),
     }
     planner_source, planner_packet, planner_result = _planner_packet(
         {**raw, "contract": contract, "change": change, "purpose": purpose},
@@ -751,6 +909,7 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
     binding_projection = {
         "candidate": candidate,
         "revision_bindings": revisions,
+        "planner_source": planner_source,
         "planner_packet": planner_packet,
         "planner_result": planner_result,
         "gate_input_binding": gate["input_binding"],
