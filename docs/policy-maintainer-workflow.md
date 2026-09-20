@@ -67,6 +67,84 @@ For ordinary policy-provider maintenance:
 
 This sequence lets maintainers benefit from new shared best practices without creating a circular trust chain or repeatedly qualifying revision identities that are still intentionally provisional.
 
+## Bound review-artifact entry point
+
+When a maintenance change needs a review packet, a review request, a generated
+PR-description section, and a resumable checkpoint, use
+`repository-skills/land-templates-stack/scripts/render_review_artifacts.py`.
+Its input kind is `repository-change-review-artifacts` version `1`. The input
+contains the candidate PR/head and base, observed facts, the existing planner
+inputs, the existing gate result, explicit judgment records, role-labelled
+revision bindings, and the Work-ledger resume fields. The renderer invokes the
+existing review-scope planner only from the exact trusted `planner.source`
+revision and declared blob identity; that executable identity must also match
+the independently bound `trusted_maintainer_source` planner revision/blob, so a
+candidate cannot authorize its own planner by setting `trusted: true`. It does
+not replace the planner or the merge gate. Every stack member carries one
+distinct provider pull-request identity, and exactly one member must identify
+the target PR.
+
+The trusted planner binding is authenticated against the immutable source
+closure recorded by `.agents/skills/land-templates-stack/source.json` at an
+independently supplied trusted base SHA. The candidate base must equal that
+trusted base; the artifact payload cannot choose which manifest authenticates
+its planner. All revision roles are declared explicitly, including
+`unknown` and `not_applicable` roles. Human or model judgments bind to the
+candidate head, base, and effective base. PR-body revision/digest values remain
+concurrency checks for publication and do not change the semantic review-request
+identity.
+
+For a local preview:
+
+```console
+python3 repository-skills/land-templates-stack/scripts/render_review_artifacts.py \
+  render --input review-artifacts.json \
+  --trusted-base-sha <trusted-base-sha> --output-dir .review-artifacts
+```
+
+The output contains `review-packet.json`, `review-request.md`,
+`pr-generated-region.md`, `work-ledger-checkpoint.md`, and a manifest with the
+semantic and binding identities. Observation timestamps are retained in the
+packet but are not part of generated-content identity. In particular,
+`consumer_actual_toolchain` must be sourced from the consumer configuration at
+the target candidate head, while `prospective_canonical_candidate` remains a
+separate binding. An unknown or not-applicable role is explicit; it is never
+silently filled from another worktree's HEAD. A planner source without a full
+trusted blob identity, or one that differs from the independent maintainer
+binding, is rejected, so a candidate checkout cannot substitute its sibling
+planner implementation. A CI success is likewise rendered stale unless its
+applicability binds the exact candidate head, PR base, and effective base. For
+a multi-member stack, revision-bound CI and review evidence must also carry
+the ordered `candidate_members_digest`; changing a dependency binding makes
+the old evidence stale even when the target PR head is unchanged.
+The renderer verifies the consumer role by reading the exact candidate commit's
+`.agent-policy.yml` and checking its verified Git blob plus
+`toolchain.revision`; callers that provide an alternate resolver must preserve
+that same immutable file/blob contract. A claimed path, field, or candidate
+head is not sufficient evidence by itself. Terminal CI failures are subject to
+the same exact applicability check, so an older failure is rendered stale
+rather than as current evidence. Pending CI and requested/pending review
+records that carry revision bindings are subject to the same exact applicability
+check; an older wait state is rendered stale instead of keeping a new candidate
+waiting on obsolete evidence. Review evidence is displayed only when its head,
+base, and effective-base applicability is bound to the current candidate. The
+Work-ledger projection also preserves compact diagnostic resume fields supplied
+under `work`—such as the evidence gap, hypothesis, invalidated paths and retry
+conditions, exhausted strategies, budget, progress frontier, and last material
+progress—without copying findings or transcripts. A bounded `work.closure_audit`
+list may record invariant-family closure evidence and deliberate test gaps in
+the checkpoint; it is sorted and rendered as a compact resumable report, not a
+second ledger or transcript. The trusted base is an input
+to the entry point, not a value inferred from the candidate JSON.
+
+Rendering is local and side-effect free with respect to GitHub, PR bodies,
+review requests, and Work-ledger storage. The generated PR region is owned only
+between its explicit markers; missing, duplicated, or malformed markers require
+an explicit reconciliation decision. Human-authored text remains outside that
+region. Publication adapters, when authorized, must revalidate the current
+candidate and binding identity before any write and must reconcile ambiguous
+remote responses rather than retrying blindly.
+
 ## Dogfood the two frontiers without self-adoption
 
 For a Policy stack `A -> B -> C`, continue safe B/C source changes and focused tests while A's CI or review is pending. Track construction separately from qualification and defer deliberately expensive descendant evidence when a known prerequisite mutation will stale its bindings. Review latency alone is not a gate. Once no current planned prerequisite mutation remains, restack only if actual state or bindings require it and qualify the intended heads at the applicable boundary. Required automatic CI continues throughout.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,6 +62,16 @@ def test_fast_and_full_profiles_retain_distinct_validation_depth() -> None:
     assert "dependency-boundary" in preflight.PROFILES["full"]
     assert "focused-tests" not in preflight.PROFILES["full"]
     assert (ROOT / "scripts/smoke_test_policy_documentation.py").is_file()
+
+
+def test_preflight_subprocesses_use_the_exact_worktree_package() -> None:
+    preflight = load_preflight()
+    environment = preflight.sanitized_environment()
+
+    assert environment["PYTHONPATH"].split(os.pathsep) == [
+        str(ROOT / "src"),
+        str(ROOT),
+    ]
 
 
 def test_fast_profile_requires_local_checkout_behavioral_suite() -> None:

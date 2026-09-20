@@ -10,8 +10,10 @@ import hashlib
 import os
 import re
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import ModuleType
 
 EXPECTED_REPOSITORY = "TakashiSasaki/templates"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
@@ -36,6 +38,17 @@ FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 class SourceReferenceError(ValueError):
     """Raised when a source reference cannot be proven immutable and exact."""
+
+
+@dataclass(frozen=True)
+class VerifiedBlob:
+    """One immutable source file retained with its verified Git identity."""
+
+    repository: str
+    revision: str
+    path: str
+    blob_sha: str
+    content: bytes
 
 
 @dataclass(frozen=True)
@@ -87,6 +100,75 @@ def _require_blob(repo: Path, revision: str, path: str) -> tuple[str, bytes]:
     if git_blob_sha(payload) != object_id:
         raise SourceReferenceError(f"canonical blob changed while reading: {path}")
     return object_id, payload
+
+
+def verify_blob_source(
+    source: Mapping[str, object],
+    *,
+    repo: Path,
+    expected_path: str,
+) -> VerifiedBlob:
+    """Read one declared source only from its exact immutable Git revision."""
+
+    if source.get("repository") != EXPECTED_REPOSITORY:
+        raise SourceReferenceError("unexpected source repository")
+    revision = source.get("revision")
+    if not isinstance(revision, str) or FULL_SHA.fullmatch(revision) is None:
+        raise SourceReferenceError("source revision must be a full lowercase SHA")
+    path = source.get("path")
+    if path != expected_path:
+        raise SourceReferenceError(f"unexpected source path: {path}")
+    declared_blob = source.get("blob_sha")
+    if not isinstance(declared_blob, str) or FULL_SHA.fullmatch(declared_blob) is None:
+        raise SourceReferenceError("source blob must be a full lowercase SHA")
+    if source.get("trusted") is not True:
+        raise SourceReferenceError("source must explicitly identify a trusted source")
+    if _git(repo, "cat-file", "-t", revision) != "commit":
+        raise SourceReferenceError("source revision must name a commit object")
+    actual_blob, content = _require_blob(repo, revision, expected_path)
+    if actual_blob != declared_blob:
+        raise SourceReferenceError("declared source blob does not match the snapshot")
+    return VerifiedBlob(EXPECTED_REPOSITORY, revision, expected_path, actual_blob, content)
+
+
+def verify_blob_payload(
+    source: Mapping[str, object],
+    *,
+    content: bytes,
+    actual_blob: str | None = None,
+    expected_path: str,
+) -> VerifiedBlob:
+    """Verify bytes fetched through another transport against a source binding."""
+
+    if source.get("repository") != EXPECTED_REPOSITORY:
+        raise SourceReferenceError("unexpected source repository")
+    revision = source.get("revision")
+    if not isinstance(revision, str) or FULL_SHA.fullmatch(revision) is None:
+        raise SourceReferenceError("source revision must be a full lowercase SHA")
+    path = source.get("path")
+    if path != expected_path:
+        raise SourceReferenceError(f"unexpected source path: {path}")
+    declared_blob = source.get("blob_sha")
+    if not isinstance(declared_blob, str) or FULL_SHA.fullmatch(declared_blob) is None:
+        raise SourceReferenceError("source blob must be a full lowercase SHA")
+    if source.get("trusted") is not True:
+        raise SourceReferenceError("source must explicitly identify a trusted source")
+    computed_blob = git_blob_sha(content)
+    if actual_blob is not None and actual_blob != computed_blob:
+        raise SourceReferenceError("transport source blob does not match its content")
+    if computed_blob != declared_blob:
+        raise SourceReferenceError("declared source blob does not match transport content")
+    return VerifiedBlob(EXPECTED_REPOSITORY, revision, expected_path, computed_blob, content)
+
+
+def load_python_module(source: VerifiedBlob, module_name: str) -> ModuleType:
+    """Execute already-verified source bytes as an isolated Python module."""
+
+    module = ModuleType(module_name)
+    module.__file__ = f"{source.revision}:{source.path}"
+    code = compile(source.content, module.__file__, "exec")
+    exec(code, module.__dict__)
+    return module
 
 
 def required_source_closure_paths(skill: bytes) -> tuple[str, ...]:

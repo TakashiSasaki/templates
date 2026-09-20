@@ -29,6 +29,7 @@ FOCUSED_TESTS = (
     "tests/test_observe_pr_state.py",
     "tests/test_pr_state_observation.py",
     "tests/test_pr_state_observation_replay.py",
+    "tests/test_review_artifacts.py",
     "tests/test_review_scope_selection.py",
 )
 
@@ -41,6 +42,11 @@ def sanitized_environment() -> dict[str, str]:
     }
     environment["PIP_CONFIG_FILE"] = os.devnull
     environment["PYTHONNOUSERSITE"] = "1"
+    # The preflight must execute the package from the exact worktree under
+    # test.  Without this explicit path, a shared editable install can point
+    # ``python -m agent_policy`` at another worktree and produce a false
+    # self-check result.
+    environment["PYTHONPATH"] = os.pathsep.join((str(ROOT / "src"), str(ROOT)))
     return environment
 
 
