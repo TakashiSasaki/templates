@@ -67,6 +67,42 @@ For ordinary policy-provider maintenance:
 
 This sequence lets maintainers benefit from new shared best practices without creating a circular trust chain or repeatedly qualifying revision identities that are still intentionally provisional.
 
+## Bound review-artifact entry point
+
+When a maintenance change needs a review packet, a review request, a generated
+PR-description section, and a resumable checkpoint, use
+`repository-skills/land-templates-stack/scripts/render_review_artifacts.py`.
+Its input kind is `repository-change-review-artifacts` version `1`. The input
+contains the candidate PR/head and base, observed facts, the existing planner
+inputs, the existing gate result, explicit judgment records, role-labelled
+revision bindings, and the Work-ledger resume fields. The renderer invokes the
+existing immutable review-scope planner; it does not replace the planner or
+the merge gate.
+
+For a local preview:
+
+```console
+python3 repository-skills/land-templates-stack/scripts/render_review_artifacts.py \
+  render --input review-artifacts.json --output-dir .review-artifacts
+```
+
+The output contains `review-packet.json`, `review-request.md`,
+`pr-generated-region.md`, `work-ledger-checkpoint.md`, and a manifest with the
+semantic and binding identities. Observation timestamps are retained in the
+packet but are not part of generated-content identity. In particular,
+`consumer_actual_toolchain` must be sourced from the consumer configuration at
+the target candidate head, while `prospective_canonical_candidate` remains a
+separate binding. An unknown or not-applicable role is explicit; it is never
+silently filled from another worktree's HEAD.
+
+Rendering is local and side-effect free with respect to GitHub, PR bodies,
+review requests, and Work-ledger storage. The generated PR region is owned only
+between its explicit markers; missing, duplicated, or malformed markers require
+an explicit reconciliation decision. Human-authored text remains outside that
+region. Publication adapters, when authorized, must revalidate the current
+candidate and binding identity before any write and must reconcile ambiguous
+remote responses rather than retrying blindly.
+
 ## Dogfood the two frontiers without self-adoption
 
 For a Policy stack `A -> B -> C`, continue safe B/C source changes and focused tests while A's CI or review is pending. Track construction separately from qualification and defer deliberately expensive descendant evidence when a known prerequisite mutation will stale its bindings. Review latency alone is not a gate. Once no current planned prerequisite mutation remains, restack only if actual state or bindings require it and qualify the intended heads at the applicable boundary. Required automatic CI continues throughout.
