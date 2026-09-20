@@ -119,7 +119,12 @@ class RemoteProvider:
         raise NotImplementedError
 
     def create_review_request(
-        self, repository: str, number: int, body: str
+        self,
+        repository: str,
+        number: int,
+        body: str,
+        *,
+        context: Any | None = None,
     ) -> Mapping[str, Any]:
         """Publish a provider-specific review request.
 
@@ -352,18 +357,53 @@ class GitHubProvider(RemoteProvider):
         return result
 
     @staticmethod
-    def _codex_review_body(body: str) -> str:
+    def _stack_topology(context: Any | None) -> str:
+        if context is None:
+            return ""
+        data = getattr(context, "data", None)
+        candidate = data.get("candidate") if isinstance(data, Mapping) else None
+        members = candidate.get("members") if isinstance(candidate, Mapping) else None
+        if not isinstance(members, list):
+            return ""
+        lines = ["", "## Exact ordered stack topology"]
+        for index, member in enumerate(members, start=1):
+            if not isinstance(member, Mapping):
+                continue
+            pull_request = member.get("pull_request")
+            if isinstance(pull_request, Mapping) and isinstance(pull_request.get("number"), int):
+                label = f"PR #{pull_request['number']}"
+            else:
+                label = f"member `{member.get('id', 'unknown')}`"
+            lines.append(
+                f"- {index}. {label}: base `{member.get('base_sha')}` -> "
+                f"head `{member.get('head_sha')}`"
+            )
+        lines.append("- Dependency order: lower members must qualify before their dependents.")
+        return "\n".join(lines) + "\n"
+
+    @staticmethod
+    def _codex_review_body(body: str, context: Any | None = None) -> str:
         if re.search(r"(?m)^@codex review(?:\s|$)", body):
-            return body
-        return "@codex review\n\n" + body
+            trigger = body
+        else:
+            trigger = "@codex review\n\n" + body
+        topology = GitHubProvider._stack_topology(context)
+        if topology and "## Exact ordered stack topology" not in trigger:
+            trigger = trigger.rstrip() + "\n" + topology
+        return trigger
 
     def create_review_request(
-        self, repository: str, number: int, body: str
+        self,
+        repository: str,
+        number: int,
+        body: str,
+        *,
+        context: Any | None = None,
     ) -> Mapping[str, Any]:
         return self.create_comment(
             repository,
             number,
-            self._codex_review_body(body),
+            self._codex_review_body(body, context),
         )
 
     def is_equivalent_review_request(
@@ -438,7 +478,17 @@ def _snapshot_evidence_digest(snapshot: Mapping[str, Any]) -> str:
             if isinstance(metadata_records, list):
                 for record in metadata_records:
                     if isinstance(record, Mapping):
-                        for key in ("body", "body_text", "body_html"):
+                        for key in (
+                            "body",
+                            "body_text",
+                            "body_html",
+                            "updated_at",
+                            "comments",
+                            "review_comments",
+                            "reactions",
+                            "comments_url",
+                            "review_comments_url",
+                        ):
                             record.pop(key, None)
         comments = surfaces.get("comments")
         if isinstance(comments, Mapping):
@@ -655,7 +705,9 @@ class GitHubLiveRevalidationAdapter:
                         index += 2
                     if query is None:
                         raise observer.ProviderFailure("malformed", "GraphQL query is missing")
-                    payload = provider._request("POST", "/graphql", {"query": query, **variables})
+                    payload = provider._request(
+                        "POST", "/graphql", {"query": query, "variables": variables}
+                    )
                     return observer.ApiResponse(payload)
 
                 endpoint = values[0]
@@ -1331,7 +1383,9 @@ def publish(
                 continue
             try:
                 if operation_type == "review_request":
-                    created_comment = remote.create_review_request(repository, number, body)
+                    created_comment = remote.create_review_request(
+                        repository, number, body, context=normalized
+                    )
                 else:
                     created_comment = remote.create_comment(repository, number, body)
             except RemoteAmbiguousError as exc:

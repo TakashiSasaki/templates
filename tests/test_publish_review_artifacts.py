@@ -345,12 +345,19 @@ def test_preview_request_is_provider_neutral_but_github_apply_has_codex_trigger(
 
     provider = RecordingGitHub()
     body = publisher.renderer.render(normalized).files["review-request.md"]
-    result = provider.create_review_request("TakashiSasaki/templates", 123, body)
+    normalized.data["candidate"]["members"][0]["pull_request"] = {
+        "number": 123,
+    }
+    result = provider.create_review_request(
+        "TakashiSasaki/templates", 123, body, context=normalized
+    )
 
     assert result["id"] == 55
     posted = provider.payloads[0]["payload"]["body"]
     assert posted.startswith("@codex review\n\n")
     assert publisher.renderer.REVIEW_REQUEST_MARKER in posted
+    assert "## Exact ordered stack topology" in posted
+    assert "PR #123" in posted
 
 
 def test_github_marker_without_trigger_does_not_suppress_a_new_codex_request() -> None:
