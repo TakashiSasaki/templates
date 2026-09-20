@@ -30,5 +30,11 @@ def load_yaml(path: Path) -> object:
     return yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueKeyLoader)
 
 
+def load_yaml_text(text: str) -> object:
+    """Load YAML text with the same duplicate-key checks as file input."""
+
+    return yaml.load(text, Loader=UniqueKeyLoader)
+
+
 def dump_yaml(value: object) -> str:
     return yaml.safe_dump(value, sort_keys=False, allow_unicode=True)

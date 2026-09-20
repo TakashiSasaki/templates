@@ -43,6 +43,13 @@ def candidate(**overrides: object) -> dict:
         "dependencies": [],
     }
     value.update(overrides)
+    value["dependencies"] = [
+        {
+            **dependency,
+            "expected_base_sha": dependency.get("expected_base_sha", BASE),
+        }
+        for dependency in value["dependencies"]
+    ]
     return value
 
 
@@ -52,6 +59,13 @@ def binding(
     base: str = BASE,
     dependencies: list[dict] | None = None,
 ) -> dict:
+    normalized_dependencies = [
+        {
+            **dependency,
+            "base_sha": dependency.get("base_sha", base),
+        }
+        for dependency in ([] if dependencies is None else dependencies)
+    ]
     return {
         "provider_identity": {
             "provider": "fake",
@@ -60,7 +74,7 @@ def binding(
         },
         "head_sha": head,
         "base_sha": base,
-        "dependencies": [] if dependencies is None else dependencies,
+        "dependencies": normalized_dependencies,
     }
 
 
@@ -98,6 +112,14 @@ def snapshot(
             "ended_at": "2026-09-20T00:00:01Z",
         },
     )
+
+
+def test_legacy_snapshot_schema_requires_explicit_regeneration() -> None:
+    current = snapshot([])
+    legacy = {**current, "schema_version": 1}
+
+    with pytest.raises(OBSERVATION.ObservationInputError, match="schema 1 is legacy"):
+        OBSERVATION.validate_snapshot(legacy)
 
 
 def test_same_content_different_order_and_observation_time_is_unchanged() -> None:

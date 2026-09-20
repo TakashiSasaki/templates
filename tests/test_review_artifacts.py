@@ -357,6 +357,27 @@ def test_same_semantic_input_renders_identical_projections() -> None:
     assert first.manifest["semantic_digest"] == second.manifest["semantic_digest"]
 
 
+def test_whole_stack_request_renders_contract_and_cumulative_attestation() -> None:
+    normalized = artifacts.normalize(_source())
+    normalized.data["candidate"]["integration_base_tree_sha"] = _sha("e")
+    normalized.planner_result["action"] = "request_related_stack_review"
+    normalized.planner_result["selected_scope"] = {
+        "kind": "whole-stack",
+        "members": ["lower", "upper"],
+    }
+
+    request = artifacts.render(normalized).files["review-request.md"]
+
+    assert "## Review contract" in request
+    assert "revision: contract-1" in request
+    assert "scope: review-artifacts" in request
+    assert "complete coverage of every listed member head and base" in request
+    assert f"exact integration-base tree: `{_sha('e')}`" in request
+    assert "exact integration-base tree identity shown above" in request
+    assert "reviewer independence" in request
+    assert "material limitations or uncovered members" in request
+
+
 @pytest.mark.parametrize(
     "field,value,pattern",
     [
@@ -681,6 +702,11 @@ def test_human_pr_text_is_preserved_and_owned_region_is_fail_closed() -> None:
         artifacts.replace_generated_region(
             f"{artifacts.GENERATED_REGION_START}\n{artifacts.GENERATED_REGION_START}\n{artifacts.GENERATED_REGION_END}",
             region,
+        )
+    with pytest.raises(artifacts.RegionOwnershipError, match="reversed"):
+        artifacts.replace_generated_region(
+            body,
+            f"{artifacts.GENERATED_REGION_END}\n{artifacts.GENERATED_REGION_START}",
         )
 
 
@@ -1040,6 +1066,40 @@ def test_candidate_topology_requires_one_target_and_unique_provider_bindings() -
     member["pull_request"]["provider_identity"]["resource_id"] = "124"
     with pytest.raises(artifacts.ArtifactInputError, match="target pull request"):
         artifacts.normalize(missing_target)
+
+
+def test_candidate_topology_requires_ordered_base_to_head_adjacency() -> None:
+    source = _source()
+    target = copy.deepcopy(source["candidate"]["members"][0])
+    target["base_sha"] = _sha("c")
+    lower = {
+        "id": "policy-review-artifacts-lower",
+        "authority": "policy",
+        "base_sha": _sha("a"),
+        "head_sha": _sha("c"),
+        "pull_request": {
+            "number": 122,
+            "provider_identity": {
+                "provider": "github",
+                "repository_id": "9",
+                "resource_id": "122",
+            },
+        },
+    }
+    source["candidate"]["base_sha"] = _sha("c")
+    source["candidate"]["pull_request"]["base_sha"] = _sha("c")
+    source["candidate"]["members"] = [lower, target]
+
+    normalized = artifacts._normalize_candidate(source)
+    assert [member["id"] for member in normalized["members"]] == [
+        "policy-review-artifacts-lower",
+        "policy-review-artifacts",
+    ]
+
+    broken = copy.deepcopy(source)
+    broken["candidate"]["members"][1]["base_sha"] = _sha("d")
+    with pytest.raises(artifacts.ArtifactInputError, match="ordered base-to-head chain"):
+        artifacts._normalize_candidate(broken)
 
 
 def test_bound_planner_uses_trusted_commit_not_modified_checkout(tmp_path: Path) -> None:

@@ -82,7 +82,9 @@ the independently bound `trusted_maintainer_source` planner revision/blob, so a
 candidate cannot authorize its own planner by setting `trusted: true`. It does
 not replace the planner or the merge gate. Every stack member carries one
 distinct provider pull-request identity, and exactly one member must identify
-the target PR.
+the target PR. Every selected member also carries expected head and base
+bindings. Members are ordered as a base-to-head chain; live observation
+rechecks both revisions and each adjacency before publication.
 
 The trusted planner binding is authenticated against the immutable source
 closure recorded by `.agents/skills/land-templates-stack/source.json` at an
@@ -143,7 +145,98 @@ between its explicit markers; missing, duplicated, or malformed markers require
 an explicit reconciliation decision. Human-authored text remains outside that
 region. Publication adapters, when authorized, must revalidate the current
 candidate and binding identity before any write and must reconcile ambiguous
-remote responses rather than retrying blindly.
+remote responses rather than retrying blindly. This includes truncated response
+bodies on both successful and HTTP-error mutation responses; a complete
+deterministic HTTP error remains a deterministic publication error.
+
+For an authorized GitHub apply, use
+`repository-skills/land-templates-stack/scripts/publish_review_artifacts.py`
+with a live adapter that composes the repository observer, the bound immutable
+planner source, the existing gate, and the canonical effective-base resolver.
+The adapter must resolve the consumer's `.agent-policy.yml#toolchain.revision`
+at the exact live candidate head using the publisher's duplicate-safe
+`yaml.SafeLoader` boundary; it must not import a parser from the mutable
+candidate checkout. The adapter must also establish the effective base
+independently of the PR base ref before each mutation boundary. `--replay-state` is reserved
+for offline diagnostics and cannot authorize writes. A truncated or otherwise
+ambiguous mutation response is reconciled against the remote surface; it is
+never retried blindly. Checkpoint markers have a separate identity derived from
+resume semantics, so changed blockers or next actions cannot reuse an old
+checkpoint merely because review-request scope is unchanged. A checkpoint may
+be reused only when the publisher can prove ownership; a copied marker or
+matching body from another contributor stops publication. After a
+planner-approved review request is created or reconciled, the publisher updates
+that same owned checkpoint to record the submitted request state. That update
+has its own revalidation and ambiguity reconciliation boundary.
+
+The provider-neutral PR observer snapshot is schema version 2. Version 2 makes
+each dependency's expected and observed base part of the persisted binding, so
+an older version-1 snapshot must be regenerated before it is resumed or
+compared; it is never silently treated as a complete head-only observation.
+
+For a cumulative whole-stack input with `candidate.integration_base_tree_sha`,
+the live adapter resolves the Git tree attached to the independently resolved
+effective-base commit and compares it with the bound tree before publication.
+An asserted tree value, or a value from an unrelated worktree, is not accepted
+as cumulative evidence.
+
+The trusted base SHA is supplied by the trusted operational context, not read
+from the artifact JSON; the publisher rejects an input whose candidate base
+does not match it. Complete mutating 5xx responses are treated as ambiguous
+and reconciled, while complete deterministic 4xx responses remain errors.
+
+The companion publisher is
+`repository-skills/land-templates-stack/scripts/publish_review_artifacts.py`.
+Without `--apply` it is another side-effect-free preview path:
+
+```console
+python3 repository-skills/land-templates-stack/scripts/publish_review_artifacts.py \
+  publish --input review-artifacts.json \
+  --trusted-base-sha <trusted-base-sha>
+```
+
+An apply requires `--apply --authorize --serialized-writer`, a GitHub token, and
+an explicit `--live-adapter MODULE:FUNCTION` (or `FILE.py:FUNCTION`). The live
+adapter must compose the existing complete PR observer, the existing review
+scope planner, the gate-owned current-state resolver, and exact candidate-file
+resolution. The publisher reads the current PR identity first and invokes this
+adapter again before every non-idempotent write; an incomplete observation,
+changed review/CI/gate evidence, changed dependency binding, or a consumer pin
+that differs from the exact candidate configuration stops the operation.
+
+The GitHub adapter's review-request operation is provider-specific: a new
+planner-approved request is posted with the repository-recognized `@codex
+review` trigger. Reuse, reconciliation, handoff, and incomplete observations
+never emit a new trigger. An equivalent request must have the canonical
+provider-specific body and be authored by the authenticated publisher; a copied
+or edited marker is not sufficient to suppress publication. A reaction counts
+as Codex acknowledgement only when its actor is the configured Codex review
+bot, not merely because an ordinary contributor added `eyes`. Provider
+acknowledgement is reported separately from review approval. Marker identities
+are used to reuse equivalent requests and checkpoints, and `ambiguous` is
+reported when a lost remote response cannot be reconciled; the publisher never
+blindly retries a non-idempotent write.
+
+The `--serialized-writer` assertion covers the complete body-and-comment
+publication sequence, not only the PR-body update. The publisher also rejects
+an overlapping in-process publication for the same repository/PR. When more
+than one process can publish, the caller must hold the repository's distributed
+writer lock across the full sequence because GitHub has no atomic
+create-if-absent issue-comment operation.
+
+For example, an authorized operational adapter can be selected explicitly:
+
+```console
+python3 repository-skills/land-templates-stack/scripts/publish_review_artifacts.py \
+  publish --input review-artifacts.json \
+  --trusted-base-sha <trusted-base-sha> \
+  --live-adapter /path/to/live_review_adapter.py:resolve \
+  --token "$GH_TOKEN" --apply --authorize --serialized-writer
+```
+
+`--replay-state` is reserved for offline diagnostics and tests. It is rejected
+when `--apply` is selected; a caller-supplied static JSON file can never
+authorize a remote write.
 
 ## Dogfood the two frontiers without self-adoption
 

@@ -565,10 +565,16 @@ class GhReadonlyProvider:
                 ("head", "sha"),
                 f"dependency {dependency.identifier} head",
             )
+            dependency_base = _require_sha_field(
+                dependency_metadata,
+                ("base", "sha"),
+                f"dependency {dependency.identifier} base",
+            )
             dependencies.append(
                 {
                     "id": dependency.identifier,
                     "head_sha": dependency_head,
+                    "base_sha": dependency_base,
                     "provider_identity": dependency_identity.as_dict(),
                 }
             )

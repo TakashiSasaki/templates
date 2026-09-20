@@ -628,6 +628,13 @@ def _normalize_candidate(source: dict[str, Any]) -> dict[str, Any]:
             "provider_path": provider_path,
         }
         normalized_members.append(member)
+    for index in range(1, len(normalized_members)):
+        previous = normalized_members[index - 1]
+        current = normalized_members[index]
+        if current["base_sha"] != previous["head_sha"]:
+            raise ArtifactInputError(
+                "candidate.members must form an ordered base-to-head chain"
+            )
     candidate["members"] = normalized_members
     pull_request = _normalize_pull_request(candidate)
     candidate["pull_request"] = pull_request
@@ -1722,10 +1729,26 @@ def _role_lines(data: Mapping[str, Any]) -> list[str]:
     return lines
 
 
+def checkpoint_identity(normalized: NormalizedReviewArtifacts) -> str:
+    """Identify durable resume state without sharing review-request identity."""
+
+    return semantic_digest(
+        {
+            "version": 1,
+            "semantic_digest": normalized.semantic_digest,
+            "binding_digest": normalized.binding_digest,
+            "work": normalized.data["work"],
+            "renderer_blockers": list(normalized.blockers),
+        }
+    )
+
+
 def idempotency_key(normalized: NormalizedReviewArtifacts, request_type: str) -> str:
     """Return a stable request identity independent of PR-body observations."""
 
     _require_string(request_type, "request_type")
+    if request_type == "work-ledger-checkpoint":
+        return checkpoint_identity(normalized)
     candidate = normalized.data["candidate"]
     planner = normalized.planner_result
     material = {
@@ -1744,6 +1767,44 @@ def idempotency_key(normalized: NormalizedReviewArtifacts, request_type: str) ->
     return semantic_digest(material)
 
 
+def _review_contract_lines(
+    data: Mapping[str, Any], action: Any, scope: Any
+) -> list[str]:
+    contract = data["contract"]
+    lines = ["", "## Review contract"]
+    for key in sorted(contract):
+        value = contract[key]
+        rendered = canonical_json(value) if isinstance(value, (Mapping, list)) else value
+        lines.append(f"- {_safe_text(key)}: {_safe_text(rendered)}")
+
+    is_whole_stack = action == "request_related_stack_review" or (
+        isinstance(scope, Mapping) and scope.get("kind") == "whole-stack"
+    )
+    if is_whole_stack:
+        integration_base_tree = data["candidate"].get("integration_base_tree_sha")
+        if isinstance(integration_base_tree, str) and integration_base_tree:
+            lines.append(
+                "- exact integration-base tree: " + _code(integration_base_tree)
+            )
+        else:
+            lines.append("- exact integration-base tree: not bound")
+        lines.extend(
+            [
+                "",
+                "For a cumulative whole-stack result, the reviewer must explicitly attest to:",
+                "- complete coverage of every listed member head and base, their ordered "
+                "adjacency, the integrated/effective base, and the exact integration-base "
+                "tree identity shown above;",
+                "- the requested review scope and the rendered contract;",
+                "- reviewer independence;",
+                "- completion and any material limitations or uncovered members.",
+                "If any of these conditions cannot be established, identify the uncovered "
+                "member and do not treat the result as cumulative acceptance evidence.",
+            ]
+        )
+    return lines
+
+
 def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     data = normalized.data
     candidate = data["candidate"]
@@ -1751,8 +1812,9 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     planner = normalized.planner_result
     action = planner.get("action", "unknown")
     scope = planner.get("selected_scope", {})
+    request_identity = idempotency_key(normalized, "review-request")
     lines = [
-        f"<!-- {REVIEW_REQUEST_MARKER}:key={idempotency_key(normalized, 'review-request')} -->",
+        f"<!-- {REVIEW_REQUEST_MARKER}:key={request_identity} -->",
         "# Bound review request",
         "",
         f"Candidate: {data['repository']} PR {pr['number']} at {_code(candidate['head_sha'])}",
@@ -1789,12 +1851,18 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
             *_role_lines(data),
         ]
     )
-    if action == "acquire_missing_input_or_handoff" or normalized.blockers:
+    lines.extend(_review_contract_lines(data, action, scope))
+    planner_blockers = [
+        reason
+        for reason in normalized.blockers
+        if reason.startswith("planner_") or reason.startswith("observation_")
+    ]
+    if action == "acquire_missing_input_or_handoff" or planner_blockers:
         lines.extend(["", "## Not ready for a new request"])
         lines.append(
             "The existing planner or bound evidence requires reconciliation before publication:"
         )
-        for blocker in normalized.blockers:
+        for blocker in planner_blockers or normalized.blockers:
             lines.append(f"- {_code(blocker)}")
         lines.append("A clean sentence or empty finding list is not approval or resolution.")
     elif action == "reuse_existing_result":
@@ -1821,7 +1889,7 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
                 "",
                 "Please review the selected scope against the candidate and bound "
                 "evidence. This request is not acceptance or merge authorization.",
-                f"Request identity: {_code(planner.get('request_key', normalized.binding_digest))}",
+                f"Request identity: {_code(request_identity)}",
             ]
         )
     return "\n".join(lines).rstrip() + "\n"
@@ -1888,6 +1956,10 @@ def replace_generated_region(
         raise RegionOwnershipError("generated PR-description markers are duplicated or malformed")
     if region.count(GENERATED_REGION_START) != 1 or region.count(GENERATED_REGION_END) != 1:
         raise RegionOwnershipError("replacement region markers are duplicated or malformed")
+    region_start = region.index(GENERATED_REGION_START)
+    region_end = region.index(GENERATED_REGION_END)
+    if region_end < region_start:
+        raise RegionOwnershipError("replacement region markers are reversed")
     start = body.index(GENERATED_REGION_START)
     end = body.index(GENERATED_REGION_END)
     if end < start:
@@ -1895,16 +1967,23 @@ def replace_generated_region(
     return body[:start] + region.strip("\n") + body[end + len(GENERATED_REGION_END) :]
 
 
-def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
+def render_work_checkpoint(
+    normalized: NormalizedReviewArtifacts,
+    *,
+    request_state: str | None = None,
+) -> str:
     data = normalized.data
     candidate = data["candidate"]
     work = data["work"]
     planner = normalized.planner_result
+    if request_state is None:
+        request_state = planner.get("request_state", "not_requested")
+    checkpoint_identity = idempotency_key(normalized, "work-ledger-checkpoint")
     pr = candidate["pull_request"]
     diagnostic_lines = _diagnostic_checkpoint_lines(work)
     closure_lines = _closure_checkpoint_lines(work)
     lines = [
-        f"<!-- {WORK_CHECKPOINT_MARKER}:binding={normalized.binding_digest} -->",
+        f"<!-- {WORK_CHECKPOINT_MARKER}:key={checkpoint_identity} -->",
         "## Work ledger checkpoint",
         "",
         f"- Objective: {_safe_text(work['objective_ref'])}",
@@ -1914,6 +1993,7 @@ def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
         f"{_code(candidate['base_sha'])}; effective base: "
         f"{_code(candidate['effective_base_sha'])}",
         f"- Planner action: {_code(planner.get('action', 'unknown'))}",
+        f"- Review request state: {_code(_safe_text(request_state))}",
         f"- Gate result: {_code(data['gate']['status'])} (operational projection only)",
         "",
         "### Revision bindings",
