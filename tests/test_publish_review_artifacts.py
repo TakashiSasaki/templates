@@ -5,6 +5,7 @@ import copy
 import hashlib
 import http.client
 import importlib.util
+import json
 import sys
 import threading
 import types
@@ -1049,6 +1050,88 @@ def test_github_body_update_uses_provider_conditional_etag(monkeypatch) -> None:
     )
 
     assert any(key.lower() == "if-match" and value == '"body-v1"' for key, value in seen[0].items())
+
+
+def test_github_pr_etags_remain_bound_to_each_concurrent_response(monkeypatch) -> None:
+    ready = threading.Barrier(2)
+    second_read_started = threading.Event()
+    results: dict[int, dict[str, object]] = {}
+    errors: list[BaseException] = []
+
+    def _pr_payload(number: int) -> bytes:
+        sha = f"{number:040d}"
+        return json.dumps(
+            {
+                "id": number,
+                "node_id": f"node-{number}",
+                "number": number,
+                "body": "Human text\n",
+                "base": {
+                    "sha": "b" * 40,
+                    "repo": {
+                        "id": 9,
+                        "full_name": "TakashiSasaki/templates",
+                    },
+                },
+                "head": {"sha": sha},
+            }
+        ).encode()
+
+    class Response:
+        def __init__(self, number: int) -> None:
+            self.number = number
+            self.headers = {"ETag": f'"body-{number}"'}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            ready.wait(timeout=5)
+            if self.number == 2:
+                second_read_started.set()
+                return _pr_payload(self.number)
+            # Let PR 2 start returning and expose the old shared-field race
+            # before PR 1 reads its own state.
+            assert second_read_started.wait(timeout=5)
+            return _pr_payload(self.number)
+
+    def urlopen(request, timeout):
+        del timeout
+        number = int(request.full_url.rsplit("/", 1)[-1])
+        return Response(number)
+
+    def live_revalidator(context, payload, provider):
+        del context, provider
+        return {
+            "live_revalidation": {
+                "complete": True,
+                "candidate_head_sha": payload["head"]["sha"],
+            }
+        }
+
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", urlopen)
+    provider = publisher.GitHubProvider("token", live_revalidator=live_revalidator)
+
+    def fetch(number: int) -> None:
+        try:
+            results[number] = provider.get_current_state(
+                "TakashiSasaki/templates", number, context=object()
+            )
+        except BaseException as exc:  # pragma: no cover - surfaced below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=fetch, args=(number,)) for number in (1, 2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert not errors
+    assert results[1]["body_etag"] == '"body-1"'
+    assert results[2]["body_etag"] == '"body-2"'
 
 
 def test_truncated_http_error_bodies_reconcile_all_mutation_surfaces(

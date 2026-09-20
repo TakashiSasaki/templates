@@ -77,6 +77,36 @@ CODEX_REVIEW_BOT_ID = "199175422"
 _PUBLICATION_LOCK_GUARD = threading.Lock()
 _PUBLICATION_LOCKS: dict[tuple[str, int], threading.Lock] = {}
 
+
+class _GitHubResponseDict(dict[str, Any]):
+    """JSON object response that keeps its own response-local ETag."""
+
+    __slots__ = ("etag",)
+
+    def __init__(self, value: Mapping[str, Any], etag: str | None) -> None:
+        super().__init__(value)
+        self.etag = etag
+
+
+class _GitHubResponseList(list[Any]):
+    """JSON array response that keeps its own response-local ETag."""
+
+    __slots__ = ("etag",)
+
+    def __init__(self, value: Sequence[Any], etag: str | None) -> None:
+        super().__init__(value)
+        self.etag = etag
+
+
+def _response_with_etag(value: Any, etag: str | None) -> Any:
+    """Attach response metadata without sharing it across requests."""
+
+    if isinstance(value, dict):
+        return _GitHubResponseDict(value, etag)
+    if isinstance(value, list):
+        return _GitHubResponseList(value, etag)
+    return value
+
 # These values come directly from the target PR response and must not be
 # replaced by an injected revalidation callback. The callback is allowed to
 # contribute independently resolved evidence (including effective-base
@@ -323,7 +353,6 @@ class GitHubProvider(RemoteProvider):
             codex_review_login, "Codex review bot login"
         )
         self._codex_review_user_id = str(codex_review_user_id)
-        self._last_response_etag: str | None = None
 
     def _authenticated_login(self) -> str:
         if self._publisher_login is None:
@@ -361,13 +390,13 @@ class GitHubProvider(RemoteProvider):
             headers=headers,
             method=method,
         )
-        self._last_response_etag = None
+        response_etag: str | None = None
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 response_headers = getattr(response, "headers", None)
                 if response_headers is not None:
                     etag = response_headers.get("ETag")
-                    self._last_response_etag = etag if isinstance(etag, str) else None
+                    response_etag = etag if isinstance(etag, str) else None
                 content = response.read()
         except urllib.error.HTTPError as exc:
             try:
@@ -427,9 +456,11 @@ class GitHubProvider(RemoteProvider):
                 ) from exc
             raise PublicationError(f"GitHub {method} {path} could not be read: {exc}") from exc
         if not content:
-            return {}
+            return _response_with_etag({}, response_etag)
         try:
-            return json.loads(content.decode("utf-8"))
+            return _response_with_etag(
+                json.loads(content.decode("utf-8")), response_etag
+            )
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             if method in {"POST", "PATCH", "PUT", "DELETE"}:
                 raise RemoteAmbiguousError(
@@ -465,8 +496,9 @@ class GitHubProvider(RemoteProvider):
             "body_revision": renderer.semantic_digest(body),
             "body_digest": renderer.semantic_digest(body),
         }
-        if self._last_response_etag is not None:
-            state["body_etag"] = self._last_response_etag
+        response_etag = getattr(payload, "etag", None)
+        if isinstance(response_etag, str) and response_etag:
+            state["body_etag"] = response_etag
         if self.live_revalidator is None:
             raise PublicationError(
                 "live revalidation adapter is required for GitHub apply; "
