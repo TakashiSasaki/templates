@@ -28,6 +28,13 @@ can be reused. Failed/partial/unknown cycles require disposition, not fallback t
 an older clean result. Every reusable result has an actionable source locator,
 including independently discovered results without a local request record.
 Early diagnostics cannot be requested under the merge_acceptance purpose.
+
+``review_readiness`` is an optional schema-version-2 extension.  A missing or
+unknown value is intentionally fail-closed for new external review acquisition;
+it does not prevent reuse of applicable completed evidence or reconciliation of
+an already-created request.  The renderer derives the value from the existing
+Work-ledger closure audit, while this module validates the immutable packet
+presented at the routing boundary.
 """
 
 from __future__ import annotations
@@ -75,6 +82,8 @@ EXPANSION_FLAGS = (
     "topology_changed",
     "cross_member_interaction_changed",
 )
+REVIEW_READINESS_STATES = {"ready", "not_ready", "unknown"}
+REVIEW_ACQUISITION_ACTIONS = {ACTION_EARLY, ACTION_DELTA, ACTION_STACK}
 
 
 class RoutingInputError(ValueError):
@@ -132,6 +141,188 @@ def _validate_json_data(value: Any, name: str) -> Any:
     if not _is_json_data(value):
         raise RoutingInputError(f"{name} must be JSON data")
     return value
+
+
+def _string_list(value: Any, name: str) -> list[str]:
+    values = _require_list(value, name)
+    if any(not isinstance(item, str) or not item.strip() for item in values):
+        raise RoutingInputError(f"{name} must contain non-empty strings")
+    return sorted(set(values))
+
+
+def normalize_review_readiness(value: Any) -> dict[str, Any]:
+    """Validate the compact readiness projection used by review routing.
+
+    Family validity and sibling reachability remain human/model judgment
+    surfaces.  The planner only consumes their explicit, provenance-preserving
+    result and enforces the acquisition boundary.
+    """
+
+    if value is None:
+        return {
+            "state": "unknown",
+            "known_material_findings_complete": None,
+            "finding_families": [],
+            "planned_candidate_mutations": [],
+            "remaining_material_gaps": ["review_readiness_not_supplied"],
+            "reasons": ["review_readiness_not_supplied"],
+            "exception": None,
+            "review_acquisition_allowed": False,
+        }
+    readiness = _require_object(value, "review_readiness")
+    declared_state = readiness.get("state")
+    if declared_state is not None:
+        declared_state = _require_string(declared_state, "review_readiness.state")
+        if declared_state not in REVIEW_READINESS_STATES:
+            raise RoutingInputError(
+                "review_readiness.state must be ready, not_ready, or unknown"
+            )
+
+    known = readiness.get("known_material_findings_complete")
+    if known is not None and type(known) is not bool:
+        raise RoutingInputError(
+            "review_readiness.known_material_findings_complete must be a boolean or null"
+        )
+    families = _require_list(
+        readiness.get("finding_families", []), "review_readiness.finding_families"
+    )
+    normalized_families: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    reasons: list[str] = []
+    remaining: list[str] = []
+    for index, raw_family in enumerate(families):
+        family = _require_object(raw_family, f"review_readiness.finding_families[{index}]")
+        family_id = _require_string(
+            family.get("id"), f"review_readiness.finding_families[{index}].id"
+        )
+        if family_id in seen_ids:
+            raise RoutingInputError("review_readiness finding-family IDs must be unique")
+        seen_ids.add(family_id)
+        finding_refs = _string_list(
+            family.get("finding_refs", []),
+            f"review_readiness.finding_families[{index}].finding_refs",
+        )
+        sibling_complete = family.get("sibling_audit_complete")
+        if type(sibling_complete) is not bool:
+            raise RoutingInputError(
+                "review_readiness.finding_families"
+                f"[{index}].sibling_audit_complete must be a boolean"
+            )
+        gaps = _string_list(
+            family.get("remaining_material_gaps", []),
+            f"review_readiness.finding_families[{index}].remaining_material_gaps",
+        )
+        status = family.get("status")
+        if status is not None:
+            status = _require_string(
+                status, f"review_readiness.finding_families[{index}].status"
+            )
+            if status not in {"closed", "gap", "deliberately_untested"}:
+                raise RoutingInputError(
+                    "review_readiness finding-family status must be closed, gap, "
+                    "or deliberately_untested"
+                )
+        if not sibling_complete:
+            reason = f"sibling_audit_incomplete:{family_id}"
+            reasons.append(reason)
+            if not gaps:
+                gaps = [reason]
+        if gaps:
+            reasons.extend(f"material_gap:{family_id}:{gap}" for gap in gaps)
+            remaining.extend(f"{family_id}:{gap}" for gap in gaps)
+        if status == "gap":
+            reasons.append(f"family_open:{family_id}")
+        if status == "deliberately_untested":
+            reasons.append(f"deliberate_gap:{family_id}")
+        normalized_families.append(
+            {
+                "id": family_id,
+                "finding_refs": finding_refs,
+                "sibling_audit_complete": sibling_complete,
+                "remaining_material_gaps": gaps,
+                **({"status": status} if status is not None else {}),
+            }
+        )
+
+    planned = _string_list(
+        readiness.get("planned_candidate_mutations", []),
+        "review_readiness.planned_candidate_mutations",
+    )
+    if planned:
+        reasons.append("planned_candidate_mutation")
+        remaining.extend(f"planned_candidate_mutation:{item}" for item in planned)
+    if known is None:
+        reasons.append("review_readiness_unknown")
+    elif known is not True:
+        reasons.append("known_material_findings_incomplete")
+
+    exception_value = readiness.get("exception")
+    exception: dict[str, Any] | None
+    if exception_value is None:
+        exception = None
+    else:
+        exception = _require_object(exception_value, "review_readiness.exception")
+        if type(exception.get("allow_new_review")) is not bool:
+            raise RoutingInputError(
+                "review_readiness.exception.allow_new_review must be a boolean"
+            )
+        _require_string(exception.get("reason"), "review_readiness.exception.reason")
+        _require_string(
+            exception.get("authority_ref"), "review_readiness.exception.authority_ref"
+        )
+        exception = {
+            "allow_new_review": exception["allow_new_review"],
+            "authority_ref": exception["authority_ref"],
+            "reason": exception["reason"],
+        }
+        if exception["allow_new_review"]:
+            reasons.append("explicit_review_exception")
+
+    blocking_reasons = [
+        reason for reason in reasons if reason != "explicit_review_exception"
+    ]
+    derived_state = (
+        "unknown" if known is None else ("ready" if not blocking_reasons else "not_ready")
+    )
+    # The exception is an explicit, auditable override.  It never erases the
+    # underlying not-ready reasons from the packet or checkpoint.
+    allowed = derived_state == "ready" or bool(exception and exception["allow_new_review"])
+    if declared_state is not None and declared_state != derived_state:
+        raise RoutingInputError(
+            "review_readiness.state does not match its structured evidence"
+        )
+    if "remaining_material_gaps" in readiness:
+        declared_gaps = _string_list(
+            readiness["remaining_material_gaps"],
+            "review_readiness.remaining_material_gaps",
+        )
+        if declared_gaps != sorted(set(remaining)):
+            raise RoutingInputError(
+                "review_readiness.remaining_material_gaps does not match its families"
+            )
+    if "reasons" in readiness:
+        declared_reasons = _string_list(readiness["reasons"], "review_readiness.reasons")
+        if declared_reasons != sorted(set(reasons)):
+            raise RoutingInputError("review_readiness.reasons does not match its evidence")
+    if "review_acquisition_allowed" in readiness:
+        if type(readiness["review_acquisition_allowed"]) is not bool:
+            raise RoutingInputError(
+                "review_readiness.review_acquisition_allowed must be a boolean"
+            )
+        if readiness["review_acquisition_allowed"] != allowed:
+            raise RoutingInputError(
+                "review_readiness.review_acquisition_allowed does not match its evidence"
+            )
+    return {
+        "state": derived_state,
+        "known_material_findings_complete": known,
+        "finding_families": sorted(normalized_families, key=lambda item: item["id"]),
+        "planned_candidate_mutations": planned,
+        "remaining_material_gaps": sorted(set(remaining)),
+        "reasons": sorted(set(reasons)),
+        "exception": exception,
+        "review_acquisition_allowed": allowed,
+    }
 
 
 def _input_binding(packet: dict[str, Any]) -> dict[str, Any]:
@@ -268,6 +459,7 @@ def _request_binding(
     if not contract:
         raise RoutingInputError("contract must explicitly identify the review contract")
     _validate_json_data(contract, "contract")
+    readiness = normalize_review_readiness(packet.get("review_readiness"))
     return {
         "repository": binding["repository"],
         "objective": objective,
@@ -275,6 +467,7 @@ def _request_binding(
         "candidate": binding,
         "contract": contract,
         "input_binding": input_binding,
+        "review_readiness": readiness,
     }
 
 
@@ -502,6 +695,7 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     candidate = _require_object(packet.get("candidate"), "candidate")
     binding = _candidate_binding(candidate)
     input_binding = _input_binding(packet)
+    review_readiness = normalize_review_readiness(packet.get("review_readiness"))
     change = _require_object(packet.get("change"), "change")
     scope, reasons = _change_scope(change, candidate["members"])
     request_binding = _request_binding(packet, binding, input_binding)
@@ -541,6 +735,9 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
         "unknowns": [],
         "request_state": "not_requested",
         "merge_authorization": "not_established",
+        "review_readiness": review_readiness,
+        "review_readiness_digest": _digest(review_readiness),
+        "review_acquisition_allowed": review_readiness["review_acquisition_allowed"],
     }
 
     if missing:
@@ -651,6 +848,17 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
             "missing_confirmation": ["locate_and_verify_latest_cycle_result"],
         }
     if early:
+        if not review_readiness["review_acquisition_allowed"]:
+            reasons = [
+                "review_readiness_incomplete",
+                *review_readiness["reasons"],
+            ]
+            return {
+                **base_result,
+                "action": ACTION_MISSING,
+                "reason": reasons,
+                "missing_confirmation": reasons[1:],
+            }
         return {
             **base_result,
             "action": ACTION_EARLY,
@@ -663,6 +871,17 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     else:
         action = ACTION_DELTA
         reason = ["new_or_inapplicable_exact_head", *reasons]
+    if not review_readiness["review_acquisition_allowed"]:
+        blocked_reasons = [
+            "review_readiness_incomplete",
+            *review_readiness["reasons"],
+        ]
+        return {
+            **base_result,
+            "action": ACTION_MISSING,
+            "reason": blocked_reasons,
+            "missing_confirmation": blocked_reasons[1:],
+        }
     return {**base_result, "action": action, "reason": reason}
 
 

@@ -6,6 +6,7 @@ import hashlib
 import http.client
 import importlib.util
 import json
+import subprocess
 import sys
 import threading
 import types
@@ -1843,13 +1844,11 @@ class _ObservedTransportGitHub(publisher.GitHubProvider):
             "content": base64.b64encode(content).decode(),
         }
         planner_path = publisher.renderer.PLANNER_PATH
-        planner_content = (
-            ROOT
-            / "repository-skills"
-            / "land-templates-stack"
-            / "scripts"
-            / "plan_review_scope.py"
-        ).read_bytes()
+        planner_revision = normalized.data["planner"]["source"]["revision"]
+        planner_content = subprocess.check_output(
+            ["git", "show", f"{planner_revision}:{publisher.renderer.PLANNER_PATH}"],
+            cwd=ROOT,
+        )
         planner_blob_sha = hashlib.sha1(
             f"blob {len(planner_content)}\0".encode() + planner_content
         ).hexdigest()
@@ -1974,6 +1973,23 @@ def test_real_live_adapter_composes_observer_planner_gate_and_exact_file_binding
     )
     assert state["integration_base_tree_sha"] == integration_tree
     assert any("/git/commits/" in path for _, path in provider.calls)
+
+    def mismatched_planner_packet_builder(context, snapshot):
+        del snapshot
+        packet = copy.deepcopy(context.planner_packet)
+        packet["review_readiness"] = {
+            **packet["review_readiness"],
+            "state": "not_ready",
+        }
+        return packet
+
+    mismatched_adapter = publisher.GitHubLiveRevalidationAdapter(
+        planner_packet_builder=mismatched_planner_packet_builder,
+        gate_resolver=gate_resolver,
+        effective_base_resolver=effective_base_resolver,
+    )
+    with pytest.raises(publisher.PublicationError, match="readiness"):
+        mismatched_adapter(normalized, provider.metadata, provider)
     assert any("check-runs" in path for _, path in provider.calls)
     assert any("contents/.agent-policy.yml" in path for _, path in provider.calls)
 
