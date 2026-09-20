@@ -172,6 +172,18 @@ class CandidateBinding:
         identifiers = [item.identifier for item in dependencies]
         if len(identifiers) != len(set(identifiers)):
             raise ObservationInputError("candidate dependency IDs must be unique")
+        provider_identities = [
+            (
+                item.provider_identity.provider,
+                item.provider_identity.repository_id,
+                item.provider_identity.resource_id,
+            )
+            for item in dependencies
+        ]
+        if len(provider_identities) != len(set(provider_identities)):
+            raise ObservationInputError(
+                "candidate dependency provider identities must be unique"
+            )
         return cls(
             repository,
             number,
@@ -339,6 +351,18 @@ def _binding_observation(value: Mapping[str, Any], name: str) -> dict[str, Any]:
         )
     if len({item["id"] for item in normalized}) != len(normalized):
         raise ObservationInputError(f"{name}.dependencies must have unique IDs")
+    provider_identities = [
+        (
+            item["provider_identity"]["provider"],
+            item["provider_identity"]["repository_id"],
+            item["provider_identity"]["resource_id"],
+        )
+        for item in normalized
+    ]
+    if len(provider_identities) != len(set(provider_identities)):
+        raise ObservationInputError(
+            f"{name}.dependencies must have unique provider identities"
+        )
     return {
         "provider_identity": provider_identity.as_dict(),
         "head_sha": head_sha,
@@ -730,6 +754,8 @@ def _incomplete_diff(
         previous_state = SurfaceObservation.from_mapping(previous_surfaces[surface], surface)
         previous_ids = {record["identity"] for record in previous_state.records}
         current_ids = {record["identity"] for record in current_state.records}
+        previous_by_id = {record["identity"]: record for record in previous_state.records}
+        current_by_id = {record["identity"]: record for record in current_state.records}
         for record in current_state.records:
             if record["identity"] not in previous_ids:
                 changes.append(
@@ -740,6 +766,23 @@ def _incomplete_diff(
                         "record": record,
                     }
                 )
+        for identity in sorted(previous_ids & current_ids):
+            before = previous_by_id[identity]
+            after = current_by_id[identity]
+            if _semantic_record(before) == _semantic_record(after):
+                continue
+            before_state = before.get("state")
+            after_state = after.get("state")
+            kind = "state_changed" if before_state != after_state else "changed"
+            changes.append(
+                {
+                    "surface": surface,
+                    "kind": kind,
+                    "identity": identity,
+                    "before": before,
+                    "after": after,
+                }
+            )
         for record in previous_state.records:
             if record["identity"] not in current_ids:
                 changes.append(
@@ -763,11 +806,15 @@ def _incomplete_diff(
         unknowns.append("incomplete_snapshot_baseline")
     return {
         "status": "incomplete",
-        "meaningful_change": False,
+        "meaningful_change": any(
+            change["kind"] in {"changed", "state_changed"} for change in changes
+        ),
         "counts": {
             "added": 0,
-            "changed": 0,
-            "state_changed": 0,
+            "changed": sum(1 for change in changes if change["kind"] == "changed"),
+            "state_changed": sum(
+                1 for change in changes if change["kind"] == "state_changed"
+            ),
             "removed_observed": 0,
             "newly_observed": sum(
                 1 for change in changes if change["kind"] == "newly_observed"
