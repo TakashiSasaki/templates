@@ -5,6 +5,7 @@ import copy
 import hashlib
 import http.client
 import importlib.util
+import sys
 import threading
 import urllib.error
 from pathlib import Path
@@ -185,6 +186,27 @@ def test_preview_is_side_effect_free_and_does_not_read_remote_state() -> None:
     assert provider.list_calls == 0
     assert provider.update_calls == 0
     assert provider.create_calls == 0
+
+
+def test_dynamic_publish_loaders_register_modules_for_runtime_safe_execution(tmp_path) -> None:
+    renderer_module = publisher._load_renderer()
+    assert sys.modules.get(renderer_module.__name__) is renderer_module
+
+    adapter_path = tmp_path / "adapter.py"
+    adapter_path.write_text(
+        "from dataclasses import dataclass\n"
+        "@dataclass\n"
+        "class Result:\n"
+        "    value: int\n"
+        "def adapter():\n"
+        "    return Result(7)\n",
+        encoding="utf-8",
+    )
+
+    callback = publisher._load_callable(f"{adapter_path}:adapter")
+
+    assert callback().value == 7
+    assert sys.modules.get("templates_live_review_adapter") is not None
 
 
 def test_apply_requires_both_explicit_authorization_and_serialized_writer() -> None:
@@ -424,6 +446,31 @@ def test_lost_body_response_is_reconciled_when_body_is_observed_as_applied() -> 
     assert result.status == "published"
     assert provider.update_calls == 1
     assert any(item.get("status") == "reconciled" for item in result.operations)
+
+
+def test_ambiguous_body_with_failed_oserror_reconciliation_remains_ambiguous() -> None:
+    normalized = _bound_source()
+
+    class ReconciliationReadFailure(FakeProvider):
+        def get_current_state(
+            self,
+            repository: str,
+            number: int,
+            *,
+            context=None,
+        ) -> dict[str, object]:
+            if self.update_calls:
+                raise OSError("reconciliation transport failed")
+            return super().get_current_state(repository, number, context=context)
+
+    provider = ReconciliationReadFailure(normalized)
+    provider.ambiguous_body = True
+
+    result = _publish(provider)
+
+    assert result.status == "ambiguous"
+    assert "reconciliation failed" in result.reasons[0]
+    assert provider.update_calls == 1
 
 
 def test_partial_observation_does_not_publish_a_new_review_request() -> None:

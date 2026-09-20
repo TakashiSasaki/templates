@@ -46,11 +46,18 @@ import yaml
 
 def _load_renderer() -> Any:
     path = Path(__file__).with_name("render_review_artifacts.py")
-    spec = importlib.util.spec_from_file_location("templates_render_review_artifacts", path)
+    name = "templates_render_review_artifacts"
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError("cannot load the bound review-artifact renderer")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        if sys.modules.get(name) is module:
+            sys.modules.pop(name, None)
+        raise
     return module
 
 
@@ -742,7 +749,12 @@ def _load_observer_entrypoint() -> Any:
         raise PublicationError("cannot load the existing PR observation entry point")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        if sys.modules.get(spec.name) is module:
+            sys.modules.pop(spec.name, None)
+        raise
     return module
 
 
@@ -753,7 +765,12 @@ def _load_observation_model() -> Any:
         raise PublicationError("cannot load the PR observation model")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        if sys.modules.get(spec.name) is module:
+            sys.modules.pop(spec.name, None)
+        raise
     return module
 
 
@@ -2099,8 +2116,13 @@ def _publish_authorized(
             try:
                 reconciled = _current_state(remote, repository, number, normalized)
                 after_body, _, _ = _body_state(reconciled)
-            except PublicationError:
-                return PublicationResult("ambiguous", operations, [str(exc)], rendered)
+            except (PublicationError, OSError) as reconciliation_exc:
+                return PublicationResult(
+                    "ambiguous",
+                    operations,
+                    [f"{exc}; reconciliation failed: {reconciliation_exc}"],
+                    rendered,
+                )
             if after_body == updated_body:
                 try:
                     reconciliation_reasons = _validate_for_publication(
@@ -2108,7 +2130,7 @@ def _publish_authorized(
                         reconciled,
                         desired_body=updated_body,
                     )
-                except PublicationError as validation_exc:
+                except (PublicationError, OSError) as validation_exc:
                     return PublicationResult(
                         "ambiguous",
                         operations,
@@ -2343,7 +2365,13 @@ def _load_callable(specification: str) -> Callable[..., Any]:
         if module_spec is None or module_spec.loader is None:
             raise PublicationError(f"cannot load live adapter module: {module_name}")
         module = importlib.util.module_from_spec(module_spec)
-        module_spec.loader.exec_module(module)
+        sys.modules[module_spec.name] = module
+        try:
+            module_spec.loader.exec_module(module)
+        except Exception:
+            if sys.modules.get(module_spec.name) is module:
+                sys.modules.pop(module_spec.name, None)
+            raise
     else:
         module = __import__(module_name, fromlist=[function_name])
     callback = getattr(module, function_name, None)
