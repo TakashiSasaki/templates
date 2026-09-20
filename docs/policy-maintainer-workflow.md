@@ -145,6 +145,24 @@ region. Publication adapters, when authorized, must revalidate the current
 candidate and binding identity before any write and must reconcile ambiguous
 remote responses rather than retrying blindly.
 
+The companion publisher is
+`repository-skills/land-templates-stack/scripts/publish_review_artifacts.py`.
+Without `--apply` it is another side-effect-free preview path:
+
+```console
+python3 repository-skills/land-templates-stack/scripts/publish_review_artifacts.py \
+  publish --input review-artifacts.json
+```
+
+An apply requires `--apply --authorize --serialized-writer`, a GitHub token, and
+a fresh `--revalidation-state` supplied by the existing observer/planner/gate
+adapter. The state must bind the current PR head/base, dependency-role digest,
+planner input/result, gate input, and PR body. Without that live binding
+resolver the GitHub adapter refuses the write. It uses marker identities to
+reuse equivalent requests and checkpoints, and reports `ambiguous` when a lost
+remote response cannot be reconciled; it never blindly retries a non-idempotent
+write.
+
 ## Dogfood the two frontiers without self-adoption
 
 For a Policy stack `A -> B -> C`, continue safe B/C source changes and focused tests while A's CI or review is pending. Track construction separately from qualification and defer deliberately expensive descendant evidence when a known prerequisite mutation will stale its bindings. Review latency alone is not a gate. Once no current planned prerequisite mutation remains, restack only if actual state or bindings require it and qualify the intended heads at the applicable boundary. Required automatic CI continues throughout.

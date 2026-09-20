@@ -1751,8 +1751,9 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     planner = normalized.planner_result
     action = planner.get("action", "unknown")
     scope = planner.get("selected_scope", {})
+    request_identity = idempotency_key(normalized, "review-request")
     lines = [
-        f"<!-- {REVIEW_REQUEST_MARKER}:key={idempotency_key(normalized, 'review-request')} -->",
+        f"<!-- {REVIEW_REQUEST_MARKER}:key={request_identity} -->",
         "# Bound review request",
         "",
         f"Candidate: {data['repository']} PR {pr['number']} at {_code(candidate['head_sha'])}",
@@ -1789,12 +1790,17 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
             *_role_lines(data),
         ]
     )
-    if action == "acquire_missing_input_or_handoff" or normalized.blockers:
+    planner_blockers = [
+        reason
+        for reason in normalized.blockers
+        if reason.startswith("planner_") or reason.startswith("observation_")
+    ]
+    if action == "acquire_missing_input_or_handoff" or planner_blockers:
         lines.extend(["", "## Not ready for a new request"])
         lines.append(
             "The existing planner or bound evidence requires reconciliation before publication:"
         )
-        for blocker in normalized.blockers:
+        for blocker in planner_blockers or normalized.blockers:
             lines.append(f"- {_code(blocker)}")
         lines.append("A clean sentence or empty finding list is not approval or resolution.")
     elif action == "reuse_existing_result":
@@ -1821,7 +1827,7 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
                 "",
                 "Please review the selected scope against the candidate and bound "
                 "evidence. This request is not acceptance or merge authorization.",
-                f"Request identity: {_code(planner.get('request_key', normalized.binding_digest))}",
+                f"Request identity: {_code(request_identity)}",
             ]
         )
     return "\n".join(lines).rstrip() + "\n"
@@ -1900,11 +1906,12 @@ def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
     candidate = data["candidate"]
     work = data["work"]
     planner = normalized.planner_result
+    checkpoint_identity = idempotency_key(normalized, "work-ledger-checkpoint")
     pr = candidate["pull_request"]
     diagnostic_lines = _diagnostic_checkpoint_lines(work)
     closure_lines = _closure_checkpoint_lines(work)
     lines = [
-        f"<!-- {WORK_CHECKPOINT_MARKER}:binding={normalized.binding_digest} -->",
+        f"<!-- {WORK_CHECKPOINT_MARKER}:key={checkpoint_identity} -->",
         "## Work ledger checkpoint",
         "",
         f"- Objective: {_safe_text(work['objective_ref'])}",

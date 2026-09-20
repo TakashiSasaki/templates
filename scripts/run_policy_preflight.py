@@ -29,6 +29,7 @@ FOCUSED_TESTS = (
     "tests/test_observe_pr_state.py",
     "tests/test_pr_state_observation.py",
     "tests/test_pr_state_observation_replay.py",
+    "tests/test_publish_review_artifacts.py",
     "tests/test_review_artifacts.py",
     "tests/test_review_scope_selection.py",
 )
