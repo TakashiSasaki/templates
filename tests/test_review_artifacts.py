@@ -1081,6 +1081,29 @@ def test_work_checkpoint_records_invariant_closure_without_copying_transcript() 
     assert "transcript" not in checkpoint
 
 
+@pytest.mark.parametrize("sibling_value", [False, None])
+def test_legacy_closed_closure_record_never_implies_sibling_completion(
+    sibling_value: bool | None,
+) -> None:
+    source = _source()
+    family = {
+        "family": "legacy-family",
+        "status": "closed",
+        "evidence": ["legacy evidence"],
+        "gaps": [],
+    }
+    if sibling_value is not None:
+        family["sibling_audit_complete"] = sibling_value
+    source["work"]["closure_audit"] = [family]
+    _refresh_gate_for_source(source)
+
+    normalized = artifacts.normalize(source)
+
+    assert normalized.data["work"]["closure_audit"][0]["sibling_audit_complete"] is False
+    assert normalized.planner_packet["review_readiness"]["state"] == "not_ready"
+    assert normalized.planner_result["action"] == "acquire_missing_input_or_handoff"
+
+
 @pytest.mark.parametrize(
     "status,expected_action",
     [
@@ -1173,7 +1196,7 @@ def test_review_freeze_keeps_required_ci_state_visible(ci_status: str) -> None:
     assert f"CI: `{ci_status}`" in region
 
 
-def test_readiness_change_updates_review_identity_but_observation_timestamp_does_not() -> None:
+def test_readiness_change_keeps_review_identity_but_updates_checkpoint_identity() -> None:
     ready = artifacts.normalize(_source())
     blocked_source = _source()
     blocked_source["work"]["closure_audit"] = [
@@ -1187,7 +1210,7 @@ def test_readiness_change_updates_review_identity_but_observation_timestamp_does
     _refresh_gate_for_source(blocked_source)
     blocked = artifacts.normalize(blocked_source)
 
-    assert artifacts.idempotency_key(ready, "review-request") != artifacts.idempotency_key(
+    assert artifacts.idempotency_key(ready, "review-request") == artifacts.idempotency_key(
         blocked, "review-request"
     )
     assert artifacts.idempotency_key(ready, "work-ledger-checkpoint") != artifacts.idempotency_key(

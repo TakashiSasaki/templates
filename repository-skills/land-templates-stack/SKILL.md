@@ -92,6 +92,16 @@ completed result, reconcile an existing or submission-unknown request, acquire
 missing facts, or hand off. Required automatic CI, focused tests, repair work,
 and read-only observation continue during this review-freeze state.
 
+Readiness is current routing state, not historical request/review applicability
+identity. It is therefore excluded from the planner request binding and review
+request marker key. Existing records that carry the former readiness field are
+accepted only after their stored digest is validated and that field is removed
+for applicability comparison. The Work-ledger checkpoint keeps its own
+identity because resumable blockers and next actions are mutable durable state.
+Legacy closure families without explicit sibling-audit evidence, and planner
+families without an explicit disposition status, remain unknown/incomplete and
+cannot authorize a new request.
+
 An explicit urgent or authority-bound exception may permit new review
 acquisition only when its reason and authority reference are recorded in the
 structured readiness input. The exception does not erase the underlying gap.

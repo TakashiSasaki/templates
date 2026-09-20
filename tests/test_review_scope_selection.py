@@ -578,13 +578,172 @@ def test_explicit_review_exception_allows_new_request_without_erasing_gap() -> N
     assert "material_gap:revision-bound-evidence:pending-review-stale-base" in result[
         "review_readiness"
     ]["reasons"]
+    blocked_key = planner.plan(
+        _packet(review_readiness=_open_family_readiness())
+    )["request_key"]
+    assert result["request_key"] == blocked_key
 
 
-def test_readiness_changes_review_request_identity_but_not_checkpoint_identity() -> None:
+def test_readiness_changes_do_not_change_historical_request_identity() -> None:
     ready = _packet()
     blocked = _packet(review_readiness=_open_family_readiness())
 
-    assert planner.plan(ready)["request_key"] != planner.plan(blocked)["request_key"]
+    assert planner.plan(ready)["request_key"] == planner.plan(blocked)["request_key"]
+
+
+def test_inflight_request_remains_reconcilable_after_readiness_changes() -> None:
+    packet = _packet()
+    initial = planner.plan(packet)
+    request = _active_request(packet, initial["request_key"], "in_progress", handle="request")
+    packet["requests"] = [request]
+    blocked = _packet(review_readiness=_open_family_readiness())
+    blocked["requests"] = [request]
+    blocked["discovery"]["latest_request_cycle"] = "cycle-1"
+
+    result = planner.plan(blocked)
+
+    assert result["action"] == planner.ACTION_RECONCILE
+    assert result["request_key"] == initial["request_key"]
+
+
+def test_completed_review_remains_reusable_after_readiness_changes() -> None:
+    packet = _packet()
+    review = _complete_review(packet)
+    blocked = _packet(review_readiness=_open_family_readiness())
+    blocked["reviews"] = [review]
+
+    result = planner.plan(blocked)
+
+    assert result["action"] == planner.ACTION_REUSE
+    assert result["reusable_evidence"] == ["provider-result"]
+
+
+def test_legacy_readiness_in_request_binding_remains_applicable() -> None:
+    packet = _packet()
+    review = _complete_review(packet)
+    review["request_binding"]["review_readiness"] = copy.deepcopy(packet["review_readiness"])
+    review["request_binding_digest"] = planner._digest(review["request_binding"])
+    review["binding_key"] = planner._digest(review["request_binding"])
+    review["key"] = planner._digest(
+        {**review["request_binding"], "scope": review["reviewed_scope"]}
+    )
+    packet["reviews"] = [review]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_REUSE
+
+
+def test_legacy_readiness_in_active_request_remains_reconcilable() -> None:
+    packet = _packet()
+    initial = planner.plan(packet)
+    request = _active_request(packet, initial["request_key"], "in_progress", handle="request")
+    request["request_binding"]["review_readiness"] = copy.deepcopy(packet["review_readiness"])
+    request["request_binding_digest"] = planner._digest(request["request_binding"])
+    request["binding_key"] = planner._digest(request["request_binding"])
+    request["key"] = planner._digest(
+        {**request["request_binding"], "scope": request["requested_scope"]}
+    )
+    packet["requests"] = [request]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_RECONCILE
+
+
+@pytest.mark.parametrize("status", ["closed", "gap", "deliberately_untested"])
+def test_supported_family_statuses_are_accepted(status: str) -> None:
+    packet = _packet(
+        review_readiness={
+            "known_material_findings_complete": True,
+            "finding_families": [
+                {
+                    "id": "family",
+                    "finding_refs": [],
+                    "status": status,
+                    "sibling_audit_complete": True,
+                    "remaining_material_gaps": [],
+                }
+            ],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    result = planner.plan(packet)
+
+    assert result["review_readiness"]["finding_families"][0]["status"] == status
+
+
+@pytest.mark.parametrize(
+    "status,include_status",
+    [(None, True), (None, False), ("unsupported", True)],
+    ids=["null", "missing", "unsupported"],
+)
+def test_missing_or_unsupported_family_status_fails_closed_at_planner_boundary(
+    status: object,
+    include_status: bool,
+) -> None:
+    family = {
+        "id": "family",
+        "finding_refs": [],
+        "sibling_audit_complete": True,
+        "remaining_material_gaps": [],
+    }
+    if include_status:
+        family["status"] = status
+    packet = _packet(
+        review_readiness={
+            "known_material_findings_complete": True,
+            "finding_families": [family],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    with pytest.raises(planner.RoutingInputError, match="status"):
+        planner.plan(packet)
+
+
+def test_duplicate_family_ids_fail_closed_at_planner_boundary() -> None:
+    family = {
+        "id": "family",
+        "finding_refs": [],
+        "status": "closed",
+        "sibling_audit_complete": True,
+        "remaining_material_gaps": [],
+    }
+    packet = _packet(
+        review_readiness={
+            "known_material_findings_complete": True,
+            "finding_families": [family, copy.deepcopy(family)],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    with pytest.raises(planner.RoutingInputError, match="unique"):
+        planner.plan(packet)
+
+
+def test_missing_sibling_completion_fails_closed_at_planner_boundary() -> None:
+    family = {
+        "id": "family",
+        "finding_refs": [],
+        "status": "closed",
+        "remaining_material_gaps": [],
+    }
+    packet = _packet(
+        review_readiness={
+            "known_material_findings_complete": True,
+            "finding_families": [family],
+            "planned_candidate_mutations": [],
+            "exception": None,
+        }
+    )
+
+    with pytest.raises(planner.RoutingInputError, match="sibling_audit_complete"):
+        planner.plan(packet)
 
 
 def test_legacy_v2_packet_without_readiness_requires_regeneration_before_request() -> None:

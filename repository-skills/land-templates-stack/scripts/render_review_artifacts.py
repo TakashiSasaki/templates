@@ -1455,7 +1455,10 @@ def _normalize_work(source: dict[str, Any]) -> dict[str, Any]:
                 raise ArtifactInputError(
                     f"work.closure_audit[{index}].finding_refs must contain strings"
                 )
-            sibling_audit_complete = item.get("sibling_audit_complete", status == "closed")
+            # A legacy closure record does not prove that the bounded sibling
+            # audit happened.  Normalize the absent field to incomplete so
+            # the planner can never treat old ``closed`` prose as readiness.
+            sibling_audit_complete = item.get("sibling_audit_complete", False)
             _require_bool(
                 sibling_audit_complete,
                 f"work.closure_audit[{index}].sibling_audit_complete",
@@ -1997,10 +2000,10 @@ def idempotency_key(normalized: NormalizedReviewArtifacts, request_type: str) ->
         "review_contract": normalized.data["contract"],
         "request_type": request_type,
     }
-    if request_type == "review-request":
-        # Readiness is part of the review-acquisition applicability, but not
-        # of checkpoint identity.  Keep the two durable lifecycles distinct.
-        material["review_readiness"] = normalized.data["work"]["review_readiness"]
+    # Current review-acquisition readiness is mutable routing state.  It must
+    # not create a second historical request identity after an equivalent
+    # request has already been submitted.  Checkpoint identity deliberately
+    # remains separate and includes resumable Work state above.
     return semantic_digest(material)
 
 

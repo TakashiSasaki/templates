@@ -34,7 +34,9 @@ unknown value is intentionally fail-closed for new external review acquisition;
 it does not prevent reuse of applicable completed evidence or reconciliation of
 an already-created request.  The renderer derives the value from the existing
 Work-ledger closure audit, while this module validates the immutable packet
-presented at the routing boundary.
+presented at the routing boundary.  When families are present, each family
+must explicitly identify its disposition and sibling-audit completion.  The
+readiness projection is not part of historical request applicability identity.
 """
 
 from __future__ import annotations
@@ -212,16 +214,15 @@ def normalize_review_readiness(value: Any) -> dict[str, Any]:
             family.get("remaining_material_gaps", []),
             f"review_readiness.finding_families[{index}].remaining_material_gaps",
         )
-        status = family.get("status")
-        if status is not None:
-            status = _require_string(
-                status, f"review_readiness.finding_families[{index}].status"
+        status = _require_string(
+            family.get("status"),
+            f"review_readiness.finding_families[{index}].status",
+        )
+        if status not in {"closed", "gap", "deliberately_untested"}:
+            raise RoutingInputError(
+                "review_readiness finding-family status must be closed, gap, "
+                "or deliberately_untested"
             )
-            if status not in {"closed", "gap", "deliberately_untested"}:
-                raise RoutingInputError(
-                    "review_readiness finding-family status must be closed, gap, "
-                    "or deliberately_untested"
-                )
         if not sibling_complete:
             reason = f"sibling_audit_incomplete:{family_id}"
             reasons.append(reason)
@@ -459,7 +460,6 @@ def _request_binding(
     if not contract:
         raise RoutingInputError("contract must explicitly identify the review contract")
     _validate_json_data(contract, "contract")
-    readiness = normalize_review_readiness(packet.get("review_readiness"))
     return {
         "repository": binding["repository"],
         "objective": objective,
@@ -467,7 +467,6 @@ def _request_binding(
         "candidate": binding,
         "contract": contract,
         "input_binding": input_binding,
-        "review_readiness": readiness,
     }
 
 
@@ -488,6 +487,31 @@ def _request_key(
     material = _request_binding(packet, binding, input_binding)
     material["scope"] = scope
     return _digest(material)
+
+
+def _stable_request_binding(value: Any) -> dict[str, Any] | None:
+    """Remove only mutable routing state from a persisted request binding."""
+
+    if not isinstance(value, dict) or not _is_json_data(value):
+        return None
+    return {key: item for key, item in value.items() if key != "review_readiness"}
+
+
+def _recorded_scope_key_matches(record: dict[str, Any], scope_field: str) -> bool:
+    """Validate current and legacy request keys for one recorded scope."""
+
+    recorded = record.get("request_binding")
+    scope = record.get(scope_field)
+    if not isinstance(recorded, dict) or not isinstance(scope, dict):
+        return False
+    stable = _stable_request_binding(recorded)
+    if stable is None:
+        return False
+    valid_keys = {
+        _digest({**recorded, "scope": scope}),
+        _digest({**stable, "scope": scope}),
+    }
+    return record.get("key") in valid_keys
 
 
 def _scope_dominates(prior: Any, current: dict[str, Any]) -> bool:
@@ -528,7 +552,12 @@ def _record_request_binding_matches(record: dict[str, Any], current: dict[str, A
     if not isinstance(recorded, dict) or not _is_json_data(recorded):
         return False
     digest = _digest(recorded)
-    if record.get("request_binding_digest") != digest or digest != _digest(current):
+    stable = _stable_request_binding(recorded)
+    if (
+        record.get("request_binding_digest") != digest
+        or stable is None
+        or _digest(stable) != _digest(current)
+    ):
         return False
     # Reject contradictory legacy mirror metadata rather than silently choosing
     # the convenient copy. The nested binding is the complete canonical material.
@@ -555,10 +584,11 @@ def _review_covers(
         return False
     same_scope_request = review.get("key") == key
     broader_scope_result = review.get("binding_key") == binding_key
-    if not same_scope_request and not broader_scope_result:
-        return False
     if not _record_request_binding_matches(review, request_binding):
         return False
+    if not same_scope_request and not broader_scope_result:
+        if not _recorded_scope_key_matches(review, "reviewed_scope"):
+            return False
     if not _scope_dominates(review.get("reviewed_scope"), scope):
         return False
     if (
@@ -667,7 +697,7 @@ def _active_request_matches(
         return False
     if not _scope_dominates(requested_scope, scope):
         return False
-    if _digest({**item["request_binding"], "scope": requested_scope}) != item.get("key"):
+    if not _recorded_scope_key_matches(item, "requested_scope"):
         return False
     for field, current in (("candidate_binding", binding), ("input_binding", inputs)):
         value = item.get(field)

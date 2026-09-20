@@ -264,6 +264,15 @@ self-authorize their own readiness: use the currently trusted planner and
 maintenance Skill until the proposed source has passed its normal review and
 adoption boundaries.
 
+The readiness projection is mutable routing state, not historical review or
+request applicability identity. Existing request/review records are matched by
+candidate, contract, input, and scope bindings without readiness; a former
+recorded readiness field is ignored only after its original record digest is
+validated. Checkpoint identity remains separate because blockers and resume
+instructions are durable operational state. Legacy closure records without
+explicit sibling-audit evidence, or planner family records without explicit
+status, fail closed instead of being upgraded to ready.
+
 ## Dogfood the two frontiers without self-adoption
 
 For a Policy stack `A -> B -> C`, continue safe B/C source changes and focused tests while A's CI or review is pending. Track construction separately from qualification and defer deliberately expensive descendant evidence when a known prerequisite mutation will stale its bindings. Review latency alone is not a gate. Once no current planned prerequisite mutation remains, restack only if actual state or bindings require it and qualify the intended heads at the applicable boundary. Required automatic CI continues throughout.
