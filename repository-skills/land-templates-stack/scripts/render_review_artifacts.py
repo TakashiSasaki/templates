@@ -38,6 +38,7 @@ FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 PLANNER_PATH = "repository-skills/land-templates-stack/scripts/plan_review_scope.py"
 OBSERVER_PATH = "repository-skills/land-templates-stack/scripts/pr_state_observation.py"
+TRUSTED_SOURCE_MANIFEST_PATH = ".agents/skills/land-templates-stack/source.json"
 
 GENERATED_REGION_START = "<!-- codex:review-artifacts:v1:start -->"
 GENERATED_REGION_END = "<!-- codex:review-artifacts:v1:end -->"
@@ -568,11 +569,22 @@ def _normalize_revision_bindings(
                 f"revision_bindings[{index}].source.field",
             )
         bindings.append(normalized)
+    missing_roles = [role for role in REVISION_ROLES if role not in seen]
+    if missing_roles:
+        raise ArtifactInputError(
+            "revision_bindings must explicitly declare every role: "
+            + ", ".join(missing_roles)
+        )
     bindings.sort(key=lambda item: item["role"])
     return bindings, semantic_digest(bindings)
 
 
-def _trusted_planner_source(bindings: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def _trusted_planner_source(
+    bindings: Sequence[Mapping[str, Any]],
+    candidate: Mapping[str, Any],
+    *,
+    repository_root: Path | None = None,
+) -> dict[str, Any]:
     """Return the independently bound immutable source for planner execution.
 
     ``planner.source`` is executable input, so its ``trusted`` flag cannot be
@@ -581,6 +593,73 @@ def _trusted_planner_source(bindings: Sequence[Mapping[str, Any]]) -> dict[str, 
     identity used for the planner.
     """
 
+    root = repository_root or Path(__file__).parents[3]
+    try:
+        manifest = json.loads(
+            _read_git_bytes(
+                root,
+                "show",
+                f"{candidate['base_sha']}:{TRUSTED_SOURCE_MANIFEST_PATH}",
+            ).decode("utf-8")
+        )
+    except (ArtifactInputError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ArtifactInputError(
+            "trusted planner source manifest is unavailable at the candidate base"
+        ) from exc
+    if not isinstance(manifest, Mapping):
+        raise ArtifactInputError("trusted planner source manifest must be an object")
+    if manifest.get("schema_version") != 2:
+        raise ArtifactInputError("trusted planner source manifest has an unsupported schema")
+    if manifest.get("kind") != "repository-maintainer-skill-reference":
+        raise ArtifactInputError("trusted planner source manifest has an invalid kind")
+    if manifest.get("repository") != REPOSITORY:
+        raise ArtifactInputError("trusted planner source manifest has an invalid repository")
+    manifest_revision = _require_sha(
+        manifest.get("revision"), "trusted planner source manifest.revision"
+    )
+    manifest_path = _require_string(
+        manifest.get("path"), "trusted planner source manifest.path"
+    )
+    manifest_blob = _require_sha(
+        manifest.get("blob_sha"), "trusted planner source manifest.blob_sha"
+    )
+    if manifest_path != "repository-skills/land-templates-stack/SKILL.md":
+        raise ArtifactInputError("trusted planner source manifest path is not canonical")
+    if _read_git_output(root, "cat-file", "-t", manifest_revision) != "commit":
+        raise ArtifactInputError("trusted planner source manifest revision is not a commit")
+    if (
+        _read_git_output(root, "rev-parse", "--verify", f"{manifest_revision}:{manifest_path}")
+        != manifest_blob
+    ):
+        raise ArtifactInputError("trusted planner source manifest Skill blob is not current")
+
+    closure = manifest.get("closure")
+    if not isinstance(closure, list):
+        raise ArtifactInputError("trusted planner source manifest closure is missing")
+    closure_by_path: dict[str, str] = {}
+    for index, item in enumerate(closure):
+        if not isinstance(item, Mapping):
+            raise ArtifactInputError(f"trusted planner source closure entry {index} is invalid")
+        path = _require_string(item.get("path"), f"trusted planner source closure[{index}].path")
+        blob = _require_sha(
+            item.get("blob_sha"), f"trusted planner source closure[{index}].blob_sha"
+        )
+        if path in closure_by_path:
+            raise ArtifactInputError("trusted planner source closure contains a duplicate path")
+        closure_by_path[path] = blob
+        if _read_git_output(root, "rev-parse", "--verify", f"{manifest_revision}:{path}") != blob:
+            raise ArtifactInputError(f"trusted planner source closure is not current: {path}")
+    trusted_blob = closure_by_path.get(PLANNER_PATH)
+    if trusted_blob is None:
+        raise ArtifactInputError("trusted planner source closure omits the planner")
+
+    expected_source = {
+        "repository": REPOSITORY,
+        "revision": manifest_revision,
+        "path": PLANNER_PATH,
+        "blob_sha": trusted_blob,
+        "trusted": True,
+    }
     binding = next(
         (item for item in bindings if item.get("role") == "trusted_maintainer_source"),
         None,
@@ -595,17 +674,22 @@ def _trusted_planner_source(bindings: Sequence[Mapping[str, Any]]) -> dict[str, 
         path=PLANNER_PATH,
         require_blob=True,
     )
-    if binding.get("revision") != source["revision"]:
+    if binding.get("revision") != source["revision"] or any(
+        source.get(field) != expected_source[field]
+        for field in ("repository", "revision", "path", "blob_sha")
+    ):
         raise ArtifactInputError(
-            "trusted_maintainer_source revision does not match its source identity"
+            "trusted_maintainer_source is not bound to the installed immutable source closure"
         )
-    return source
+    return expected_source
 
 
 def _require_trusted_planner_source(
-    planner_source: Mapping[str, Any], bindings: Sequence[Mapping[str, Any]]
+    planner_source: Mapping[str, Any],
+    bindings: Sequence[Mapping[str, Any]],
+    candidate: Mapping[str, Any],
 ) -> dict[str, Any]:
-    trusted_source = _trusted_planner_source(bindings)
+    trusted_source = _trusted_planner_source(bindings, candidate)
     for field in ("repository", "revision", "path", "blob_sha"):
         if planner_source.get(field) != trusted_source.get(field):
             raise ArtifactInputError(
@@ -831,6 +915,9 @@ def _normalize_judgments(source: dict[str, Any], candidate: dict[str, Any]) -> l
         _require_string(judgment.get("judged_at"), f"judgments[{index}].judged_at")
         if judgment.get("candidate_head_sha") != candidate["head_sha"]:
             raise ArtifactInputError(f"judgments[{index}] is not bound to candidate.head_sha")
+        for field in ("base_sha", "effective_base_sha"):
+            if judgment.get(field) != candidate[field]:
+                raise ArtifactInputError(f"judgments[{index}] is not bound to candidate.{field}")
         evidence_refs = _require_list(
             judgment.get("evidence_refs", []), f"judgments[{index}].evidence_refs"
         )
@@ -963,7 +1050,7 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
     planner_source = _source_identity(
         planner_input.get("source"), "planner.source", path=PLANNER_PATH, require_blob=True
     )
-    _require_trusted_planner_source(planner_source, revisions)
+    _require_trusted_planner_source(planner_source, revisions, candidate)
     planner_binding = {
         **copy.deepcopy(input_binding),
         "artifact_binding": _artifact_binding(
@@ -1003,7 +1090,6 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
     }
     semantic_projection = _content_projection(normalized)
     content_digest = semantic_digest(semantic_projection)
-    body = observation.get("pr_body")
     binding_projection = {
         "candidate": candidate,
         "revision_bindings": revisions,
@@ -1011,8 +1097,6 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
         "planner_packet": planner_packet,
         "planner_result": planner_result,
         "gate_input_binding": gate["input_binding"],
-        "pr_body_revision": None if body is None else body["revision"],
-        "pr_body_digest": None if body is None else body["body_digest"],
     }
     binding_digest = semantic_digest(binding_projection)
     observation_digest = semantic_digest(observation)
@@ -1152,6 +1236,28 @@ def _role_lines(data: Mapping[str, Any]) -> list[str]:
     return lines
 
 
+def idempotency_key(normalized: NormalizedReviewArtifacts, request_type: str) -> str:
+    """Return a stable request identity independent of PR-body observations."""
+
+    _require_string(request_type, "request_type")
+    candidate = normalized.data["candidate"]
+    planner = normalized.planner_result
+    material = {
+        "repository": normalized.data["repository"],
+        "pull_request_id": candidate["pull_request"]["id"],
+        "pull_request_number": candidate["pull_request"]["number"],
+        "candidate_head_sha": candidate["head_sha"],
+        "base_sha": candidate["base_sha"],
+        "effective_base_sha": candidate["effective_base_sha"],
+        "revision_bindings": normalized.data["revision_bindings"],
+        "planner_request_key": planner.get("request_key"),
+        "planner_scope": planner.get("selected_scope"),
+        "review_contract": normalized.data["contract"],
+        "request_type": request_type,
+    }
+    return semantic_digest(material)
+
+
 def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     data = normalized.data
     candidate = data["candidate"]
@@ -1160,7 +1266,7 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     action = planner.get("action", "unknown")
     scope = planner.get("selected_scope", {})
     lines = [
-        f"<!-- {REVIEW_REQUEST_MARKER}:key={normalized.binding_digest} -->",
+        f"<!-- {REVIEW_REQUEST_MARKER}:key={idempotency_key(normalized, 'review-request')} -->",
         "# Bound review request",
         "",
         f"Candidate: {data['repository']} PR {pr['number']} at {_code(candidate['head_sha'])}",

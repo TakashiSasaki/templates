@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import json
 import subprocess
 from pathlib import Path
 
@@ -21,39 +22,44 @@ def _sha(letter: str) -> str:
     return letter * 40
 
 
+def _trusted_base_sha() -> str:
+    return subprocess.check_output(
+        ["git", "rev-parse", "origin/policy"], cwd=ROOT, text=True
+    ).strip()
+
+
 def _trusted_planner_source() -> dict[str, object]:
-    revision = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
-    ).strip()
-    blob_sha = subprocess.check_output(
-        ["git", "rev-parse", f"{revision}:{artifacts.PLANNER_PATH}"],
-        cwd=ROOT,
-        text=True,
-    ).strip()
+    manifest = json.loads(
+        (ROOT / artifacts.TRUSTED_SOURCE_MANIFEST_PATH).read_text(encoding="utf-8")
+    )
+    planner = next(
+        item for item in manifest["closure"] if item["path"] == artifacts.PLANNER_PATH
+    )
     return {
         "repository": "TakashiSasaki/templates",
         "authority": "policy",
-        "revision": revision,
+        "revision": manifest["revision"],
         "path": artifacts.PLANNER_PATH,
-        "blob_sha": blob_sha,
+        "blob_sha": planner["blob_sha"],
         "trusted": True,
     }
 
 
 def _source() -> dict[str, object]:
     trusted_planner = _trusted_planner_source()
+    base_sha = _trusted_base_sha()
     candidate = {
         "repository": "TakashiSasaki/templates",
         "authority": "policy",
         "branch": "codex/review-artifacts-source",
-        "base_sha": _sha("a"),
-        "effective_base_sha": _sha("a"),
+        "base_sha": base_sha,
+        "effective_base_sha": base_sha,
         "head_sha": _sha("b"),
         "members": [
             {
                 "id": "policy-review-artifacts",
                 "authority": "policy",
-                "base_sha": _sha("a"),
+                "base_sha": base_sha,
                 "head_sha": _sha("b"),
                 "pull_request": {
                     "number": 123,
@@ -69,7 +75,7 @@ def _source() -> dict[str, object]:
             "id": "PR_node_123",
             "number": 123,
             "url": "https://github.com/TakashiSasaki/templates/pull/123",
-            "base_sha": _sha("a"),
+            "base_sha": base_sha,
             "head_sha": _sha("b"),
         },
     }
@@ -157,7 +163,7 @@ def _source() -> dict[str, object]:
                 "ci": {
                     "status": "success",
                     "head_sha": _sha("b"),
-                    "applicable_to": {"head_sha": _sha("b"), "base_sha": _sha("a")},
+                    "applicable_to": {"head_sha": _sha("b"), "base_sha": base_sha},
                     "workflow": "policy-ci",
                     "run_id": 7,
                     "attempt": 1,
@@ -205,8 +211,8 @@ def _source() -> dict[str, object]:
         "repository": "TakashiSasaki/templates",
         "pull_request_id": "PR_node_123",
         "candidate_head_sha": _sha("b"),
-        "base_sha": _sha("a"),
-        "effective_base_sha": _sha("a"),
+        "base_sha": base_sha,
+        "effective_base_sha": base_sha,
         "revision_bindings_digest": revision_digest,
         "planner_input_digest": artifacts.semantic_digest(packet),
         "planner_result_digest": artifacts.semantic_digest(planner_result),
@@ -339,6 +345,92 @@ def test_planner_source_must_match_independent_trusted_maintainer_binding() -> N
 
     with pytest.raises(artifacts.ArtifactInputError, match="trusted_maintainer_source"):
         artifacts.normalize(source)
+
+
+def test_planner_trust_anchor_is_not_self_asserted_by_artifact_roles() -> None:
+    source = _source()
+    revision = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+    blob_sha = subprocess.check_output(
+        ["git", "rev-parse", f"{revision}:{artifacts.PLANNER_PATH}"],
+        cwd=ROOT,
+        text=True,
+    ).strip()
+    candidate_source = {
+        "repository": "TakashiSasaki/templates",
+        "authority": "policy",
+        "revision": revision,
+        "path": artifacts.PLANNER_PATH,
+        "blob_sha": blob_sha,
+        "trusted": True,
+    }
+    source["planner"]["source"] = copy.deepcopy(candidate_source)
+    trusted_binding = next(
+        item
+        for item in source["revision_bindings"]
+        if item["role"] == "trusted_maintainer_source"
+    )
+    trusted_binding["revision"] = revision
+    trusted_binding["source"].update(candidate_source)
+
+    with pytest.raises(artifacts.ArtifactInputError, match="immutable source closure"):
+        artifacts.normalize(source)
+
+
+def test_missing_revision_role_is_rejected_instead_of_assumed_unknown() -> None:
+    source = _source()
+    source["revision_bindings"] = [
+        item
+        for item in source["revision_bindings"]
+        if item["role"] != "consumer_actual_toolchain"
+    ]
+
+    with pytest.raises(artifacts.ArtifactInputError, match="consumer_actual_toolchain"):
+        artifacts.normalize(source)
+
+
+def test_request_identity_ignores_human_pr_body_cas_state() -> None:
+    first = artifacts.normalize(_source())
+    changed_source = _source()
+    changed_source["observed"]["pr_body"] = {
+        "revision": "body-2",
+        "body": "Human text edited outside the generated region\n",
+    }
+    changed = artifacts.normalize(changed_source)
+
+    assert artifacts.idempotency_key(first, "review-request") == artifacts.idempotency_key(
+        changed, "review-request"
+    )
+    assert first.binding_digest == changed.binding_digest
+
+
+def test_judgment_is_bound_to_base_and_effective_base() -> None:
+    source = _source()
+    source["judgments"] = [
+        {
+            "id": "finding-1",
+            "disposition": "resolved",
+            "actor": {"kind": "human", "id": "reviewer"},
+            "finding_ref": "finding://1",
+            "rationale": "fixed",
+            "judged_at": "2026-09-20T02:00:00Z",
+            "candidate_head_sha": _sha("b"),
+            "base_sha": source["candidate"]["base_sha"],
+            "effective_base_sha": source["candidate"]["effective_base_sha"],
+            "evidence_refs": ["https://example.invalid/evidence/1"],
+        }
+    ]
+    normalized = artifacts.normalize(source)
+    assert (
+        normalized.data["judgments"][0]["effective_base_sha"]
+        == source["candidate"]["effective_base_sha"]
+    )
+
+    stale = copy.deepcopy(source)
+    stale["judgments"][0]["effective_base_sha"] = _sha("c")
+    with pytest.raises(artifacts.ArtifactInputError, match="effective_base_sha"):
+        artifacts.normalize(stale)
 
 
 @pytest.mark.parametrize(
