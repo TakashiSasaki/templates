@@ -296,6 +296,7 @@ class GitHubProvider(RemoteProvider):
             except (
                 urllib.error.URLError,
                 TimeoutError,
+                http.client.HTTPException,
                 http.client.RemoteDisconnected,
                 http.client.IncompleteRead,
                 ConnectionResetError,
@@ -315,6 +316,7 @@ class GitHubProvider(RemoteProvider):
         except (
             urllib.error.URLError,
             TimeoutError,
+            http.client.HTTPException,
             http.client.RemoteDisconnected,
             http.client.IncompleteRead,
             ConnectionResetError,

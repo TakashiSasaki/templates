@@ -789,6 +789,57 @@ def test_oserror_response_reads_are_ambiguous_for_mutations_and_errors(
     assert calls == ["PATCH", "POST", "GET"]
 
 
+def test_http_protocol_response_reads_are_ambiguous_for_mutations(
+    monkeypatch,
+) -> None:
+    class BrokenResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            raise http.client.BadStatusLine("truncated status line")
+
+    class BrokenErrorBody:
+        def read(self, *args):
+            del args
+            raise http.client.LineTooLong("truncated error body")
+
+        def close(self):
+            return None
+
+    calls: list[str] = []
+
+    def urlopen(request, timeout):
+        del timeout
+        calls.append(request.method)
+        if request.method == "PATCH":
+            return BrokenResponse()
+        if request.method == "POST":
+            raise urllib.error.HTTPError(
+                request.full_url,
+                502,
+                "upstream failure",
+                {},
+                BrokenErrorBody(),
+            )
+        return BrokenResponse()
+
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", urlopen)
+    provider = publisher.GitHubProvider("token")
+
+    with pytest.raises(publisher.RemoteAmbiguousError):
+        provider.update_pr_body("TakashiSasaki/templates", 123, "body")
+    with pytest.raises(publisher.RemoteAmbiguousError):
+        provider.create_comment("TakashiSasaki/templates", 123, "comment")
+    with pytest.raises(publisher.PublicationError, match="could not be read"):
+        provider._request("GET", "/repos/TakashiSasaki/templates/pulls/123")
+
+    assert calls == ["PATCH", "POST", "GET"]
+
+
 def test_complete_http_error_body_remains_a_deterministic_error(monkeypatch) -> None:
     class CompleteBody:
         def read(self, *args):
