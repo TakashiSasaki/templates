@@ -12,18 +12,25 @@ and provider-side Work-ledger checkpoints.  GitHub's ordinary PR-body update
 endpoint does not provide a general conditional compare-and-swap guard, so a
 body write additionally requires a caller-authorized serialized writer and a
 read/compare/re-read boundary.  A changed body is reported as a conflict and
-is never overwritten.
+is never overwritten.  Normal GitHub apply also requires an injected live
+revalidation adapter; a static replay document is never an authorization
+source.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import copy
+import hashlib
 import http.client
 import importlib.util
 import json
 import os
+import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -93,7 +100,13 @@ class PublicationResult:
 class RemoteProvider:
     """Small provider surface used by the publisher and fake-based tests."""
 
-    def get_current_state(self, repository: str, number: int) -> dict[str, Any]:
+    def get_current_state(
+        self,
+        repository: str,
+        number: int,
+        *,
+        context: Any | None = None,
+    ) -> dict[str, Any]:
         raise NotImplementedError
 
     def list_comments(self, repository: str, number: int) -> list[dict[str, Any]]:
@@ -104,6 +117,34 @@ class RemoteProvider:
 
     def create_comment(self, repository: str, number: int, body: str) -> Mapping[str, Any]:
         raise NotImplementedError
+
+    def create_review_request(
+        self, repository: str, number: int, body: str
+    ) -> Mapping[str, Any]:
+        """Publish a provider-specific review request.
+
+        The base adapter is deliberately provider-neutral.  Providers that
+        require an invocation syntax may override this method; tests and
+        other providers retain the ordinary comment surface.
+        """
+
+        return self.create_comment(repository, number, body)
+
+    def is_equivalent_review_request(
+        self, comment: Mapping[str, Any], key: str
+    ) -> bool:
+        return _marker(comment, renderer.REVIEW_REQUEST_MARKER, key)
+
+    def review_request_acknowledgement(
+        self,
+        repository: str,
+        number: int,
+        comment: Mapping[str, Any],
+    ) -> str:
+        """Return provider acknowledgement state without treating it as approval."""
+
+        del repository, number, comment
+        return "submitted_unacknowledged"
 
 
 def _json_data(value: Any, name: str) -> Any:
@@ -127,7 +168,7 @@ def _repository_path(repository: str) -> str:
 
 
 class GitHubProvider(RemoteProvider):
-    """Bounded GitHub REST adapter with an optional live binding resolver."""
+    """Bounded GitHub REST adapter with required live revalidation."""
 
     def __init__(
         self,
@@ -135,12 +176,13 @@ class GitHubProvider(RemoteProvider):
         *,
         api_url: str = "https://api.github.com",
         timeout: float = 30.0,
-        binding_resolver: Callable[[Mapping[str, Any]], Mapping[str, Any]] | None = None,
+        live_revalidator: Callable[[Any, Mapping[str, Any], GitHubProvider], Mapping[str, Any]]
+        | None = None,
     ) -> None:
         self.token = _require_string(token, "token")
         self.api_url = api_url.rstrip("/")
         self.timeout = timeout
-        self.binding_resolver = binding_resolver
+        self.live_revalidator = live_revalidator
 
     def _request(
         self,
@@ -183,7 +225,13 @@ class GitHubProvider(RemoteProvider):
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise PublicationError(f"GitHub {method} {path} returned invalid JSON") from exc
 
-    def get_current_state(self, repository: str, number: int) -> dict[str, Any]:
+    def get_current_state(
+        self,
+        repository: str,
+        number: int,
+        *,
+        context: Any | None = None,
+    ) -> dict[str, Any]:
         path = f"{_repository_path(repository)}/pulls/{number}"
         payload = self._request("GET", path)
         if not isinstance(payload, Mapping):
@@ -205,12 +253,69 @@ class GitHubProvider(RemoteProvider):
             "body_revision": renderer.semantic_digest(body),
             "body_digest": renderer.semantic_digest(body),
         }
-        if self.binding_resolver is not None:
-            resolved = self.binding_resolver(payload)
-            if not isinstance(resolved, Mapping):
-                raise PublicationError("binding_resolver must return an object")
-            state.update(_json_data(dict(resolved), "binding_resolver result"))
+        if self.live_revalidator is None:
+            raise PublicationError(
+                "live revalidation adapter is required for GitHub apply; "
+                "a static replay state cannot authorize remote writes"
+            )
+        if context is None:
+            raise PublicationError("live revalidation requires the normalized input context")
+        resolved = self.live_revalidator(context, payload, self)
+        if not isinstance(resolved, Mapping):
+            raise PublicationError("live revalidation adapter must return an object")
+        live_state = resolved.get("live_revalidation")
+        if (
+            not isinstance(live_state, Mapping)
+            or live_state.get("complete") is not True
+            or live_state.get("candidate_head_sha") != head.get("sha")
+        ):
+            raise PublicationError(
+                "live revalidation adapter did not return a complete current snapshot"
+            )
+        state.update(_json_data(dict(resolved), "live revalidation result"))
         return state
+
+    def read_file_at_revision(
+        self,
+        repository: str,
+        revision: str,
+        path: str,
+    ) -> dict[str, Any]:
+        """Read and verify one immutable file at an exact commit."""
+
+        if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+            raise PublicationError("file resolution requires a full candidate commit SHA")
+        if not path or path.startswith("/") or ".." in Path(path).parts:
+            raise PublicationError("file path is not repository-relative")
+        endpoint = (
+            f"{_repository_path(repository)}/contents/"
+            f"{urllib.parse.quote(path, safe='/')}?ref={urllib.parse.quote(revision, safe='')}"
+        )
+        payload = self._request("GET", endpoint)
+        if not isinstance(payload, Mapping):
+            raise PublicationError("GitHub content response must be an object")
+        if payload.get("type") != "file" or payload.get("path") != path:
+            raise PublicationError("GitHub content response is not the requested file")
+        blob_sha = payload.get("sha")
+        content = payload.get("content")
+        encoding = payload.get("encoding")
+        if (
+            not isinstance(blob_sha, str)
+            or re.fullmatch(r"[0-9a-f]{40}", blob_sha) is None
+            or not isinstance(content, str)
+            or encoding != "base64"
+        ):
+            raise PublicationError("GitHub content response lacks verified file identity")
+        try:
+            raw = base64.b64decode("".join(content.split()), validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise PublicationError("GitHub file content is not valid base64") from exc
+        actual_blob_sha = hashlib.sha1(
+            f"blob {len(raw)}\0".encode("ascii") + raw
+        ).hexdigest()
+        if actual_blob_sha != blob_sha:
+            raise PublicationError("GitHub file blob identity does not match content")
+        return {"path": path, "sha": blob_sha, "content": raw}
 
     def list_comments(self, repository: str, number: int) -> list[dict[str, Any]]:
         comments: list[dict[str, Any]] = []
@@ -246,6 +351,514 @@ class GitHubProvider(RemoteProvider):
             raise PublicationError("GitHub comment response must be an object")
         return result
 
+    @staticmethod
+    def _codex_review_body(body: str) -> str:
+        if re.search(r"(?m)^@codex review(?:\s|$)", body):
+            return body
+        return "@codex review\n\n" + body
+
+    def create_review_request(
+        self, repository: str, number: int, body: str
+    ) -> Mapping[str, Any]:
+        return self.create_comment(
+            repository,
+            number,
+            self._codex_review_body(body),
+        )
+
+    def is_equivalent_review_request(
+        self, comment: Mapping[str, Any], key: str
+    ) -> bool:
+        body = comment.get("body")
+        return (
+            super().is_equivalent_review_request(comment, key)
+            and isinstance(body, str)
+            and re.search(r"(?m)^@codex review(?:\s|$)", body) is not None
+        )
+
+    def review_request_acknowledgement(
+        self,
+        repository: str,
+        number: int,
+        comment: Mapping[str, Any],
+    ) -> str:
+        comment_id = comment.get("id")
+        if not isinstance(comment_id, (int, str)):
+            return "submitted_unacknowledged"
+        reactions = self._request(
+            "GET",
+            f"{_repository_path(repository)}/issues/comments/{comment_id}/reactions"
+            "?per_page=100&page=1",
+        )
+        if isinstance(reactions, list) and any(
+            isinstance(item, Mapping) and item.get("content") == "eyes"
+            for item in reactions
+        ):
+            return "acknowledged"
+        return "submitted_unacknowledged"
+
+
+def _load_observer_entrypoint() -> Any:
+    path = Path(__file__).with_name("observe_pr_state.py")
+    spec = importlib.util.spec_from_file_location("templates_observe_pr_state", path)
+    if spec is None or spec.loader is None:
+        raise PublicationError("cannot load the existing PR observation entry point")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_observation_model() -> Any:
+    path = Path(__file__).with_name("pr_state_observation.py")
+    spec = importlib.util.spec_from_file_location("templates_pr_state_observation", path)
+    if spec is None or spec.loader is None:
+        raise PublicationError("cannot load the PR observation model")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _snapshot_evidence_digest(snapshot: Mapping[str, Any]) -> str:
+    """Digest provider evidence without observation timestamps or pagination noise."""
+
+    projection = copy.deepcopy(dict(snapshot))
+    projection.pop("snapshot_digest", None)
+    projection.pop("observation", None)
+    projection.pop("resume", None)
+    surfaces = projection.get("surfaces")
+    if isinstance(surfaces, Mapping):
+        for surface in surfaces.values():
+            if isinstance(surface, Mapping):
+                surface.pop("pages", None)
+        metadata = surfaces.get("metadata")
+        if isinstance(metadata, Mapping):
+            metadata_records = metadata.get("records")
+            if isinstance(metadata_records, list):
+                for record in metadata_records:
+                    if isinstance(record, Mapping):
+                        for key in ("body", "body_text", "body_html"):
+                            record.pop(key, None)
+        comments = surfaces.get("comments")
+        if isinstance(comments, Mapping):
+            records = comments.get("records")
+            if isinstance(records, list):
+                comments["records"] = [
+                    record
+                    for record in records
+                    if not (
+                        isinstance(record, Mapping)
+                        and isinstance(record.get("body"), str)
+                        and (
+                            renderer.REVIEW_REQUEST_MARKER in record["body"]
+                            or renderer.WORK_CHECKPOINT_MARKER in record["body"]
+                        )
+                    )
+                ]
+    return renderer.semantic_digest(renderer._strip_observation_metadata(projection))
+
+
+def _member_binding_projection(normalized: Any) -> list[dict[str, str]]:
+    return [
+        {
+            "id": member["id"],
+            "authority": member["authority"],
+            "base_sha": member["base_sha"],
+            "head_sha": member["head_sha"],
+        }
+        for member in normalized.data["candidate"]["members"]
+    ]
+
+
+def _member_binding_digest(normalized: Any) -> str:
+    return renderer.semantic_digest(_member_binding_projection(normalized))
+
+
+def _live_member_binding_digest(
+    normalized: Any,
+    snapshot: Mapping[str, Any],
+    live_head_sha: str,
+) -> str:
+    members = copy.deepcopy(_member_binding_projection(normalized))
+    dependencies = snapshot.get("observed_end", {}).get("dependencies", [])
+    live_heads = {
+        item.get("id"): item.get("head_sha")
+        for item in dependencies
+        if isinstance(item, Mapping)
+    }
+    candidate = normalized.data["candidate"]
+    for member in members:
+        if member["head_sha"] == candidate["head_sha"]:
+            member["head_sha"] = live_head_sha
+        elif member["id"] in live_heads and isinstance(live_heads[member["id"]], str):
+            member["head_sha"] = live_heads[member["id"]]
+    return renderer.semantic_digest(members)
+
+
+def _full_sha(value: Any, name: str) -> str:
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None:
+        raise PublicationError(f"{name} must be a lowercase full SHA")
+    return value
+
+
+class GitHubLiveRevalidationAdapter:
+    """Compose the existing observer, planner, gate, and exact-file resolver.
+
+    The planner packet builder and gate resolver are injected because their
+    semantic owners already live outside this publisher.  This adapter only
+    coordinates them and verifies their candidate bindings; it never decides
+    review scope or acceptance itself.
+    """
+
+    def __init__(
+        self,
+        *,
+        planner_packet_builder: Callable[[Any, Mapping[str, Any]], Mapping[str, Any]],
+        gate_resolver: Callable[
+            [Any, Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]
+        ],
+        clock: Callable[[], float] = time.time,
+        observation_seconds: float = 60.0,
+    ) -> None:
+        self.planner_packet_builder = planner_packet_builder
+        self.gate_resolver = gate_resolver
+        self.clock = clock
+        self.observation_seconds = observation_seconds
+
+    @staticmethod
+    def _observation_candidate(
+        normalized: Any,
+        payload: Mapping[str, Any],
+        observer: Any,
+    ) -> Any:
+        candidate = normalized.data["candidate"]
+        base = payload.get("base")
+        head = payload.get("head")
+        repository = base.get("repo") if isinstance(base, Mapping) else None
+        repository_id = repository.get("id") if isinstance(repository, Mapping) else None
+        live_repository = (
+            repository.get("full_name") if isinstance(repository, Mapping) else None
+        )
+        if live_repository != normalized.data["repository"]:
+            raise PublicationError("live PR repository does not match the bound input")
+        live_number = payload.get("number")
+        if type(live_number) is not int or live_number != candidate["pull_request"]["number"]:
+            raise PublicationError("live PR number does not match the bound input")
+        live_head = _full_sha(
+            head.get("sha") if isinstance(head, Mapping) else None,
+            "live PR head",
+        )
+        live_base = _full_sha(
+            base.get("sha") if isinstance(base, Mapping) else None,
+            "live PR base",
+        )
+        resource_id = payload.get("id")
+        if type(repository_id) is not int or type(resource_id) is not int:
+            raise PublicationError("live PR immutable provider identity is incomplete")
+
+        raw_members = candidate.get("members", [])
+        dependencies: list[dict[str, Any]] = []
+        skipped_tip = False
+        for index, member in enumerate(raw_members):
+            member_pr = member.get("pull_request")
+            if isinstance(member_pr, Mapping) and member_pr.get("number") == live_number:
+                skipped_tip = True
+                continue
+            if not isinstance(member_pr, Mapping):
+                if not skipped_tip and member.get("head_sha") == candidate["head_sha"]:
+                    skipped_tip = True
+                    continue
+                raise PublicationError(
+                    f"candidate.members[{index}] lacks an exact pull-request binding"
+                )
+            member_number = member_pr.get("number")
+            if type(member_number) is not int or member_number <= 0:
+                raise PublicationError(
+                    f"candidate.members[{index}].pull_request.number is invalid"
+                )
+            provider_identity = member_pr.get("provider_identity")
+            if not isinstance(provider_identity, Mapping):
+                raise PublicationError(
+                    f"candidate.members[{index}] lacks provider identity for observation"
+                )
+            provider_path = member_pr.get(
+                "provider_path",
+                f"/repos/{normalized.data['repository']}/pulls/{member_number}",
+            )
+            dependencies.append(
+                {
+                    "id": member["id"],
+                    "authority": member["authority"],
+                    "expected_head_sha": member["head_sha"],
+                    "provider_identity": dict(provider_identity),
+                    "provider_path": provider_path,
+                }
+            )
+        if raw_members and not skipped_tip:
+            raise PublicationError("candidate topology does not identify the target PR member")
+        return observer.CandidateBinding.from_mapping(
+            {
+                "repository": normalized.data["repository"],
+                "number": live_number,
+                "id": str(resource_id),
+                "provider_identity": {
+                    "provider": "github",
+                    "repository_id": repository_id,
+                    "resource_id": resource_id,
+                },
+                "expected_head_sha": live_head,
+                "expected_base_sha": live_base,
+                "dependencies": dependencies,
+            }
+        )
+
+    @staticmethod
+    def _observation_api(provider: GitHubProvider, observer: Any) -> Callable[..., Any]:
+        def api(
+            arguments: Sequence[str],
+            *,
+            timeout: float = 30.0,
+            budget: Any = None,
+        ) -> Any:
+            del timeout
+            values = list(arguments)
+            paginate = values and values[0] == "--paginate"
+            if paginate:
+                values = values[1:]
+            if not values:
+                raise observer.ProviderFailure("malformed", "observation endpoint is missing")
+            try:
+                if values[0] == "graphql":
+                    query: str | None = None
+                    variables: dict[str, Any] = {}
+                    index = 1
+                    while index < len(values):
+                        flag = values[index]
+                        if flag not in {"-f", "-F"} or index + 1 >= len(values):
+                            raise observer.ProviderFailure(
+                                "malformed", "unsupported GraphQL observation argument"
+                            )
+                        name, separator, raw = values[index + 1].partition("=")
+                        if not separator:
+                            raise observer.ProviderFailure(
+                                "malformed", "malformed GraphQL observation argument"
+                            )
+                        if name == "query":
+                            query = raw
+                        else:
+                            variables[name] = (
+                                int(raw)
+                                if flag == "-F" and raw.isdigit()
+                                else raw
+                            )
+                        index += 2
+                    if query is None:
+                        raise observer.ProviderFailure("malformed", "GraphQL query is missing")
+                    payload = provider._request("POST", "/graphql", {"query": query, **variables})
+                    return observer.ApiResponse(payload)
+
+                endpoint = values[0]
+                pages: list[Any] = []
+                for page in range(1, 101):
+                    if budget is not None:
+                        budget.check()
+                    separator = "&" if "?" in endpoint else "?"
+                    page_endpoint = f"{endpoint}{separator}per_page=100&page={page}"
+                    payload = provider._request("GET", page_endpoint)
+                    pages.append(payload)
+                    if isinstance(payload, list):
+                        if len(payload) < 100:
+                            break
+                    elif isinstance(payload, Mapping):
+                        list_values = [
+                            value
+                            for key, value in payload.items()
+                            if key in {"check_runs", "statuses"} and isinstance(value, list)
+                        ]
+                        if not list_values or any(len(value) < 100 for value in list_values):
+                            break
+                    else:
+                        break
+                else:
+                    raise observer.ProviderFailure(
+                        "incomplete", "observation pagination exceeded the bounded limit"
+                    )
+                return observer.ApiResponse(pages)
+            except observer.ProviderFailure:
+                raise
+            except Exception as exc:
+                raise observer.ProviderFailure("provider", str(exc)) from exc
+
+        return api
+
+    @staticmethod
+    def _toolchain_revision(
+        provider: GitHubProvider,
+        normalized: Any,
+        candidate_head: str,
+    ) -> None:
+        binding = next(
+            (
+                item
+                for item in normalized.data["revision_bindings"]
+                if item["role"] == "consumer_actual_toolchain"
+            ),
+            None,
+        )
+        if not isinstance(binding, Mapping) or binding.get("status") != "bound":
+            raise PublicationError("consumer_actual_toolchain must be bound for live apply")
+        source = binding.get("source")
+        if not isinstance(source, Mapping):
+            raise PublicationError("consumer_actual_toolchain source is incomplete")
+        if source.get("candidate_head_sha") != candidate_head:
+            raise PublicationError(
+                "consumer_actual_toolchain source is not bound to the live candidate head"
+            )
+        path = source.get("path")
+        field = source.get("field")
+        if path != ".agent-policy.yml" or field != "toolchain.revision":
+            raise PublicationError(
+                "live consumer pin verification requires .agent-policy.yml#toolchain.revision"
+            )
+        resolved = provider.read_file_at_revision(
+            normalized.data["repository"], candidate_head, path
+        )
+        if source.get("blob_sha") is not None and source["blob_sha"] != resolved["sha"]:
+            raise PublicationError("consumer configuration blob binding changed")
+        try:
+            yamlutil_path = Path(__file__).parents[3] / "src" / "agent_policy" / "yamlutil.py"
+            spec = importlib.util.spec_from_file_location(
+                "templates_agent_policy_yamlutil", yamlutil_path
+            )
+            if spec is None or spec.loader is None:
+                raise PublicationError("cannot load the trusted Policy YAML loader")
+            yamlutil = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(yamlutil)
+            document = yamlutil.load_yaml_text(resolved["content"].decode("utf-8"))
+        except UnicodeDecodeError as exc:
+            raise PublicationError("consumer configuration is not UTF-8 YAML") from exc
+        except PublicationError:
+            raise
+        except Exception as exc:
+            raise PublicationError(f"consumer configuration is malformed: {exc}") from exc
+        current: Any = document
+        for part in field.split("."):
+            if not isinstance(current, Mapping) or part not in current:
+                raise PublicationError("consumer toolchain.revision is missing")
+            current = current[part]
+        actual = _full_sha(current, "consumer toolchain.revision")
+        if actual != binding.get("revision"):
+            raise PublicationError(
+                "consumer_actual_toolchain claim differs from the exact candidate configuration"
+            )
+
+    def __call__(
+        self,
+        normalized: Any,
+        payload: Mapping[str, Any],
+        provider: GitHubProvider,
+    ) -> Mapping[str, Any]:
+        observer = _load_observer_entrypoint()
+        binding = self._observation_candidate(normalized, payload, observer)
+        readonly = observer.GhReadonlyProvider(api=self._observation_api(provider, observer))
+        deadline = self.clock() + self.observation_seconds
+        capture = observer.capture_once(
+            readonly,
+            binding,
+            observer.DEFAULT_SURFACES,
+            clock=self.clock,
+            budget=observer.ObservationBudget(deadline, clock=self.clock),
+        )
+        if capture.failure is not None:
+            raise PublicationError(
+                f"live PR observation {capture.failure.category}: {capture.failure}"
+            )
+        snapshot = capture.snapshot
+        if not isinstance(snapshot, Mapping):
+            raise PublicationError("live PR observation did not produce a snapshot")
+        try:
+            _load_observation_model().validate_snapshot(snapshot)
+        except Exception as exc:
+            raise PublicationError(f"live PR observation is invalid: {exc}") from exc
+        if snapshot.get("complete") is not True or snapshot.get("binding_status") != "stable":
+            raise PublicationError("live PR observation is incomplete or stale")
+
+        live_head = _full_sha(payload.get("head", {}).get("sha"), "live PR head")
+        live_base = _full_sha(payload.get("base", {}).get("sha"), "live PR base")
+        self._toolchain_revision(provider, normalized, live_head)
+        try:
+            packet = _json_data(
+                dict(self.planner_packet_builder(normalized, snapshot)),
+                "live planner packet",
+            )
+            if not isinstance(packet, Mapping):
+                raise PublicationError("live planner packet must be an object")
+            packet_candidate = packet.get("candidate")
+            if (
+                not isinstance(packet_candidate, Mapping)
+                or packet_candidate.get("head_sha") != live_head
+            ):
+                raise PublicationError("live planner packet is not bound to the current head")
+            planner_result = renderer._planner_module().plan(dict(packet))
+        except PublicationError:
+            raise
+        except Exception as exc:
+            raise PublicationError(f"live planner could not run: {exc}") from exc
+        try:
+            gate = _json_data(
+                dict(self.gate_resolver(normalized, snapshot, packet, planner_result)),
+                "live gate result",
+            )
+        except PublicationError:
+            raise
+        except Exception as exc:
+            raise PublicationError(f"live gate resolver failed: {exc}") from exc
+        if not isinstance(gate, Mapping):
+            raise PublicationError("live gate resolver must return an object")
+        gate_status = gate.get("status")
+        gate_input_digest = gate.get("input_binding_digest")
+        if not isinstance(gate_status, str) or not isinstance(gate_input_digest, str):
+            raise PublicationError("live gate result lacks status or input binding digest")
+        gate_binding = gate.get("input_binding")
+        expected_gate_binding = {
+            "repository": normalized.data["repository"],
+            "pull_request_id": normalized.data["candidate"]["pull_request"]["id"],
+            "candidate_head_sha": live_head,
+            "base_sha": live_base,
+            "effective_base_sha": live_base,
+            "revision_bindings_digest": renderer.semantic_digest(
+                normalized.data["revision_bindings"]
+            ),
+            "planner_input_digest": renderer.semantic_digest(packet),
+            "planner_result_digest": renderer.semantic_digest(planner_result),
+        }
+        if not isinstance(gate_binding, Mapping) or any(
+            gate_binding.get(key) != value for key, value in expected_gate_binding.items()
+        ):
+            raise PublicationError("live gate result is bound to different inputs")
+        if renderer.semantic_digest(dict(gate_binding)) != gate_input_digest:
+            raise PublicationError("live gate input binding digest is invalid")
+        return {
+            "revision_bindings_digest": renderer.semantic_digest(
+                normalized.data["revision_bindings"]
+            ),
+            "candidate_members_digest": _live_member_binding_digest(
+                normalized, snapshot, live_head
+            ),
+            "planner_input_digest": renderer.semantic_digest(packet),
+            "planner_result_digest": renderer.semantic_digest(planner_result),
+            "gate_input_binding_digest": gate_input_digest,
+            "gate_status": gate_status,
+            "evidence_digest": gate.get("evidence_digest", _snapshot_evidence_digest(snapshot)),
+            "live_snapshot_digest": _snapshot_evidence_digest(snapshot),
+            "live_revalidation": {
+                "complete": True,
+                "snapshot_digest": snapshot.get("snapshot_digest"),
+                "candidate_head_sha": live_head,
+            },
+        }
+
 
 def _flatten_state(state: Mapping[str, Any]) -> dict[str, Any]:
     result = _json_data(dict(state), "current provider state")
@@ -269,11 +882,16 @@ def _expected_binding(normalized: Any) -> dict[str, Any]:
         "base_sha": candidate["base_sha"],
         "effective_base_sha": candidate["effective_base_sha"],
         "revision_bindings_digest": renderer.semantic_digest(data["revision_bindings"]),
+        "candidate_members_digest": _member_binding_digest(normalized),
         "planner_input_digest": renderer.semantic_digest(planner["packet"]),
         "planner_result_digest": renderer.semantic_digest(planner["result"]),
         "gate_input_binding_digest": data["gate"]["input_binding_digest"],
         "gate_status": data["gate"]["status"],
-        "evidence_digest": renderer.semantic_digest(data["observed"]["facts"]),
+        "evidence_digest": (
+            _snapshot_evidence_digest(data["observed"]["snapshot"])
+            if isinstance(data["observed"].get("snapshot"), Mapping)
+            else renderer.semantic_digest(data["observed"]["facts"])
+        ),
     }
 
 
@@ -394,9 +1012,12 @@ def _state_token(state: Mapping[str, Any]) -> tuple[Any, ...]:
         current.get("base_sha"),
         current.get("effective_base_sha"),
         current.get("revision_bindings_digest"),
+        current.get("candidate_members_digest"),
         current.get("planner_input_digest"),
         current.get("planner_result_digest"),
         current.get("gate_input_binding_digest"),
+        current.get("evidence_digest"),
+        current.get("live_snapshot_digest"),
         body_revision,
         body_digest,
         body,
@@ -414,8 +1035,21 @@ def _matching_comments(
     return [comment for comment in comments if _marker(comment, prefix, key)]
 
 
+def _matching_review_requests(
+    remote: RemoteProvider,
+    comments: Sequence[Mapping[str, Any]],
+    key: str,
+) -> list[Mapping[str, Any]]:
+    return [
+        comment
+        for comment in comments
+        if remote.is_equivalent_review_request(comment, key)
+    ]
+
+
 def _planned_operations(
     normalized: Any,
+    remote: RemoteProvider,
     current: Mapping[str, Any],
     comments: Sequence[Mapping[str, Any]],
     *,
@@ -437,7 +1071,7 @@ def _planned_operations(
     request_key = renderer.idempotency_key(normalized, "review-request")
     checkpoint_key = renderer.idempotency_key(normalized, "work-ledger-checkpoint")
     action = normalized.planner_result.get("action")
-    request_matches = _matching_comments(comments, renderer.REVIEW_REQUEST_MARKER, request_key)
+    request_matches = _matching_review_requests(remote, comments, request_key)
     checkpoint_matches = _matching_comments(
         comments, renderer.WORK_CHECKPOINT_MARKER, checkpoint_key
     )
@@ -491,14 +1125,46 @@ def _reconcile_comment(
     number: int,
     prefix: str,
     key: str,
+    matcher: Callable[[Mapping[str, Any], str], bool] | None = None,
 ) -> tuple[str, list[Mapping[str, Any]]]:
     comments = remote.list_comments(repository, number)
-    matches = _matching_comments(comments, prefix, key)
+    matches = (
+        [comment for comment in comments if matcher(comment, key)]
+        if matcher is not None
+        else _matching_comments(comments, prefix, key)
+    )
     if len(matches) == 1:
         return "reconciled", matches
     if len(matches) > 1:
         return "conflict", matches
     return "ambiguous", matches
+
+
+def _current_state(
+    remote: RemoteProvider,
+    repository: str,
+    number: int,
+    normalized: Any,
+) -> dict[str, Any]:
+    return remote.get_current_state(repository, number, context=normalized)
+
+
+def _record_review_acknowledgement(
+    remote: RemoteProvider,
+    repository: str,
+    number: int,
+    operation: dict[str, Any],
+    comment: Mapping[str, Any],
+) -> None:
+    try:
+        operation["acknowledgement"] = remote.review_request_acknowledgement(
+            repository, number, comment
+        )
+    except PublicationError as exc:
+        # The request itself has already been reconciled.  A failed follow-up
+        # acknowledgement query must not turn a confirmed write into a retry.
+        operation["acknowledgement"] = "unknown"
+        operation["acknowledgement_error"] = str(exc)
 
 
 def publish(
@@ -547,7 +1213,7 @@ def publish(
         initialize=initialize_region,
     )
     try:
-        current = remote.get_current_state(repository, number)
+        current = _current_state(remote, repository, number, normalized)
         malformed = _malformed_region_reason(current, initialize=initialize_region)
         if malformed is not None:
             return PublicationResult("conflict", [], [malformed], rendered)
@@ -564,6 +1230,7 @@ def publish(
         comments = remote.list_comments(repository, number)
         operations, updated_body = _planned_operations(
             normalized,
+            remote,
             current,
             comments,
             initialize=initialize_region,
@@ -577,7 +1244,7 @@ def publish(
     )
     if body_changed:
         try:
-            before_write = remote.get_current_state(repository, number)
+            before_write = _current_state(remote, repository, number, normalized)
             if _state_token(before_write) != _state_token(current):
                 return PublicationResult(
                     "conflict", operations, ["PR body or binding changed before write"], rendered
@@ -590,7 +1257,7 @@ def publish(
             if before_reasons:
                 return PublicationResult("stale", operations, before_reasons, rendered)
             remote.update_pr_body(repository, number, updated_body)
-            after_write = remote.get_current_state(repository, number)
+            after_write = _current_state(remote, repository, number, normalized)
             after_body, _, _ = _body_state(after_write)
             if after_body != updated_body:
                 return PublicationResult(
@@ -602,7 +1269,7 @@ def publish(
             current = after_write
         except RemoteAmbiguousError as exc:
             try:
-                reconciled = remote.get_current_state(repository, number)
+                reconciled = _current_state(remote, repository, number, normalized)
                 after_body, _, _ = _body_state(reconciled)
             except PublicationError:
                 return PublicationResult("ambiguous", operations, [str(exc)], rendered)
@@ -636,7 +1303,7 @@ def publish(
         if operation["status"] != "create":
             continue
         try:
-            latest_state = remote.get_current_state(repository, number)
+            latest_state = _current_state(remote, repository, number, normalized)
             latest_reasons = _validate_for_publication(
                 normalized,
                 latest_state,
@@ -650,7 +1317,11 @@ def publish(
                     rendered,
                 )
             latest_comments = remote.list_comments(repository, number)
-            matches = _matching_comments(latest_comments, prefix, key)
+            matches = (
+                _matching_review_requests(remote, latest_comments, key)
+                if operation_type == "review_request"
+                else _matching_comments(latest_comments, prefix, key)
+            )
             if len(matches) > 1:
                 return PublicationResult(
                     "conflict", operations, [f"duplicate {operation_type} markers"], rendered
@@ -659,14 +1330,39 @@ def publish(
                 operation["status"] = "already_present"
                 continue
             try:
-                remote.create_comment(repository, number, body)
+                if operation_type == "review_request":
+                    created_comment = remote.create_review_request(repository, number, body)
+                else:
+                    created_comment = remote.create_comment(repository, number, body)
             except RemoteAmbiguousError as exc:
-                status, matches = _reconcile_comment(remote, repository, number, prefix, key)
+                status, matches = _reconcile_comment(
+                    remote,
+                    repository,
+                    number,
+                    prefix,
+                    key,
+                    remote.is_equivalent_review_request
+                    if operation_type == "review_request"
+                    else None,
+                )
                 if status == "reconciled":
                     operation["status"] = "reconciled"
+                    if operation_type == "review_request":
+                        _record_review_acknowledgement(
+                            remote, repository, number, operation, matches[0]
+                        )
                     continue
                 return PublicationResult("ambiguous", operations, [str(exc)], rendered)
-            status, matches = _reconcile_comment(remote, repository, number, prefix, key)
+            status, matches = _reconcile_comment(
+                remote,
+                repository,
+                number,
+                prefix,
+                key,
+                remote.is_equivalent_review_request
+                if operation_type == "review_request"
+                else None,
+            )
             if status == "conflict":
                 return PublicationResult(
                     "conflict", operations, [f"duplicate {operation_type} markers"], rendered
@@ -679,6 +1375,14 @@ def publish(
                     rendered,
                 )
             operation["status"] = "created"
+            if operation_type == "review_request":
+                _record_review_acknowledgement(
+                    remote,
+                    repository,
+                    number,
+                    operation,
+                    created_comment if isinstance(created_comment, Mapping) else matches[0],
+                )
         except (PublicationError, OSError) as exc:
             return PublicationResult("blocked", operations, [str(exc)], rendered)
     return PublicationResult("published", operations, [], rendered)
@@ -695,6 +1399,29 @@ def _load_json(path: str) -> dict[str, Any]:
     return dict(value)
 
 
+def _load_callable(specification: str) -> Callable[..., Any]:
+    """Load an explicitly selected live adapter as ``module:function`` or file:function."""
+
+    module_name, separator, function_name = specification.partition(":")
+    if not separator or not module_name or not function_name:
+        raise PublicationError("--live-adapter must be MODULE:FUNCTION or FILE.py:FUNCTION")
+    module_path = Path(module_name)
+    if module_path.is_file():
+        module_spec = importlib.util.spec_from_file_location(
+            "templates_live_review_adapter", module_path
+        )
+        if module_spec is None or module_spec.loader is None:
+            raise PublicationError(f"cannot load live adapter module: {module_name}")
+        module = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(module)
+    else:
+        module = __import__(module_name, fromlist=[function_name])
+    callback = getattr(module, function_name, None)
+    if not callable(callback):
+        raise PublicationError(f"live adapter is not callable: {specification}")
+    return callback
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -706,8 +1433,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--repository", help="override repository only when it matches input"
     )
     publish_parser.add_argument(
-        "--revalidation-state",
-        help="JSON binding state refreshed by the existing observer/planner/gate adapter",
+        "--live-adapter",
+        help=(
+            "MODULE:FUNCTION or FILE.py:FUNCTION that composes the live observer, "
+            "planner, gate, and exact revision resolvers; required for apply"
+        ),
+    )
+    publish_parser.add_argument(
+        "--replay-state",
+        help="offline diagnostic JSON only; it can never authorize an apply",
     )
     publish_parser.add_argument(
         "--token", default=os.environ.get("GH_TOKEN", os.environ.get("GITHUB_TOKEN"))
@@ -736,16 +1470,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.apply:
             if not args.token:
                 raise PublicationError("--token or GH_TOKEN/GITHUB_TOKEN is required for apply")
-            binding_resolver = None
-            if args.revalidation_state:
-
-                def binding_resolver(_payload: Mapping[str, Any]) -> Mapping[str, Any]:
-                    return _load_json(args.revalidation_state)
+            if args.replay_state:
+                raise PublicationError(
+                    "--replay-state is offline-only and cannot authorize apply"
+                )
+            if not args.live_adapter:
+                raise PublicationError("--live-adapter is required for apply")
+            live_revalidator = _load_callable(args.live_adapter)
 
             remote = GitHubProvider(
                 args.token,
                 api_url=args.api_url,
-                binding_resolver=binding_resolver,
+                live_revalidator=live_revalidator,
             )
         result = publish(
             normalized,

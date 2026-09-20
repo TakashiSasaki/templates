@@ -155,13 +155,34 @@ python3 repository-skills/land-templates-stack/scripts/publish_review_artifacts.
 ```
 
 An apply requires `--apply --authorize --serialized-writer`, a GitHub token, and
-a fresh `--revalidation-state` supplied by the existing observer/planner/gate
-adapter. The state must bind the current PR head/base, dependency-role digest,
-planner input/result, gate input, and PR body. Without that live binding
-resolver the GitHub adapter refuses the write. It uses marker identities to
-reuse equivalent requests and checkpoints, and reports `ambiguous` when a lost
-remote response cannot be reconciled; it never blindly retries a non-idempotent
-write.
+an explicit `--live-adapter MODULE:FUNCTION` (or `FILE.py:FUNCTION`). The live
+adapter must compose the existing complete PR observer, the existing review
+scope planner, the gate-owned current-state resolver, and exact candidate-file
+resolution. The publisher reads the current PR identity first and invokes this
+adapter again before every non-idempotent write; an incomplete observation,
+changed review/CI/gate evidence, changed dependency binding, or a consumer pin
+that differs from the exact candidate configuration stops the operation.
+
+The GitHub adapter's review-request operation is provider-specific: a new
+planner-approved request is posted with the repository-recognized `@codex
+review` trigger. Reuse, reconciliation, handoff, and incomplete observations
+never emit a new trigger. Provider acknowledgement is reported separately from
+review approval. Marker identities are used to reuse equivalent requests and
+checkpoints, and `ambiguous` is reported when a lost remote response cannot be
+reconciled; the publisher never blindly retries a non-idempotent write.
+
+For example, an authorized operational adapter can be selected explicitly:
+
+```console
+python3 repository-skills/land-templates-stack/scripts/publish_review_artifacts.py \
+  publish --input review-artifacts.json \
+  --live-adapter /path/to/live_review_adapter.py:resolve \
+  --token "$GH_TOKEN" --apply --authorize --serialized-writer
+```
+
+`--replay-state` is reserved for offline diagnostics and tests. It is rejected
+when `--apply` is selected; a caller-supplied static JSON file can never
+authorize a remote write.
 
 ## Dogfood the two frontiers without self-adoption
 

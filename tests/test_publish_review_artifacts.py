@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import base64
 import copy
+import hashlib
 import importlib.util
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLISHER_PATH = (
@@ -54,7 +58,14 @@ class FakeProvider(publisher.RemoteProvider):
         self.ambiguous_comment = False
         self.apply_ambiguous_comment = False
 
-    def get_current_state(self, repository: str, number: int) -> dict[str, object]:
+    def get_current_state(
+        self,
+        repository: str,
+        number: int,
+        *,
+        context=None,
+    ) -> dict[str, object]:
+        assert context is self.normalized
         self.get_calls += 1
         if self.mutate_before_update and self.get_calls == 2:
             self._set_body("Concurrent human edit\n")
@@ -317,3 +328,319 @@ def test_publisher_reuses_existing_rendered_region_without_churn() -> None:
     assert result.status == "published"
     assert provider.update_calls == 0
     assert provider.create_calls == 2
+
+
+def test_preview_request_is_provider_neutral_but_github_apply_has_codex_trigger() -> None:
+    normalized = _bound_source()
+    assert "@codex review" not in publisher.renderer.render(normalized).files["review-request.md"]
+
+    class RecordingGitHub(publisher.GitHubProvider):
+        def __init__(self) -> None:
+            super().__init__("token")
+            self.payloads: list[dict[str, object]] = []
+
+        def _request(self, method, path, payload=None):
+            self.payloads.append({"method": method, "path": path, "payload": payload})
+            return {"id": 55, "body": payload["body"]}
+
+    provider = RecordingGitHub()
+    body = publisher.renderer.render(normalized).files["review-request.md"]
+    result = provider.create_review_request("TakashiSasaki/templates", 123, body)
+
+    assert result["id"] == 55
+    posted = provider.payloads[0]["payload"]["body"]
+    assert posted.startswith("@codex review\n\n")
+    assert publisher.renderer.REVIEW_REQUEST_MARKER in posted
+
+
+def test_github_marker_without_trigger_does_not_suppress_a_new_codex_request() -> None:
+    normalized = _bound_source()
+    provider = publisher.GitHubProvider("token")
+    current = {
+        **publisher._expected_binding(normalized),
+        "body": normalized.data["observed"]["pr_body"]["body"],
+        "body_revision": normalized.data["observed"]["pr_body"]["revision"],
+        "body_digest": publisher.renderer.semantic_digest(
+            normalized.data["observed"]["pr_body"]["body"]
+        ),
+    }
+    key = publisher.renderer.idempotency_key(normalized, "review-request")
+    operations, _ = publisher._planned_operations(
+        normalized,
+        provider,
+        current,
+        [{"body": f"<!-- {publisher.renderer.REVIEW_REQUEST_MARKER}:key={key} -->"}],
+        initialize=True,
+    )
+    review = next(item for item in operations if item["type"] == "review_request")
+    assert review["status"] == "create"
+
+
+def test_reuse_planner_action_does_not_emit_a_new_review_operation() -> None:
+    normalized = _bound_source()
+    normalized.data["planner"]["result"]["action"] = "reuse_existing_result"
+    normalized.planner_result["action"] = "reuse_existing_result"
+    provider = FakeProvider(normalized)
+
+    result = _publish(provider)
+
+    review = next(item for item in result.operations if item["type"] == "review_request")
+    assert review["status"] == "planner_reuse"
+    assert provider.create_calls == 1
+
+
+class _ContentGitHub(publisher.GitHubProvider):
+    def __init__(self, payload):
+        super().__init__("token")
+        self.payload = payload
+
+    def _request(self, method, path, payload=None):
+        assert method == "GET"
+        assert "/contents/.agent-policy.yml" in path
+        return self.payload
+
+
+def _content_payload(content: bytes, *, blob_sha: str | None = None) -> dict[str, object]:
+    actual = hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest()
+    return {
+        "type": "file",
+        "path": ".agent-policy.yml",
+        "sha": actual if blob_sha is None else blob_sha,
+        "encoding": "base64",
+        "content": base64.b64encode(content).decode(),
+    }
+
+
+def test_live_consumer_pin_is_verified_from_exact_candidate_content() -> None:
+    normalized = publisher.renderer.normalize(source_fixture._source())
+    revision = normalized.data["revision_bindings"][0]["revision"]
+    content = f"toolchain:\n  revision: {revision}\n".encode()
+    provider = _ContentGitHub(_content_payload(content))
+
+    publisher.GitHubLiveRevalidationAdapter._toolchain_revision(
+        provider, normalized, normalized.data["candidate"]["head_sha"]
+    )
+
+    normalized.data["revision_bindings"][0]["revision"] = "d" * 40
+    with pytest.raises(publisher.PublicationError, match="claim differs"):
+        publisher.GitHubLiveRevalidationAdapter._toolchain_revision(
+            provider, normalized, normalized.data["candidate"]["head_sha"]
+        )
+
+
+def test_live_consumer_pin_blob_mismatch_fails_closed() -> None:
+    normalized = publisher.renderer.normalize(source_fixture._source())
+    revision = normalized.data["revision_bindings"][0]["revision"]
+    content = f"toolchain:\n  revision: {revision}\n".encode()
+    provider = _ContentGitHub(_content_payload(content, blob_sha="f" * 40))
+
+    with pytest.raises(publisher.PublicationError, match="blob identity"):
+        publisher.GitHubLiveRevalidationAdapter._toolchain_revision(
+            provider, normalized, normalized.data["candidate"]["head_sha"]
+        )
+
+
+class _LiveBoundaryGitHub(publisher.GitHubProvider):
+    def __init__(self, normalized, live_revalidator):
+        super().__init__("token", live_revalidator=live_revalidator)
+        self.normalized = normalized
+        self.body = normalized.data["observed"]["pr_body"]["body"]
+        self.comments: list[dict[str, object]] = []
+        self.writes = 0
+        self.payload = {
+            "id": 123,
+            "node_id": normalized.data["candidate"]["pull_request"]["id"],
+            "number": normalized.data["candidate"]["pull_request"]["number"],
+            "body": self.body,
+            "base": {
+                "sha": normalized.data["candidate"]["base_sha"],
+                "repo": {"id": 9, "full_name": normalized.data["repository"]},
+            },
+            "head": {"sha": normalized.data["candidate"]["head_sha"]},
+        }
+
+    def _request(self, method, path, payload=None):
+        if method == "GET" and "/pulls/" in path and "/comments" not in path:
+            return {**self.payload, "body": self.body}
+        if method == "GET" and "/issues/" in path and "/comments" in path:
+            return self.comments
+        if method == "PATCH":
+            self.writes += 1
+            self.body = payload["body"]
+            return {**self.payload, "body": self.body}
+        if method == "POST":
+            self.writes += 1
+            comment = {"id": len(self.comments) + 1, "body": payload["body"]}
+            self.comments.append(comment)
+            return comment
+        raise AssertionError((method, path))
+
+
+def test_live_revalidation_boundary_blocks_changed_evidence_before_write() -> None:
+    normalized = _bound_source()
+    calls = 0
+
+    def live_revalidator(context, payload, provider):
+        nonlocal calls
+        assert context is normalized
+        assert payload["head"]["sha"] == normalized.data["candidate"]["head_sha"]
+        assert provider is live_provider
+        calls += 1
+        state = publisher._expected_binding(normalized)
+        state["live_revalidation"] = {
+            "complete": True,
+            "candidate_head_sha": payload["head"]["sha"],
+            "snapshot_digest": "snapshot-1",
+        }
+        if calls == 2:
+            state["evidence_digest"] = "e" * 64
+        return state
+
+    live_provider = _LiveBoundaryGitHub(normalized, live_revalidator)
+    result = publisher.publish(
+        normalized,
+        live_provider,
+        apply=True,
+        authorized=True,
+        serialized_writer=True,
+        initialize_region=True,
+    )
+
+    assert result.status == "conflict"
+    assert "binding changed" in result.reasons[0]
+    assert live_provider.writes == 0
+    assert calls == 2
+
+
+class _ObservedTransportGitHub(publisher.GitHubProvider):
+    def __init__(self, normalized):
+        super().__init__("token")
+        self.normalized = normalized
+        self.calls: list[tuple[str, str]] = []
+        content = (
+            "toolchain:\n  revision: "
+            + normalized.data["revision_bindings"][0]["revision"]
+            + "\n"
+        ).encode()
+        blob_sha = hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest()
+        self.content_payload = {
+            "type": "file",
+            "path": ".agent-policy.yml",
+            "sha": blob_sha,
+            "encoding": "base64",
+            "content": base64.b64encode(content).decode(),
+        }
+        self.metadata = {
+            "id": 123,
+            "node_id": normalized.data["candidate"]["pull_request"]["id"],
+            "number": normalized.data["candidate"]["pull_request"]["number"],
+            "body": normalized.data["observed"]["pr_body"]["body"]
+            if "pr_body" in normalized.data["observed"]
+            else "Human PR text\n",
+            "base": {
+                "sha": normalized.data["candidate"]["base_sha"],
+                "repo": {"id": 9, "full_name": normalized.data["repository"]},
+            },
+            "head": {"sha": normalized.data["candidate"]["head_sha"]},
+        }
+
+    def _request(self, method, path, payload=None):
+        del payload
+        self.calls.append((method, path))
+        if "/contents/.agent-policy.yml" in path:
+            return self.content_payload
+        if method == "POST" and path == "/graphql":
+            return {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {
+                                "nodes": [],
+                                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                            }
+                        }
+                    }
+                }
+            }
+        if "/pulls/123" in path and "/comments" not in path:
+            return self.metadata
+        if "/check-runs" in path:
+            return {"check_runs": [], "total_count": 0}
+        if "/status" in path:
+            return {"statuses": [], "state": "success"}
+        if "/pulls/123/reviews" in path:
+            return []
+        if "/issues/123/comments" in path:
+            return []
+        if "/pulls/123/comments" in path:
+            return []
+        if "/issues/123/reactions" in path:
+            return []
+        raise AssertionError((method, path))
+
+
+def test_real_live_adapter_composes_observer_planner_gate_and_exact_file_binding() -> None:
+    source = source_fixture._source()
+    source["observed"]["pr_body"] = {"revision": "body-1", "body": "Human PR text\n"}
+    normalized = publisher.renderer.normalize(source)
+    provider = _ObservedTransportGitHub(normalized)
+
+    def planner_packet_builder(context, snapshot):
+        assert context is normalized
+        assert snapshot["complete"] is True
+        return copy.deepcopy(normalized.planner_packet)
+
+    def gate_resolver(context, snapshot, packet, result):
+        assert context is normalized
+        assert snapshot["binding_status"] == "stable"
+        binding = {
+            "repository": normalized.data["repository"],
+            "pull_request_id": normalized.data["candidate"]["pull_request"]["id"],
+            "candidate_head_sha": normalized.data["candidate"]["head_sha"],
+            "base_sha": normalized.data["candidate"]["base_sha"],
+            "effective_base_sha": normalized.data["candidate"]["effective_base_sha"],
+            "revision_bindings_digest": publisher.renderer.semantic_digest(
+                normalized.data["revision_bindings"]
+            ),
+            "planner_input_digest": publisher.renderer.semantic_digest(packet),
+            "planner_result_digest": publisher.renderer.semantic_digest(result),
+        }
+        return {
+            "status": "passed",
+            "input_binding": binding,
+            "input_binding_digest": publisher.renderer.semantic_digest(binding),
+        }
+
+    adapter = publisher.GitHubLiveRevalidationAdapter(
+        planner_packet_builder=planner_packet_builder,
+        gate_resolver=gate_resolver,
+    )
+    state = adapter(normalized, provider.metadata, provider)
+
+    assert state["live_revalidation"]["complete"] is True
+    assert state["revision_bindings_digest"] == publisher.renderer.semantic_digest(
+        normalized.data["revision_bindings"]
+    )
+    assert any("check-runs" in path for _, path in provider.calls)
+    assert any("contents/.agent-policy.yml" in path for _, path in provider.calls)
+
+
+def test_github_apply_without_live_adapter_cannot_use_static_binding_state() -> None:
+    provider = publisher.GitHubProvider("token")
+
+    def metadata(*args, **kwargs):
+        return {
+            "id": 123,
+            "node_id": "PR_node_123",
+            "number": 123,
+            "body": "",
+            "base": {
+                "sha": "a" * 40,
+                "repo": {"id": 9, "full_name": "TakashiSasaki/templates"},
+            },
+            "head": {"sha": "b" * 40},
+        }
+
+    provider._request = metadata
+    with pytest.raises(publisher.PublicationError, match="static replay state"):
+        provider.get_current_state("TakashiSasaki/templates", 123, context=object())
