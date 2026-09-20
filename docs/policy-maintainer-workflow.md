@@ -154,8 +154,10 @@ For an authorized GitHub apply, use
 with a live adapter that composes the repository observer, the bound immutable
 planner source, the existing gate, and the canonical effective-base resolver.
 The adapter must resolve the consumer's `.agent-policy.yml#toolchain.revision`
-at the exact live candidate head and establish the effective base independently
-of the PR base ref before each mutation boundary. `--replay-state` is reserved
+at the exact live candidate head using the publisher's duplicate-safe
+`yaml.SafeLoader` boundary; it must not import a parser from the mutable
+candidate checkout. The adapter must also establish the effective base
+independently of the PR base ref before each mutation boundary. `--replay-state` is reserved
 for offline diagnostics and cannot authorize writes. A truncated or otherwise
 ambiguous mutation response is reconciled against the remote surface; it is
 never retried blindly. Checkpoint markers have a separate identity derived from

@@ -38,6 +38,8 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 
 def _load_renderer() -> Any:
     path = Path(__file__).with_name("render_review_artifacts.py")
@@ -95,6 +97,34 @@ class PublicationResult:
             "binding_digest": self.rendered.normalized.binding_digest,
             "manifest": copy.deepcopy(self.rendered.manifest),
         }
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Safe YAML loader used by the publisher's immutable input boundary."""
+
+
+def _construct_unique_mapping(
+    loader: _UniqueKeyLoader, node: yaml.MappingNode, deep: bool = False
+) -> dict[Any, Any]:
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ValueError(f"Duplicate YAML key: {key}")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
+def _load_consumer_yaml(text: str) -> Any:
+    """Parse consumer YAML without importing mutable checkout code."""
+
+    return yaml.load(text, Loader=_UniqueKeyLoader)
 
 
 class RemoteProvider:
@@ -226,6 +256,7 @@ class GitHubProvider(RemoteProvider):
                 ConnectionAbortedError,
                 BrokenPipeError,
                 EOFError,
+                OSError,
             ) as read_exc:
                 if method in {"POST", "PATCH", "PUT", "DELETE"}:
                     raise RemoteAmbiguousError(
@@ -244,6 +275,7 @@ class GitHubProvider(RemoteProvider):
             ConnectionAbortedError,
             BrokenPipeError,
             EOFError,
+            OSError,
         ) as exc:
             if method in {"POST", "PATCH", "PUT", "DELETE"}:
                 raise RemoteAmbiguousError(
@@ -966,15 +998,7 @@ class GitHubLiveRevalidationAdapter:
         if source.get("blob_sha") is not None and source["blob_sha"] != resolved["sha"]:
             raise PublicationError("consumer configuration blob binding changed")
         try:
-            yamlutil_path = Path(__file__).parents[3] / "src" / "agent_policy" / "yamlutil.py"
-            spec = importlib.util.spec_from_file_location(
-                "templates_agent_policy_yamlutil", yamlutil_path
-            )
-            if spec is None or spec.loader is None:
-                raise PublicationError("cannot load the trusted Policy YAML loader")
-            yamlutil = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(yamlutil)
-            document = yamlutil.load_yaml_text(resolved["content"].decode("utf-8"))
+            document = _load_consumer_yaml(resolved["content"].decode("utf-8"))
         except UnicodeDecodeError as exc:
             raise PublicationError("consumer configuration is not UTF-8 YAML") from exc
         except PublicationError:
