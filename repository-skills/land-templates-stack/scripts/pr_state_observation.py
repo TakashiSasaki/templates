@@ -17,7 +17,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-SCHEMA_VERSION = 1
+# Version 2 makes dependency base bindings part of the persisted snapshot
+# contract.  Legacy version-1 snapshots are rejected explicitly and must be
+# regenerated; silently interpreting a head-only dependency snapshot as if its
+# base were known would make stack evidence unsafe.
+SCHEMA_VERSION = 2
 SNAPSHOT_KIND = "pr-state-observation"
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
@@ -547,6 +551,11 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> None:
     """
 
     if snapshot.get("schema_version") != SCHEMA_VERSION:
+        if snapshot.get("schema_version") == 1:
+            raise ObservationInputError(
+                "observation snapshot schema 1 is legacy; regenerate it as schema 2 "
+                "before resuming or comparing dependency evidence"
+            )
         raise ObservationInputError("unsupported observation snapshot schema")
     if snapshot.get("kind") != SNAPSHOT_KIND:
         raise ObservationInputError("unsupported observation snapshot kind")

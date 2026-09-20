@@ -114,6 +114,14 @@ def snapshot(
     )
 
 
+def test_legacy_snapshot_schema_requires_explicit_regeneration() -> None:
+    current = snapshot([])
+    legacy = {**current, "schema_version": 1}
+
+    with pytest.raises(OBSERVATION.ObservationInputError, match="schema 1 is legacy"):
+        OBSERVATION.validate_snapshot(legacy)
+
+
 def test_same_content_different_order_and_observation_time_is_unchanged() -> None:
     first = snapshot(
         [

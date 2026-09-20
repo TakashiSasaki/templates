@@ -62,7 +62,9 @@ class FakeProvider(publisher.RemoteProvider):
             "body": initial_body,
             "body_revision": normalized.data["observed"]["pr_body"]["revision"],
             "body_digest": publisher.renderer.semantic_digest(initial_body),
+            "body_etag": "etag-1",
         }
+        self._etag_counter = 1
         self.comments: list[dict[str, object]] = []
         self.get_calls = 0
         self.list_calls = 0
@@ -112,6 +114,29 @@ class FakeProvider(publisher.RemoteProvider):
         self.state["body"] = body
         self.state["body_revision"] = publisher.renderer.semantic_digest(body)
         self.state["body_digest"] = publisher.renderer.semantic_digest(body)
+        self._etag_counter += 1
+        self.state["body_etag"] = f"etag-{self._etag_counter}"
+
+
+class _ConditionalFakeProvider(FakeProvider):
+    def __init__(self, normalized, *, body: str | None = None) -> None:
+        super().__init__(normalized, body=body)
+        self.mutate_before_conditional = False
+
+    def update_pr_body_if_current(
+        self,
+        repository: str,
+        number: int,
+        body: str,
+        expected_state: dict[str, object],
+    ):
+        del repository, number
+        if self.mutate_before_conditional:
+            self.mutate_before_conditional = False
+            self._set_body("Concurrent human edit\n")
+        if expected_state.get("body_etag") != self.state.get("body_etag"):
+            raise publisher.RemoteConflictError("conditional body update rejected")
+        return self.update_pr_body("unused", 0, body)
 
 
 def _publish(provider: FakeProvider, *, initialize: bool = True):
@@ -266,6 +291,18 @@ def test_body_conflict_between_read_and_write_is_not_overwritten() -> None:
     result = _publish(provider)
 
     assert result.status == "conflict"
+
+
+def test_provider_conditional_body_write_stops_for_a_human_edit() -> None:
+    normalized = _bound_source()
+    provider = _ConditionalFakeProvider(normalized)
+    provider.mutate_before_conditional = True
+
+    result = _publish(provider)
+
+    assert result.status == "conflict"
+    assert provider.state["body"] == "Concurrent human edit\n"
+    assert provider.update_calls == 0
     assert provider.update_calls == 0
     assert provider.state["body"] == "Concurrent human edit\n"
 
@@ -767,6 +804,39 @@ def test_truncated_mutation_responses_are_ambiguous_for_body_and_comment(
     with pytest.raises(publisher.RemoteAmbiguousError):
         provider.create_comment("TakashiSasaki/templates", 123, "comment")
     assert calls == ["PATCH", "POST"]
+
+
+def test_github_body_update_uses_provider_conditional_etag(monkeypatch) -> None:
+    class Response:
+        headers = {"ETag": '"body-v1"'}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    seen: list[dict[str, str]] = []
+
+    def urlopen(request, timeout):
+        del timeout
+        seen.append(dict(request.headers))
+        return Response()
+
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", urlopen)
+    provider = publisher.GitHubProvider("token")
+
+    provider.update_pr_body_if_current(
+        "TakashiSasaki/templates",
+        123,
+        "body",
+        {"body_etag": '"body-v1"'},
+    )
+
+    assert any(key.lower() == "if-match" and value == '"body-v1"' for key, value in seen[0].items())
 
 
 def test_truncated_http_error_bodies_reconcile_all_mutation_surfaces(

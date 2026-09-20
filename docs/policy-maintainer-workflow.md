@@ -164,6 +164,11 @@ never retried blindly. Checkpoint markers have a separate identity derived from
 resume semantics, so changed blockers or next actions cannot reuse an old
 checkpoint merely because review-request scope is unchanged.
 
+The provider-neutral PR observer snapshot is schema version 2. Version 2 makes
+each dependency's expected and observed base part of the persisted binding, so
+an older version-1 snapshot must be regenerated before it is resumed or
+compared; it is never silently treated as a complete head-only observation.
+
 For a cumulative whole-stack input with `candidate.integration_base_tree_sha`,
 the live adapter resolves the Git tree attached to the independently resolved
 effective-base commit and compares it with the bound tree before publication.

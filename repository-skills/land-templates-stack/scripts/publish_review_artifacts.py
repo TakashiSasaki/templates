@@ -84,6 +84,7 @@ _PROVIDER_OBSERVED_STATE_KEYS = frozenset(
         "body",
         "body_revision",
         "body_digest",
+        "body_etag",
         "pr_body",
     }
 )
@@ -95,6 +96,10 @@ class PublicationError(RuntimeError):
 
 class RemoteAmbiguousError(PublicationError):
     """The remote may have applied a write but its response was lost."""
+
+
+class RemoteConflictError(PublicationError):
+    """A provider-side conditional write rejected a concurrent change."""
 
 
 class PublicationResult:
@@ -170,6 +175,18 @@ class RemoteProvider:
 
     def update_pr_body(self, repository: str, number: int, body: str) -> Mapping[str, Any]:
         raise NotImplementedError
+
+    def update_pr_body_if_current(
+        self,
+        repository: str,
+        number: int,
+        body: str,
+        expected_state: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        """Update only after the provider-specific current-state guard."""
+
+        del expected_state
+        return self.update_pr_body(repository, number, body)
 
     def create_comment(self, repository: str, number: int, body: str) -> Mapping[str, Any]:
         raise NotImplementedError
@@ -254,6 +271,7 @@ class GitHubProvider(RemoteProvider):
         self.timeout = timeout
         self.live_revalidator = live_revalidator
         self._publisher_login = publisher_login
+        self._last_response_etag: str | None = None
 
     def _authenticated_login(self) -> str:
         if self._publisher_login is None:
@@ -270,6 +288,8 @@ class GitHubProvider(RemoteProvider):
         method: str,
         path: str,
         payload: Mapping[str, Any] | None = None,
+        *,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> Any:
         data = None
         headers = {
@@ -278,6 +298,8 @@ class GitHubProvider(RemoteProvider):
             "X-GitHub-Api-Version": "2022-11-28",
             "User-Agent": "templates-bound-review-artifacts",
         }
+        if extra_headers is not None:
+            headers.update(extra_headers)
         if payload is not None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             headers["Content-Type"] = "application/json"
@@ -287,8 +309,13 @@ class GitHubProvider(RemoteProvider):
             headers=headers,
             method=method,
         )
+        self._last_response_etag = None
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                response_headers = getattr(response, "headers", None)
+                if response_headers is not None:
+                    etag = response_headers.get("ETag")
+                    self._last_response_etag = etag if isinstance(etag, str) else None
                 content = response.read()
         except urllib.error.HTTPError as exc:
             try:
@@ -312,6 +339,14 @@ class GitHubProvider(RemoteProvider):
                 raise PublicationError(
                     f"GitHub {method} error response could not be read for {path}: {read_exc}"
                 ) from read_exc
+            if (
+                method == "PATCH"
+                and isinstance(exc.code, int)
+                and exc.code == 412
+            ):
+                raise RemoteConflictError(
+                    f"GitHub {method} conditional update rejected for {path}: {detail}"
+                ) from exc
             if (
                 method in {"POST", "PATCH", "PUT", "DELETE"}
                 and isinstance(exc.code, int)
@@ -378,6 +413,8 @@ class GitHubProvider(RemoteProvider):
             "body_revision": renderer.semantic_digest(body),
             "body_digest": renderer.semantic_digest(body),
         }
+        if self._last_response_etag is not None:
+            state["body_etag"] = self._last_response_etag
         if self.live_revalidator is None:
             raise PublicationError(
                 "live revalidation adapter is required for GitHub apply; "
@@ -491,6 +528,28 @@ class GitHubProvider(RemoteProvider):
             "PATCH",
             f"{_repository_path(repository)}/pulls/{number}",
             {"body": body},
+        )
+        if not isinstance(result, Mapping):
+            raise PublicationError("GitHub PR update response must be an object")
+        return result
+
+    def update_pr_body_if_current(
+        self,
+        repository: str,
+        number: int,
+        body: str,
+        expected_state: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        etag = expected_state.get("body_etag")
+        if not isinstance(etag, str) or not etag.strip():
+            raise RemoteConflictError(
+                "GitHub PR body response did not expose an ETag for conditional update"
+            )
+        result = self._request(
+            "PATCH",
+            f"{_repository_path(repository)}/pulls/{number}",
+            {"body": body},
+            extra_headers={"If-Match": etag},
         )
         if not isinstance(result, Mapping):
             raise PublicationError("GitHub PR update response must be an object")
@@ -1441,6 +1500,7 @@ def _state_token(state: Mapping[str, Any]) -> tuple[Any, ...]:
         current.get("live_snapshot_digest"),
         body_revision,
         body_digest,
+        current.get("body_etag"),
         body,
     )
 
@@ -1756,7 +1816,12 @@ def _publish_authorized(
             )
             if before_reasons:
                 return PublicationResult("stale", operations, before_reasons, rendered)
-            remote.update_pr_body(repository, number, updated_body)
+            remote.update_pr_body_if_current(
+                repository,
+                number,
+                updated_body,
+                before_write,
+            )
             after_write = _current_state(remote, repository, number, normalized)
             after_body, _, _ = _body_state(after_write)
             if after_body != updated_body:
@@ -1779,6 +1844,8 @@ def _publish_authorized(
                     rendered,
                 )
             current = after_write
+        except RemoteConflictError as exc:
+            return PublicationResult("conflict", operations, [str(exc)], rendered)
         except RemoteAmbiguousError as exc:
             try:
                 reconciled = _current_state(remote, repository, number, normalized)
