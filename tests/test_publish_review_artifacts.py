@@ -60,6 +60,7 @@ class FakeProvider(publisher.RemoteProvider):
         self.ambiguous_body = False
         self.ambiguous_comment = False
         self.apply_ambiguous_comment = False
+        self.after_body_update = None
 
     def get_current_state(
         self,
@@ -81,6 +82,8 @@ class FakeProvider(publisher.RemoteProvider):
     def update_pr_body(self, repository: str, number: int, body: str):
         self.update_calls += 1
         self._set_body(body)
+        if self.after_body_update is not None:
+            self.after_body_update(self)
         if self.ambiguous_body:
             raise publisher.RemoteAmbiguousError("body response lost")
         return {"body": body}
@@ -158,6 +161,23 @@ def test_publish_updates_owned_body_and_creates_one_request_and_checkpoint() -> 
         for item in repeated.operations
         if item["type"] != "update_pr_body"
     )
+
+
+def test_publish_revalidates_all_bindings_after_pr_body_write() -> None:
+    normalized = _bound_source()
+    provider = FakeProvider(normalized)
+
+    def change_evidence_after_body_write(current: FakeProvider) -> None:
+        current.state["evidence_digest"] = "e" * 64
+
+    provider.after_body_update = change_evidence_after_body_write
+    result = _publish(provider)
+
+    assert result.status == "stale"
+    assert "after PR body write" in result.reasons[0]
+    assert "current_evidence_digest_changed" in result.reasons
+    assert provider.update_calls == 1
+    assert provider.create_calls == 0
 
 
 def test_stale_head_dependency_or_planner_binding_stops_before_any_write() -> None:
@@ -868,6 +888,39 @@ def test_complete_http_error_body_remains_a_deterministic_error(monkeypatch) -> 
     assert "validation failed" in str(error.value)
 
 
+def test_complete_http_5xx_mutation_response_is_ambiguous(monkeypatch) -> None:
+    class CompleteBody:
+        def read(self, *args):
+            del args
+            return b'{"message":"upstream failure"}'
+
+        def close(self):
+            return None
+
+    calls: list[str] = []
+
+    def urlopen(request, timeout):
+        del timeout
+        calls.append(request.method)
+        raise urllib.error.HTTPError(
+            request.full_url,
+            503,
+            "upstream failure",
+            {},
+            CompleteBody(),
+        )
+
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", urlopen)
+    provider = publisher.GitHubProvider("token")
+
+    with pytest.raises(publisher.RemoteAmbiguousError, match="may have applied mutation"):
+        provider.update_pr_body("TakashiSasaki/templates", 123, "body")
+    with pytest.raises(publisher.RemoteAmbiguousError, match="may have applied mutation"):
+        provider.create_comment("TakashiSasaki/templates", 123, "checkpoint")
+
+    assert calls == ["PATCH", "POST"]
+
+
 class _ContentGitHub(publisher.GitHubProvider):
     def __init__(self, payload):
         super().__init__("token")
@@ -1214,6 +1267,19 @@ def test_real_live_adapter_composes_observer_planner_gate_and_exact_file_binding
     assert any("/git/commits/" in path for _, path in provider.calls)
     assert any("check-runs" in path for _, path in provider.calls)
     assert any("contents/.agent-policy.yml" in path for _, path in provider.calls)
+
+    def stale_evidence_gate_resolver(context, snapshot, packet, result):
+        stale = gate_resolver(context, snapshot, packet, result)
+        stale["evidence_digest"] = "e" * 64
+        return stale
+
+    stale_adapter = publisher.GitHubLiveRevalidationAdapter(
+        planner_packet_builder=planner_packet_builder,
+        gate_resolver=stale_evidence_gate_resolver,
+        effective_base_resolver=effective_base_resolver,
+    )
+    with pytest.raises(publisher.PublicationError, match="evidence digest"):
+        stale_adapter(normalized, provider.metadata, provider)
 
     provider.commit_tree_sha = "e" * 40
     with pytest.raises(publisher.PublicationError, match="integration-base tree binding"):

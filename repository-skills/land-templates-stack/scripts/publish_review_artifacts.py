@@ -312,6 +312,15 @@ class GitHubProvider(RemoteProvider):
                 raise PublicationError(
                     f"GitHub {method} error response could not be read for {path}: {read_exc}"
                 ) from read_exc
+            if (
+                method in {"POST", "PATCH", "PUT", "DELETE"}
+                and isinstance(exc.code, int)
+                and 500 <= exc.code <= 599
+            ):
+                raise RemoteAmbiguousError(
+                    f"GitHub {method} server error may have applied mutation for {path}: "
+                    f"{exc.code}: {detail}"
+                ) from exc
             raise PublicationError(f"GitHub {method} {path} returned {exc.code}: {detail}") from exc
         except (
             urllib.error.URLError,
@@ -1233,6 +1242,12 @@ class GitHubLiveRevalidationAdapter:
             raise PublicationError("live gate result is bound to different inputs")
         if renderer.semantic_digest(dict(gate_binding)) != gate_input_digest:
             raise PublicationError("live gate input binding digest is invalid")
+        live_evidence_digest = _snapshot_evidence_digest(snapshot)
+        gate_evidence_digest = gate.get("evidence_digest", live_evidence_digest)
+        if gate_evidence_digest != live_evidence_digest:
+            raise PublicationError(
+                "live gate evidence digest does not match the current observed snapshot"
+            )
         return {
             "revision_bindings_digest": renderer.semantic_digest(
                 normalized.data["revision_bindings"]
@@ -1244,8 +1259,8 @@ class GitHubLiveRevalidationAdapter:
             "planner_result_digest": renderer.semantic_digest(planner_result),
             "gate_input_binding_digest": gate_input_digest,
             "gate_status": gate_status,
-            "evidence_digest": gate.get("evidence_digest", _snapshot_evidence_digest(snapshot)),
-            "live_snapshot_digest": _snapshot_evidence_digest(snapshot),
+            "evidence_digest": live_evidence_digest,
+            "live_snapshot_digest": live_evidence_digest,
             "effective_base_sha": effective_base_sha,
             "effective_base_binding": effective_base_binding,
             **(
@@ -1749,6 +1764,18 @@ def _publish_authorized(
                     "conflict",
                     operations,
                     ["PR body did not retain the generated region"],
+                    rendered,
+                )
+            after_reasons = _validate_for_publication(
+                normalized,
+                after_write,
+                desired_body=updated_body,
+            )
+            if after_reasons:
+                return PublicationResult(
+                    "stale",
+                    operations,
+                    ["publication binding changed after PR body write", *after_reasons],
                     rendered,
                 )
             current = after_write
