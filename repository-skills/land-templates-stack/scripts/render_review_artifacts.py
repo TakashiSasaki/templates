@@ -1363,6 +1363,14 @@ class NormalizedReviewArtifacts:
         return copy.deepcopy(self.data)
 
 
+def review_projection_digest(normalized: NormalizedReviewArtifacts) -> str:
+    """Identify request/body content without durable resume state."""
+
+    projection = _content_projection(normalized.data)
+    projection.pop("work", None)
+    return semantic_digest(projection)
+
+
 def normalize(
     source: Mapping[str, Any],
     *,
@@ -1775,7 +1783,7 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
             f"- Review evidence state: {_code(_review_state(data))}",
             "- Existing gate result: "
             f"{_code(data['gate']['status'])} (not reinterpreted by this renderer)",
-            f"- Render identity: {_code(normalized.semantic_digest)}",
+            f"- Render identity: {_code(review_projection_digest(normalized))}",
             "",
             "## Revision roles",
             *_role_lines(data),
@@ -1838,7 +1846,7 @@ def render_pr_description_region(normalized: NormalizedReviewArtifacts) -> str:
         "- Existing gate result: "
         f"{_code(data['gate']['status'])}; merge authorization remains "
         f"{_code('not established')}",
-        f"- Render identity: {_code(normalized.semantic_digest)}",
+        f"- Render identity: {_code(review_projection_digest(normalized))}",
         "",
         "#### Revision roles",
         *_role_lines(data),

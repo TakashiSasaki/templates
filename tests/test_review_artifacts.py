@@ -995,12 +995,13 @@ def test_all_projections_share_one_source_identity_and_checkpoint_uses_refs() ->
     normalized = artifacts.normalize(_source())
     rendered = artifacts.render(normalized)
 
-    for filename in (
-        "review-request.md",
-        "pr-generated-region.md",
-        "work-ledger-checkpoint.md",
-    ):
-        assert normalized.semantic_digest in rendered.files[filename]
+    assert artifacts.review_projection_digest(normalized) in rendered.files[
+        "review-request.md"
+    ]
+    assert artifacts.review_projection_digest(normalized) in rendered.files[
+        "pr-generated-region.md"
+    ]
+    assert normalized.semantic_digest in rendered.files["work-ledger-checkpoint.md"]
     assert "finding://review/1" in rendered.files["work-ledger-checkpoint.md"]
     assert "full_findings" not in rendered.files["work-ledger-checkpoint.md"]
 
