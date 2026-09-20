@@ -2008,7 +2008,7 @@ def idempotency_key(normalized: NormalizedReviewArtifacts, request_type: str) ->
 
 
 def _review_contract_lines(
-    data: Mapping[str, Any], action: Any, scope: Any
+    data: Mapping[str, Any], scope: Any
 ) -> list[str]:
     contract = data["contract"]
     lines = ["", "## Review contract"]
@@ -2017,9 +2017,7 @@ def _review_contract_lines(
         rendered = canonical_json(value) if isinstance(value, (Mapping, list)) else value
         lines.append(f"- {_safe_text(key)}: {_safe_text(rendered)}")
 
-    is_whole_stack = action == "request_related_stack_review" or (
-        isinstance(scope, Mapping) and scope.get("kind") == "whole-stack"
-    )
+    is_whole_stack = isinstance(scope, Mapping) and scope.get("kind") == "whole-stack"
     if is_whole_stack:
         integration_base_tree = data["candidate"].get("integration_base_tree_sha")
         if isinstance(integration_base_tree, str) and integration_base_tree:
@@ -2050,7 +2048,6 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     candidate = data["candidate"]
     pr = candidate["pull_request"]
     planner = normalized.planner_result
-    action = planner.get("action", "unknown")
     scope = planner.get("selected_scope", {})
     request_identity = idempotency_key(normalized, "review-request")
     lines = [
@@ -2063,7 +2060,6 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
         "Base: "
         f"{_code(candidate['base_sha'])}; effective base: "
         f"{_code(candidate['effective_base_sha'])}",
-        f"Planner action: {_code(action)}",
     ]
     if isinstance(scope, Mapping):
         lines.append(
@@ -2079,60 +2075,23 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     lines.extend(
         [
             "",
-            "## Bound evidence",
-            "- CI state: "
-            f"{_code(_ci_state(data['observed']['facts'].get('ci', {}), candidate)['state'])}",
-            f"- Review evidence state: {_code(_review_state(data))}",
-            f"- Review readiness: {_code(data['work']['review_readiness']['state'])}",
-            "- Existing gate result: "
-            f"{_code(data['gate']['status'])} (not reinterpreted by this renderer)",
-            f"- Render identity: {_code(review_projection_digest(normalized))}",
-            "",
             "## Revision roles",
             *_role_lines(data),
         ]
     )
-    lines.extend(_review_contract_lines(data, action, scope))
-    planner_blockers = [
-        reason
-        for reason in normalized.blockers
-        if reason.startswith("planner_") or reason.startswith("observation_")
-    ]
-    if action == "acquire_missing_input_or_handoff" or planner_blockers:
-        lines.extend(["", "## Not ready for a new request"])
-        lines.append(
-            "The existing planner or bound evidence requires reconciliation before publication:"
-        )
-        for blocker in planner_blockers or normalized.blockers:
-            lines.append(f"- {_code(blocker)}")
-        lines.append("A clean sentence or empty finding list is not approval or resolution.")
-    elif action == "reuse_existing_result":
-        lines.extend(
-            [
-                "",
-                "The existing planner found applicable review evidence. Reuse its "
-                "locator; do not post a duplicate request.",
-            ]
-        )
-        for locator in planner.get("reusable_evidence", []):
-            lines.append(f"- Existing evidence: {_safe_text(locator)}")
-    elif action == "reconcile_existing_request":
-        lines.extend(
-            [
-                "",
-                "An equivalent request is already active or has an unknown submission "
-                "result. Reconcile it before retrying.",
-            ]
-        )
-    else:
-        lines.extend(
-            [
-                "",
-                "Please review the selected scope against the candidate and bound "
-                "evidence. This request is not acceptance or merge authorization.",
-                f"Request identity: {_code(request_identity)}",
-            ]
-        )
+    lines.extend(_review_contract_lines(data, scope))
+    # This projection is the historical request presentation.  Mutable
+    # readiness, routing action, current evidence, gate state, and diagnostics
+    # remain visible in the packet, PR region, and Work checkpoint, but must not
+    # make an already-issued logical request non-equivalent.
+    lines.extend(
+        [
+            "",
+            "Please review the selected scope against the candidate and bound "
+            "evidence. This request is not acceptance or merge authorization.",
+            f"Request identity: {_code(request_identity)}",
+        ]
+    )
     return "\n".join(lines).rstrip() + "\n"
 
 

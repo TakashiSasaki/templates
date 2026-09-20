@@ -266,12 +266,14 @@ adoption boundaries.
 
 The readiness projection is mutable routing state, not historical review or
 request applicability identity. Existing request/review records are matched by
-candidate, contract, input, and scope bindings without readiness; a former
-recorded readiness field is ignored only after its original record digest is
-validated. Checkpoint identity remains separate because blockers and resume
-instructions are durable operational state. Legacy closure records without
-explicit sibling-audit evidence, or planner family records without explicit
-status, fail closed instead of being upgraded to ready.
+candidate, contract, input, and scope bindings without readiness; the canonical
+review-request body likewise excludes mutable readiness and routing diagnostics.
+A former recorded readiness field is ignored only after its original record
+digest is validated. Checkpoint identity and the generated PR region remain
+readiness-sensitive because blockers and resume instructions are operational
+state. Legacy closure records without explicit sibling-audit evidence, or
+planner family records without explicit status, fail closed instead of being
+upgraded to ready.
 
 ## Dogfood the two frontiers without self-adoption
 

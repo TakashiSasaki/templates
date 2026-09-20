@@ -94,10 +94,11 @@ and read-only observation continue during this review-freeze state.
 
 Readiness is current routing state, not historical request/review applicability
 identity. It is therefore excluded from the planner request binding and review
-request marker key. Existing records that carry the former readiness field are
-accepted only after their stored digest is validated and that field is removed
-for applicability comparison. The Work-ledger checkpoint keeps its own
-identity because resumable blockers and next actions are mutable durable state.
+request marker key and the canonical review-request body. Existing records that
+carry the former readiness field are accepted only after their stored digest is
+validated and that field is removed for applicability comparison. The Work-ledger
+checkpoint and generated PR region keep readiness visible and have their own
+identities because resumable blockers and next actions are mutable durable state.
 Legacy closure families without explicit sibling-audit evidence, and planner
 families without an explicit disposition status, remain unknown/incomplete and
 cannot authorize a new request.

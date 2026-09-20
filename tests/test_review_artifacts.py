@@ -786,11 +786,14 @@ def test_planner_missing_information_is_returned_not_fabricated() -> None:
         source["gate"]["input_binding"]
     )
     normalized = artifacts.normalize(source)
-    request = artifacts.render(normalized).files["review-request.md"]
+    rendered = artifacts.render(normalized)
 
     assert normalized.planner_result["action"] == "acquire_missing_input_or_handoff"
-    assert "Not ready for a new request" in request
-    assert "planner_reviews_complete_not_established" in request
+    assert "Not ready for a new request" not in rendered.files["review-request.md"]
+    assert "planner_reviews_complete_not_established" in rendered.files[
+        "work-ledger-checkpoint.md"
+    ]
+    assert "Review readiness:" in rendered.files["pr-generated-region.md"]
 
 
 def test_incomplete_observation_cannot_render_success() -> None:
@@ -1218,15 +1221,65 @@ def test_readiness_change_keeps_review_identity_but_updates_checkpoint_identity(
     )
 
 
+def test_review_request_body_is_readiness_independent_but_operational_views_are_not() -> None:
+    ready_source = _source()
+    ready = artifacts.normalize(ready_source)
+
+    blocked_source = _source()
+    blocked_source["work"]["closure_audit"] = [
+        {
+            "family": "remote_mutation_protocol",
+            "status": "gap",
+            "evidence": ["mutation matrix"],
+            "gaps": ["HTTP-error body truncation"],
+        }
+    ]
+    _refresh_gate_for_source(blocked_source)
+    blocked = artifacts.normalize(blocked_source)
+
+    exception_source = _source()
+    exception_source["work"]["review_readiness"]["exception"] = {
+        "allow_new_review": True,
+        "authority_ref": "authority://urgent-review",
+        "reason": "current authority boundary requires evidence",
+    }
+    _refresh_gate_for_source(exception_source)
+    exception = artifacts.normalize(exception_source)
+
+    closed_family_source = _source()
+    closed_family_source["work"]["closure_audit"] = [
+        {
+            "family": "remote_mutation_protocol",
+            "status": "closed",
+            "evidence": ["mutation matrix"],
+            "gaps": [],
+            "finding_refs": [],
+            "sibling_audit_complete": True,
+        }
+    ]
+    _refresh_gate_for_source(closed_family_source)
+    closed_family = artifacts.normalize(closed_family_source)
+
+    rendered = [artifacts.render(item) for item in (ready, blocked, exception, closed_family)]
+    request_bodies = [item.files["review-request.md"] for item in rendered]
+
+    assert len(set(request_bodies)) == 1
+    assert "Review readiness:" not in request_bodies[0]
+    assert "Planner action:" not in request_bodies[0]
+    for item in rendered:
+        assert "Review readiness:" in item.files["pr-generated-region.md"]
+        assert "### Review readiness" in item.files["work-ledger-checkpoint.md"]
+
+
 def test_all_projections_share_one_source_identity_and_checkpoint_uses_refs() -> None:
     normalized = artifacts.normalize(_source())
     rendered = artifacts.render(normalized)
 
     assert artifacts.review_projection_digest(normalized) in rendered.files[
-        "review-request.md"
-    ]
-    assert artifacts.review_projection_digest(normalized) in rendered.files[
         "pr-generated-region.md"
+    ]
+    assert artifacts.idempotency_key(normalized, "review-request") in rendered.files[
+        "review-request.md"
     ]
     assert normalized.semantic_digest in rendered.files["work-ledger-checkpoint.md"]
     assert "finding://review/1" in rendered.files["work-ledger-checkpoint.md"]

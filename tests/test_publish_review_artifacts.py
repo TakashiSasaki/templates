@@ -57,6 +57,21 @@ def _bound_source(body: str = "Human PR text\n", *, with_region: bool = False):
     return normalized
 
 
+def _blocked_bound_source():
+    source = source_fixture._source()
+    source["observed"]["pr_body"] = {"revision": "body-1", "body": "Human PR text\n"}
+    source["work"]["closure_audit"] = [
+        {
+            "family": "remote_mutation_protocol",
+            "status": "gap",
+            "evidence": ["mutation matrix"],
+            "gaps": ["HTTP-error body truncation"],
+        }
+    ]
+    source_fixture._refresh_gate_for_source(source)
+    return publisher.renderer.normalize(source)
+
+
 class FakeProvider(publisher.RemoteProvider):
     def __init__(self, normalized, *, body: str | None = None) -> None:
         self.normalized = normalized
@@ -813,6 +828,35 @@ def test_github_equivalent_request_requires_canonical_body_and_publisher_owner()
         key,
         expected_body=neutral_body,
         context=normalized,
+    )
+
+
+def test_github_request_equivalence_ignores_readiness_but_requires_owner() -> None:
+    ready = _bound_source()
+    blocked = _blocked_bound_source()
+    provider = publisher.GitHubProvider("token", publisher_login="publisher")
+    key = publisher.renderer.idempotency_key(blocked, "review-request")
+    ready_body = publisher.renderer.render(ready).files["review-request.md"]
+    blocked_body = publisher.renderer.render(blocked).files["review-request.md"]
+
+    assert ready_body == blocked_body
+    assert provider.is_equivalent_review_request(
+        {
+            "body": provider._codex_review_body(ready_body, ready),
+            "user": {"login": "publisher"},
+        },
+        key,
+        expected_body=blocked_body,
+        context=blocked,
+    )
+    assert not provider.is_equivalent_review_request(
+        {
+            "body": provider._codex_review_body(ready_body, ready),
+            "user": {"login": "contributor"},
+        },
+        key,
+        expected_body=blocked_body,
+        context=blocked,
     )
 
 
@@ -1823,6 +1867,48 @@ def test_publish_revalidates_after_comment_duplicate_scan() -> None:
     assert "binding changed during work_checkpoint duplicate scan" in result.reasons
     assert provider.update_calls == 0
     assert provider.create_calls == 0
+
+
+def test_final_review_duplicate_scan_reuses_request_after_readiness_changes() -> None:
+    normalized = _bound_source()
+    changed_readiness = _blocked_bound_source()
+    changed_body = publisher.renderer.render(changed_readiness).files["review-request.md"]
+
+    class RequestAppearsDuringReviewScan(FakeProvider):
+        def __init__(self, normalized_input, alternate_body: str) -> None:
+            super().__init__(normalized_input)
+            self.alternate_body = alternate_body
+            self.checkpoint_created = False
+            self.injected = False
+
+        def create_comment(self, repository: str, number: int, body: str):
+            result = super().create_comment(repository, number, body)
+            if publisher.renderer.WORK_CHECKPOINT_MARKER in body:
+                self.checkpoint_created = True
+            return result
+
+        def list_comments(self, repository: str, number: int) -> list[dict[str, object]]:
+            super().list_comments(repository, number)
+            if (
+                self.checkpoint_created
+                and not self.injected
+                and any(
+                    publisher.renderer.WORK_CHECKPOINT_MARKER in str(item.get("body"))
+                    for item in self.comments
+                )
+            ):
+                self.comments.append({"id": 99, "body": self.alternate_body})
+                self.injected = True
+            return copy.deepcopy(self.comments)
+
+    provider = RequestAppearsDuringReviewScan(normalized, changed_body)
+    result = _publish(provider)
+
+    assert result.status == "published"
+    assert provider.injected is True
+    assert provider.create_calls == 1
+    review = next(item for item in result.operations if item["type"] == "review_request")
+    assert review["status"] == "already_present"
 
 
 class _ObservedTransportGitHub(publisher.GitHubProvider):
