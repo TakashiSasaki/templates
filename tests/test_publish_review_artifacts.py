@@ -69,11 +69,13 @@ class FakeProvider(publisher.RemoteProvider):
         self.get_calls = 0
         self.list_calls = 0
         self.update_calls = 0
+        self.update_comment_calls = 0
         self.create_calls = 0
         self.mutate_before_update = False
         self.ambiguous_body = False
         self.ambiguous_comment = False
         self.apply_ambiguous_comment = False
+        self.ambiguous_checkpoint_update = False
         self.after_body_update = None
 
     def get_current_state(
@@ -104,11 +106,33 @@ class FakeProvider(publisher.RemoteProvider):
 
     def create_comment(self, repository: str, number: int, body: str):
         self.create_calls += 1
+        existing_ids = [
+            comment["id"]
+            for comment in self.comments
+            if isinstance(comment.get("id"), int)
+        ]
+        comment_id = max(existing_ids, default=0) + 1
         if not self.ambiguous_comment or self.apply_ambiguous_comment:
-            self.comments.append({"id": self.create_calls, "body": body})
+            self.comments.append(
+                {
+                    "id": comment_id,
+                    "body": body,
+                    "publisher_owned": True,
+                }
+            )
         if self.ambiguous_comment:
             raise publisher.RemoteAmbiguousError("comment response lost")
-        return {"id": self.create_calls, "body": body}
+        return {"id": comment_id, "body": body}
+
+    def update_comment(self, repository: str, number: int, comment_id, body: str):
+        del repository, number
+        self.update_comment_calls += 1
+        matches = [comment for comment in self.comments if comment["id"] == comment_id]
+        assert len(matches) == 1
+        matches[0]["body"] = body
+        if self.ambiguous_checkpoint_update:
+            raise publisher.RemoteAmbiguousError("checkpoint update response lost")
+        return {"id": comment_id, "body": body}
 
     def _set_body(self, body: str) -> None:
         self.state["body"] = body
@@ -440,6 +464,70 @@ def test_publisher_reuses_existing_rendered_region_without_churn() -> None:
     assert provider.create_calls == 2
 
 
+def test_successful_review_request_is_recorded_in_checkpoint_and_reused() -> None:
+    normalized = _bound_source()
+    provider = FakeProvider(normalized)
+
+    first = _publish(provider)
+
+    assert first.status == "published"
+    checkpoint = next(
+        comment
+        for comment in provider.comments
+        if publisher.renderer.WORK_CHECKPOINT_MARKER in comment["body"]
+    )
+    assert "Review request state: `submitted`" in checkpoint["body"]
+    assert provider.update_comment_calls == 1
+
+    second = _publish(provider)
+
+    assert second.status == "published"
+    assert provider.create_calls == 2
+    assert provider.update_comment_calls == 1
+    checkpoint_operation = next(
+        item for item in second.operations if item["type"] == "work_checkpoint"
+    )
+    assert checkpoint_operation["checkpoint_state"] == "submitted"
+
+
+def test_unowned_checkpoint_marker_cannot_suppress_or_replace_work_ledger() -> None:
+    normalized = _bound_source()
+    provider = FakeProvider(normalized)
+    provider.comments.append(
+        {
+            "id": 1,
+            "body": publisher.renderer.render(normalized).files[
+                "work-ledger-checkpoint.md"
+            ],
+            "user": {"login": "contributor"},
+        }
+    )
+
+    result = _publish(provider)
+
+    assert result.status == "conflict"
+    assert "not owned" in result.reasons[0]
+    assert provider.update_calls == 0
+    assert provider.create_calls == 0
+
+
+def test_ambiguous_checkpoint_update_is_reconciled_without_retry() -> None:
+    normalized = _bound_source()
+    provider = FakeProvider(normalized)
+    provider.ambiguous_checkpoint_update = True
+
+    result = _publish(provider)
+
+    assert result.status == "published"
+    checkpoint = next(
+        comment
+        for comment in provider.comments
+        if publisher.renderer.WORK_CHECKPOINT_MARKER in comment["body"]
+    )
+    assert "Review request state: `submitted`" in checkpoint["body"]
+    assert provider.update_comment_calls == 1
+
+
 def test_preview_request_is_provider_neutral_but_github_apply_has_codex_trigger() -> None:
     normalized = _bound_source()
     normalized.planner_result["action"] = "request_related_stack_review"
@@ -536,6 +624,47 @@ def test_github_equivalent_request_requires_canonical_body_and_publisher_owner()
     )
 
 
+def test_github_acknowledgement_requires_the_codex_actor() -> None:
+    class ReactionGitHub(publisher.GitHubProvider):
+        def __init__(self, reactions):
+            super().__init__("token", publisher_login="publisher")
+            self.reactions = reactions
+
+        def _request(self, method, path, payload=None, *, extra_headers=None):
+            del payload, extra_headers
+            assert method == "GET"
+            assert "/reactions" in path
+            return self.reactions
+
+    ordinary = ReactionGitHub(
+        [{"content": "eyes", "user": {"login": "contributor", "id": 42}}]
+    )
+    assert (
+        ordinary.review_request_acknowledgement(
+            "TakashiSasaki/templates", 123, {"id": 99}
+        )
+        == "submitted_unacknowledged"
+    )
+
+    codex = ReactionGitHub(
+        [
+            {
+                "content": "eyes",
+                "user": {
+                    "login": publisher.CODEX_REVIEW_BOT_LOGIN,
+                    "id": int(publisher.CODEX_REVIEW_BOT_ID),
+                },
+            }
+        ]
+    )
+    assert (
+        codex.review_request_acknowledgement(
+            "TakashiSasaki/templates", 123, {"id": 99}
+        )
+        == "acknowledged"
+    )
+
+
 def test_serialized_writer_covers_comment_publication() -> None:
     normalized = _bound_source()
     provider = FakeProvider(normalized)
@@ -600,6 +729,7 @@ def test_checkpoint_identity_changes_with_resume_state_but_not_review_identity()
         {
             "id": 1,
             "body": publisher.renderer.render(first).files["work-ledger-checkpoint.md"],
+            "publisher_owned": True,
         }
     )
     operations, _ = publisher._planned_operations(

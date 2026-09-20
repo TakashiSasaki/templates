@@ -1967,11 +1967,17 @@ def replace_generated_region(
     return body[:start] + region.strip("\n") + body[end + len(GENERATED_REGION_END) :]
 
 
-def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
+def render_work_checkpoint(
+    normalized: NormalizedReviewArtifacts,
+    *,
+    request_state: str | None = None,
+) -> str:
     data = normalized.data
     candidate = data["candidate"]
     work = data["work"]
     planner = normalized.planner_result
+    if request_state is None:
+        request_state = planner.get("request_state", "not_requested")
     checkpoint_identity = idempotency_key(normalized, "work-ledger-checkpoint")
     pr = candidate["pull_request"]
     diagnostic_lines = _diagnostic_checkpoint_lines(work)
@@ -1987,6 +1993,7 @@ def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
         f"{_code(candidate['base_sha'])}; effective base: "
         f"{_code(candidate['effective_base_sha'])}",
         f"- Planner action: {_code(planner.get('action', 'unknown'))}",
+        f"- Review request state: {_code(_safe_text(request_state))}",
         f"- Gate result: {_code(data['gate']['status'])} (operational projection only)",
         "",
         "### Revision bindings",

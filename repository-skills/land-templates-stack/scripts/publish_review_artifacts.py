@@ -64,6 +64,8 @@ REQUEST_ACTIONS = {
     "request_independent_delta_review",
     "request_related_stack_review",
 }
+CODEX_REVIEW_BOT_LOGIN = "chatgpt-codex-connector[bot]"
+CODEX_REVIEW_BOT_ID = "199175422"
 
 _PUBLICATION_LOCK_GUARD = threading.Lock()
 _PUBLICATION_LOCKS: dict[tuple[str, int], threading.Lock] = {}
@@ -191,6 +193,43 @@ class RemoteProvider:
     def create_comment(self, repository: str, number: int, body: str) -> Mapping[str, Any]:
         raise NotImplementedError
 
+    def update_comment(
+        self, repository: str, number: int, comment_id: int | str, body: str
+    ) -> Mapping[str, Any]:
+        raise NotImplementedError
+
+    def update_comment_if_current(
+        self,
+        repository: str,
+        number: int,
+        comment_id: int | str,
+        body: str,
+        expected_body: str,
+    ) -> Mapping[str, Any]:
+        """Update a comment only when its last observed body is unchanged."""
+
+        comments = self.list_comments(repository, number)
+        matches = [
+            comment
+            for comment in comments
+            if str(comment.get("id")) == str(comment_id)
+        ]
+        if len(matches) != 1 or matches[0].get("body") != expected_body:
+            raise RemoteConflictError("checkpoint comment changed before conditional update")
+        return self.update_comment(repository, number, comment_id, body)
+
+    def is_owned_checkpoint(
+        self, comment: Mapping[str, Any], *, context: Any | None = None
+    ) -> bool:
+        """Return whether this provider can prove the checkpoint is publisher-owned.
+
+        Provider-neutral adapters must opt in with an explicit ownership bit;
+        a copied marker or matching body is never enough to claim ownership.
+        """
+
+        del context
+        return comment.get("publisher_owned") is True
+
     def create_review_request(
         self,
         repository: str,
@@ -265,12 +304,18 @@ class GitHubProvider(RemoteProvider):
         live_revalidator: Callable[[Any, Mapping[str, Any], GitHubProvider], Mapping[str, Any]]
         | None = None,
         publisher_login: str | None = None,
+        codex_review_login: str = CODEX_REVIEW_BOT_LOGIN,
+        codex_review_user_id: int | str = CODEX_REVIEW_BOT_ID,
     ) -> None:
         self.token = _require_string(token, "token")
         self.api_url = api_url.rstrip("/")
         self.timeout = timeout
         self.live_revalidator = live_revalidator
         self._publisher_login = publisher_login
+        self._codex_review_login = _require_string(
+            codex_review_login, "Codex review bot login"
+        )
+        self._codex_review_user_id = str(codex_review_user_id)
         self._last_response_etag: str | None = None
 
     def _authenticated_login(self) -> str:
@@ -565,6 +610,27 @@ class GitHubProvider(RemoteProvider):
             raise PublicationError("GitHub comment response must be an object")
         return result
 
+    def update_comment(
+        self, repository: str, number: int, comment_id: int | str, body: str
+    ) -> Mapping[str, Any]:
+        del number
+        escaped_id = urllib.parse.quote(str(comment_id), safe="")
+        result = self._request(
+            "PATCH",
+            f"{_repository_path(repository)}/issues/comments/{escaped_id}",
+            {"body": body},
+        )
+        if not isinstance(result, Mapping):
+            raise PublicationError("GitHub comment update response must be an object")
+        return result
+
+    def is_owned_checkpoint(
+        self, comment: Mapping[str, Any], *, context: Any | None = None
+    ) -> bool:
+        del context
+        user = comment.get("user")
+        return isinstance(user, Mapping) and user.get("login") == self._authenticated_login()
+
     @staticmethod
     def _stack_topology(context: Any | None) -> str:
         if context is None:
@@ -656,7 +722,13 @@ class GitHubProvider(RemoteProvider):
             "?per_page=100&page=1",
         )
         if isinstance(reactions, list) and any(
-            isinstance(item, Mapping) and item.get("content") == "eyes"
+            isinstance(item, Mapping)
+            and item.get("content") == "eyes"
+            and isinstance(item.get("user"), Mapping)
+            and (
+                item["user"].get("login") == self._codex_review_login
+                or str(item["user"].get("id")) == self._codex_review_user_id
+            )
             for item in reactions
         ):
             return "acknowledged"
@@ -1549,6 +1621,47 @@ def _checkpoint_content_matches(
     return len(matches) == 1 and matches[0].get("body") == rendered_body
 
 
+def _checkpoint_transition_body(normalized: Any) -> str:
+    """Render the durable checkpoint after a request is known to exist."""
+
+    return renderer.render_work_checkpoint(normalized, request_state="submitted")
+
+
+def _checkpoint_matches(
+    remote: RemoteProvider,
+    comments: Sequence[Mapping[str, Any]],
+    key: str,
+    normalized: Any,
+) -> tuple[list[Mapping[str, Any]], list[Mapping[str, Any]]]:
+    """Return all and publisher-owned checkpoint markers for one key."""
+
+    candidates = _matching_comments(comments, renderer.WORK_CHECKPOINT_MARKER, key)
+    owned = [
+        comment
+        for comment in candidates
+        if remote.is_owned_checkpoint(comment, context=normalized)
+    ]
+    return candidates, owned
+
+
+def _reconcile_checkpoint(
+    remote: RemoteProvider,
+    repository: str,
+    number: int,
+    key: str,
+    normalized: Any,
+) -> tuple[str, list[Mapping[str, Any]]]:
+    comments = remote.list_comments(repository, number)
+    candidates, owned = _checkpoint_matches(remote, comments, key, normalized)
+    if len(candidates) > 1 or len(owned) > 1:
+        return "conflict", candidates
+    if candidates and not owned:
+        return "conflict", candidates
+    if len(owned) == 1:
+        return "reconciled", owned
+    return "ambiguous", owned
+
+
 def _planned_operations(
     normalized: Any,
     remote: RemoteProvider,
@@ -1580,15 +1693,24 @@ def _planned_operations(
         rendered.files["review-request.md"],
         normalized,
     )
-    checkpoint_matches = _matching_comments(
-        comments, renderer.WORK_CHECKPOINT_MARKER, checkpoint_key
+    checkpoint_candidates, checkpoint_matches = _checkpoint_matches(
+        remote, comments, checkpoint_key, normalized
     )
-    if len(request_matches) > 1 or len(checkpoint_matches) > 1:
+    if len(request_matches) > 1:
         raise PublicationError("duplicate equivalent publication markers require reconciliation")
-    if checkpoint_matches and not _checkpoint_content_matches(
-        checkpoint_matches, rendered.files["work-ledger-checkpoint.md"]
-    ):
-        raise PublicationError("checkpoint marker content does not match current resume state")
+    if len(checkpoint_candidates) > 1 or len(checkpoint_matches) > 1:
+        raise PublicationError("duplicate equivalent checkpoint markers require reconciliation")
+    if checkpoint_candidates and not checkpoint_matches:
+        raise PublicationError("checkpoint marker is not owned by the publisher")
+    checkpoint_state: str | None = None
+    if checkpoint_matches:
+        checkpoint_body = checkpoint_matches[0].get("body")
+        if checkpoint_body == _checkpoint_transition_body(normalized):
+            checkpoint_state = "submitted"
+        elif not _checkpoint_content_matches(
+            checkpoint_matches, rendered.files["work-ledger-checkpoint.md"]
+        ):
+            raise PublicationError("checkpoint marker content does not match current resume state")
     if action in REQUEST_ACTIONS and not _has_planner_blocker(normalized):
         if len(request_matches) == 1:
             operations.append(
@@ -1617,10 +1739,25 @@ def _planned_operations(
         )
     if len(checkpoint_matches) == 1:
         operations.append(
-            {"type": "work_checkpoint", "status": "already_present", "key": checkpoint_key}
+            {
+                "type": "work_checkpoint",
+                "status": "already_present",
+                "key": checkpoint_key,
+                "comment_id": checkpoint_matches[0].get("id"),
+                "checkpoint_state": checkpoint_state,
+                "body": rendered.files["work-ledger-checkpoint.md"],
+            }
         )
     else:
-        operations.append({"type": "work_checkpoint", "status": "create", "key": checkpoint_key})
+        operations.append(
+            {
+                "type": "work_checkpoint",
+                "status": "create",
+                "key": checkpoint_key,
+                "checkpoint_state": None,
+                "body": rendered.files["work-ledger-checkpoint.md"],
+            }
+        )
     return operations, updated_body
 
 
@@ -1677,6 +1814,118 @@ def _record_review_acknowledgement(
         # acknowledgement query must not turn a confirmed write into a retry.
         operation["acknowledgement"] = "unknown"
         operation["acknowledgement_error"] = str(exc)
+
+
+def _update_checkpoint_after_request(
+    normalized: Any,
+    remote: RemoteProvider,
+    repository: str,
+    number: int,
+    operations: list[dict[str, Any]],
+    updated_body: str,
+    rendered: Any,
+) -> tuple[str | None, str | None]:
+    """Persist the fact that a planner-approved request is now present.
+
+    The request and checkpoint are separate remote mutations.  If the latter
+    fails, the request is never retried; the caller receives an explicit
+    conflict, blocked, or ambiguous result instead.
+    """
+
+    review_operation = next(
+        item for item in operations if item["type"] == "review_request"
+    )
+    if review_operation["status"] not in {"created", "reconciled", "already_present"}:
+        return None, None
+    checkpoint_operation = next(
+        item for item in operations if item["type"] == "work_checkpoint"
+    )
+    if checkpoint_operation.get("checkpoint_state") == "submitted":
+        return None, None
+    comment_id = checkpoint_operation.get("comment_id")
+    if not isinstance(comment_id, (int, str)):
+        return "ambiguous", "publisher-owned checkpoint comment identity is missing"
+
+    checkpoint_key = checkpoint_operation["key"]
+    expected_body = checkpoint_operation.get(
+        "body", rendered.files["work-ledger-checkpoint.md"]
+    )
+    transition_body = _checkpoint_transition_body(normalized)
+
+    try:
+        latest_state = _current_state(remote, repository, number, normalized)
+        reasons = _validate_for_publication(
+            normalized, latest_state, desired_body=updated_body
+        )
+        if reasons:
+            return "stale", "; ".join(reasons)
+        latest_comments = remote.list_comments(repository, number)
+        candidates, owned = _checkpoint_matches(
+            remote, latest_comments, checkpoint_key, normalized
+        )
+        if len(candidates) > 1 or len(owned) > 1:
+            return "conflict", "duplicate equivalent checkpoint markers"
+        if candidates and not owned:
+            return "conflict", "checkpoint marker is not owned by the publisher"
+        if len(owned) != 1 or str(owned[0].get("id")) != str(comment_id):
+            return "conflict", "publisher-owned checkpoint identity changed"
+        current_body = owned[0].get("body")
+        if current_body == transition_body:
+            checkpoint_operation["checkpoint_state"] = "submitted"
+            return None, None
+        if current_body != expected_body:
+            return "conflict", "checkpoint changed before request state update"
+
+        post_scan_state = _current_state(remote, repository, number, normalized)
+        if _state_token(post_scan_state) != _state_token(latest_state):
+            return "conflict", "binding changed during checkpoint state update"
+        reasons = _validate_for_publication(
+            normalized, post_scan_state, desired_body=updated_body
+        )
+        if reasons:
+            return "stale", "; ".join(reasons)
+        remote.update_comment_if_current(
+            repository,
+            number,
+            comment_id,
+            transition_body,
+            expected_body,
+        )
+        verified = remote.list_comments(repository, number)
+        _, verified_owned = _checkpoint_matches(
+            remote, verified, checkpoint_key, normalized
+        )
+        if (
+            len(verified_owned) != 1
+            or str(verified_owned[0].get("id")) != str(comment_id)
+            or verified_owned[0].get("body") != transition_body
+        ):
+            return "conflict", "checkpoint did not retain submitted request state"
+        checkpoint_operation["checkpoint_state"] = "submitted"
+        checkpoint_operation["status"] = "updated"
+        return None, None
+    except RemoteConflictError as exc:
+        return "conflict", str(exc)
+    except RemoteAmbiguousError as exc:
+        try:
+            reconciled_comments = remote.list_comments(repository, number)
+            candidates, owned = _checkpoint_matches(
+                remote, reconciled_comments, checkpoint_key, normalized
+            )
+        except (PublicationError, OSError) as reconciliation_exc:
+            return "ambiguous", f"{exc}; reconciliation failed: {reconciliation_exc}"
+        if (
+            len(candidates) == 1
+            and len(owned) == 1
+            and str(owned[0].get("id")) == str(comment_id)
+            and owned[0].get("body") == transition_body
+        ):
+            checkpoint_operation["checkpoint_state"] = "submitted"
+            checkpoint_operation["status"] = "reconciled"
+            return None, None
+        return "ambiguous", str(exc)
+    except (PublicationError, OSError) as exc:
+        return "blocked", str(exc)
 
 
 def _publication_lock(normalized: Any) -> threading.Lock:
@@ -1919,17 +2168,19 @@ def _publish_authorized(
                     rendered,
                 )
             latest_comments = remote.list_comments(repository, number)
-            matches = (
-                _matching_review_requests(
+            if operation_type == "review_request":
+                matches = _matching_review_requests(
                     remote,
                     latest_comments,
                     key,
                     body,
                     normalized,
                 )
-                if operation_type == "review_request"
-                else _matching_comments(latest_comments, prefix, key)
-            )
+                checkpoint_candidates: list[Mapping[str, Any]] = []
+            else:
+                checkpoint_candidates, matches = _checkpoint_matches(
+                    remote, latest_comments, key, normalized
+                )
             # Comment enumeration is itself a remote read and may paginate.
             # Revalidate after that scan, immediately before the mutation, so
             # a head/base/body/evidence change during enumeration cannot be
@@ -1951,20 +2202,27 @@ def _publish_authorized(
                 return PublicationResult(
                     "stale", operations, post_scan_reasons, rendered
                 )
-            if len(matches) > 1:
+            if len(matches) > 1 or (
+                operation_type == "work_checkpoint"
+                and checkpoint_candidates
+                and not matches
+            ):
                 return PublicationResult(
                     "conflict", operations, [f"duplicate {operation_type} markers"], rendered
                 )
             if matches:
-                if operation_type == "work_checkpoint" and not _checkpoint_content_matches(
-                    matches, body
-                ):
-                    return PublicationResult(
-                        "conflict",
-                        operations,
-                        ["checkpoint marker content does not match current resume state"],
-                        rendered,
-                    )
+                if operation_type == "work_checkpoint":
+                    match_body = matches[0].get("body")
+                    if match_body == _checkpoint_transition_body(normalized):
+                        operation["checkpoint_state"] = "submitted"
+                    elif not _checkpoint_content_matches(matches, body):
+                        return PublicationResult(
+                            "conflict",
+                            operations,
+                            ["checkpoint marker content does not match current resume state"],
+                            rendered,
+                        )
+                    operation["comment_id"] = matches[0].get("id")
                 operation["status"] = "already_present"
                 continue
             try:
@@ -1976,16 +2234,19 @@ def _publish_authorized(
                     created_comment = remote.create_comment(repository, number, body)
             except RemoteAmbiguousError as exc:
                 try:
-                    status, matches = _reconcile_comment(
-                        remote,
-                        repository,
-                        number,
-                        prefix,
-                        key,
-                        _review_request_matcher(remote, body, normalized)
-                        if operation_type == "review_request"
-                        else None,
-                    )
+                    if operation_type == "review_request":
+                        status, matches = _reconcile_comment(
+                            remote,
+                            repository,
+                            number,
+                            prefix,
+                            key,
+                            _review_request_matcher(remote, body, normalized),
+                        )
+                    else:
+                        status, matches = _reconcile_checkpoint(
+                            remote, repository, number, key, normalized
+                        )
                 except (PublicationError, OSError) as reconciliation_exc:
                     return PublicationResult(
                         "ambiguous",
@@ -1995,22 +2256,26 @@ def _publish_authorized(
                     )
                 if status == "reconciled":
                     operation["status"] = "reconciled"
+                    operation["comment_id"] = matches[0].get("id")
                     if operation_type == "review_request":
                         _record_review_acknowledgement(
                             remote, repository, number, operation, matches[0]
                         )
                     continue
                 return PublicationResult("ambiguous", operations, [str(exc)], rendered)
-            status, matches = _reconcile_comment(
-                remote,
-                repository,
-                number,
-                prefix,
-                key,
-                _review_request_matcher(remote, body, normalized)
-                if operation_type == "review_request"
-                else None,
-            )
+            if operation_type == "review_request":
+                status, matches = _reconcile_comment(
+                    remote,
+                    repository,
+                    number,
+                    prefix,
+                    key,
+                    _review_request_matcher(remote, body, normalized),
+                )
+            else:
+                status, matches = _reconcile_checkpoint(
+                    remote, repository, number, key, normalized
+                )
             if status == "conflict":
                 return PublicationResult(
                     "conflict", operations, [f"duplicate {operation_type} markers"], rendered
@@ -2023,6 +2288,7 @@ def _publish_authorized(
                     rendered,
                 )
             operation["status"] = "created"
+            operation["comment_id"] = matches[0].get("id")
             if operation_type == "review_request":
                 _record_review_acknowledgement(
                     remote,
@@ -2033,6 +2299,22 @@ def _publish_authorized(
                 )
         except (PublicationError, OSError) as exc:
             return PublicationResult("blocked", operations, [str(exc)], rendered)
+    checkpoint_status, checkpoint_reason = _update_checkpoint_after_request(
+        normalized,
+        remote,
+        repository,
+        number,
+        operations,
+        updated_body,
+        rendered,
+    )
+    if checkpoint_status is not None:
+        return PublicationResult(
+            checkpoint_status,
+            operations,
+            [checkpoint_reason or "checkpoint request state update failed"],
+            rendered,
+        )
     return PublicationResult("published", operations, [], rendered)
 
 

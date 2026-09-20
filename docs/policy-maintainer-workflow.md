@@ -162,7 +162,12 @@ for offline diagnostics and cannot authorize writes. A truncated or otherwise
 ambiguous mutation response is reconciled against the remote surface; it is
 never retried blindly. Checkpoint markers have a separate identity derived from
 resume semantics, so changed blockers or next actions cannot reuse an old
-checkpoint merely because review-request scope is unchanged.
+checkpoint merely because review-request scope is unchanged. A checkpoint may
+be reused only when the publisher can prove ownership; a copied marker or
+matching body from another contributor stops publication. After a
+planner-approved review request is created or reconciled, the publisher updates
+that same owned checkpoint to record the submitted request state. That update
+has its own revalidation and ambiguity reconciliation boundary.
 
 The provider-neutral PR observer snapshot is schema version 2. Version 2 makes
 each dependency's expected and observed base part of the persisted binding, so
@@ -204,7 +209,9 @@ planner-approved request is posted with the repository-recognized `@codex
 review` trigger. Reuse, reconciliation, handoff, and incomplete observations
 never emit a new trigger. An equivalent request must have the canonical
 provider-specific body and be authored by the authenticated publisher; a copied
-or edited marker is not sufficient to suppress publication. Provider
+or edited marker is not sufficient to suppress publication. A reaction counts
+as Codex acknowledgement only when its actor is the configured Codex review
+bot, not merely because an ordinary contributor added `eyes`. Provider
 acknowledgement is reported separately from review approval. Marker identities
 are used to reuse equivalent requests and checkpoints, and `ambiguous` is
 reported when a lost remote response cannot be reconciled; the publisher never
