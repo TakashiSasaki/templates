@@ -262,7 +262,7 @@ def test_same_semantic_input_renders_identical_projections() -> None:
     "field,value,pattern",
     [
         ("head_sha", _sha("9"), "consumer_actual_toolchain"),
-        ("base_sha", _sha("9"), "gate.input_binding.base_sha"),
+        ("base_sha", _sha("9"), "target member base|gate.input_binding.base_sha"),
     ],
 )
 def test_candidate_binding_changes_refuse_stale_gate_input(

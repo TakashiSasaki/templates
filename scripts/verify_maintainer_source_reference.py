@@ -10,10 +10,10 @@ import hashlib
 import os
 import re
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Mapping
 
 EXPECTED_REPOSITORY = "TakashiSasaki/templates"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
