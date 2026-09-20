@@ -862,6 +862,32 @@ def test_reuse_planner_action_does_not_emit_a_new_review_operation() -> None:
     assert provider.create_calls == 1
 
 
+@pytest.mark.parametrize(
+    "action",
+    [publisher.ACTION_REUSE, publisher.ACTION_RECONCILE, publisher.ACTION_MISSING],
+)
+def test_final_checkpoint_create_revalidates_non_request_actions(
+    action: str,
+) -> None:
+    normalized = _bound_source()
+    normalized.data["planner"]["result"]["action"] = action
+    normalized.planner_result["action"] = action
+
+    class ChangesAfterCheckpoint(FakeProvider):
+        def create_comment(self, repository, number, body):
+            result = super().create_comment(repository, number, body)
+            self.state["evidence_digest"] = "e" * 64
+            return result
+
+    provider = ChangesAfterCheckpoint(normalized)
+    result = _publish(provider)
+
+    assert result.status == "stale"
+    assert "after checkpoint state update" in result.reasons[0]
+    assert provider.create_calls == 1
+    assert provider.update_comment_calls == 0
+
+
 def test_checkpoint_identity_changes_with_resume_state_but_not_review_identity() -> None:
     first = _bound_source()
     changed_source = source_fixture._source()

@@ -2448,6 +2448,37 @@ def _publish_authorized(
                 )
         except (PublicationError, OSError) as exc:
             return PublicationResult("blocked", operations, [str(exc)], rendered)
+
+    # For planner reuse, reconciliation, and handoff actions the checkpoint
+    # creation/reconciliation above can be the final remote mutation.  The
+    # request-state transition below intentionally does nothing for those
+    # actions, so validate the binding once more before reporting success.
+    checkpoint_operation = next(
+        item for item in operations if item["type"] == "work_checkpoint"
+    )
+    review_operation = next(
+        item for item in operations if item["type"] == "review_request"
+    )
+    if (
+        checkpoint_operation.get("status") in {"created", "reconciled"}
+        and review_operation.get("status")
+        not in {"created", "reconciled", "already_present"}
+    ):
+        checkpoint_status, checkpoint_reason = _validate_checkpoint_after_write(
+            normalized,
+            remote,
+            repository,
+            number,
+            desired_body=updated_body,
+        )
+        if checkpoint_status is not None:
+            return PublicationResult(
+                checkpoint_status,
+                operations,
+                [checkpoint_reason or "checkpoint write validation failed"],
+                rendered,
+            )
+
     checkpoint_status, checkpoint_reason = _update_checkpoint_after_request(
         normalized,
         remote,
