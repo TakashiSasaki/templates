@@ -1,0 +1,113 @@
+REPORT ONLY — DO NOT MERGE
+
+# Daily Quality Audit 20260920
+Run Key: 20260920T074249Z-dcdc84aa
+
+## 1. Conclusion and Audit Coverage
+Coverage mode: PARTIAL
+Audit outcomes include ISSUES_FOUND and UNKNOWN.
+
+## 2. Frozen Snapshot
+- `composition`: f3bd0dc58b586fbdd9707c5547439d2ce18ab476
+- `policy`: 0630913c95bb0ca4765a196ff5e76a98684f82ea
+- `integration`: 4e7b81b2c3e81b25c188b6e7dd03c70e50b7720b
+- `modeling`: 4d0da7248e753aeeebd658d1795cecb73b855f8e
+- `site`: e7ae4f55d912b335410e34fdc7ebc0448040de3c
+
+## 3. Authority Outcomes
+| Authority | Outcome |
+| --- | --- |
+| composition | UNKNOWN |
+| policy | UNKNOWN |
+| integration | ISSUES_FOUND |
+| modeling | UNKNOWN |
+| site | UNKNOWN |
+
+## 4. Findings
+Integration tests failed on `test_independent_history_and_exact_reviewed_locks`.
+Integration: CONTRACT_DIVERGENCE (UNVERIFIED_SEMANTICS).
+
+## 5. Blocked/Unverified
+GitHub CLI (`gh`) was unavailable.
+
+## 6. Artifact Paths
+- .audit-reports/20260920/20260920T074249Z-dcdc84aa/report.md
+- .audit-reports/20260920/20260920T074249Z-dcdc84aa/evidence.json
+
+## 7. Remote commit link verification
+Remote report commit: PENDING_HOST_ASSIGNMENT
+
+## 8. Integrity Confirmation
+I confirm that exactly two files were changed and no source files were modified.
+
+<details>
+<summary>Full daily audit report</summary>
+
+# 定期品質監査レポート
+
+## 1. 結論と監査カバレッジ (Conclusion and Coverage Mode)
+各オーソリティの監査を実行しました。Integrationでエラーが発生したため、一部の権限は「PARTIAL」や「ISSUES_FOUND」となります。カバレッジモードはPARTIALです。
+
+## 2. スナップショット (Frozen Snapshot)
+- `composition`: f3bd0dc58b586fbdd9707c5547439d2ce18ab476
+- `policy`: 0630913c95bb0ca4765a196ff5e76a98684f82ea
+- `integration`: 4e7b81b2c3e81b25c188b6e7dd03c70e50b7720b
+- `modeling`: 4d0da7248e753aeeebd658d1795cecb73b855f8e
+- `site`: e7ae4f55d912b335410e34fdc7ebc0448040de3c
+
+## 3. ベースラインとSHA変更 (Baseline and Branch Deltas)
+| オーソリティ | ベースラインSHA | 現在のSHA | 変更状態 |
+| --- | --- | --- | --- |
+| composition | 161b53baf740774caf2cc5f5d84bcabdca05557f | f3bd0dc58b586fbdd9707c5547439d2ce18ab476 | CHANGED |
+| policy | c3392c87554a36b12a16d2e8a27786721f0e2cde | 0630913c95bb0ca4765a196ff5e76a98684f82ea | CHANGED |
+| integration | e42ed011c0e28fe21f101bbe93228bd756635d4e | 4e7b81b2c3e81b25c188b6e7dd03c70e50b7720b | CHANGED |
+| modeling | 384518a4223ecad31dfd0fa17a7cc4bba993432c | 4d0da7248e753aeeebd658d1795cecb73b855f8e | CHANGED |
+| site | f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe | e7ae4f55d912b335410e34fdc7ebc0448040de3c | CHANGED |
+
+## 4. プロバイダ選択とSite採用の変更 (Selection / Adoption Delta)
+- 変更は明示的なプルリクエスト/コミットに基づくものではありません。
+
+## 5. 環境の能力 (Environment Capabilities)
+- OS/Kernel: Linux devbox x86_64
+- Git: AVAILABLE (Shallow: True)
+- Python/pip: AVAILABLE
+- Node/npm: AVAILABLE
+- Browser/Playwright: UNKNOWN
+- gh: UNAVAILABLE
+- curl/REST: AVAILABLE
+- Dependency Installation: AVAILABLE
+
+## 6. オーソリティのアウトカム (Authority Outcomes)
+- composition: UNKNOWN (fresh) - Evidence ID: comp-1
+- policy: UNKNOWN (fresh) - Evidence ID: pol-1
+- integration: ISSUES_FOUND (fresh) - Evidence ID: int-1
+- modeling: UNKNOWN (fresh) - Evidence ID: mod-1
+- site: UNKNOWN (fresh) - Evidence ID: site-1
+
+## 7. 発見事項 (Material Findings)
+- Integrationオーソリティのテスト `test_independent_history_and_exact_reviewed_locks` にて、 `initial_integration_revision` の値が期待と異なることによるエラーが発生しました (`['4e7b81b...'] != ['f77e0e1...']`)。
+- Integration: プロバイダセットの宣言(publication-sources.json等)と実際の設定に不整合、あるいはファイル欠落があるため、CONTRACT_DIVERGENCE (UNVERIFIED_SEMANTICS) として報告します。
+
+## 8. クロスオーソリティ・トレース (Cross-Authority Trace)
+| Input | Stage | Result | State | Evidence |
+| --- | --- | --- | --- | --- |
+| current provider branch heads | - | - | UNKNOWN | trace-1 |
+
+## 9. パフォーマンス (Performance)
+PERFORMANCE_UNMEASURED
+
+## 10. 制限事項・ブロックされたチェック (Limitations and Blocked Checks)
+- GitHub CLI (`gh`) は利用不可能でした。
+- Integrationのテスト失敗により、完全な自動検証が阻害されました。
+
+## 11. 推奨フォローアップ (Evidence-based Follow-ups)
+- Integrationオーソリティのテスト不一致の原因調査と修正が必要です。
+
+## 12. タイミング情報 (Audit Timing)
+- 監査開始: 2026-09-20T07:26:00Z
+- 監査終了: 2026-09-20T07:42:00Z
+- 手順のハンドオフ: 2026-09-20T07:45:00Z
+
+AUTONOMOUS_AUDIT_COMPLETE
+
+</details>
