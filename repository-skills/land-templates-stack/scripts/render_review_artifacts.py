@@ -22,7 +22,9 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import re
+import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -211,19 +213,6 @@ def _observer_module() -> Any:
     return _load_sibling("pr_state_observation.py", "templates_pr_state_observation")
 
 
-def _source_verifier() -> Any:
-    verifier_path = Path(__file__).parents[3] / "scripts" / "verify_maintainer_source_reference.py"
-    spec = importlib.util.spec_from_file_location(
-        "templates_verify_maintainer_source_reference", verifier_path
-    )
-    if spec is None or spec.loader is None:
-        raise ArtifactInputError("cannot load the immutable source verifier")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
 def _source_identity(
     value: Any,
     name: str,
@@ -252,6 +241,70 @@ def _source_identity(
     return source
 
 
+def _git_blob_sha(content: bytes) -> str:
+    header = f"blob {len(content)}\0".encode("ascii")
+    return hashlib.sha1(header + content).hexdigest()
+
+
+def _read_git_output(repository_root: Path, *arguments: str) -> str:
+    environment = os.environ.copy()
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
+    try:
+        return subprocess.check_output(
+            ["git", *arguments],
+            cwd=repository_root,
+            env=environment,
+            text=True,
+            stderr=subprocess.PIPE,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ArtifactInputError("immutable planner source is unavailable") from exc
+
+
+def _read_git_bytes(repository_root: Path, *arguments: str) -> bytes:
+    environment = os.environ.copy()
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
+    try:
+        return subprocess.check_output(
+            ["git", *arguments],
+            cwd=repository_root,
+            env=environment,
+            stderr=subprocess.PIPE,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ArtifactInputError("immutable planner source is unavailable") from exc
+
+
+def _verified_planner_content(
+    source: Mapping[str, Any],
+    *,
+    content: bytes | None,
+    actual_blob: str | None,
+    repository_root: Path,
+) -> bytes:
+    """Verify planner bytes without importing a mutable checkout helper."""
+
+    declared_blob = source["blob_sha"]
+    if content is None:
+        if _read_git_output(repository_root, "cat-file", "-t", source["revision"]) != "commit":
+            raise ArtifactInputError("planner source revision must name a commit object")
+        resolved_blob = _read_git_output(
+            repository_root,
+            "rev-parse",
+            "--verify",
+            f"{source['revision']}:{PLANNER_PATH}",
+        )
+        if resolved_blob != declared_blob:
+            raise ArtifactInputError("declared planner blob does not match the immutable commit")
+        content = _read_git_bytes(repository_root, "show", f"{source['revision']}:{PLANNER_PATH}")
+    computed_blob = _git_blob_sha(content)
+    if actual_blob is not None and actual_blob != computed_blob:
+        raise ArtifactInputError("transport planner blob does not match its content")
+    if computed_blob != declared_blob:
+        raise ArtifactInputError("declared planner blob does not match planner content")
+    return content
+
+
 def execute_bound_planner(
     source: Mapping[str, Any],
     packet: Mapping[str, Any],
@@ -271,23 +324,19 @@ def execute_bound_planner(
     normalized_source = _source_identity(
         source, "planner.source", path=PLANNER_PATH, require_blob=True
     )
-    verifier = _source_verifier()
     try:
-        if content is None:
-            verified = verifier.verify_blob_source(
-                normalized_source,
-                repo=repository_root or Path(__file__).parents[3],
-                expected_path=PLANNER_PATH,
-            )
-        else:
-            verified = verifier.verify_blob_payload(
-                normalized_source,
-                content=content,
-                actual_blob=actual_blob,
-                expected_path=PLANNER_PATH,
-            )
-        module = verifier.load_python_module(verified, "templates_bound_review_planner")
-        planner = getattr(module, "plan", None)
+        planner_content = _verified_planner_content(
+            normalized_source,
+            content=content,
+            actual_blob=actual_blob,
+            repository_root=repository_root or Path(__file__).parents[3],
+        )
+        namespace: dict[str, Any] = {
+            "__file__": f"{normalized_source['revision']}:{PLANNER_PATH}",
+            "__name__": "templates_bound_review_planner",
+        }
+        exec(compile(planner_content, namespace["__file__"], "exec"), namespace)
+        planner = namespace.get("plan")
         if not callable(planner):
             raise ArtifactInputError("verified planner source does not expose plan(packet)")
         result = planner(dict(packet))

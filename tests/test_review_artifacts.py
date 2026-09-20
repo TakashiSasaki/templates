@@ -568,3 +568,22 @@ def test_bound_planner_uses_trusted_commit_not_modified_checkout(tmp_path: Path)
     )
 
     assert result == {"action": "trusted-planner"}
+
+
+def test_bound_planner_does_not_import_mutable_source_verifier(monkeypatch) -> None:
+    original_loader = artifacts.importlib.util.spec_from_file_location
+
+    def forbidden_verifier_loader(name, location, *args, **kwargs):
+        if str(location).endswith("verify_maintainer_source_reference.py"):
+            raise AssertionError("mutable source verifier was imported")
+        return original_loader(name, location, *args, **kwargs)
+
+    monkeypatch.setattr(
+        artifacts.importlib.util,
+        "spec_from_file_location",
+        forbidden_verifier_loader,
+    )
+
+    normalized = artifacts.normalize(_source())
+
+    assert isinstance(normalized.planner_result.get("action"), str)
