@@ -33,7 +33,9 @@ _renderer_normalize = publisher.renderer.normalize
 
 def _normalize_renderer(source):
     return _renderer_normalize(
-        source, trusted_base_sha=source_fixture.TEST_TRUSTED_BASE_SHA
+        source,
+        trusted_base_sha=source_fixture.TEST_TRUSTED_BASE_SHA,
+        candidate_file_resolver=source_fixture._fixture_candidate_file,
     )
 
 
