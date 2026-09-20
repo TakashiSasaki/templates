@@ -2011,6 +2011,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--input", default="-", help="structured JSON input, or '-' for stdin"
     )
     publish_parser.add_argument(
+        "--trusted-base-sha",
+        required=True,
+        help="immutable trusted base SHA used to authenticate the planner source closure",
+    )
+    publish_parser.add_argument(
         "--repository", help="override repository only when it matches input"
     )
     publish_parser.add_argument(
@@ -2047,7 +2052,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
-        normalized = renderer.normalize(_load_json(args.input))
+        normalized = renderer.normalize(
+            _load_json(args.input), trusted_base_sha=args.trusted_base_sha
+        )
         if args.repository is not None and args.repository != normalized.data["repository"]:
             raise PublicationError("--repository does not match the bound input")
         remote = None

@@ -170,13 +170,19 @@ effective-base commit and compares it with the bound tree before publication.
 An asserted tree value, or a value from an unrelated worktree, is not accepted
 as cumulative evidence.
 
+The trusted base SHA is supplied by the trusted operational context, not read
+from the artifact JSON; the publisher rejects an input whose candidate base
+does not match it. Complete mutating 5xx responses are treated as ambiguous
+and reconciled, while complete deterministic 4xx responses remain errors.
+
 The companion publisher is
 `repository-skills/land-templates-stack/scripts/publish_review_artifacts.py`.
 Without `--apply` it is another side-effect-free preview path:
 
 ```console
 python3 repository-skills/land-templates-stack/scripts/publish_review_artifacts.py \
-  publish --input review-artifacts.json
+  publish --input review-artifacts.json \
+  --trusted-base-sha <trusted-base-sha>
 ```
 
 An apply requires `--apply --authorize --serialized-writer`, a GitHub token, and
@@ -211,6 +217,7 @@ For example, an authorized operational adapter can be selected explicitly:
 ```console
 python3 repository-skills/land-templates-stack/scripts/publish_review_artifacts.py \
   publish --input review-artifacts.json \
+  --trusted-base-sha <trusted-base-sha> \
   --live-adapter /path/to/live_review_adapter.py:resolve \
   --token "$GH_TOKEN" --apply --authorize --serialized-writer
 ```
