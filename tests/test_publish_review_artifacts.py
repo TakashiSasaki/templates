@@ -628,6 +628,42 @@ def test_checkpoint_update_revalidates_bindings_after_the_mutation() -> None:
     assert provider.update_comment_calls == 1
 
 
+def test_checkpoint_becoming_submitted_during_scan_is_revalidated() -> None:
+    normalized = _bound_source()
+    rendered = publisher.renderer.render(normalized)
+
+    class PromotesCheckpointDuringScan(FakeProvider):
+        def list_comments(
+            self,
+            repository: str,
+            number: int,
+        ) -> list[dict[str, object]]:
+            self.list_calls += 1
+            if self.list_calls == 2:
+                self.comments[0]["body"] = publisher.renderer.render_work_checkpoint(
+                    normalized, request_state="submitted"
+                )
+                self.state["evidence_digest"] = "e" * 64
+            return copy.deepcopy(self.comments)
+
+    provider = PromotesCheckpointDuringScan(normalized)
+    provider.comments.extend(
+        [
+            {
+                "id": 1,
+                "body": rendered.files["work-ledger-checkpoint.md"],
+                "publisher_owned": True,
+            },
+            {"id": 2, "body": rendered.files["review-request.md"]},
+        ]
+    )
+
+    result = _publish(provider)
+
+    assert result.status == "stale"
+    assert provider.update_comment_calls == 0
+
+
 def test_snapshot_evidence_excludes_only_authenticated_canonical_artifacts() -> None:
     normalized = _bound_source()
     provider = publisher.GitHubProvider("token", publisher_login="publisher")
@@ -860,6 +896,177 @@ def test_reuse_planner_action_does_not_emit_a_new_review_operation() -> None:
     review = next(item for item in result.operations if item["type"] == "review_request")
     assert review["status"] == "planner_reuse"
     assert provider.create_calls == 1
+
+
+@pytest.mark.parametrize(
+    "action",
+    [publisher.ACTION_REUSE, publisher.ACTION_RECONCILE, publisher.ACTION_MISSING],
+)
+def test_final_checkpoint_create_revalidates_non_request_actions(
+    action: str,
+) -> None:
+    normalized = _bound_source()
+    normalized.data["planner"]["result"]["action"] = action
+    normalized.planner_result["action"] = action
+
+    class ChangesAfterCheckpoint(FakeProvider):
+        def create_comment(self, repository, number, body):
+            result = super().create_comment(repository, number, body)
+            self.state["evidence_digest"] = "e" * 64
+            return result
+
+    provider = ChangesAfterCheckpoint(normalized)
+    result = _publish(provider)
+
+    assert result.status == "stale"
+    assert "after checkpoint state update" in result.reasons[0]
+    assert provider.create_calls == 1
+    assert provider.update_comment_calls == 0
+
+
+@pytest.mark.parametrize(
+    "action",
+    [publisher.ACTION_REUSE, publisher.ACTION_RECONCILE, publisher.ACTION_MISSING],
+)
+@pytest.mark.parametrize(
+    ("checkpoint_mutation", "expected_status"),
+    [
+        ("delete", "conflict"),
+        ("corrupt", "conflict"),
+        ("unown", "conflict"),
+        ("binding", "conflict"),
+        ("malformed", "ambiguous"),
+    ],
+)
+def test_final_checkpoint_revalidation_rechecks_durable_comment(
+    action: str,
+    checkpoint_mutation: str,
+    expected_status: str,
+) -> None:
+    normalized = _bound_source()
+    normalized.data["planner"]["result"]["action"] = action
+    normalized.planner_result["action"] = action
+
+    class MutatesCheckpointAfterReconciliation(FakeProvider):
+        def __init__(self, normalized) -> None:
+            super().__init__(normalized)
+            self.checkpoint_created = False
+            self.reconciliation_seen = False
+            self.mutated = False
+
+        def create_comment(self, repository, number, body):
+            result = super().create_comment(repository, number, body)
+            self.checkpoint_created = True
+            return result
+
+        def list_comments(self, repository, number):
+            self.list_calls += 1
+            if self.checkpoint_created and not self.reconciliation_seen:
+                self.reconciliation_seen = True
+            elif self.checkpoint_created and self.reconciliation_seen and not self.mutated:
+                self.mutated = True
+                if checkpoint_mutation == "delete":
+                    self.comments.clear()
+                elif checkpoint_mutation == "corrupt":
+                    self.comments[0]["body"] = "corrupted checkpoint"
+                elif checkpoint_mutation == "unown":
+                    self.comments[0]["publisher_owned"] = False
+                elif checkpoint_mutation == "binding":
+                    self.state["evidence_digest"] = "e" * 64
+                else:
+                    self.state["body_digest"] = "f" * 64
+            return copy.deepcopy(self.comments)
+
+    provider = MutatesCheckpointAfterReconciliation(normalized)
+    result = _publish(provider)
+
+    assert result.status == expected_status
+    assert "checkpoint" in result.reasons[0]
+    assert provider.create_calls == 1
+    assert provider.update_comment_calls == 0
+
+
+@pytest.mark.parametrize(
+    "checkpoint_mutation",
+    ["delete", "corrupt", "binding", "malformed"],
+)
+def test_already_present_checkpoint_is_revalidated_before_success(
+    checkpoint_mutation: str,
+) -> None:
+    normalized = _bound_source()
+    normalized.data["planner"]["result"]["action"] = publisher.ACTION_REUSE
+    normalized.planner_result["action"] = publisher.ACTION_REUSE
+    rendered = publisher.renderer.render(normalized)
+
+    class MutatesAlreadyPresentCheckpoint(FakeProvider):
+        def __init__(self, normalized) -> None:
+            super().__init__(normalized)
+            self.mutated = False
+
+        def list_comments(
+            self,
+            repository: str,
+            number: int,
+        ) -> list[dict[str, object]]:
+            self.list_calls += 1
+            if self.list_calls == 2 and not self.mutated:
+                self.mutated = True
+                if checkpoint_mutation == "delete":
+                    self.comments.clear()
+                elif checkpoint_mutation == "corrupt":
+                    self.comments[0]["body"] = "corrupted checkpoint"
+                elif checkpoint_mutation == "binding":
+                    self.state["evidence_digest"] = "e" * 64
+                else:
+                    self.state["body_digest"] = "f" * 64
+            return copy.deepcopy(self.comments)
+
+    provider = MutatesAlreadyPresentCheckpoint(normalized)
+    provider.comments.append(
+        {
+            "id": 1,
+            "body": rendered.files["work-ledger-checkpoint.md"],
+            "publisher_owned": True,
+        }
+    )
+
+    result = _publish(provider)
+
+    assert result.status in {"conflict", "stale", "ambiguous"}
+    assert provider.create_calls == 0
+    assert provider.update_comment_calls == 0
+
+
+def test_checkpoint_transition_revalidation_rechecks_durable_comment() -> None:
+    normalized = _bound_source()
+
+    class MutatesCheckpointAfterTransition(FakeProvider):
+        def __init__(self, normalized) -> None:
+            super().__init__(normalized)
+            self.transition_updated = False
+            self.transition_verified = False
+            self.mutated = False
+
+        def update_comment(self, repository, number, comment_id, body):
+            result = super().update_comment(repository, number, comment_id, body)
+            self.transition_updated = True
+            return result
+
+        def list_comments(self, repository, number):
+            self.list_calls += 1
+            if self.transition_updated and not self.transition_verified:
+                self.transition_verified = True
+            elif self.transition_updated and self.transition_verified and not self.mutated:
+                self.mutated = True
+                self.comments[0]["body"] = "corrupted submitted checkpoint"
+            return copy.deepcopy(self.comments)
+
+    provider = MutatesCheckpointAfterTransition(normalized)
+    result = _publish(provider)
+
+    assert result.status == "conflict"
+    assert "checkpoint" in result.reasons[0]
+    assert provider.update_comment_calls == 1
 
 
 def test_checkpoint_identity_changes_with_resume_state_but_not_review_identity() -> None:

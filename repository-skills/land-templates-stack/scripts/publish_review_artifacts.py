@@ -1749,8 +1749,11 @@ def _validate_checkpoint_after_write(
     number: int,
     *,
     desired_body: str,
+    checkpoint_key: str,
+    expected_comment_id: int | str | None,
+    expected_checkpoint_body: str,
 ) -> tuple[str | None, str | None]:
-    """Revalidate the full PR binding after a checkpoint mutation."""
+    """Revalidate the PR binding and checkpoint after a checkpoint mutation."""
 
     try:
         verified_state = _current_state(remote, repository, number, normalized)
@@ -1766,6 +1769,43 @@ def _validate_checkpoint_after_write(
             "stale",
             "publication binding changed after checkpoint state update; "
             + "; ".join(reasons),
+        )
+    if not isinstance(expected_comment_id, (int, str)):
+        return "ambiguous", "checkpoint identity is missing after checkpoint state update"
+    try:
+        comments = remote.list_comments(repository, number)
+        candidates, owned = _checkpoint_matches(
+            remote, comments, checkpoint_key, normalized
+        )
+    except (PublicationError, OSError) as exc:
+        return "ambiguous", f"checkpoint updated but comment reconciliation failed: {exc}"
+    if len(candidates) > 1 or len(owned) > 1:
+        return "conflict", "duplicate checkpoint markers after checkpoint state update"
+    if (
+        len(owned) != 1
+        or str(owned[0].get("id")) != str(expected_comment_id)
+        or owned[0].get("body") != expected_checkpoint_body
+    ):
+        return (
+            "conflict",
+            "checkpoint identity or body changed after checkpoint state update",
+        )
+    try:
+        post_scan_state = _current_state(remote, repository, number, normalized)
+        if _state_token(post_scan_state) != _state_token(verified_state):
+            return "conflict", "publication binding changed during checkpoint comment scan"
+        post_scan_reasons = _validate_for_publication(
+            normalized,
+            post_scan_state,
+            desired_body=desired_body,
+        )
+    except (PublicationError, OSError) as exc:
+        return "ambiguous", f"checkpoint updated but final binding validation failed: {exc}"
+    if post_scan_reasons:
+        return (
+            "stale",
+            "publication binding changed after checkpoint comment scan; "
+            + "; ".join(post_scan_reasons),
         )
     return None, None
 
@@ -1997,6 +2037,18 @@ def _update_checkpoint_after_request(
             return "conflict", "publisher-owned checkpoint identity changed"
         current_body = owned[0].get("body")
         if current_body == transition_body:
+            post_write_status, post_write_reason = _validate_checkpoint_after_write(
+                normalized,
+                remote,
+                repository,
+                number,
+                desired_body=updated_body,
+                checkpoint_key=checkpoint_key,
+                expected_comment_id=comment_id,
+                expected_checkpoint_body=transition_body,
+            )
+            if post_write_status is not None:
+                return post_write_status, post_write_reason
             checkpoint_operation["checkpoint_state"] = "submitted"
             return None, None
         if current_body != expected_body:
@@ -2033,6 +2085,9 @@ def _update_checkpoint_after_request(
             repository,
             number,
             desired_body=updated_body,
+            checkpoint_key=checkpoint_key,
+            expected_comment_id=comment_id,
+            expected_checkpoint_body=transition_body,
         )
         if post_write_status is not None:
             return post_write_status, post_write_reason
@@ -2061,6 +2116,9 @@ def _update_checkpoint_after_request(
                 repository,
                 number,
                 desired_body=updated_body,
+                checkpoint_key=checkpoint_key,
+                expected_comment_id=comment_id,
+                expected_checkpoint_body=transition_body,
             )
             if post_write_status is not None:
                 return post_write_status, post_write_reason
@@ -2448,6 +2506,48 @@ def _publish_authorized(
                 )
         except (PublicationError, OSError) as exc:
             return PublicationResult("blocked", operations, [str(exc)], rendered)
+
+    # For planner reuse, reconciliation, and handoff actions the checkpoint
+    # creation/reconciliation above can be the final remote mutation.  The
+    # request-state transition below intentionally does nothing for those
+    # actions, so validate the binding once more before reporting success.
+    checkpoint_operation = next(
+        item for item in operations if item["type"] == "work_checkpoint"
+    )
+    review_operation = next(
+        item for item in operations if item["type"] == "review_request"
+    )
+    checkpoint_state = checkpoint_operation.get("checkpoint_state")
+    review_status = review_operation.get("status")
+    request_statuses = {"created", "reconciled", "already_present"}
+    if (
+        checkpoint_operation.get("status") in {"created", "reconciled", "already_present"}
+        and (review_status not in request_statuses or checkpoint_state == "submitted")
+    ):
+        checkpoint_status, checkpoint_reason = _validate_checkpoint_after_write(
+            normalized,
+            remote,
+            repository,
+            number,
+            desired_body=updated_body,
+            checkpoint_key=checkpoint_operation["key"],
+            expected_comment_id=checkpoint_operation.get("comment_id"),
+            expected_checkpoint_body=(
+                _checkpoint_transition_body(normalized)
+                if checkpoint_state == "submitted"
+                else checkpoint_operation.get(
+                    "body", rendered.files["work-ledger-checkpoint.md"]
+                )
+            ),
+        )
+        if checkpoint_status is not None:
+            return PublicationResult(
+                checkpoint_status,
+                operations,
+                [checkpoint_reason or "checkpoint write validation failed"],
+                rendered,
+            )
+
     checkpoint_status, checkpoint_reason = _update_checkpoint_after_request(
         normalized,
         remote,
