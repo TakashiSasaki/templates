@@ -899,6 +899,7 @@ def test_final_checkpoint_create_revalidates_non_request_actions(
         ("corrupt", "conflict"),
         ("unown", "conflict"),
         ("binding", "conflict"),
+        ("malformed", "ambiguous"),
     ],
 )
 def test_final_checkpoint_revalidation_rechecks_durable_comment(
@@ -934,8 +935,10 @@ def test_final_checkpoint_revalidation_rechecks_durable_comment(
                     self.comments[0]["body"] = "corrupted checkpoint"
                 elif checkpoint_mutation == "unown":
                     self.comments[0]["publisher_owned"] = False
-                else:
+                elif checkpoint_mutation == "binding":
                     self.state["evidence_digest"] = "e" * 64
+                else:
+                    self.state["body_digest"] = "f" * 64
             return copy.deepcopy(self.comments)
 
     provider = MutatesCheckpointAfterReconciliation(normalized)

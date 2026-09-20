@@ -1792,15 +1792,15 @@ def _validate_checkpoint_after_write(
         )
     try:
         post_scan_state = _current_state(remote, repository, number, normalized)
+        if _state_token(post_scan_state) != _state_token(verified_state):
+            return "conflict", "publication binding changed during checkpoint comment scan"
+        post_scan_reasons = _validate_for_publication(
+            normalized,
+            post_scan_state,
+            desired_body=desired_body,
+        )
     except (PublicationError, OSError) as exc:
-        return "ambiguous", f"checkpoint updated but final binding read failed: {exc}"
-    if _state_token(post_scan_state) != _state_token(verified_state):
-        return "conflict", "publication binding changed during checkpoint comment scan"
-    post_scan_reasons = _validate_for_publication(
-        normalized,
-        post_scan_state,
-        desired_body=desired_body,
-    )
+        return "ambiguous", f"checkpoint updated but final binding validation failed: {exc}"
     if post_scan_reasons:
         return (
             "stale",
