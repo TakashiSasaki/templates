@@ -2505,10 +2505,12 @@ def _publish_authorized(
     review_operation = next(
         item for item in operations if item["type"] == "review_request"
     )
+    checkpoint_state = checkpoint_operation.get("checkpoint_state")
+    review_status = review_operation.get("status")
+    request_statuses = {"created", "reconciled", "already_present"}
     if (
-        checkpoint_operation.get("status") in {"created", "reconciled"}
-        and review_operation.get("status")
-        not in {"created", "reconciled", "already_present"}
+        checkpoint_operation.get("status") in {"created", "reconciled", "already_present"}
+        and (review_status not in request_statuses or checkpoint_state == "submitted")
     ):
         checkpoint_status, checkpoint_reason = _validate_checkpoint_after_write(
             normalized,
@@ -2518,8 +2520,12 @@ def _publish_authorized(
             desired_body=updated_body,
             checkpoint_key=checkpoint_operation["key"],
             expected_comment_id=checkpoint_operation.get("comment_id"),
-            expected_checkpoint_body=checkpoint_operation.get(
-                "body", rendered.files["work-ledger-checkpoint.md"]
+            expected_checkpoint_body=(
+                _checkpoint_transition_body(normalized)
+                if checkpoint_state == "submitted"
+                else checkpoint_operation.get(
+                    "body", rendered.files["work-ledger-checkpoint.md"]
+                )
             ),
         )
         if checkpoint_status is not None:

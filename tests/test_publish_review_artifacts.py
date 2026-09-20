@@ -950,6 +950,57 @@ def test_final_checkpoint_revalidation_rechecks_durable_comment(
     assert provider.update_comment_calls == 0
 
 
+@pytest.mark.parametrize(
+    "checkpoint_mutation",
+    ["delete", "corrupt", "binding", "malformed"],
+)
+def test_already_present_checkpoint_is_revalidated_before_success(
+    checkpoint_mutation: str,
+) -> None:
+    normalized = _bound_source()
+    normalized.data["planner"]["result"]["action"] = publisher.ACTION_REUSE
+    normalized.planner_result["action"] = publisher.ACTION_REUSE
+    rendered = publisher.renderer.render(normalized)
+
+    class MutatesAlreadyPresentCheckpoint(FakeProvider):
+        def __init__(self, normalized) -> None:
+            super().__init__(normalized)
+            self.mutated = False
+
+        def list_comments(
+            self,
+            repository: str,
+            number: int,
+        ) -> list[dict[str, object]]:
+            self.list_calls += 1
+            if self.list_calls == 2 and not self.mutated:
+                self.mutated = True
+                if checkpoint_mutation == "delete":
+                    self.comments.clear()
+                elif checkpoint_mutation == "corrupt":
+                    self.comments[0]["body"] = "corrupted checkpoint"
+                elif checkpoint_mutation == "binding":
+                    self.state["evidence_digest"] = "e" * 64
+                else:
+                    self.state["body_digest"] = "f" * 64
+            return copy.deepcopy(self.comments)
+
+    provider = MutatesAlreadyPresentCheckpoint(normalized)
+    provider.comments.append(
+        {
+            "id": 1,
+            "body": rendered.files["work-ledger-checkpoint.md"],
+            "publisher_owned": True,
+        }
+    )
+
+    result = _publish(provider)
+
+    assert result.status in {"conflict", "stale", "ambiguous"}
+    assert provider.create_calls == 0
+    assert provider.update_comment_calls == 0
+
+
 def test_checkpoint_transition_revalidation_rechecks_durable_comment() -> None:
     normalized = _bound_source()
 
