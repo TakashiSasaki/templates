@@ -798,6 +798,7 @@ def test_checkpoint_identity_changes_with_resume_state_but_not_review_identity()
         "body": "Human PR text\n",
     }
     changed_source["work"]["blockers"] = ["dependency-review-pending"]
+    changed_source["work"]["next_safe_action"] = "wait for the dependency review"
     changed = publisher.renderer.normalize(changed_source)
 
     assert publisher.renderer.checkpoint_identity(first) != publisher.renderer.checkpoint_identity(
@@ -806,13 +807,25 @@ def test_checkpoint_identity_changes_with_resume_state_but_not_review_identity()
     assert publisher.renderer.idempotency_key(
         first, "review-request"
     ) == publisher.renderer.idempotency_key(changed, "review-request")
+    first_render = publisher.renderer.render(first)
+    changed_render = publisher.renderer.render(changed)
+    assert first_render.files["review-request.md"] == changed_render.files["review-request.md"]
+    assert first_render.files["pr-generated-region.md"] == changed_render.files[
+        "pr-generated-region.md"
+    ]
 
     provider = FakeProvider(changed)
     provider.comments.append(
         {
             "id": 1,
-            "body": publisher.renderer.render(first).files["work-ledger-checkpoint.md"],
+            "body": first_render.files["work-ledger-checkpoint.md"],
             "publisher_owned": True,
+        }
+    )
+    provider.comments.append(
+        {
+            "id": 2,
+            "body": first_render.files["review-request.md"],
         }
     )
     operations, _ = publisher._planned_operations(
@@ -822,6 +835,8 @@ def test_checkpoint_identity_changes_with_resume_state_but_not_review_identity()
         provider.comments,
         initialize=True,
     )
+    request = next(item for item in operations if item["type"] == "review_request")
+    assert request["status"] == "already_present"
     checkpoint = next(item for item in operations if item["type"] == "work_checkpoint")
     assert checkpoint["status"] == "create"
 
