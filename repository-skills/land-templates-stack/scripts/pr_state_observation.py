@@ -105,6 +105,7 @@ class DependencyBinding:
     identifier: str
     authority: str
     expected_head_sha: str
+    expected_base_sha: str
     provider_identity: ProviderIdentity
     provider_path: str
 
@@ -115,17 +116,28 @@ class DependencyBinding:
         expected_head_sha = _require_sha(
             value.get("expected_head_sha"), f"{name}.expected_head_sha"
         )
+        expected_base_sha = _require_sha(
+            value.get("expected_base_sha"), f"{name}.expected_base_sha"
+        )
         provider_identity = ProviderIdentity.from_mapping(
             value.get("provider_identity"), f"{name}.provider_identity"
         )
         provider_path = _require_string(value.get("provider_path"), f"{name}.provider_path")
-        return cls(identifier, authority, expected_head_sha, provider_identity, provider_path)
+        return cls(
+            identifier,
+            authority,
+            expected_head_sha,
+            expected_base_sha,
+            provider_identity,
+            provider_path,
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "id": self.identifier,
             "authority": self.authority,
             "expected_head_sha": self.expected_head_sha,
+            "expected_base_sha": self.expected_base_sha,
             "provider_identity": self.provider_identity.as_dict(),
             "provider_path": self.provider_path,
         }
@@ -338,6 +350,9 @@ def _binding_observation(value: Mapping[str, Any], name: str) -> dict[str, Any]:
         observed_head_sha = _require_sha(
             dependency.get("head_sha"), f"{name}.dependencies[{index}].head_sha"
         )
+        observed_base_sha = _require_sha(
+            dependency.get("base_sha"), f"{name}.dependencies[{index}].base_sha"
+        )
         dependency_identity = ProviderIdentity.from_mapping(
             dependency.get("provider_identity"),
             f"{name}.dependencies[{index}].provider_identity",
@@ -346,6 +361,7 @@ def _binding_observation(value: Mapping[str, Any], name: str) -> dict[str, Any]:
             {
                 "id": identifier,
                 "head_sha": observed_head_sha,
+                "base_sha": observed_base_sha,
                 "provider_identity": dependency_identity.as_dict(),
             }
         )
@@ -393,20 +409,26 @@ def binding_mismatch_reasons(
         if observation["provider_identity"] != candidate.provider_identity.as_dict():
             reasons.append(f"{label}_provider_identity_does_not_match_expected")
         expected = {
-            item.identifier: (item.expected_head_sha, item.provider_identity.as_dict())
+            item.identifier: (
+                item.expected_head_sha,
+                item.expected_base_sha,
+                item.provider_identity.as_dict(),
+            )
             for item in candidate.dependencies
         }
         observed = {
-            item["id"]: (item["head_sha"], item["provider_identity"])
+            item["id"]: (item["head_sha"], item["base_sha"], item["provider_identity"])
             for item in observation["dependencies"]
         }
         if set(expected) != set(observed):
             reasons.append(f"{label}_dependency_binding_incomplete")
-        for identifier, (expected_sha, expected_identity) in expected.items():
+        for identifier, (expected_sha, expected_base, expected_identity) in expected.items():
             observed_value = observed.get(identifier)
             if observed_value is None or observed_value[0] != expected_sha:
                 reasons.append(f"{label}_dependency_changed:{identifier}")
-            if observed_value is None or observed_value[1] != expected_identity:
+            if observed_value is None or observed_value[1] != expected_base:
+                reasons.append(f"{label}_dependency_base_changed:{identifier}")
+            if observed_value is None or observed_value[2] != expected_identity:
                 reasons.append(f"{label}_dependency_provider_identity_mismatch:{identifier}")
         start_dependencies = {
             item["id"]: item["provider_identity"] for item in normalized_start["dependencies"]

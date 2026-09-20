@@ -215,7 +215,25 @@ class GitHubProvider(RemoteProvider):
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 content = response.read()
         except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
+            try:
+                detail = exc.read().decode("utf-8", errors="replace")
+            except (
+                urllib.error.URLError,
+                TimeoutError,
+                http.client.RemoteDisconnected,
+                http.client.IncompleteRead,
+                ConnectionResetError,
+                ConnectionAbortedError,
+                BrokenPipeError,
+                EOFError,
+            ) as read_exc:
+                if method in {"POST", "PATCH", "PUT", "DELETE"}:
+                    raise RemoteAmbiguousError(
+                        f"GitHub {method} error response was ambiguous for {path}: {read_exc}"
+                    ) from read_exc
+                raise PublicationError(
+                    f"GitHub {method} error response could not be read for {path}: {read_exc}"
+                ) from read_exc
             raise PublicationError(f"GitHub {method} {path} returned {exc.code}: {detail}") from exc
         except (
             urllib.error.URLError,
@@ -564,6 +582,18 @@ def _member_binding_digest(normalized: Any) -> str:
     return renderer.semantic_digest(_member_binding_projection(normalized))
 
 
+def _validate_member_adjacency(
+    members: Sequence[Mapping[str, Any]], name: str
+) -> None:
+    for index in range(1, len(members)):
+        previous = members[index - 1]
+        current = members[index]
+        if current.get("base_sha") != previous.get("head_sha"):
+            raise PublicationError(
+                f"{name} members are not an ordered base-to-head chain at index {index}"
+            )
+
+
 def _live_member_binding_digest(
     normalized: Any,
     snapshot: Mapping[str, Any],
@@ -571,8 +601,8 @@ def _live_member_binding_digest(
 ) -> str:
     members = copy.deepcopy(_member_binding_projection(normalized))
     dependencies = snapshot.get("observed_end", {}).get("dependencies", [])
-    live_heads = {
-        item.get("id"): item.get("head_sha")
+    live_bindings = {
+        item.get("id"): item
         for item in dependencies
         if isinstance(item, Mapping)
     }
@@ -582,18 +612,26 @@ def _live_member_binding_digest(
         for member in members
         if member["pull_request"]["number"] != candidate["pull_request"]["number"]
     }
-    if set(live_heads) != expected_dependency_ids:
+    if set(live_bindings) != expected_dependency_ids:
         raise PublicationError("live dependency observation is incomplete")
     for member in members:
         if member["pull_request"]["number"] == candidate["pull_request"]["number"]:
             member["head_sha"] = live_head_sha
         else:
-            observed_head = live_heads.get(member["id"])
-            if not isinstance(observed_head, str):
+            observed = live_bindings.get(member["id"])
+            if not isinstance(observed, Mapping):
                 raise PublicationError(
                     f"live dependency observation lacks member {member['id']}"
                 )
-            member["head_sha"] = observed_head
+            member["head_sha"] = _full_sha(
+                observed.get("head_sha"),
+                f"live dependency {member['id']} head",
+            )
+            member["base_sha"] = _full_sha(
+                observed.get("base_sha"),
+                f"live dependency {member['id']} base",
+            )
+    _validate_member_adjacency(members, "live observed stack")
     return renderer.semantic_digest(members)
 
 
@@ -695,6 +733,7 @@ class GitHubLiveRevalidationAdapter:
         if not isinstance(raw_members, list) or not raw_members:
             raise PublicationError("candidate topology must contain stack members")
         dependencies: list[dict[str, Any]] = []
+        normalized_members: list[dict[str, Any]] = []
         target_members: list[Mapping[str, Any]] = []
         seen_member_ids: set[str] = set()
         seen_pr_numbers: set[int] = set()
@@ -764,6 +803,7 @@ class GitHubLiveRevalidationAdapter:
                     "provider_path": provider_path,
                 },
             }
+            normalized_members.append(normalized_member)
             if member_number == live_number:
                 target_members.append(normalized_member)
             else:
@@ -772,12 +812,14 @@ class GitHubLiveRevalidationAdapter:
                         "id": member_id,
                         "authority": member_authority,
                         "expected_head_sha": member_head,
+                        "expected_base_sha": member_base,
                         "provider_identity": normalized_member["pull_request"][
                             "provider_identity"
                         ],
                         "provider_path": provider_path,
                     }
                 )
+        _validate_member_adjacency(normalized_members, "candidate stack")
         if len(target_members) != 1:
             raise PublicationError(
                 "candidate topology must identify the live target PR exactly once"

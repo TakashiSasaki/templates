@@ -41,6 +41,13 @@ def candidate(
     resource_id: str = RESOURCE_ID,
     dependencies: list[dict] | None = None,
 ) -> OBSERVE.CandidateBinding:
+    normalized_dependencies = [
+        {
+            **item,
+            "expected_base_sha": item.get("expected_base_sha", base),
+        }
+        for item in ([] if dependencies is None else dependencies)
+    ]
     return OBSERVE.CandidateBinding.from_mapping(
         {
             "repository": "TakashiSasaki/templates",
@@ -53,7 +60,7 @@ def candidate(
             },
             "expected_head_sha": head,
             "expected_base_sha": base,
-            "dependencies": [] if dependencies is None else dependencies,
+            "dependencies": normalized_dependencies,
         }
     )
 
@@ -66,6 +73,13 @@ def binding(
     resource_id: str = RESOURCE_ID,
     dependencies: list[dict] | None = None,
 ) -> dict:
+    normalized_dependencies = [
+        {
+            **item,
+            "base_sha": item.get("base_sha", base),
+        }
+        for item in ([] if dependencies is None else dependencies)
+    ]
     return {
         "provider_identity": {
             "provider": "github",
@@ -74,7 +88,7 @@ def binding(
         },
         "head_sha": head,
         "base_sha": base,
-        "dependencies": [] if dependencies is None else dependencies,
+        "dependencies": normalized_dependencies,
     }
 
 
@@ -395,6 +409,57 @@ def test_binding_head_base_and_dependency_change_is_stale(tmp_path: Path) -> Non
     )
 
 
+def test_dependency_base_movement_is_stale_when_head_is_unchanged(tmp_path: Path) -> None:
+    dependency = {
+        "id": "policy-pr-1",
+        "authority": "policy",
+        "expected_head_sha": HEAD,
+        "expected_base_sha": BASE,
+        "provider_identity": {
+            "provider": "github",
+            "repository_id": "repository-1",
+            "resource_id": "pull-request-1",
+        },
+        "provider_path": "/repos/TakashiSasaki/templates/pulls/1",
+    }
+    observed_dependency = {
+        "id": "policy-pr-1",
+        "head_sha": HEAD,
+        "base_sha": BASE,
+        "provider_identity": dependency["provider_identity"],
+    }
+    moved_dependency = {
+        **observed_dependency,
+        "base_sha": OTHER_HEAD,
+    }
+    provider = FakeProvider(
+        [
+            binding(dependencies=[observed_dependency]),
+            binding(dependencies=[moved_dependency]),
+        ],
+        {"comments": [surface([])]},
+    )
+    result = run_observation(
+        tmp_path,
+        provider,
+        observation_request=OBSERVE.ObservationRequest(
+            candidates=(candidate(dependencies=[dependency]),),
+            surfaces=("comments",),
+            mode="single-shot",
+            deadline=None,
+            max_attempts=1,
+            summary_limit=2,
+            snapshot_path=tmp_path / "observation.json",
+            previous_snapshot_path=None,
+        ),
+    )
+
+    assert result["outcome"] == "stale"
+    assert "end_dependency_base_changed:policy-pr-1" in result["snapshots"][
+        "PR_node_123"
+    ]["binding_reasons"]
+
+
 def test_github_binding_reads_repository_and_pull_request_immutable_ids() -> None:
     live_candidate = candidate(repository_id="123", resource_id="456")
 
@@ -454,6 +519,73 @@ def test_github_binding_reads_repository_and_pull_request_immutable_ids() -> Non
         "resource_id": "456",
     }
     assert binding_value["dependencies"][0]["provider_identity"]["resource_id"] == "789"
+    assert binding_value["dependencies"][0]["base_sha"] == BASE
+
+
+def test_github_dependency_missing_base_is_incomplete() -> None:
+    live_candidate = candidate(
+        repository_id="123",
+        resource_id="456",
+        dependencies=[
+            {
+                "id": "policy-pr-1",
+                "authority": "policy",
+                "expected_head_sha": HEAD,
+                "expected_base_sha": BASE,
+                "provider_identity": {
+                    "provider": "github",
+                    "repository_id": "123",
+                    "resource_id": "789",
+                },
+                "provider_path": "/repos/TakashiSasaki/templates/pulls/1",
+            }
+        ],
+    )
+
+    def api(
+        arguments: tuple[str, ...], *, timeout: float, **_: object
+    ) -> OBSERVE.ApiResponse:
+        del timeout
+        endpoint = arguments[-1]
+        if endpoint.endswith("/pulls/123"):
+            return OBSERVE.ApiResponse(
+                [
+                    {
+                        "id": 456,
+                        "number": 123,
+                        "head": {"sha": HEAD},
+                        "base": {
+                            "sha": BASE,
+                            "repo": {
+                                "id": 123,
+                                "full_name": "TakashiSasaki/templates",
+                            },
+                        },
+                    }
+                ]
+            )
+        if endpoint.endswith("/pulls/1"):
+            return OBSERVE.ApiResponse(
+                [
+                    {
+                        "id": 789,
+                        "number": 1,
+                        "head": {"sha": HEAD},
+                        "base": {
+                            "repo": {
+                                "id": 123,
+                                "full_name": "TakashiSasaki/templates",
+                            }
+                        },
+                    }
+                ]
+            )
+        raise AssertionError(arguments)
+
+    with pytest.raises(OBSERVE.ProviderFailure, match="dependency policy-pr-1 base"):
+        OBSERVE.GhReadonlyProvider(api).read_binding(
+            live_candidate, budget=unlimited_budget()
+        )
 
 
 def test_dependency_provider_path_identity_mismatch_is_stale_even_with_matching_sha() -> None:

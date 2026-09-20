@@ -1047,6 +1047,40 @@ def test_candidate_topology_requires_one_target_and_unique_provider_bindings() -
         artifacts.normalize(missing_target)
 
 
+def test_candidate_topology_requires_ordered_base_to_head_adjacency() -> None:
+    source = _source()
+    target = copy.deepcopy(source["candidate"]["members"][0])
+    target["base_sha"] = _sha("c")
+    lower = {
+        "id": "policy-review-artifacts-lower",
+        "authority": "policy",
+        "base_sha": _sha("a"),
+        "head_sha": _sha("c"),
+        "pull_request": {
+            "number": 122,
+            "provider_identity": {
+                "provider": "github",
+                "repository_id": "9",
+                "resource_id": "122",
+            },
+        },
+    }
+    source["candidate"]["base_sha"] = _sha("c")
+    source["candidate"]["pull_request"]["base_sha"] = _sha("c")
+    source["candidate"]["members"] = [lower, target]
+
+    normalized = artifacts._normalize_candidate(source)
+    assert [member["id"] for member in normalized["members"]] == [
+        "policy-review-artifacts-lower",
+        "policy-review-artifacts",
+    ]
+
+    broken = copy.deepcopy(source)
+    broken["candidate"]["members"][1]["base_sha"] = _sha("d")
+    with pytest.raises(artifacts.ArtifactInputError, match="ordered base-to-head chain"):
+        artifacts._normalize_candidate(broken)
+
+
 def test_bound_planner_uses_trusted_commit_not_modified_checkout(tmp_path: Path) -> None:
     planner_path = tmp_path / artifacts.PLANNER_PATH
     planner_path.parent.mkdir(parents=True)

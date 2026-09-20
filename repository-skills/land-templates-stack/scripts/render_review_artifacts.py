@@ -628,6 +628,13 @@ def _normalize_candidate(source: dict[str, Any]) -> dict[str, Any]:
             "provider_path": provider_path,
         }
         normalized_members.append(member)
+    for index in range(1, len(normalized_members)):
+        previous = normalized_members[index - 1]
+        current = normalized_members[index]
+        if current["base_sha"] != previous["head_sha"]:
+            raise ArtifactInputError(
+                "candidate.members must form an ordered base-to-head chain"
+            )
     candidate["members"] = normalized_members
     pull_request = _normalize_pull_request(candidate)
     candidate["pull_request"] = pull_request

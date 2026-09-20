@@ -5,6 +5,7 @@ import copy
 import hashlib
 import http.client
 import importlib.util
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -475,7 +476,7 @@ def test_live_observation_rejects_ambiguous_or_unobserved_stack_members() -> Non
             "id": "policy-prerequisite",
             "authority": "policy",
             "base_sha": normalized.data["candidate"]["base_sha"],
-            "head_sha": "c" * 40,
+            "head_sha": normalized.data["candidate"]["base_sha"],
             "pull_request": {
                 "number": 122,
                 "provider_identity": {
@@ -491,6 +492,109 @@ def test_live_observation_rejects_ambiguous_or_unobserved_stack_members() -> Non
         complete, payload, observer
     )
     assert [item.identifier for item in binding.dependencies] == ["policy-prerequisite"]
+    assert binding.dependencies[0].expected_base_sha == normalized.data["candidate"]["base_sha"]
+
+
+def _two_member_normalized_stack() -> tuple[object, str, str]:
+    normalized = _bound_source()
+    candidate = normalized.data["candidate"]
+    lower_base = "d" * 40
+    lower_head = candidate["base_sha"]
+    candidate["members"].insert(
+        0,
+        {
+            "id": "policy-prerequisite",
+            "authority": "policy",
+            "base_sha": lower_base,
+            "head_sha": lower_head,
+            "pull_request": {
+                "number": 122,
+                "provider_identity": {
+                    "provider": "github",
+                    "repository_id": "9",
+                    "resource_id": "122",
+                },
+                "provider_path": "/repos/TakashiSasaki/templates/pulls/122",
+            },
+        },
+    )
+    return normalized, lower_base, lower_head
+
+
+def test_dependency_base_binding_detects_base_only_movement() -> None:
+    normalized, lower_base, lower_head = _two_member_normalized_stack()
+    payload = {
+        "id": 123,
+        "number": 123,
+        "base": {
+            "sha": normalized.data["candidate"]["base_sha"],
+            "repo": {"id": 9, "full_name": normalized.data["repository"]},
+        },
+        "head": {"sha": normalized.data["candidate"]["head_sha"]},
+    }
+    observer = publisher._load_observer_entrypoint()
+    candidate_binding = publisher.GitHubLiveRevalidationAdapter._observation_candidate(
+        normalized, payload, observer
+    )
+    dependency_identity = candidate_binding.dependencies[0].provider_identity.as_dict()
+    start = {
+        "provider_identity": candidate_binding.provider_identity.as_dict(),
+        "head_sha": candidate_binding.expected_head_sha,
+        "base_sha": candidate_binding.expected_base_sha,
+        "dependencies": [
+            {
+                "id": "policy-prerequisite",
+                "head_sha": lower_head,
+                "base_sha": lower_base,
+                "provider_identity": dependency_identity,
+            }
+        ],
+    }
+    end = copy.deepcopy(start)
+    end["dependencies"][0]["base_sha"] = "e" * 40
+    observation = publisher._load_observation_model()
+
+    reasons = observation.binding_mismatch_reasons(candidate_binding, start, end)
+
+    assert "end_dependency_base_changed:policy-prerequisite" in reasons
+
+
+def test_live_stack_requires_adjacency_and_accepts_a_normal_restack() -> None:
+    normalized, lower_base, lower_head = _two_member_normalized_stack()
+    observer = publisher._load_observer_entrypoint()
+    payload = {
+        "id": 123,
+        "number": 123,
+        "base": {
+            "sha": normalized.data["candidate"]["base_sha"],
+            "repo": {"id": 9, "full_name": normalized.data["repository"]},
+        },
+        "head": {"sha": normalized.data["candidate"]["head_sha"]},
+    }
+    binding = publisher.GitHubLiveRevalidationAdapter._observation_candidate(
+        normalized, payload, observer
+    )
+    assert binding.dependencies[0].expected_base_sha == lower_base
+
+    restacked = copy.deepcopy(normalized)
+    restacked.data["candidate"]["members"][0]["base_sha"] = "f" * 40
+    restacked.data["candidate"]["members"][0]["head_sha"] = "e" * 40
+    restacked.data["candidate"]["members"][1]["base_sha"] = "e" * 40
+    restacked_payload = copy.deepcopy(payload)
+    restacked_payload["base"]["sha"] = "e" * 40
+    restacked_binding = publisher.GitHubLiveRevalidationAdapter._observation_candidate(
+        restacked, restacked_payload, observer
+    )
+    assert restacked_binding.dependencies[0].expected_base_sha == "f" * 40
+
+    broken = copy.deepcopy(restacked)
+    broken.data["candidate"]["members"][1]["base_sha"] = "d" * 40
+    broken_payload = copy.deepcopy(restacked_payload)
+    broken_payload["base"]["sha"] = "d" * 40
+    with pytest.raises(publisher.PublicationError, match="ordered base-to-head chain"):
+        publisher.GitHubLiveRevalidationAdapter._observation_candidate(
+            broken, broken_payload, observer
+        )
 
 
 def test_truncated_mutation_responses_are_ambiguous_for_body_and_comment(
@@ -520,6 +624,73 @@ def test_truncated_mutation_responses_are_ambiguous_for_body_and_comment(
     with pytest.raises(publisher.RemoteAmbiguousError):
         provider.create_comment("TakashiSasaki/templates", 123, "comment")
     assert calls == ["PATCH", "POST"]
+
+
+def test_truncated_http_error_bodies_reconcile_all_mutation_surfaces(
+    monkeypatch,
+) -> None:
+    class TruncatedBody:
+        def read(self, *args):
+            del args
+            raise http.client.IncompleteRead(b"partial", 20)
+
+        def close(self):
+            return None
+
+    calls: list[str] = []
+
+    def urlopen(request, timeout):
+        del timeout
+        calls.append(request.method)
+        raise urllib.error.HTTPError(
+            request.full_url,
+            502,
+            "upstream failure",
+            {},
+            TruncatedBody(),
+        )
+
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", urlopen)
+    provider = publisher.GitHubProvider("token")
+
+    with pytest.raises(publisher.RemoteAmbiguousError):
+        provider.update_pr_body("TakashiSasaki/templates", 123, "body")
+    with pytest.raises(publisher.RemoteAmbiguousError):
+        provider.create_review_request("TakashiSasaki/templates", 123, "request")
+    with pytest.raises(publisher.RemoteAmbiguousError):
+        provider.create_comment("TakashiSasaki/templates", 123, "checkpoint")
+    with pytest.raises(publisher.PublicationError, match="error response could not be read"):
+        provider._request("GET", "/repos/TakashiSasaki/templates/pulls/123")
+
+    assert calls == ["PATCH", "POST", "POST", "GET"]
+
+
+def test_complete_http_error_body_remains_a_deterministic_error(monkeypatch) -> None:
+    class CompleteBody:
+        def read(self, *args):
+            del args
+            return b'{"message":"validation failed"}'
+
+        def close(self):
+            return None
+
+    def urlopen(request, timeout):
+        del timeout
+        raise urllib.error.HTTPError(
+            request.full_url,
+            422,
+            "validation failed",
+            {},
+            CompleteBody(),
+        )
+
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", urlopen)
+    provider = publisher.GitHubProvider("token")
+
+    with pytest.raises(publisher.PublicationError, match="returned 422") as error:
+        provider.create_comment("TakashiSasaki/templates", 123, "comment")
+
+    assert "validation failed" in str(error.value)
 
 
 class _ContentGitHub(publisher.GitHubProvider):

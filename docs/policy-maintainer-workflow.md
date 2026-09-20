@@ -82,7 +82,9 @@ the independently bound `trusted_maintainer_source` planner revision/blob, so a
 candidate cannot authorize its own planner by setting `trusted: true`. It does
 not replace the planner or the merge gate. Every stack member carries one
 distinct provider pull-request identity, and exactly one member must identify
-the target PR.
+the target PR. Every selected member also carries expected head and base
+bindings. Members are ordered as a base-to-head chain; live observation
+rechecks both revisions and each adjacency before publication.
 
 The trusted planner binding is authenticated against the immutable source
 closure recorded by `.agents/skills/land-templates-stack/source.json` at an
@@ -143,7 +145,9 @@ between its explicit markers; missing, duplicated, or malformed markers require
 an explicit reconciliation decision. Human-authored text remains outside that
 region. Publication adapters, when authorized, must revalidate the current
 candidate and binding identity before any write and must reconcile ambiguous
-remote responses rather than retrying blindly.
+remote responses rather than retrying blindly. This includes truncated response
+bodies on both successful and HTTP-error mutation responses; a complete
+deterministic HTTP error remains a deterministic publication error.
 
 For an authorized GitHub apply, use
 `repository-skills/land-templates-stack/scripts/publish_review_artifacts.py`

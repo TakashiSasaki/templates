@@ -43,6 +43,13 @@ def candidate(**overrides: object) -> dict:
         "dependencies": [],
     }
     value.update(overrides)
+    value["dependencies"] = [
+        {
+            **dependency,
+            "expected_base_sha": dependency.get("expected_base_sha", BASE),
+        }
+        for dependency in value["dependencies"]
+    ]
     return value
 
 
@@ -52,6 +59,13 @@ def binding(
     base: str = BASE,
     dependencies: list[dict] | None = None,
 ) -> dict:
+    normalized_dependencies = [
+        {
+            **dependency,
+            "base_sha": dependency.get("base_sha", base),
+        }
+        for dependency in ([] if dependencies is None else dependencies)
+    ]
     return {
         "provider_identity": {
             "provider": "fake",
@@ -60,7 +74,7 @@ def binding(
         },
         "head_sha": head,
         "base_sha": base,
-        "dependencies": [] if dependencies is None else dependencies,
+        "dependencies": normalized_dependencies,
     }
 
 
