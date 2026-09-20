@@ -243,9 +243,11 @@ def test_missing_or_duplicated_markers_fail_closed_without_body_replacement() ->
 def test_equivalent_request_marker_is_reused_without_duplicate_post() -> None:
     normalized = _bound_source()
     provider = FakeProvider(normalized)
-    key = publisher.renderer.idempotency_key(normalized, "review-request")
     provider.comments.append(
-        {"id": 1, "body": f"<!-- {publisher.renderer.REVIEW_REQUEST_MARKER}:key={key} -->"}
+        {
+            "id": 1,
+            "body": publisher.renderer.render(normalized).files["review-request.md"],
+        }
     )
 
     result = _publish(provider)

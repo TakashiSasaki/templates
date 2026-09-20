@@ -185,10 +185,20 @@ that differs from the exact candidate configuration stops the operation.
 The GitHub adapter's review-request operation is provider-specific: a new
 planner-approved request is posted with the repository-recognized `@codex
 review` trigger. Reuse, reconciliation, handoff, and incomplete observations
-never emit a new trigger. Provider acknowledgement is reported separately from
-review approval. Marker identities are used to reuse equivalent requests and
-checkpoints, and `ambiguous` is reported when a lost remote response cannot be
-reconciled; the publisher never blindly retries a non-idempotent write.
+never emit a new trigger. An equivalent request must have the canonical
+provider-specific body and be authored by the authenticated publisher; a copied
+or edited marker is not sufficient to suppress publication. Provider
+acknowledgement is reported separately from review approval. Marker identities
+are used to reuse equivalent requests and checkpoints, and `ambiguous` is
+reported when a lost remote response cannot be reconciled; the publisher never
+blindly retries a non-idempotent write.
+
+The `--serialized-writer` assertion covers the complete body-and-comment
+publication sequence, not only the PR-body update. The publisher also rejects
+an overlapping in-process publication for the same repository/PR. When more
+than one process can publish, the caller must hold the repository's distributed
+writer lock across the full sequence because GitHub has no atomic
+create-if-absent issue-comment operation.
 
 For example, an authorized operational adapter can be selected explicitly:
 

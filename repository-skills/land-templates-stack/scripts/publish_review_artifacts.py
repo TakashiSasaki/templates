@@ -8,13 +8,15 @@ identity, dependency-binding, planner/gate-binding, and body state; missing
 revalidation data is an explicit stop condition.
 
 The GitHub adapter uses the existing issue-comment surface for review-request
-and provider-side Work-ledger checkpoints.  GitHub's ordinary PR-body update
-endpoint does not provide a general conditional compare-and-swap guard, so a
-body write additionally requires a caller-authorized serialized writer and a
-read/compare/re-read boundary.  A changed body is reported as a conflict and
-is never overwritten.  Normal GitHub apply also requires an injected live
-revalidation adapter; a static replay document is never an authorization
-source.
+and provider-side Work-ledger checkpoints. GitHub's ordinary PR-body update
+endpoint does not provide a general conditional compare-and-swap guard, so all
+remote writes additionally require a caller-authorized serialized writer and a
+read/compare/re-read boundary. The keyed in-process lock covers the complete
+body-and-comment publication sequence; callers must hold the corresponding
+distributed writer lock when more than one publisher process can run. A changed
+body is reported as a conflict and is never overwritten. Normal GitHub apply
+also requires an injected live revalidation adapter; a static replay document
+is never an authorization source.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -61,6 +64,9 @@ REQUEST_ACTIONS = {
     "request_independent_delta_review",
     "request_related_stack_review",
 }
+
+_PUBLICATION_LOCK_GUARD = threading.Lock()
+_PUBLICATION_LOCKS: dict[tuple[str, int], threading.Lock] = {}
 
 
 class PublicationError(RuntimeError):
@@ -166,9 +172,17 @@ class RemoteProvider:
         return self.create_comment(repository, number, body)
 
     def is_equivalent_review_request(
-        self, comment: Mapping[str, Any], key: str
+        self,
+        comment: Mapping[str, Any],
+        key: str,
+        *,
+        expected_body: str | None = None,
+        context: Any | None = None,
     ) -> bool:
-        return _marker(comment, renderer.REVIEW_REQUEST_MARKER, key)
+        body = comment.get("body")
+        return _marker(comment, renderer.REVIEW_REQUEST_MARKER, key) and (
+            expected_body is None or body == expected_body
+        )
 
     def review_request_acknowledgement(
         self,
@@ -213,11 +227,23 @@ class GitHubProvider(RemoteProvider):
         timeout: float = 30.0,
         live_revalidator: Callable[[Any, Mapping[str, Any], GitHubProvider], Mapping[str, Any]]
         | None = None,
+        publisher_login: str | None = None,
     ) -> None:
         self.token = _require_string(token, "token")
         self.api_url = api_url.rstrip("/")
         self.timeout = timeout
         self.live_revalidator = live_revalidator
+        self._publisher_login = publisher_login
+
+    def _authenticated_login(self) -> str:
+        if self._publisher_login is None:
+            payload = self._request("GET", "/user")
+            if not isinstance(payload, Mapping):
+                raise PublicationError("GitHub authenticated-user response must be an object")
+            self._publisher_login = _require_string(
+                payload.get("login"), "GitHub authenticated-user login"
+            )
+        return self._publisher_login
 
     def _request(
         self,
@@ -470,13 +496,29 @@ class GitHubProvider(RemoteProvider):
         )
 
     def is_equivalent_review_request(
-        self, comment: Mapping[str, Any], key: str
+        self,
+        comment: Mapping[str, Any],
+        key: str,
+        *,
+        expected_body: str | None = None,
+        context: Any | None = None,
     ) -> bool:
         body = comment.get("body")
         return (
-            super().is_equivalent_review_request(comment, key)
+            super().is_equivalent_review_request(
+                comment,
+                key,
+                expected_body=(
+                    self._codex_review_body(expected_body, context)
+                    if expected_body is not None
+                    else None
+                ),
+                context=context,
+            )
             and isinstance(body, str)
             and re.search(r"(?m)^@codex review(?:\s|$)", body) is not None
+            and isinstance(comment.get("user"), Mapping)
+            and comment["user"].get("login") == self._authenticated_login()
         )
 
     def review_request_acknowledgement(
@@ -1329,11 +1371,15 @@ def _matching_review_requests(
     remote: RemoteProvider,
     comments: Sequence[Mapping[str, Any]],
     key: str,
+    expected_body: str,
+    context: Any,
 ) -> list[Mapping[str, Any]]:
     return [
         comment
         for comment in comments
-        if remote.is_equivalent_review_request(comment, key)
+        if remote.is_equivalent_review_request(
+            comment, key, expected_body=expected_body, context=context
+        )
     ]
 
 
@@ -1367,7 +1413,13 @@ def _planned_operations(
     request_key = renderer.idempotency_key(normalized, "review-request")
     checkpoint_key = renderer.idempotency_key(normalized, "work-ledger-checkpoint")
     action = normalized.planner_result.get("action")
-    request_matches = _matching_review_requests(remote, comments, request_key)
+    request_matches = _matching_review_requests(
+        remote,
+        comments,
+        request_key,
+        rendered.files["review-request.md"],
+        normalized,
+    )
     checkpoint_matches = _matching_comments(
         comments, renderer.WORK_CHECKPOINT_MARKER, checkpoint_key
     )
@@ -1467,7 +1519,55 @@ def _record_review_acknowledgement(
         operation["acknowledgement_error"] = str(exc)
 
 
+def _publication_lock(normalized: Any) -> threading.Lock:
+    candidate = normalized.data["candidate"]
+    key = (normalized.data["repository"], candidate["pull_request"]["number"])
+    with _PUBLICATION_LOCK_GUARD:
+        return _PUBLICATION_LOCKS.setdefault(key, threading.Lock())
+
+
 def publish(
+    normalized: Any,
+    remote: RemoteProvider | None = None,
+    *,
+    apply: bool = False,
+    authorized: bool = False,
+    serialized_writer: bool = False,
+    initialize_region: bool = False,
+) -> PublicationResult:
+    """Preview or publish while serializing every remote write for this PR."""
+
+    if not apply or not authorized or not serialized_writer:
+        return _publish_authorized(
+            normalized,
+            remote,
+            apply=apply,
+            authorized=authorized,
+            serialized_writer=serialized_writer,
+            initialize_region=initialize_region,
+        )
+    lock = _publication_lock(normalized)
+    if not lock.acquire(blocking=False):
+        return PublicationResult(
+            "conflict",
+            [],
+            ["another serialized publication is already in progress for this PR"],
+            renderer.render(normalized),
+        )
+    try:
+        return _publish_authorized(
+            normalized,
+            remote,
+            apply=apply,
+            authorized=authorized,
+            serialized_writer=serialized_writer,
+            initialize_region=initialize_region,
+        )
+    finally:
+        lock.release()
+
+
+def _publish_authorized(
     normalized: Any,
     remote: RemoteProvider | None = None,
     *,
@@ -1480,8 +1580,8 @@ def publish(
 
     ``apply=False`` performs no remote reads or writes.  ``authorized`` is a
     separate capability from ``apply``; both are required.  A GitHub PR-body
-    write additionally needs ``serialized_writer`` because the REST endpoint
-    lacks a general conditional body CAS guard.
+    or comment write additionally needs ``serialized_writer`` because the
+    provider has no general conditional create/update guard.
     """
 
     rendered = renderer.render(normalized)
@@ -1618,7 +1718,13 @@ def publish(
                 )
             latest_comments = remote.list_comments(repository, number)
             matches = (
-                _matching_review_requests(remote, latest_comments, key)
+                _matching_review_requests(
+                    remote,
+                    latest_comments,
+                    key,
+                    body,
+                    normalized,
+                )
                 if operation_type == "review_request"
                 else _matching_comments(latest_comments, prefix, key)
             )
@@ -1652,7 +1758,16 @@ def publish(
                     number,
                     prefix,
                     key,
-                    remote.is_equivalent_review_request
+                    (
+                        lambda comment, marker_key: remote.is_equivalent_review_request(
+                            comment,
+                            marker_key,
+                            expected_body=body,
+                            context=normalized,
+                        )
+                        if operation_type == "review_request"
+                        else False
+                    )
                     if operation_type == "review_request"
                     else None,
                 )
@@ -1670,7 +1785,16 @@ def publish(
                 number,
                 prefix,
                 key,
-                remote.is_equivalent_review_request
+                (
+                    lambda comment, marker_key: remote.is_equivalent_review_request(
+                        comment,
+                        marker_key,
+                        expected_body=body,
+                        context=normalized,
+                    )
+                    if operation_type == "review_request"
+                    else False
+                )
                 if operation_type == "review_request"
                 else None,
             )
@@ -1765,7 +1889,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     publish_parser.add_argument(
         "--serialized-writer",
         action="store_true",
-        help="assert the caller owns the serialized PR-body writer boundary",
+        help=(
+            "assert the caller owns the serialized writer boundary for the "
+            "complete PR-body and comment publication"
+        ),
     )
     publish_parser.add_argument(
         "--initialize-region",
