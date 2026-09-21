@@ -222,11 +222,24 @@ def render_consumer(root: Path, python: Path, condition: str, revision: str) -> 
         result = run(policy(python, root, command), root, env=environment)
         if result.returncode:
             raise RuntimeError(result.stderr)
+    if condition == "C":
+        # Keep the venv launcher path.  Resolving its symlink to the system
+        # interpreter would discard pyvenv.cfg and make -I hide the wheel.
+        runtime = str(python)
+        write(
+            root / ".agents/skills/agent-policy/scripts/run.py",
+            "from __future__ import annotations\n"
+            "import os\n"
+            "import sys\n"
+            f"runtime = {runtime!r}\n"
+            "os.execv(runtime, [runtime, '-I', '-m', 'agent_policy.cli', *sys.argv[1:]])\n",
+        )
     paths = [Path(".agent-policy.yml"), Path(".agent-policy.lock"), Path("AGENTS.md")]
     if condition == "C":
         paths += [Path(".agent-policy/preview/policy-details.json"),
                   Path(".agents/skills/policy-guidance/SKILL.md"),
-                  Path(".agents/skills/policy-guidance/scripts/policy_guidance.py")]
+                  Path(".agents/skills/policy-guidance/scripts/policy_guidance.py"),
+                  Path(".agents/skills/agent-policy/scripts/run.py")]
     files = {}
     for path in paths:
         content = (root / path).read_bytes()
@@ -455,9 +468,9 @@ def main() -> int:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(provider / relative, destination)
         setup_task(root, task)
+        git_baseline(root)
         python, identity = environments[condition]
         manifest = render_consumer(root, python, condition, args.revision)
-        git_baseline(root)
         task_files = {}
         for path in sorted(root.rglob("*")):
             if not path.is_file() or ".git" in path.parts:
