@@ -92,6 +92,13 @@ def _validate_route_metadata(
     presentation_map = presentation.get("map")
     if not isinstance(presentation_map, dict):
         raise ValueError("detail bundle presentation map is missing")
+    map_schema_version = presentation_map.get("schema_version")
+    if (
+        not isinstance(map_schema_version, int)
+        or isinstance(map_schema_version, bool)
+        or map_schema_version != SCHEMA_VERSION
+    ):
+        raise ValueError("detail bundle presentation map schema is invalid")
     mapped_rules = presentation_map.get("rules")
     fallback = presentation_map.get("fallback")
     if not isinstance(mapped_rules, dict) or not isinstance(fallback, dict):
@@ -318,7 +325,12 @@ def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
         raise ValueError("detail bundle root must be an object")
     if bundle.get("agent-policy-generated") is not True:
         raise ValueError("detail bundle is not an authenticated generated output")
-    if bundle.get("schema_version") != SCHEMA_VERSION:
+    schema_version = bundle.get("schema_version")
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != SCHEMA_VERSION
+    ):
         raise ValueError("unsupported detail bundle schema")
     if bundle.get("bundle_path") != bundle_relative:
         raise ValueError("detail bundle path binding does not match the selected file")
@@ -364,6 +376,14 @@ def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
     presentation = bundle.get("presentation")
     if not isinstance(presentation, dict):
         raise ValueError("detail bundle presentation metadata is missing")
+    context_name = bundle.get("context")
+    presentation_map = presentation.get("map")
+    if (
+        not isinstance(context_name, str)
+        or not isinstance(presentation_map, dict)
+        or presentation_map.get("context") != context_name
+    ):
+        raise ValueError("detail bundle context is inconsistent with presentation map")
     bindings = bundle.get("bindings")
     if not isinstance(bindings, dict):
         raise ValueError("detail bundle input bindings are missing")

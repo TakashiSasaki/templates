@@ -111,7 +111,9 @@ assets. A clean-consumer smoke test should run `validate`, `render`, `check`,
 and the generated retrieval script, including from a nested directory with an
 explicit configuration path containing shell-sensitive characters. This proves
 package distribution and binding validation; it does not prove host prompt
-inclusion or qualify staged delivery for adoption.
+inclusion or qualify staged delivery for adoption. The current presentation map
+is authenticated for the `coding` context only; another context must use the
+ordinary full-text renderer until it has an independently authenticated map.
 
 The current schema intentionally has no review-result JSON renderer. Provider-specific event names, API requests, inline-anchor formats, or serialization contracts must not become semantic review policy or a second generated review-procedure authority.
 

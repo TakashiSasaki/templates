@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from agent_policy import delivery
 from agent_policy.commands import check, render, validate
 from agent_policy.config import load_config
 from agent_policy.delivery import load_presentation_map
@@ -425,6 +426,58 @@ def test_guidance_rejects_presentation_flag_type_coercion(
 
     assert result.returncode == 2
     assert "presentation map rule metadata" in result.stderr
+
+
+@pytest.mark.parametrize("location", ["bundle", "presentation"])
+def test_guidance_rejects_schema_version_type_coercion(
+    tmp_path: Path, location: str
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        if location == "bundle":
+            bundle["schema_version"] = True
+        else:
+            bundle["presentation"]["map"]["schema_version"] = True
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "schema" in result.stderr
+
+
+def test_staged_output_rejects_non_coding_context(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8")
+        .replace("  coding:\n", "  review:\n")
+        .replace("context: coding", "context: review"),
+        encoding="utf-8",
+    )
+
+    diagnostics = validate.run(tmp_path, ".agent-policy.yml")
+
+    assert any(item.code == "STAGED_CONTEXT" for item in diagnostics)
+    assert any(
+        item.code == "STAGED_CONTEXT"
+        for item in render.run(tmp_path, ".agent-policy.yml")
+    )
+
+
+def test_presentation_map_rejects_boolean_schema_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        delivery,
+        "load_yaml",
+        lambda _path: {"schema_version": True},
+    )
+
+    with pytest.raises(ValueError, match="Unsupported policy-delivery presentation map"):
+        delivery.load_presentation_map()
 
 
 def test_guidance_rejects_duplicate_lock_section(tmp_path: Path) -> None:

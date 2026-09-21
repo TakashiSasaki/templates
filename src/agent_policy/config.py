@@ -270,6 +270,15 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                 )
             )
         if output.renderer == "agents-md-staged":
+            if output.context != "coding":
+                diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "STAGED_CONTEXT",
+                        "agents-md-staged currently supports only the coding context",
+                        f"outputs.{output.name}.context",
+                    )
+                )
             if not output.detail_bundle_path:
                 diagnostics.append(
                     Diagnostic(

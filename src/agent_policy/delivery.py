@@ -46,7 +46,12 @@ def _validate_string_list(value: Any, label: str) -> list[str]:
 
 def load_presentation_map() -> tuple[dict[str, Any], str]:
     raw = load_yaml(DELIVERY_MAP_PATH)
-    if not isinstance(raw, dict) or raw.get("schema_version") != DELIVERY_SCHEMA_VERSION:
+    schema_version = raw.get("schema_version") if isinstance(raw, dict) else None
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != DELIVERY_SCHEMA_VERSION
+    ):
         raise ValueError("Unsupported policy-delivery presentation map")
     if raw.get("context") != "coding":
         raise ValueError("Policy-delivery presentation map must target coding context")
@@ -139,6 +144,10 @@ def build_detail_bundle(
     if not bundle_path:
         raise ValueError("Staged Policy output requires detail_bundle")
     presentation_map, map_digest = load_presentation_map()
+    if presentation_map["context"] != context_name:
+        raise ValueError(
+            "agents-md-staged presentation map does not support the selected context"
+        )
     route_rows, operation_routes, unmapped = _route_rows(rules, presentation_map)
     selected_ids = [rule.id for rule in rules]
     rule_values: list[dict[str, Any]] = []
