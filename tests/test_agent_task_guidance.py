@@ -6,9 +6,9 @@ reachable without silently promoting it into published or generated policy.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import re
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = ("docs/agent-task-design.md",)
