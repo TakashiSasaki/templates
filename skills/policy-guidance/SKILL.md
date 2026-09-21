@@ -28,6 +28,11 @@ python .agents/skills/policy-guidance/scripts/policy_guidance.py \
   --bundle={{ policy_delivery_bundle_path_shell }} --operation <operation>
 ```
 
+The script locates the nearest repository ancestor containing
+`.agent-policy.yml` from its installed path, so this command also works from a
+nested repository directory. Use `--root <repository>` when an explicit root
+is required.
+
 Use `--rule-id <id>` for one exact rule or `--all` when the operation route is
 missing or ambiguous. A validation error is a blocking condition for the
 dependent operation. Missing, contradictory, incomplete, or stale bindings

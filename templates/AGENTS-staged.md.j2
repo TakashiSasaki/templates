@@ -24,6 +24,10 @@ Before a dependent operation, retrieve the applicable exact rule text with:
 python .agents/skills/policy-guidance/scripts/policy_guidance.py --bundle={{ bundle_path_shell }} --operation <inspect|plan|edit|generate|validate|review|merge|publish>
 ```
 
+The generated retrieval script discovers the repository root from its installed
+path, so the command remains valid from nested directories. Supply
+`--root <repository>` when the root must be explicit.
+
 If the bundle, lock, route, source identity, or retrieval command cannot be
 validated, stop the dependent operation and regenerate or use the documented
 full-text projection. Do not infer missing policy details from this index.

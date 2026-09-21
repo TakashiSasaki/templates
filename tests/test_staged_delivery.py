@@ -302,6 +302,53 @@ def test_guidance_rejects_policy_metadata_drift_after_lock_update(
     assert "metadata" in result.stderr
 
 
+@pytest.mark.parametrize("mutation", ["configuration", "project_policy", "renderer"])
+def test_guidance_rejects_contradictory_bundle_identity(
+    tmp_path: Path, mutation: str
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        if mutation == "configuration":
+            bundle["bindings"]["configuration"][".agent-policy.yml"] = "f" * 64
+        elif mutation == "project_policy":
+            bundle["bindings"]["project_policy"]["policy/project.md"] = "f" * 64
+        else:
+            bundle["renderer"] = "agents-md"
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "identity" in result.stderr or "projections" in result.stderr
+
+
+def test_guidance_discovers_repository_root_from_nested_directory(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    nested = tmp_path / "nested" / "work"
+    nested.mkdir(parents=True)
+    skill = tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(skill), "--rule-id", GUIDANCE],
+        cwd=nested,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+    assert result.returncode == 0
+    assert "Retrieve this rule before changing generated files." in result.stdout
+
+
 @pytest.mark.parametrize(
     "bundle_path",
     [

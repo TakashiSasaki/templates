@@ -220,6 +220,9 @@ def _validate_current_bindings(
     if lock["toolchain"] != bundle["toolchain"]:
         raise ValueError("lock toolchain identity does not match the detail bundle")
 
+    if bundle.get("renderer") != "agents-md-staged":
+        raise ValueError("detail bundle renderer identity is invalid")
+
     config_path = bundle.get("config_path")
     context_name = bundle.get("context")
     expected_context = bindings.get("context")
@@ -231,6 +234,8 @@ def _validate_current_bindings(
     ):
         raise ValueError("detail bundle context binding is invalid")
     config = load_config(root, config_path)
+    if config.relative_path != config_path:
+        raise ValueError("detail bundle configuration path is not canonical")
     diagnostics = validate_config(root, config)
     if diagnostics:
         raise ValueError("current policy configuration is invalid")
@@ -247,6 +252,34 @@ def _validate_current_bindings(
     }
     if actual_context != expected_context:
         raise ValueError("current policy context differs from detail bundle")
+
+    configuration_bindings = _validate_digest_map(
+        bindings.get("configuration"), "configuration"
+    )
+    project_policy_bindings = bindings.get("project_policy")
+    if not isinstance(project_policy_bindings, dict):
+        raise ValueError("detail bundle project_policy bindings are missing")
+    if any(
+        not isinstance(relative, str)
+        or not relative
+        or not isinstance(digest, str)
+        or SHA256_RE.fullmatch(digest) is None
+        for relative, digest in project_policy_bindings.items()
+    ):
+        raise ValueError("detail bundle project_policy binding is invalid")
+    project_policy_bindings = dict(sorted(project_policy_bindings.items()))
+    expected_configuration = {
+        config.relative_path: expected_inputs.get(config.relative_path, "")
+    }
+    expected_project_policy = {
+        relative: expected_inputs.get(relative, "")
+        for relative in context.project_policy_files
+    }
+    if (
+        configuration_bindings != expected_configuration
+        or project_policy_bindings != expected_project_policy
+    ):
+        raise ValueError("detail bundle input binding projections are inconsistent")
 
     current_inputs = {config.relative_path: config.path}
     current_inputs.update(
@@ -325,6 +358,8 @@ def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
         raise ValueError("detail bundle root must be an object")
     if bundle.get("agent-policy-generated") is not True:
         raise ValueError("detail bundle is not an authenticated generated output")
+    if bundle.get("renderer") != "agents-md-staged":
+        raise ValueError("detail bundle renderer identity is invalid")
     schema_version = bundle.get("schema_version")
     if (
         not isinstance(schema_version, int)
@@ -424,17 +459,26 @@ def _select(
     return [rule for rule in rules if rule["id"] in routes]
 
 
+def _discover_repository_root() -> Path:
+    script = Path(__file__).resolve()
+    for candidate in (script.parent, *script.parents):
+        if (candidate / ".agent-policy.yml").is_file():
+            return candidate
+    return Path.cwd()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path("."))
+    parser.add_argument("--root", type=Path)
     parser.add_argument("--bundle", default=DEFAULT_BUNDLE_PATH)
     parser.add_argument("--operation")
     parser.add_argument("--rule-id")
     parser.add_argument("--all", action="store_true", dest="all_rules")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     args = parser.parse_args()
+    root = args.root if args.root is not None else _discover_repository_root()
     try:
-        bundle = _load_bundle(args.root, args.bundle)
+        bundle = _load_bundle(root, args.bundle)
         selected = _select(bundle, args.operation, args.rule_id, args.all_rules)
     except (OSError, ValueError, KeyError) as exc:
         print(f"policy-guidance error: {exc}", file=sys.stderr)
