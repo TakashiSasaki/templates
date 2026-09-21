@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "candidate": {
-    "revision": "379659e25b269269bb7a7ba997fb1ae666394e68",
+    "revision": "c401524225ece0013c911b916beb20a3faf3e899",
     "wheel": "takashisasaki_agent_policy-0.1.0-py3-none-any.whl",
-    "wheel_sha256": "02266dc44fbc9a47e713cdd75e3a45fee69ac4caf569978c61a4ab7d969fe620",
+    "wheel_sha256": "d1168e0db954a69aa2b7a8ad370d69c24c12df25d03bdbe620c8103f3be60c78",
     "python": "3.12.3",
     "package_version": "0.1.0",
     "external_runner_sha256": "59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87"
@@ -16,9 +16,9 @@
       "startup_rule_count": 47,
       "nested_validate_render_check": true,
       "files": {
-        ".agent-policy.yml": {"bytes": 808, "sha256": "43937457a654d6372d8b427ffc60192268605551f4b7ec0b1a6b6a1e759d3d9f"},
-        ".agent-policy.lock": {"bytes": 1291, "sha256": "9145a1f7ee1fc10dd1f90f0406839dc914f1ebec21e4034a2c2abda58396f398"},
-        "AGENTS.md": {"bytes": 98190, "sha256": "12d8b903b5f8be04b6c7602f85e1ef06249083d01bd91cc3108c915392e16a82"}
+        ".agent-policy.yml": {"bytes": 808, "sha256": "83919ad81cd99f1bf6d3ee07fd63600a9401f18309c34d141311065076b4f95a"},
+        ".agent-policy.lock": {"bytes": 1291, "sha256": "889f0547231e45a22ed2bd49838558c5793a27e84e14c0ca82c2dbf7ac824c43"},
+        "AGENTS.md": {"bytes": 98190, "sha256": "dd6939f51ed7090f6f566dfc40f3dc2ae712f663604ab1137e60b6a4a4d6d947"}
       },
       "operations": ["validate", "render", "check"]
     },
@@ -31,12 +31,12 @@
       "nested_guidance": {"operation": "inspect", "succeeded": true},
       "external_skill": "skills/agent-policy/scripts/run.py",
       "files": {
-        ".agent-policy.yml": {"bytes": 895, "sha256": "0682447bb695380b3cdbc2aa18d02bfbeba875f460da7f2ab8a6ac8bebc3ea38"},
-        ".agent-policy.lock": {"bytes": 1671, "sha256": "b625b4e5de17993b92556a52be6758b03a8a86a06616e6d33cdb74805dc326c3"},
-        ".agent-policy/preview/policy-details.json": {"bytes": 148342, "sha256": "7cd3e999322c23ff3002657330d1b290501881a0f84776a22e889614c8ccc41b"},
+        ".agent-policy.yml": {"bytes": 895, "sha256": "67b23e94cb8f6054462e0f08061abad77fb69f5f8607e855de5e89b472bd1bd0"},
+        ".agent-policy.lock": {"bytes": 1671, "sha256": "58b731958b08ec73318c33ef5a134649af5b9b93c3e7a79212f0974aa0473dcb"},
+        ".agent-policy/preview/policy-details.json": {"bytes": 148342, "sha256": "efb65354fd0912d8afea2240028a0440360a344b9a5d1468a6ca1900cd926a29"},
         ".agents/skills/policy-guidance/SKILL.md": {"bytes": 2374, "sha256": "7d4516ec3bd2dd2f5ee73bc7ee713dd35ca6d339f7bdb75ca888928a0e5dfe77"},
         ".agents/skills/policy-guidance/scripts/policy_guidance.py": {"bytes": 22024, "sha256": "c89fe13ccf14a5f7803e2693e4935b7ad9c1b2d92133b3d9831a6ab768856d13"},
-        "AGENTS.md": {"bytes": 30840, "sha256": "57bbe3406e68acf78d89eb108193227435afd58b2666024d8c915ced731eb62d"}
+        "AGENTS.md": {"bytes": 30840, "sha256": "b62c46ff5d7fa00a8d93c962faf814d740d8b8a439333105a30f3435a2c53a7a"}
       },
       "operations": ["validate", "render", "check", "guidance"]
     }
