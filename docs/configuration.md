@@ -97,7 +97,11 @@ route that is malformed or inconsistent with the selected rules is a blocking
 error; it is not silently treated as an empty valid route. The
 `policy-guidance` Skill requires exactly one enabled `agents-md-staged` output,
 so disabling that output while leaving the Skill enabled is rejected during
-validation instead of failing later during rendering.
+validation instead of failing later during rendering. Retrieval also compares
+every policy-significant field in the bundled rule with the freshly loaded rule,
+including title, severity, overrideability, and order. Generated retrieval
+commands shell-quote the configured detail-bundle path, so whitespace and shell
+metacharacters do not split the bundle argument.
 
 The staged path must also be checked from a clean installed consumer, without
 the provider checkout on `PYTHONPATH`. The supported package build includes the

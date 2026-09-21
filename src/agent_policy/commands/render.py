@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import tempfile
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from ..policy_loader import load_rules
 from ..renderer import (
     GENERATED_MARKER,
     SKILL_DELIVERY_BUNDLE_PATH_PYTHON_TOKEN,
+    SKILL_DELIVERY_BUNDLE_PATH_SHELL_TOKEN,
     SKILL_DELIVERY_BUNDLE_PATH_TOKEN,
     render_output,
     render_skill,
@@ -250,6 +252,7 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 bundle_path = staged_bundle_paths[0]
                 replacement_values = {
                     SKILL_DELIVERY_BUNDLE_PATH_TOKEN: bundle_path,
+                    SKILL_DELIVERY_BUNDLE_PATH_SHELL_TOKEN: shlex.quote(bundle_path),
                     SKILL_DELIVERY_BUNDLE_PATH_PYTHON_TOKEN: json.dumps(bundle_path)[
                         1:-1
                     ],

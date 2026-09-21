@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -270,6 +271,77 @@ def test_guidance_rejects_current_input_drift(
 
     assert result.returncode == 2
     assert "current" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("title", "Tampered title"),
+        ("severity", "advisory"),
+        ("overridable", False),
+        ("order", 9999),
+    ],
+)
+def test_guidance_rejects_policy_metadata_drift_after_lock_update(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        rule = next(item for item in bundle["rules"] if item["id"] == GUIDANCE)
+        rule[field] = value
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--rule-id", GUIDANCE)
+
+    assert result.returncode == 2
+    assert "current rule metadata or source changed" in result.stderr
+
+
+def test_generated_guidance_commands_quote_bundle_paths(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = ".agent-policy/preview/policy details &copy.json"
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "detail_bundle: .agent-policy/preview/policy-details.json",
+            f"detail_bundle: {json.dumps(bundle_path)}",
+        ),
+        encoding="utf-8",
+    )
+
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    startup = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+    skill = (tmp_path / ".agents/skills/policy-guidance/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    quoted = shlex.quote(bundle_path)
+    assert f"--bundle {quoted} --operation" in startup
+    assert f"--bundle {quoted} --operation" in skill
+
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+    result = subprocess.run(
+        [
+            "sh",
+            "-c",
+            f"{shlex.quote(sys.executable)} "
+            ".agents/skills/policy-guidance/scripts/policy_guidance.py "
+            f"--bundle {quoted} --rule-id {GUIDANCE}",
+        ],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert result.returncode == 0
 
 
 def test_guidance_uses_structural_lock_for_quoted_output_path(tmp_path: Path) -> None:

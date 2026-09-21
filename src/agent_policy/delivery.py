@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -229,6 +230,7 @@ def render_staged_agents(
         context_name=context_name,
         project_policy_files=project_policy_files,
         bundle_path=bundle_path,
+        bundle_path_shell=shlex.quote(bundle_path),
         startup_rules=startup_rules,
         operation_routes=operation_routes,
         selected_rule_count=len(rules),

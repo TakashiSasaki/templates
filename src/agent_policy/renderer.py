@@ -33,6 +33,7 @@ SKILL_CONFIG_PATH_TOKEN = "{{ config_path }}"
 SKILL_CONFIG_PATH_SHELL_TOKEN = "{{ config_path_shell }}"
 SKILL_CONFIG_PATH_YAML_TOKEN = "{{ config_path_yaml }}"
 SKILL_DELIVERY_BUNDLE_PATH_TOKEN = "{{ policy_delivery_bundle_path }}"
+SKILL_DELIVERY_BUNDLE_PATH_SHELL_TOKEN = "{{ policy_delivery_bundle_path_shell }}"
 SKILL_DELIVERY_BUNDLE_PATH_PYTHON_TOKEN = "{{ policy_delivery_bundle_path_python }}"
 
 
@@ -135,6 +136,9 @@ def render_skill(
         SKILL_CONFIG_PATH_YAML_TOKEN: json.dumps(config_path),
         SKILL_CONFIG_PATH_TOKEN: config_path,
         SKILL_DELIVERY_BUNDLE_PATH_TOKEN: ".agent-policy/policy-details.json",
+        SKILL_DELIVERY_BUNDLE_PATH_SHELL_TOKEN: shlex.quote(
+            ".agent-policy/policy-details.json"
+        ),
         SKILL_DELIVERY_BUNDLE_PATH_PYTHON_TOKEN: json.dumps(
             ".agent-policy/policy-details.json"
         )[1:-1],

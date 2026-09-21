@@ -266,10 +266,14 @@ def _validate_current_bindings(
         if (
             actual.origin != bundled.get("origin")
             or actual.source != bundled.get("source")
+            or actual.title != bundled.get("title")
+            or actual.severity != bundled.get("severity")
+            or actual.overridable != bundled.get("overridable")
+            or actual.order != bundled.get("order")
             or _digest(source_path.read_bytes()) != bundled.get("source_sha256")
             or _digest(actual.body.encode("utf-8")) != bundled.get("body_sha256")
         ):
-            raise ValueError(f"current rule source changed: {actual.id}")
+            raise ValueError(f"current rule metadata or source changed: {actual.id}")
 
     presentation = bundle["presentation"]
     source = presentation.get("source")
