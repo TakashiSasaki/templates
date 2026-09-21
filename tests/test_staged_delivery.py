@@ -409,6 +409,24 @@ def test_guidance_rejects_presentation_map_drift(tmp_path: Path) -> None:
     assert "installed presentation map" in result.stderr
 
 
+@pytest.mark.parametrize("startup", [1, 0.0])
+def test_guidance_rejects_presentation_flag_type_coercion(
+    tmp_path: Path, startup: object
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        rule_id = next(iter(bundle["presentation"]["map"]["rules"]))
+        bundle["presentation"]["map"]["rules"][rule_id]["startup"] = startup
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "presentation map rule metadata" in result.stderr
+
+
 def test_guidance_rejects_duplicate_lock_section(tmp_path: Path) -> None:
     _write_staged_repository(tmp_path)
     assert render.run(tmp_path, ".agent-policy.yml") == []

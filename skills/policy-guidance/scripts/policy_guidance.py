@@ -96,6 +96,14 @@ def _validate_route_metadata(
     fallback = presentation_map.get("fallback")
     if not isinstance(mapped_rules, dict) or not isinstance(fallback, dict):
         raise ValueError("detail bundle presentation map is invalid")
+    for rule_id, entry in mapped_rules.items():
+        if (
+            not isinstance(rule_id, str)
+            or not rule_id
+            or not isinstance(entry, dict)
+            or not isinstance(entry.get("startup"), bool)
+        ):
+            raise ValueError("detail bundle presentation map rule metadata is invalid")
     if (
         fallback.get("mode") != "detail-only"
         or not isinstance(fallback.get("operations"), list)
@@ -143,7 +151,8 @@ def _validate_route_metadata(
             raise ValueError("detail bundle presentation route is inconsistent")
         expected_startup = entry.get("startup", False)
         if (
-            entry.get("operations") != operations
+            not isinstance(expected_startup, bool)
+            or entry.get("operations") != operations
             or expected_startup != startup
             or route.get("origin") != rule.get("origin")
             or route.get("source") != rule.get("source")
