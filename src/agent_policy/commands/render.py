@@ -42,6 +42,11 @@ def _is_generated_content(content: str) -> bool:
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
+        # A staged detail bundle is JSON.  Do not let malformed JSON that
+        # merely contains the textual marker take the destructive fallback;
+        # otherwise an authored, JSON-shaped file could be overwritten.
+        if content.lstrip().startswith(("{", "[")):
+            return False
         return GENERATED_MARKER in content
     return isinstance(parsed, dict) and parsed.get("agent-policy-generated") is True
 

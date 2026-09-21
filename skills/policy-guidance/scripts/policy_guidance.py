@@ -203,6 +203,7 @@ def _validate_current_bindings(
     root: Path,
     bundle: dict[str, Any],
     lock: dict[str, Any],
+    bundle_relative: str,
 ) -> None:
     try:
         from agent_policy.config import load_config, package_root, validate_config
@@ -239,6 +240,16 @@ def _validate_current_bindings(
     diagnostics = validate_config(root, config)
     if diagnostics:
         raise ValueError("current policy configuration is invalid")
+    staged_outputs = [
+        item
+        for item in config.output_specs
+        if item.enabled and item.renderer == "agents-md-staged"
+    ]
+    if (
+        len(staged_outputs) != 1
+        or staged_outputs[0].detail_bundle_path != bundle_relative
+    ):
+        raise ValueError("detail bundle does not match the enabled staged output")
     if config.data.get("toolchain") != bundle["toolchain"]:
         raise ValueError("current configuration toolchain differs from detail bundle")
     context = config.contexts.get(context_name)
@@ -437,7 +448,7 @@ def _load_bundle(
     if selected_ids != [rule["id"] for rule in rules]:
         raise ValueError("detail bundle selected-rule binding is inconsistent")
     _validate_route_metadata(presentation, rules)
-    _validate_current_bindings(root, bundle, lock)
+    _validate_current_bindings(root, bundle, lock, bundle_relative)
     return bundle
 
 

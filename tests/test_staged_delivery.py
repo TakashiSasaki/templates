@@ -214,6 +214,23 @@ def test_render_rejects_nested_json_generated_marker_before_overwrite(
     assert bundle_path.read_text(encoding="utf-8") == original
 
 
+def test_render_rejects_malformed_json_marker_before_overwrite(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    bundle_path.parent.mkdir(parents=True, exist_ok=True)
+    original = '{"user_data":"agent-policy-generated: true"} trailing\n'
+    bundle_path.write_text(original, encoding="utf-8")
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "non-generated file" in diagnostics[0].message
+    assert bundle_path.read_text(encoding="utf-8") == original
+
+
 def test_staged_delivery_rejects_missing_guidance_skill(tmp_path: Path) -> None:
     _write_staged_repository(tmp_path)
     config = tmp_path / ".agent-policy.yml"
@@ -287,6 +304,49 @@ def test_pinned_guidance_binds_bundle_to_enabled_staged_output(
     lock_path.write_text(dump_yaml(lock), encoding="utf-8")
 
     result = _run_pinned_guidance(
+        tmp_path,
+        "--bundle=.agent-policy/preview/policy-details.json",
+        "--rule-id",
+        GUIDANCE,
+    )
+
+    assert result.returncode == 2
+    assert "enabled staged output" in result.stderr
+
+
+def test_generated_guidance_rebinds_bundle_to_current_output_at_child_boundary(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "detail_bundle: .agent-policy/preview/policy-details.json",
+            "detail_bundle: .agent-policy/preview/policy-details-b.json",
+        ),
+        encoding="utf-8",
+    )
+    config_digest = hashlib.sha256(config.read_bytes()).hexdigest()
+    bundle["bindings"]["inputs"][".agent-policy.yml"] = config_digest
+    bundle["bindings"]["configuration"][".agent-policy.yml"] = config_digest
+    bundle_bytes = (json.dumps(bundle, indent=2, sort_keys=True) + "\n").encode(
+        "utf-8"
+    )
+    bundle_path.write_bytes(bundle_bytes)
+
+    lock_path = tmp_path / ".agent-policy.lock"
+    lock = load_yaml(lock_path)
+    lock["inputs"][".agent-policy.yml"] = {"sha256": config_digest}
+    lock["outputs"][bundle_path.relative_to(tmp_path).as_posix()] = {
+        "sha256": hashlib.sha256(bundle_bytes).hexdigest()
+    }
+    lock_path.write_text(dump_yaml(lock), encoding="utf-8")
+
+    result = _run_guidance(
         tmp_path,
         "--bundle=.agent-policy/preview/policy-details.json",
         "--rule-id",
