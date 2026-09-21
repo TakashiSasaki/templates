@@ -87,6 +87,18 @@ the exact applicable rule text. Missing, stale, corrupt, or unmapped detail is
 a blocking condition for that dependent operation. Existing configurations
 continue to use `agents-md` unless this output is explicitly enabled.
 
+The retrieval script revalidates the current configuration, selected context,
+repository-policy inputs, installed toolchain sources, and presentation map at
+the point of retrieval. The bundle and lock therefore bind a snapshot rather
+than granting an old snapshot authority after the inputs change. Lock outputs
+are parsed structurally with the installed canonical YAML loader, so quoted
+output names and duplicate-key errors retain their YAML meaning. An operation
+route that is malformed or inconsistent with the selected rules is a blocking
+error; it is not silently treated as an empty valid route. The
+`policy-guidance` Skill requires exactly one enabled `agents-md-staged` output,
+so disabling that output while leaving the Skill enabled is rejected during
+validation instead of failing later during rendering.
+
 The current schema intentionally has no review-result JSON renderer. Provider-specific event names, API requests, inline-anchor formats, or serialization contracts must not become semantic review policy or a second generated review-procedure authority.
 
 All configured repository-local policy inputs are included in the generated lock. Each output, however, is rendered only from the profiles and repository-local policy files belonging to its referenced context. Output paths must be unique and must not overwrite configuration, policy input, or reserved generated-state paths.

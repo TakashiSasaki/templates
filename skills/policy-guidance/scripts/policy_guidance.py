@@ -40,29 +40,261 @@ def _safe_path(root: Path, relative: str) -> Path:
     return resolved
 
 
-def _lock_digest(lock_path: Path, relative: str) -> str:
+def _safe_package_path(package: Path, relative: str) -> Path:
+    candidate = Path(relative)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        raise ValueError(f"package source path is unsafe: {relative}")
+    resolved_root = package.resolve()
+    resolved = (package / candidate).resolve()
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValueError(f"package source path is outside package data: {relative}") from exc
+    return resolved
+
+
+def _load_lock(lock_path: Path) -> dict[str, Any]:
     if not lock_path.is_file():
         raise ValueError(".agent-policy.lock is missing")
-    lines = lock_path.read_text(encoding="utf-8").splitlines()
-    marker = f"  {relative}:"
-    for index, line in enumerate(lines):
-        if line != marker:
-            continue
-        for nested in lines[index + 1 :]:
-            if nested and not nested.startswith("    "):
-                break
-            if nested.startswith("    sha256: "):
-                digest = nested.removeprefix("    sha256: ").strip()
-                if SHA256_RE.fullmatch(digest):
-                    return digest
-                break
-    raise ValueError(f"lock has no valid output digest for {relative}")
+    try:
+        from agent_policy.lockfile import load_lock
+    except ImportError as exc:
+        raise ValueError(
+            "the installed agent-policy package is required for strict lock parsing"
+        ) from exc
+    try:
+        return load_lock(lock_path)
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"lock file is invalid: {exc}") from exc
+
+
+def _validate_digest_map(value: Any, label: str) -> dict[str, str]:
+    if not isinstance(value, dict) or not value:
+        raise ValueError(f"detail bundle {label} bindings are missing")
+    result: dict[str, str] = {}
+    for relative, digest in value.items():
+        if (
+            not isinstance(relative, str)
+            or not relative
+            or not isinstance(digest, str)
+            or SHA256_RE.fullmatch(digest) is None
+        ):
+            raise ValueError(f"detail bundle {label} binding is invalid")
+        if relative in result:
+            raise ValueError(f"detail bundle {label} bindings contain duplicates")
+        result[relative] = digest
+    return dict(sorted(result.items()))
+
+
+def _validate_route_metadata(
+    presentation: dict[str, Any], rules: list[dict[str, Any]]
+) -> None:
+    presentation_map = presentation.get("map")
+    if not isinstance(presentation_map, dict):
+        raise ValueError("detail bundle presentation map is missing")
+    mapped_rules = presentation_map.get("rules")
+    fallback = presentation_map.get("fallback")
+    if not isinstance(mapped_rules, dict) or not isinstance(fallback, dict):
+        raise ValueError("detail bundle presentation map is invalid")
+    if (
+        fallback.get("mode") != "detail-only"
+        or not isinstance(fallback.get("operations"), list)
+        or not fallback["operations"]
+        or not all(
+            isinstance(operation, str) and operation
+            for operation in fallback["operations"]
+        )
+        or len(fallback["operations"]) != len(set(fallback["operations"]))
+        or not isinstance(fallback.get("reason"), str)
+        or not fallback["reason"]
+    ):
+        raise ValueError("detail bundle fallback metadata is invalid")
+    routes = presentation.get("routes")
+    if not isinstance(routes, list):
+        raise ValueError("detail bundle routes are missing")
+    rule_ids = [rule["id"] for rule in rules]
+    rules_by_id = {rule["id"]: rule for rule in rules}
+    route_ids: list[str] = []
+    expected_operation_routes: dict[str, list[str]] = {}
+    expected_unmapped: list[str] = []
+    for route in routes:
+        if not isinstance(route, dict):
+            raise ValueError("detail bundle contains an invalid presentation route")
+        rule_id = route.get("id")
+        operations = route.get("operations")
+        mode = route.get("mode")
+        startup = route.get("startup")
+        if (
+            not isinstance(rule_id, str)
+            or rule_id in route_ids
+            or not isinstance(operations, list)
+            or not all(isinstance(operation, str) and operation for operation in operations)
+            or len(operations) != len(set(operations))
+            or mode not in {"startup", "detail-only"}
+            or not isinstance(startup, bool)
+            or startup != (mode == "startup")
+        ):
+            raise ValueError("detail bundle presentation route is invalid")
+        rule = rules_by_id.get(rule_id)
+        if rule is None:
+            raise ValueError("detail bundle presentation route names an unknown rule")
+        entry = mapped_rules.get(rule_id, fallback)
+        if not isinstance(entry, dict):
+            raise ValueError("detail bundle presentation route is inconsistent")
+        expected_startup = entry.get("startup", False)
+        if (
+            entry.get("operations") != operations
+            or expected_startup != startup
+            or route.get("origin") != rule.get("origin")
+            or route.get("source") != rule.get("source")
+        ):
+            raise ValueError("detail bundle presentation route is inconsistent")
+        if rule_id not in mapped_rules:
+            expected_unmapped.append(rule_id)
+        route_ids.append(rule_id)
+        for operation in operations:
+            expected_operation_routes.setdefault(operation, []).append(rule_id)
+    if route_ids != rule_ids:
+        raise ValueError("detail bundle routes do not match selected rules")
+
+    operation_routes = presentation.get("operation_routes")
+    if not isinstance(operation_routes, dict):
+        raise ValueError("detail bundle operation routes are missing")
+    for operation, selected_ids in operation_routes.items():
+        if (
+            not isinstance(operation, str)
+            or not operation
+            or not isinstance(selected_ids, list)
+            or len(selected_ids) != len(set(selected_ids))
+            or not all(rule_id in rule_ids for rule_id in selected_ids)
+            or selected_ids != expected_operation_routes.get(operation, [])
+        ):
+            raise ValueError("detail bundle operation routes are inconsistent")
+    if set(operation_routes) != set(expected_operation_routes):
+        raise ValueError("detail bundle operation routes omit or add a route")
+
+    unmapped = presentation.get("unmapped_rule_ids")
+    if (
+        not isinstance(unmapped, list)
+        or len(unmapped) != len(set(unmapped))
+        or not all(rule_id in rule_ids for rule_id in unmapped)
+        or unmapped != expected_unmapped
+    ):
+        raise ValueError("detail bundle unmapped rule metadata is invalid")
+
+
+def _validate_current_bindings(
+    root: Path,
+    bundle: dict[str, Any],
+    lock: dict[str, Any],
+) -> None:
+    try:
+        from agent_policy.config import load_config, package_root, validate_config
+        from agent_policy.delivery import load_presentation_map
+        from agent_policy.policy_loader import load_rules
+    except ImportError as exc:
+        raise ValueError(
+            "the installed agent-policy package is required for current binding validation"
+        ) from exc
+
+    bindings = bundle["bindings"]
+    expected_inputs = _validate_digest_map(bindings.get("inputs"), "input")
+    if lock["inputs"] != expected_inputs:
+        raise ValueError("lock input bindings do not match the detail bundle")
+    if lock["toolchain"] != bundle["toolchain"]:
+        raise ValueError("lock toolchain identity does not match the detail bundle")
+
+    config_path = bundle.get("config_path")
+    context_name = bundle.get("context")
+    expected_context = bindings.get("context")
+    if (
+        not isinstance(config_path, str)
+        or not isinstance(context_name, str)
+        or not isinstance(expected_context, dict)
+        or expected_context.get("name") != context_name
+    ):
+        raise ValueError("detail bundle context binding is invalid")
+    config = load_config(root, config_path)
+    diagnostics = validate_config(root, config)
+    if diagnostics:
+        raise ValueError("current policy configuration is invalid")
+    if config.data.get("toolchain") != bundle["toolchain"]:
+        raise ValueError("current configuration toolchain differs from detail bundle")
+    context = config.contexts.get(context_name)
+    if context is None:
+        raise ValueError("current policy configuration lacks the selected context")
+    actual_context = {
+        "name": context.name,
+        "profiles": list(context.profiles),
+        "project_policy_files": list(context.project_policy_files),
+        "overrides": context.override_reasons,
+    }
+    if actual_context != expected_context:
+        raise ValueError("current policy context differs from detail bundle")
+
+    current_inputs = {config.relative_path: config.path}
+    current_inputs.update(
+        {
+            relative: _safe_path(root, relative)
+            for relative in config.project_policy_files
+        }
+    )
+    if set(current_inputs) != set(expected_inputs):
+        raise ValueError("current policy input set differs from detail bundle")
+    for relative, expected_digest in expected_inputs.items():
+        path = current_inputs[relative]
+        if _digest(path.read_bytes()) != expected_digest:
+            raise ValueError(f"current policy input changed: {relative}")
+
+    rules = load_rules(
+        root,
+        list(context.profiles),
+        list(context.project_policy_files),
+        declared_overrides=context.override_reasons,
+        require_explicit_overrides=True,
+    )
+    package = package_root()
+    bundled_rules = bundle["rules"]
+    if [rule.id for rule in rules] != [item["id"] for item in bundled_rules]:
+        raise ValueError("current selected rules differ from detail bundle")
+    for actual, bundled in zip(rules, bundled_rules, strict=True):
+        source_path = (
+            _safe_package_path(package, actual.source)
+            if actual.origin == "toolchain"
+            else _safe_path(root, actual.source)
+        )
+        if (
+            actual.origin != bundled.get("origin")
+            or actual.source != bundled.get("source")
+            or _digest(source_path.read_bytes()) != bundled.get("source_sha256")
+            or _digest(actual.body.encode("utf-8")) != bundled.get("body_sha256")
+        ):
+            raise ValueError(f"current rule source changed: {actual.id}")
+
+    presentation = bundle["presentation"]
+    source = presentation.get("source")
+    source_digest = presentation.get("source_sha256")
+    if (
+        source != "delivery/presentation-map.yml"
+        or SHA256_RE.fullmatch(str(source_digest)) is None
+    ):
+        raise ValueError("detail bundle presentation source identity is invalid")
+    actual_map, actual_digest = load_presentation_map()
+    if (
+        actual_digest != source_digest
+        or actual_map != presentation.get("map")
+        or _digest(_safe_package_path(package, source).read_bytes()) != source_digest
+    ):
+        raise ValueError("installed presentation map differs from detail bundle")
 
 
 def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
     bundle_path = _safe_path(root, bundle_relative)
     actual = bundle_path.read_bytes()
-    expected = _lock_digest(_safe_path(root, ".agent-policy.lock"), bundle_relative)
+    lock = _load_lock(_safe_path(root, ".agent-policy.lock"))
+    expected = lock["outputs"].get(bundle_relative)
+    if not isinstance(expected, str) or SHA256_RE.fullmatch(expected) is None:
+        raise ValueError(f"lock has no valid output digest for {bundle_relative}")
     if _digest(actual) != expected:
         raise ValueError("detail bundle does not match .agent-policy.lock")
     try:
@@ -75,6 +307,8 @@ def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
         raise ValueError("detail bundle is not an authenticated generated output")
     if bundle.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("unsupported detail bundle schema")
+    if bundle.get("bundle_path") != bundle_relative:
+        raise ValueError("detail bundle path binding does not match the selected file")
     toolchain = bundle.get("toolchain")
     if (
         not isinstance(toolchain, dict)
@@ -110,12 +344,14 @@ def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
     presentation = bundle.get("presentation")
     if not isinstance(presentation, dict):
         raise ValueError("detail bundle presentation metadata is missing")
-    routes = presentation.get("routes")
-    if not isinstance(routes, list):
-        raise ValueError("detail bundle routes are missing")
-    route_ids = [route.get("id") for route in routes if isinstance(route, dict)]
-    if route_ids != [rule["id"] for rule in rules]:
-        raise ValueError("detail bundle routes do not match selected rules")
+    bindings = bundle.get("bindings")
+    if not isinstance(bindings, dict):
+        raise ValueError("detail bundle input bindings are missing")
+    selected_ids = bindings.get("selected_rule_ids")
+    if selected_ids != [rule["id"] for rule in rules]:
+        raise ValueError("detail bundle selected-rule binding is inconsistent")
+    _validate_route_metadata(presentation, rules)
+    _validate_current_bindings(root, bundle, lock)
     return bundle
 
 

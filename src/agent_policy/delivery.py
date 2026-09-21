@@ -164,6 +164,7 @@ def build_detail_bundle(
         "context": context_name,
         "renderer": "agents-md-staged",
         "bundle_path": bundle_path,
+        "config_path": config.relative_path,
         "toolchain": dict(config.data["toolchain"]),
         "bindings": {
             "configuration": _input_digests({config.relative_path: config.path}),
@@ -171,6 +172,13 @@ def build_detail_bundle(
                 relative: _input_digests({relative: path})[relative]
                 for relative, path in sorted(input_paths.items())
                 if relative in project_policy_files
+            },
+            "inputs": _input_digests(input_paths),
+            "context": {
+                "name": context_name,
+                "profiles": list(config.contexts[context_name].profiles),
+                "project_policy_files": list(project_policy_files),
+                "overrides": config.contexts[context_name].override_reasons,
             },
             "selected_rule_ids": selected_ids,
         },

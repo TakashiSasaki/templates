@@ -312,6 +312,15 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                 "outputs",
             )
         )
+    if "policy-guidance" in config.enabled_skills and len(enabled_staged_outputs) != 1:
+        diagnostics.append(
+            Diagnostic(
+                "error",
+                "STAGED_GUIDANCE_OUTPUT",
+                "policy-guidance requires exactly one enabled agents-md-staged output",
+                "skills.enabled",
+            )
+        )
 
     for policy_file in config.project_policy_files:
         try:
