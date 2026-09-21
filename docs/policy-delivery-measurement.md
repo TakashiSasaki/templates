@@ -15,7 +15,12 @@ python3 scripts/measure_policy_delivery.py --repository . --format markdown
 The measurement command uses the canonical `agent_policy.policy_loader` and
 records the exact repository head, tree, configuration, toolchain identity,
 source identities, generated output identities, UTF-8 byte counts, and line
-counts. It does not print policy bodies, secrets, protected prompts, or session
+counts. Enabled configured outputs include both their primary path and any
+declared staged detail bundle. Generated Skill files are inventoried separately
+from startup instructions. The report records the configured/adopted toolchain
+identity separately from the executing package/module identity, and refuses to
+label a checkout as an adopted-revision reconstruction without that evidence.
+It does not print policy bodies, secrets, protected prompts, or session
 transcripts.
 
 At the initial baseline on 2026-09-21:
@@ -74,3 +79,26 @@ shows a delivery problem that it addresses without a compliance regression or
 an increase in whole-task cost. If the evidence is inconclusive, the measurement
 and protocol remain useful diagnostics and the existing full-text self-host
 output stays unchanged.
+
+## Measurement and decision-gate disposition
+
+The original six-trial record did not establish the whole-task-cost condition
+in the predeclared gate. Its input, cache, output, and retrieval observations
+are too sparse and too variable to prove a reduction, and exact prompt
+assembly, model-tokenizer boundaries, and complete condition isolation were not
+observed. The gate is preserved; it is not retroactively redefined from the
+observed results.
+
+The staged renderer is therefore an explicitly opt-in, non-default, unqualified
+experimental prototype for diagnostics. It is not a supported delivery mode,
+has not been adopted by the self-host configuration, and has not changed
+Policy semantics, global agent settings, or downstream pins. The redacted
+per-trial record is committed in
+[`policy-delivery-trial-record.json`](policy-delivery-trial-record.json).
+Missing historical artifacts remain labelled `Unobserved`; no exact prompt or
+hidden reasoning has been reconstructed.
+
+The aggregate log measurement uses read-only SQLite metadata and the approved
+`target`/`estimated_bytes` aggregate columns. Its digest identifies the
+exported aggregate, not the physical database file, and the report explicitly
+does not claim that SQLite never touched unselected pages.

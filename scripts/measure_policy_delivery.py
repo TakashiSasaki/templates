@@ -75,12 +75,47 @@ def _rendered_body(rule_body: str) -> str:
     return rule_body.split("\n", 1)[1].strip() if "\n" in rule_body else rule_body
 
 
-def _load_context_report(root: Path, config_path: str, context_name: str) -> dict[str, Any]:
-    if str(root / "src") not in sys.path:
-        sys.path.insert(0, str(root / "src"))
+def _configured_output_paths(spec: Any) -> list[tuple[str, str]]:
+    """Return the enabled output files, including optional staged details."""
+    paths = [(spec.path, f"output:{spec.name}")]
+    detail_bundle_path = getattr(spec, "detail_bundle_path", None)
+    if detail_bundle_path is not None and detail_bundle_path != spec.path:
+        paths.append((detail_bundle_path, f"output:{spec.name}:detail-bundle"))
+    return paths
 
+
+def _executing_source_identity(module_file: Path, package: Path) -> dict[str, Any]:
+    files: dict[str, str] = {}
+    for path in (
+        module_file,
+        module_file.parent / "config.py",
+        module_file.parent / "policy_loader.py",
+        module_file.parent / "renderer.py",
+    ):
+        if path.is_file():
+            files[path.name] = sha256_bytes(path.read_bytes())
+    return {
+        "evidence": "Observed",
+        "module": module_file.as_posix(),
+        "package_root": package.as_posix(),
+        "source_files_sha256": files,
+    }
+
+
+def _load_context_report(root: Path, config_path: str, context_name: str) -> dict[str, Any]:
+    source_path = (root / "src").resolve()
+    if source_path.is_dir() and str(source_path) not in sys.path:
+        sys.path.insert(0, str(source_path))
+
+    import agent_policy
     from agent_policy.config import load_config, package_root, validate_config
     from agent_policy.policy_loader import load_rules
+
+    module_file = Path(agent_policy.__file__).resolve()
+    if source_path.is_dir() and source_path not in module_file.parents:
+        raise ValueError(
+            "executing agent_policy module is not loaded from the measured repository"
+        )
 
     config = load_config(root, config_path)
     diagnostics = validate_config(root, config)
@@ -125,8 +160,9 @@ def _load_context_report(root: Path, config_path: str, context_name: str) -> dic
     for spec in config.output_specs:
         if not spec.enabled:
             continue
-        output_measurements.append(
-            file_measurement(root / spec.path, role=f"output:{spec.name}")
+        output_measurements.extend(
+            file_measurement(root / relative, role=role)
+            for relative, role in _configured_output_paths(spec)
         )
 
     return {
@@ -138,6 +174,7 @@ def _load_context_report(root: Path, config_path: str, context_name: str) -> dic
         "outputs": output_measurements,
         "config_path": config.relative_path,
         "toolchain": dict(config.data["toolchain"]),
+        "executing_source": _executing_source_identity(module_file, package),
     }
 
 
@@ -153,9 +190,18 @@ def _skills_inventory(root: Path) -> list[dict[str, Any]]:
 
 
 def _log_aggregate(path: Path) -> dict[str, Any]:
-    """Return aggregate log metadata without selecting transcript contents."""
+    """Return authorized aggregate metadata without selecting transcript contents."""
     uri = f"file:{path.resolve()}?mode=ro"
     with sqlite3.connect(uri, uri=True) as connection:
+        connection.execute("PRAGMA query_only = ON")
+        columns = {
+            row[1]
+            for row in connection.execute("PRAGMA table_info(logs)").fetchall()
+        }
+        required = {"target", "estimated_bytes"}
+        if not required <= columns:
+            missing = ", ".join(sorted(required - columns))
+            raise ValueError(f"log database is missing aggregate columns: {missing}")
         rows = connection.execute(
             """
             SELECT target, COUNT(*), COALESCE(SUM(estimated_bytes), 0)
@@ -164,14 +210,29 @@ def _log_aggregate(path: Path) -> dict[str, Any]:
             ORDER BY target
             """
         ).fetchall()
+    targets = [
+        {"target": target, "events": count, "estimated_bytes": bytes_}
+        for target, count, bytes_ in rows
+    ]
+    aggregate_bytes = json.dumps(
+        {"targets": targets}, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    metadata = path.stat()
     return {
         "evidence": "Observed",
-        "path_sha256": sha256_bytes(path.read_bytes()),
-        "targets": [
-            {"target": target, "events": count, "estimated_bytes": bytes_}
-            for target, count, bytes_ in rows
-        ],
-        "warning": "Aggregates only; transcript bodies were not read or emitted.",
+        "path": path.as_posix(),
+        "database_metadata": {
+            "size_bytes": metadata.st_size,
+            "mtime_ns": metadata.st_mtime_ns,
+        },
+        "aggregate_sha256": sha256_bytes(aggregate_bytes),
+        "targets": targets,
+        "read_scope": "PRAGMA table_info(logs) and target/count/estimated_bytes aggregates only",
+        "warning": (
+            "Only authorized aggregate columns were selected; transcript bodies were "
+            "not selected, exported, or hashed. File metadata may include the physical "
+            "database size and modification time."
+        ),
     }
 
 
