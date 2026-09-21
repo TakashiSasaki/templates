@@ -193,6 +193,27 @@ def test_staged_delivery_preserves_full_rule_set_and_supports_clean_retrieval(
     assert "route is incomplete" in blocked.stderr
 
 
+def test_render_rejects_nested_json_generated_marker_before_overwrite(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    authored = {
+        "metadata": {"agent-policy-generated": True},
+        "user_data": "KEEP",
+    }
+    bundle_path.parent.mkdir(parents=True, exist_ok=True)
+    original = json.dumps(authored, indent=2) + "\n"
+    bundle_path.write_text(original, encoding="utf-8")
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "non-generated file" in diagnostics[0].message
+    assert bundle_path.read_text(encoding="utf-8") == original
+
+
 def test_staged_delivery_rejects_missing_guidance_skill(tmp_path: Path) -> None:
     _write_staged_repository(tmp_path)
     config = tmp_path / ".agent-policy.yml"

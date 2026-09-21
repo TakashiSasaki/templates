@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 from ..config import Config, load_config, validate_config
-from ..delivery import JSON_GENERATED_MARKER, render_staged_agents
+from ..delivery import render_staged_agents
 from ..diagnostics import Diagnostic
 from ..lockfile import (
     LOCK_PATH,
@@ -39,7 +39,13 @@ def _write_atomic(path: Path, content: str) -> None:
 
 
 def _is_generated_content(content: str) -> bool:
-    return GENERATED_MARKER in content or JSON_GENERATED_MARKER in content
+    if GENERATED_MARKER in content:
+        return True
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(parsed, dict) and parsed.get("agent-policy-generated") is True
 
 
 def _safe_generated_write(path: Path, content: str) -> None:
