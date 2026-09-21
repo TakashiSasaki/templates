@@ -231,14 +231,35 @@ def render_consumer(root: Path, python: Path, condition: str, revision: str) -> 
     for path in paths:
         content = (root / path).read_bytes()
         files[path.as_posix()] = {"bytes": len(content), "sha256": sha(content)}
-    selected: list[str] = []
+    selection = run(
+        [
+            str(python),
+            "-c",
+            (
+                "import json; from pathlib import Path; "
+                "from agent_policy.config import load_config; "
+                "from agent_policy.policy_loader import load_rules; "
+                "config = load_config(Path('.'), '.agent-policy.yml'); "
+                "context = config.contexts['coding']; "
+                "rules = load_rules(Path('.'), list(context.profiles), "
+                "list(context.project_policy_files), "
+                "declared_overrides=context.override_reasons, "
+                "require_explicit_overrides=True); "
+                "print(json.dumps([rule.id for rule in rules]))"
+            ),
+        ],
+        root,
+        env=environment,
+    )
+    selected = json.loads(selection.stdout)
     startup: list[str] = []
     body_bytes: dict[str, int] = {}
     if condition == "C":
         bundle = json.loads((root / paths[3]).read_text(encoding="utf-8"))
-        selected = [row["id"] for row in bundle["rules"]]
         startup = [row["id"] for row in bundle["presentation"]["routes"] if row["startup"]]
         body_bytes = {row["id"]: len(row["body"].encode()) for row in bundle["rules"]}
+    else:
+        startup = list(selected)
     return {"files": files, "selected_rule_ids": selected,
             "startup_rule_ids": startup, "rule_body_bytes": body_bytes,
             "clean_consumer": True}
@@ -395,6 +416,7 @@ def trial(codex: Path, python: Path, root: Path, task: str, condition: str,
             "tool_calls": len(seen),
             "failed_tool_calls": sum(e.get("exit_code") not in (0, None) for e in seen),
             "guidance": guidance(seen, manifest), "grader": grade(task, root, seen),
+            "delivery_manifest": manifest,
             "raw_log": raw.name}
 
 
@@ -431,8 +453,8 @@ def main() -> int:
             shutil.copy2(provider / relative, destination)
         setup_task(root, task)
         python, identity = environments[condition]
-        git_baseline(root)
         manifest = render_consumer(root, python, condition, args.revision)
+        git_baseline(root)
         task_files = {}
         for path in sorted(root.rglob("*")):
             if not path.is_file() or ".git" in path.parts:
