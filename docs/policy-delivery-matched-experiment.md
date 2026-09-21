@@ -68,6 +68,18 @@ review-preparation state, and bootstrap reachability independently. These are
 correctness repairs to the evaluation evidence path; they do not turn the
 historical attempts into valid matched outcomes.
 
+## Capability probe for a new budget
+
+Before spending another six-trial budget, the repaired candidate ran the same
+Codex CLI/model/reasoning/sandbox combination in a disposable Git fixture. The
+first probe was rejected because the fixture was not a Git repository; that
+setup issue was corrected once. The valid Git-fixture probe started a Codex
+thread and turn but emitted no tool-command event, created no marker, and
+reported a sandbox-blocked shell attempt. Its bounded redacted evidence is in
+[`policy-delivery-capability-probe.json`](policy-delivery-capability-probe.json).
+Because the probe did not reach the tool boundary, no additional A/C trials
+were launched and the cost gate remains `NOT_ESTABLISHED`.
+
 | Trial | Task | Input | Cached | Uncached | Output | Tool calls | Grader |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | A1 | generated artifact | 435161 | 384768 | 50393 | 3838 | 0 | false |
