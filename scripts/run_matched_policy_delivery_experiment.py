@@ -66,21 +66,13 @@ REMOTE_GIT_SUBCOMMANDS = {
     "rebase",
     "merge",
 }
-LOCAL_GIT_SUBCOMMANDS = {
-    "add",
-    "branch",
-    "cat-file",
-    "check-ignore",
-    "commit",
-    "diff",
-    "hash-object",
-    "init",
-    "log",
-    "ls-files",
-    "rev-parse",
-    "show",
-    "status",
-}
+# Worker-facing Git is deliberately smaller than the evaluator's trusted
+# fixture-construction surface.  Only these subcommands have a positive
+# grammar below; every other local-looking Git form is UNKNOWN.
+WORKER_GIT_SUBCOMMANDS = {"diff", "log", "show", "status"}
+GIT_GLOBAL_FLAGS = {"--no-pager"}
+GIT_GLOBAL_VALUE_OPTIONS = {"-C"}
+GIT_PAGER_SUBCOMMANDS = {"diff", "log", "show"}
 LOCAL_EXECUTABLES = {
     "cat",
     "cp",
@@ -122,7 +114,6 @@ COMMAND_VALUED_GIT_ENVIRONMENT = {
     "GIT_SSH",
     "GIT_SSH_COMMAND",
 }
-COMMAND_EXECUTING_GIT_OPTIONS = {"--ext-diff", "--paginate", "--textconv"}
 LOCAL_PYTHON_SCRIPTS = {
     "scripts/check_catalog.py",
     "scripts/generate_catalog.py",
@@ -543,48 +534,100 @@ def _unwrapped_command(segment: list[str]) -> list[str]:
     return segment[index:]
 
 
-def _command_valued_git_environment(segment: list[str]) -> str | None:
-    """Find a Git environment assignment that can select executable code."""
+def _git_wrapper_effect(segment: list[str]) -> str | None:
+    """Return why a wrapper is outside the positive worker Git grammar."""
 
-    for token in segment:
-        match = re.fullmatch(r"(GIT_[A-Za-z0-9_]+)=.*", token)
-        if not match:
+    index = 0
+    while index < len(segment) and re.fullmatch(
+        r"[A-Za-z_][A-Za-z0-9_]*=.*", segment[index]
+    ):
+        name = segment[index].split("=", 1)[0]
+        if name in COMMAND_VALUED_GIT_ENVIRONMENT or name.startswith("GIT_"):
+            return f"command-valued Git environment: {name}"
+        return "leading environment assignment is outside the Git grammar"
+
+    while index < len(segment):
+        executable = Path(segment[index]).name
+        if executable == ENV_WRAPPER:
+            return "env wrapper/environment mutation is outside the Git grammar"
+        if executable == "command":
+            if index + 1 < len(segment) and segment[index + 1].startswith("-"):
+                return "unsupported command-wrapper option"
+            index += 1
             continue
-        name = match.group(1)
-        if (
-            name in COMMAND_VALUED_GIT_ENVIRONMENT
-            or name == "GIT_CONFIG"
-            or name.startswith("GIT_CONFIG_")
-        ):
-            return name
+        if executable == "timeout":
+            if index + 1 >= len(segment) or not re.fullmatch(
+                r"[0-9]+(?:\.[0-9]+)?", segment[index + 1]
+            ):
+                return "unsupported timeout-wrapper form"
+            index += 2
+            continue
+        if executable in {"exec", "nice", "sudo"}:
+            return f"unsupported command wrapper: {executable}"
+        break
     return None
 
 
-def _command_executing_git_option(tokens: list[str]) -> str | None:
-    """Find a Git option that enables an external command or config payload."""
+def _safe_git_cwd(value: str) -> bool:
+    """Accept only a bounded relative fixture path for Git's -C option."""
 
-    for token in tokens[1:]:
-        if token == "-c" or token.startswith("-c"):
-            return "-c"
-        if token in COMMAND_EXECUTING_GIT_OPTIONS:
-            return token
-    return None
+    path = Path(value)
+    return bool(value) and not path.is_absolute() and ".." not in path.parts
 
 
-def _git_subcommand(tokens: list[str]) -> str | None:
+def _parse_bounded_git(tokens: list[str]) -> tuple[str, str]:
+    """Parse the explicit positive worker-facing Git grammar.
+
+    This parser intentionally has no skip-unknown-options branch.  Global
+    options, subcommands, and subcommand arguments must each be modeled before
+    a command can be ALLOWED.
+    """
+
+    if not tokens or Path(tokens[0]).name != "git":
+        return "unknown", "not a Git command"
+
     index = 1
+    pager_disabled = False
     while index < len(tokens):
         token = tokens[index]
-        if token == "--":
-            return tokens[index + 1] if index + 1 < len(tokens) else None
-        if token in {"-C", "--git-dir", "--work-tree", "-c"}:
+        if token in GIT_GLOBAL_FLAGS:
+            pager_disabled = True
+            index += 1
+            continue
+        if token in GIT_GLOBAL_VALUE_OPTIONS:
+            if index + 1 >= len(tokens) or not _safe_git_cwd(tokens[index + 1]):
+                return "unknown", "unmodeled Git -C path"
             index += 2
             continue
         if token.startswith("-"):
-            index += 1
-            continue
-        return token
-    return None
+            return "unknown", f"unmodeled Git global option: {token}"
+        break
+
+    if index >= len(tokens):
+        return "unknown", "missing Git subcommand"
+
+    subcommand = tokens[index]
+    arguments = tokens[index + 1 :]
+    if subcommand in REMOTE_GIT_SUBCOMMANDS:
+        return "forbidden", f"remote Git operation: {subcommand}"
+    if subcommand == "submodule" and "update" in arguments:
+        return "forbidden", "git submodule update"
+    if subcommand == "archive" and "--remote" in arguments:
+        return "forbidden", "git archive --remote"
+    if subcommand not in WORKER_GIT_SUBCOMMANDS:
+        return "unknown", f"unsupported Git subcommand: {subcommand}"
+    if subcommand in GIT_PAGER_SUBCOMMANDS and not pager_disabled:
+        return "unknown", f"pager is not disabled for Git {subcommand}"
+
+    allowed_arguments = {
+        "status": ((), ("--short",)),
+        "diff": ((),),
+        "show": (("HEAD",),),
+        "log": (("-1",),),
+    }
+    if tuple(arguments) not in allowed_arguments[subcommand]:
+        return "unknown", f"unmodeled arguments for Git {subcommand}"
+    return "allowed", "bounded Git form"
 
 
 def classify_command(command: str, *, _depth: int = 0) -> dict[str, str]:
@@ -622,25 +665,16 @@ def classify_command(command: str, *, _depth: int = 0) -> dict[str, str]:
         if executable in REMOTE_EXECUTABLES:
             return {"status": "forbidden", "reason": f"remote executable: {executable}"}
         if executable == "git":
-            subcommand = _git_subcommand(command_tokens)
-            if subcommand in REMOTE_GIT_SUBCOMMANDS:
-                return {"status": "forbidden", "reason": f"remote git operation: {subcommand}"}
-            if subcommand == "submodule" and "update" in command_tokens[2:]:
-                return {"status": "forbidden", "reason": "git submodule update"}
-            if subcommand == "archive" and "--remote" in command_tokens:
-                return {"status": "forbidden", "reason": "git archive --remote"}
-            environment = _command_valued_git_environment(segment)
-            option = _command_executing_git_option(command_tokens)
-            if environment or option:
-                detail = environment or option
-                return {
-                    "status": "unknown",
-                    "reason": f"Git command execution control is outside the grammar: {detail}",
-                }
-            if subcommand in LOCAL_GIT_SUBCOMMANDS:
+            status, reason = _parse_bounded_git(command_tokens)
+            if status == "forbidden":
+                return {"status": status, "reason": reason}
+            wrapper_effect = _git_wrapper_effect(segment)
+            if wrapper_effect:
+                return {"status": "unknown", "reason": wrapper_effect}
+            if status == "allowed":
                 saw_known_local = True
                 continue
-            return {"status": "unknown", "reason": "unsupported git form"}
+            return {"status": status, "reason": reason}
         if executable == "find" and any(
             token in {"-exec", "-execdir"} for token in command_tokens
         ):

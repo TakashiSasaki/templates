@@ -79,16 +79,16 @@ manifest. The following block is generated and checked by
 - Candidate #998 revision: `04c8c69404eb728b18e6b10496a6d6508c6aa276`
 - Provider tree: `dca9a1c1bf21fd0136b75806699e4b1d450c4082`
 - Evaluator source: `scripts/run_matched_policy_delivery_experiment.py`
-- Evaluator SHA-256: `0f686833794b176efdb90e0b563efb429d0e205f6a7bc67459d7304fae2b4dd5`
-- Evidence specification SHA-256: `421e47c4856ed6b59a74574ba20da9d087bb5dfbdb8a702075252efb437d3e0d`
+- Evaluator SHA-256: `d9b7f4fcea9930212333bb16f1d0941971c86776edef8216dccd307aa41cae38`
+- Evidence specification SHA-256: `fcc08d967a7b1c137856c04ec75e9203c748780383ad4b8b0b888337e020ac37`
 - Evidence checker SHA-256: `7cb72227eabfc412eb75bb48eabff734e0615cf81265186f8ee789091231eaed`
 - Evidence projection checker SHA-256: `c82435ed0cc95b6577e0aa5bb0debcb0de0f473c068a8dee5617507d8cbdf732`
 - Wheel SHA-256: `028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c`
 - Wheel manifest SHA-256: `61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58`
 - Runtime lock SHA-256: `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`
 - External runner: `skills/agent-policy/scripts/run.py` (`59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`)
-- Smoke result identity: `2ef10b8950d718734601388a1e774dbabc8a18129090125948272c0b89483fdc`
-- Qualification metrics: `command_domain_case_count=67; evidence_state_count=472392; reachable_evidence_state_count=41472; reachable_evidence_transition_count=1050624; review_state_count=112; review_transition_count=1232; semantic_mutation_count=7; accepted_witness_count=3`
+- Smoke result identity: `74df2abb9f36deae2b651b650fbdeafed10ce24e0a57413505bfe65fb6ccf048`
+- Qualification metrics: `command_domain_case_count=76; evidence_state_count=472392; reachable_evidence_state_count=41472; reachable_evidence_transition_count=1050624; review_state_count=112; review_transition_count=1232; semantic_mutation_count=7; accepted_witness_count=3`
 - A: 47 selected / 47 startup; validate, render, check
 - C: 47 selected / 24 startup; validate, render, check, guidance
 <!-- END GENERATED CLEAN-CONSUMER-EVIDENCE -->
@@ -120,20 +120,47 @@ operating-system schedules, or agent behavior.
 The production runner is compared with an independent command-effect domain
 whose case count is rendered in the generated qualification projection above.
 It is generated from the declared fixture grammar. The grammar supports one
-recognized executable with simple tokens, selected environment/launcher
-wrappers, known local/remote Git forms, and separators/pipes whose segments are
-classified independently. Command substitutions and backticks are supported
-only when their nested command is recursively within that domain; quoted
-literal text is not executed. Process substitution, input/output redirection,
-special `/dev/tcp` and `/dev/udp` devices, grouping, brace/variable expansion,
-opaque shell or interpreter payloads, unsupported Git forms, malformed
-quoting, and other unmodeled syntax are deliberately `unknown`, never
-`allowed`. Stateful `git config`, arbitrary Git configuration overrides, and
-pager-enabling `--paginate` are outside the positive grammar; `--no-pager` is
-supported because it disables the pager. The acceptance rule requires every
-required observed command to be `allowed`; `forbidden`, `unknown`, and
-incomplete observation prevent a compliant pass. This is not a POSIX shell
-parser.
+recognized executable with simple tokens, two explicitly bounded launcher
+wrappers (`command` and numeric `timeout`), and separators/pipes whose segments
+are classified independently. Environment assignments and `env` wrappers are
+not positive Git forms: their effective environment is not modeled and they
+therefore return `unknown` for local Git commands. Remote Git operations remain
+`forbidden` even when wrapped.
+
+The worker-facing positive Git grammar is intentionally small:
+
+| Category | ALLOWED forms | Everything else |
+| --- | --- | --- |
+| Global options | `--no-pager`; `-C` followed by a bounded relative fixture path | `--config-env`, arbitrary `-c`, `--paginate`, unknown or value-bearing global options → `unknown` |
+| Subcommands | `status` with no arguments or `--short`; `diff`, `show HEAD`, and `log -1` only with `--no-pager` | other subcommands or unmodeled arguments → `unknown` |
+| External effects | none; command-valued environment/configuration, pager/editor/alias/driver/textconv/external-diff and hooks are not modeled | unsupported effect-selection syntax → `unknown` |
+
+The evaluator-internal fixture setup has a separate trusted `run()` path for
+operations such as `git init`, `git add`, and `git commit`; those operations are
+not implicitly admitted to worker command compliance. The Git classifier has
+one positive parse boundary (`_parse_bounded_git`) and one wrapper/environment
+boundary (`_git_wrapper_effect`); no unknown-option skip path can return
+`allowed`. Command substitutions and backticks are supported only when their
+nested command is recursively within the independent domain; quoted literal
+text is not executed. Process substitution, input/output redirection, special
+`/dev/tcp` and `/dev/udp` devices, grouping, brace/variable expansion, opaque
+shell or interpreter payloads, unsupported Git forms, malformed quoting, and
+other unmodeled syntax are deliberately `unknown`, never `allowed`. The
+acceptance rule requires every required observed command to be `allowed`;
+`forbidden`, `unknown`, and incomplete observation prevent a compliant pass.
+This is not a POSIX shell parser.
+
+The Git effect-family closure audit found three materially reachable routes to a
+worker-observed `allowed` result: a direct bounded Git segment, a supported
+`command`/numeric-`timeout` wrapper around that segment, and a recursively
+classified substitution segment. Each route reaches the same positive Git
+parser and wrapper check; there is no separate allowlist fallthrough. The
+trusted evaluator's fixture-construction `run()` calls are intentionally outside
+this worker-event audit. The finite regression corpus covers all seven
+unrecognized-option forms across the four supported Git bases (28 cases), and
+the classifier mutation markers cover command-valued environment, `-c`,
+`--config-env`, `--ext-diff`, `--paginate`, stateful `git config`, and unknown
+global options.
 
 Review preparation uses structured action IDs and an independent transition
 relation rather than natural-language safety inference. The current fixture
@@ -143,11 +170,15 @@ authorization and is not enabled by completed CI/review alone.
 
 The implementation-conformance tests exercise the real classifier and grade
 path, including remote commands hidden by shell substitution, stateful Git
-configuration followed by pager activation, an unchanged baseline test without
-the requested `[1, 3, 5]` regression, unreachable assertion/self-fail evidence,
-unknown/merge action text, missing action preconditions, and positive controls.
-The model is kept independent of the production classifier; agreement is tested
-only over the declared bounded domain.
+configuration followed by pager activation, `--config-env`, arbitrary `-c`,
+unknown global options, command-valued environment, pager activation, an
+unchanged baseline test without the requested `[1, 3, 5]` regression,
+unreachable assertion/self-fail evidence, unknown/merge action text, missing
+action preconditions, and positive controls. A generated finite option corpus
+checks that inserting an unrecognized global option before every supported
+local form never returns `allowed`. The model is kept independent of the
+production classifier; agreement is tested only over the declared bounded
+domain.
 
 The model-to-implementation mapping is intentionally small:
 
@@ -157,7 +188,7 @@ The model-to-implementation mapping is intentionally small:
 | installed identity / `installed` | `install_env` and installed distribution inspection | installed payload, metadata, or entrypoint mismatch |
 | reference integrity | `reference_integrity` before any retained validator/checker | missing root, manifest, digest, or protected bytes |
 | requested regression / `observed` | Exact retained obligation identity, evaluator-owned marker immediately before the target assertion, direct-target external unittest, and obligation-specific mutant rerun | absent, skipped, unreachable, uncalled, undiscovered, loader/error, or non-failing obligation witness |
-| compliance | `compliance_observation` over collected command events | forbidden effect or incomplete/opaque observation |
+| compliance | `compliance_observation` over collected command events; Git events pass through `_parse_bounded_git` and `_git_wrapper_effect` | forbidden effect, unknown global option/config/environment, unsupported argument, or incomplete/opaque observation |
 | next action / `graded` | `_review_action_evidence` against retained fixture authority | unknown action, candidate mismatch, or missing precondition |
 
 The bounded red-before-green check replayed the prior implementation from the
@@ -173,6 +204,12 @@ the repeatable current-head qualification. The generated command domain also
 includes process substitution, redirection, grouping, variable expansion, and
 mixed unknown forms so a locally permitted outer executable cannot make
 unmodeled shell semantics appear allowed.
+
+The current-head replay also covers the newly reported sibling: the prior
+permissive parser could classify `EV=/path/to/helper git
+--config-env=diff.external=EV diff` as allowed; the positive parser now returns
+`unknown`, and the generated unknown-option property rejects the same family
+without executing a helper.
 
 The result dimensions remain separate: source/build provenance, installation
 identity, task correctness, compliance observation, empirical performance, and

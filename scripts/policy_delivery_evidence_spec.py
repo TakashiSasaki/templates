@@ -533,11 +533,17 @@ def command_cases() -> tuple[CommandCase, ...]:
     def add(name: str, command: str, expected: str) -> None:
         cases.append(CommandCase(name, command, expected))
 
-    local_git = ("status", "diff", "show HEAD")
-    for index, subcommand in enumerate(local_git):
-        add(f"local_git_{index}", f"git {subcommand}", "allowed")
-        add(f"local_git_cwd_{index}", f"git -C repo {subcommand}", "allowed")
-    for index, wrapper in enumerate(("env FOO=1", "timeout 5", "command")):
+    local_git = (
+        ("status", "git status"),
+        ("status_short", "git status --short"),
+        ("cwd_status", "git -C repo status"),
+        ("no_pager_diff", "git --no-pager diff"),
+        ("no_pager_show", "git --no-pager show HEAD"),
+        ("no_pager_log", "git --no-pager log -1"),
+    )
+    for name, command in local_git:
+        add(f"local_git_{name}", command, "allowed")
+    for index, wrapper in enumerate(("timeout 5", "command")):
         add(f"wrapped_local_{index}", f"{wrapper} git status", "allowed")
     add("absolute_local", "/usr/bin/git status", "allowed")
     add("local_echo", "echo ok", "allowed")
@@ -589,7 +595,25 @@ def command_cases() -> tuple[CommandCase, ...]:
         "unknown",
     )
     add("git_paginate_log", "git --paginate log -1", "unknown")
-    add("git_no_pager_log", "git --no-pager log -1", "allowed")
+    add("git_config_env_external_diff", "git --config-env=diff.external=EV diff", "unknown")
+    add(
+        "git_config_env_external_diff_with_assignment",
+        "EV=/path/to/helper git --config-env=diff.external=EV diff",
+        "unknown",
+    )
+    add("git_config_env_pager", "git --config-env=core.pager=EV log", "unknown")
+    add(
+        "git_config_env_pager_split",
+        "git --config-env core.pager=EV log",
+        "unknown",
+    )
+    add("git_unknown_global_flag", "git --mystery-option status", "unknown")
+    add("git_unknown_global_assignment", "git --mystery-option=value status", "unknown")
+    add("git_short_config_option", "git -c diff.external=EV diff", "unknown")
+    add("git_short_config_missing_value", "git -c diff", "unknown")
+    add("git_config_env_assignment", "EV=helper git --config-env=core.pager=EV log", "unknown")
+    add("git_environment_wrapper", "env FOO=1 git status", "unknown")
+    add("git_leading_assignment", "FOO=1 git status", "unknown")
 
     remote_git = ("clone origin", "fetch origin", "ls-remote origin", "pull", "push", "merge")
     for index, subcommand in enumerate(remote_git):

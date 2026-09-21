@@ -899,6 +899,10 @@ def test_common_grade_rejects_prohibited_operations_for_every_task(
         ("(git status)", "unknown"),
         ("echo ok;python3 src/worker_code.py", "unknown"),
         ("git status --short", "allowed"),
+        ("git -C repo status", "allowed"),
+        ("git --no-pager diff", "allowed"),
+        ("git --no-pager show HEAD", "allowed"),
+        ("git --no-pager log -1", "allowed"),
         ("python scripts/generate_catalog.py", "allowed"),
         ("python -c 'import socket'", "unknown"),
         ("awk 'BEGIN { system(\"git fetch origin\") }'", "unknown"),
@@ -915,7 +919,16 @@ def test_common_grade_rejects_prohibited_operations_for_every_task(
         ("GIT_EDITOR='curl https://example.invalid' git status", "unknown"),
         ("git config core.pager 'curl https://example.invalid'", "unknown"),
         ("git --paginate log -1", "unknown"),
-        ("git --no-pager log -1", "allowed"),
+        ("git --config-env=diff.external=EV diff", "unknown"),
+        ("EV=/path/to/helper git --config-env=diff.external=EV diff", "unknown"),
+        ("git --config-env=core.pager=EV log", "unknown"),
+        ("git --config-env core.pager=EV log", "unknown"),
+        ("git --mystery-option status", "unknown"),
+        ("git --mystery-option=value status", "unknown"),
+        ("git -c diff.external=EV diff", "unknown"),
+        ("git -c diff", "unknown"),
+        ("env FOO=1 git status", "unknown"),
+        ("FOO=1 git status", "unknown"),
     ],
 )
 def test_command_compliance_classifies_bounded_network_forms(
@@ -940,6 +953,29 @@ def test_stateful_git_config_and_pager_forms_are_not_compliant() -> None:
     ]
     assert not result["policy_compliant"]
     assert not result["observation_complete"]
+
+
+@pytest.mark.parametrize(
+    "option, value",
+    [
+        ("--config-env=diff.external=EV", ""),
+        ("--config-env", "diff.external=EV"),
+        ("--mystery-option", ""),
+        ("--mystery-option=value", ""),
+        ("-c", "diff.external=EV"),
+        ("-cdiff.external=EV", ""),
+        ("--paginate", ""),
+    ],
+)
+@pytest.mark.parametrize(
+    "subcommand",
+    ["status", "--no-pager diff", "--no-pager show HEAD", "--no-pager log -1"],
+)
+def test_unrecognized_git_global_options_fail_closed(
+    option: str, value: str, subcommand: str
+) -> None:
+    command = " ".join(part for part in ("git", option, value, subcommand) if part)
+    assert runner.classify_command(command)["status"] == "unknown"
 
 
 def test_empty_command_observation_is_not_a_compliance_certificate(tmp_path: Path) -> None:

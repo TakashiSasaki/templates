@@ -5,11 +5,11 @@
     "provider_tree": "dca9a1c1bf21fd0136b75806699e4b1d450c4082",
     "evaluator_source": {
       "path": "scripts/run_matched_policy_delivery_experiment.py",
-      "sha256": "0f686833794b176efdb90e0b563efb429d0e205f6a7bc67459d7304fae2b4dd5"
+      "sha256": "d9b7f4fcea9930212333bb16f1d0941971c86776edef8216dccd307aa41cae38"
     },
     "evidence_spec": {
       "path": "scripts/policy_delivery_evidence_spec.py",
-      "sha256": "421e47c4856ed6b59a74574ba20da9d087bb5dfbdb8a702075252efb437d3e0d"
+      "sha256": "fcc08d967a7b1c137856c04ec75e9203c748780383ad4b8b0b888337e020ac37"
     },
     "evidence_checker": {
       "path": "scripts/check_policy_delivery_spec.py",
@@ -31,7 +31,7 @@
     }
   },
   "qualification": {
-    "command_domain_case_count": 67,
+    "command_domain_case_count": 76,
     "evidence_state_count": 472392,
     "reachable_evidence_state_count": 41472,
     "reachable_evidence_transition_count": 1050624,
@@ -73,6 +73,6 @@
       }
     }
   },
-  "smoke_result_identity": "2ef10b8950d718734601388a1e774dbabc8a18129090125948272c0b89483fdc",
+  "smoke_result_identity": "74df2abb9f36deae2b651b650fbdeafed10ce24e0a57413505bfe65fb6ccf048",
   "interpretation": "Distribution-boundary smoke only; the retained exact wheel and installed A/C consumers were rerun after the current evaluator/spec/checker identity update; no fresh agent trial or performance claim."
 }
