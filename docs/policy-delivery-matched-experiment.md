@@ -66,10 +66,10 @@ compliance.
 
 | Claim | Enforcing/observing boundary | Negative control | Positive control | Limit |
 | --- | --- | --- | --- | --- |
-| Local-only task compliance | Parsed command events plus conservative unknown handling | `git fetch origin`, wrappers, unsupported/empty event stream | Bounded local `git status`/generator/test commands | Shell text cannot prove arbitrary Python or network absence; unknown remains non-compliant |
+| Local-only task compliance | Parsed command events plus conservative unknown handling | `git fetch origin`, wrappers, stateful `git config`/pager activation, unsupported/empty event stream | Bounded local `git status`/generator/test commands | Shell text cannot prove arbitrary Python or network absence; unknown remains non-compliant |
 | Candidate artifact identity | Retained manifest, wheel `RECORD`/metadata, and installed distribution inspection | Changed/lost artifact, substituted wheel, unexpected installed payload | One retained build installed into both A and C | Same-UID mutation between a final check and an external installer is outside this cooperative harness |
 | Reference integrity | Reference root/manifest/digest before any validator use | Missing root with empty protected list, altered facts/validator | Valid retained reference and permitted worker edits | Worker isolation is bounded and not an arbitrary same-UID security boundary |
-| Regression execution and full suite | Exact retained obligation target, external unittest execution, obligation-specific mutant, and full-suite result | Qualified/runtime skip, zero tests, uncalled/nested assertion, unrelated suite failure | Executed requested regression catches the obligation mutant, passes the repair, and the full suite passes | Fixture framework/collector coverage is bounded; it is not a universal test analyzer |
+| Regression execution and full suite | Exact retained obligation target, evaluator-owned marker immediately before that assertion, external unittest execution, obligation-specific mutant, and full-suite result | Qualified/runtime skip, zero tests, unreachable assertion, unrelated failure, loader/error result | The marker is observed immediately before the requested assertion on repair and mutant runs; the assertion passes on repair, fails semantically on the mutant, and the full suite passes | Fixture framework/collector and source-instrumentation coverage is bounded; it is not a universal test analyzer |
 
 The current clean-consumer identity is sourced from the machine-readable smoke
 manifest. The following block is generated and checked by
@@ -79,16 +79,16 @@ manifest. The following block is generated and checked by
 - Candidate #998 revision: `04c8c69404eb728b18e6b10496a6d6508c6aa276`
 - Provider tree: `dca9a1c1bf21fd0136b75806699e4b1d450c4082`
 - Evaluator source: `scripts/run_matched_policy_delivery_experiment.py`
-- Evaluator SHA-256: `1985c5397a509904a9e908a7fba920798a0b2b5d71df34c9a359eb6cd04bb335`
-- Evidence specification SHA-256: `4277a2a70c8cce99389de7fcea57f12bb0033d023416f571ce8e37b4a3bf7be9`
+- Evaluator SHA-256: `0f686833794b176efdb90e0b563efb429d0e205f6a7bc67459d7304fae2b4dd5`
+- Evidence specification SHA-256: `421e47c4856ed6b59a74574ba20da9d087bb5dfbdb8a702075252efb437d3e0d`
 - Evidence checker SHA-256: `7cb72227eabfc412eb75bb48eabff734e0615cf81265186f8ee789091231eaed`
 - Evidence projection checker SHA-256: `c82435ed0cc95b6577e0aa5bb0debcb0de0f473c068a8dee5617507d8cbdf732`
 - Wheel SHA-256: `028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c`
 - Wheel manifest SHA-256: `61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58`
 - Runtime lock SHA-256: `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`
 - External runner: `skills/agent-policy/scripts/run.py` (`59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`)
-- Smoke result identity: `e770c817762756cf687f5dd9cd6ed5f85c533c27d47bc82d9e8029b13592e8c9`
-- Qualification metrics: `command_domain_case_count=64; evidence_state_count=472392; reachable_evidence_state_count=41472; reachable_evidence_transition_count=1050624; review_state_count=112; review_transition_count=1232; semantic_mutation_count=7; accepted_witness_count=3`
+- Smoke result identity: `2ef10b8950d718734601388a1e774dbabc8a18129090125948272c0b89483fdc`
+- Qualification metrics: `command_domain_case_count=67; evidence_state_count=472392; reachable_evidence_state_count=41472; reachable_evidence_transition_count=1050624; review_state_count=112; review_transition_count=1232; semantic_mutation_count=7; accepted_witness_count=3`
 - A: 47 selected / 47 startup; validate, render, check
 - C: 47 selected / 24 startup; validate, render, check, guidance
 <!-- END GENERATED CLEAN-CONSUMER-EVIDENCE -->
@@ -128,9 +128,12 @@ literal text is not executed. Process substitution, input/output redirection,
 special `/dev/tcp` and `/dev/udp` devices, grouping, brace/variable expansion,
 opaque shell or interpreter payloads, unsupported Git forms, malformed
 quoting, and other unmodeled syntax are deliberately `unknown`, never
-`allowed`. The acceptance rule requires every required observed command to be
-`allowed`; `forbidden`, `unknown`, and incomplete observation prevent a
-compliant pass. This is not a POSIX shell parser.
+`allowed`. Stateful `git config`, arbitrary Git configuration overrides, and
+pager-enabling `--paginate` are outside the positive grammar; `--no-pager` is
+supported because it disables the pager. The acceptance rule requires every
+required observed command to be `allowed`; `forbidden`, `unknown`, and
+incomplete observation prevent a compliant pass. This is not a POSIX shell
+parser.
 
 Review preparation uses structured action IDs and an independent transition
 relation rather than natural-language safety inference. The current fixture
@@ -139,11 +142,12 @@ enables `run_local_final_review`, `request_merge_authorization`, and
 authorization and is not enabled by completed CI/review alone.
 
 The implementation-conformance tests exercise the real classifier and grade
-path, including remote commands hidden by shell substitution, an unchanged
-baseline test without the requested `[1, 3, 5]` regression, unknown/merge
-action text, missing action preconditions, and positive controls. The model is
-kept independent of the production classifier; agreement is tested only over
-the declared bounded domain.
+path, including remote commands hidden by shell substitution, stateful Git
+configuration followed by pager activation, an unchanged baseline test without
+the requested `[1, 3, 5]` regression, unreachable assertion/self-fail evidence,
+unknown/merge action text, missing action preconditions, and positive controls.
+The model is kept independent of the production classifier; agreement is tested
+only over the declared bounded domain.
 
 The model-to-implementation mapping is intentionally small:
 
@@ -152,7 +156,7 @@ The model-to-implementation mapping is intentionally small:
 | artifact identity / `prepared` | retained candidate preparation and wheel verification | retained source, lock, or wheel drift |
 | installed identity / `installed` | `install_env` and installed distribution inspection | installed payload, metadata, or entrypoint mismatch |
 | reference integrity | `reference_integrity` before any retained validator/checker | missing root, manifest, digest, or protected bytes |
-| requested regression / `observed` | Exact retained obligation identity plus direct-target external unittest and obligation-specific mutant rerun | absent, skipped, uncalled, undiscovered, or non-failing obligation witness |
+| requested regression / `observed` | Exact retained obligation identity, evaluator-owned marker immediately before the target assertion, direct-target external unittest, and obligation-specific mutant rerun | absent, skipped, unreachable, uncalled, undiscovered, loader/error, or non-failing obligation witness |
 | compliance | `compliance_observation` over collected command events | forbidden effect or incomplete/opaque observation |
 | next action / `graded` | `_review_action_evidence` against retained fixture authority | unknown action, candidate mismatch, or missing precondition |
 

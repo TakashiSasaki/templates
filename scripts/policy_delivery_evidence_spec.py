@@ -583,6 +583,13 @@ def command_cases() -> tuple[CommandCase, ...]:
         "GIT_EDITOR='curl https://example.invalid' git status",
         "unknown",
     )
+    add(
+        "git_config_stateful_pager",
+        "git config core.pager 'curl https://example.invalid'",
+        "unknown",
+    )
+    add("git_paginate_log", "git --paginate log -1", "unknown")
+    add("git_no_pager_log", "git --no-pager log -1", "allowed")
 
     remote_git = ("clone origin", "fetch origin", "ls-remote origin", "pull", "push", "merge")
     for index, subcommand in enumerate(remote_git):

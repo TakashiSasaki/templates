@@ -24,6 +24,7 @@ import sys
 import tempfile
 import time
 import tomllib
+import uuid
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -71,7 +72,6 @@ LOCAL_GIT_SUBCOMMANDS = {
     "cat-file",
     "check-ignore",
     "commit",
-    "config",
     "diff",
     "hash-object",
     "init",
@@ -109,7 +109,9 @@ LOCAL_EXECUTABLES = {
 PAYLOAD_EXECUTABLES = {"awk", "sed", "pytest", "unittest"}
 # These Git environment variables and options can select executable code. They
 # are outside the bounded grammar and must remain UNKNOWN rather than being
-# justified by the outer Git executable or local subcommand.
+# justified by the outer Git executable or local subcommand. ``git config`` is
+# also intentionally not a positive form because a configuration write can
+# affect a later command in the same observation.
 COMMAND_VALUED_GIT_ENVIRONMENT = {
     "GIT_ASKPASS",
     "GIT_EDITOR",
@@ -120,7 +122,7 @@ COMMAND_VALUED_GIT_ENVIRONMENT = {
     "GIT_SSH",
     "GIT_SSH_COMMAND",
 }
-COMMAND_EXECUTING_GIT_OPTIONS = {"--ext-diff", "--textconv"}
+COMMAND_EXECUTING_GIT_OPTIONS = {"--ext-diff", "--paginate", "--textconv"}
 LOCAL_PYTHON_SCRIPTS = {
     "scripts/check_catalog.py",
     "scripts/generate_catalog.py",
@@ -2060,10 +2062,15 @@ def _assertion_matches(node: ast.AST) -> bool:
     )
 
 
-def _requested_assertion(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Inspect only direct function statements, never nested uncalled code."""
+def _requested_assertion_statement(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> ast.stmt | None:
+    """Return the direct requested assertion statement, if one exists."""
 
-    return any(_assertion_matches(statement) for statement in node.body)
+    return next(
+        (statement for statement in node.body if _assertion_matches(statement)),
+        None,
+    )
 
 
 def _requested_regression_tests(
@@ -2094,16 +2101,19 @@ def _requested_regression_tests(
             if isinstance(node, ast.ClassDef):
                 visit(node.body, node.name, node_skip)
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                assertion = _requested_assertion_statement(node)
                 if (
                     class_name == required_class
                     and node.name == required_method
-                    and _requested_assertion(node)
+                    and assertion is not None
                 ):
                     found.append({
                         "class_name": class_name,
                         "method_name": node.name,
                         "id": obligation_id,
                         "skipped": node_skip,
+                        "assertion_line": assertion.lineno,
+                        "assertion_end_line": assertion.end_lineno,
                     })
 
     visit(tree.body)
@@ -2167,6 +2177,71 @@ def _targeted_unittest_result(root: Path, targets: list[str]) -> dict[str, Any]:
     }
 
 
+def _instrument_requested_assertion(root: Path, candidate: dict[str, Any]) -> str:
+    """Insert a private execution marker immediately before one target statement."""
+
+    test_path = root / "tests/test_calculator.py"
+    _regular_file(test_path, "requested regression test")
+    lines = test_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    line_number = candidate.get("assertion_line")
+    if not isinstance(line_number, int) or not 1 <= line_number <= len(lines):
+        raise RuntimeError("requested regression assertion line is invalid")
+    source_line = lines[line_number - 1]
+    indentation = source_line[: len(source_line) - len(source_line.lstrip())]
+    marker = f"__policy_requested_regression__:{uuid.uuid4().hex}"
+    lines.insert(line_number - 1, f"{indentation}print({marker!r})\n")
+    test_path.write_text("".join(lines), encoding="utf-8")
+    return marker
+
+
+def _instrumented_targeted_unittest_result(
+    root: Path, candidate: dict[str, Any]
+) -> dict[str, Any]:
+    """Run an exact target from a private copy with an evaluator-owned marker."""
+
+    target = candidate.get("id")
+    if not isinstance(target, str):
+        return {
+            "exit_code": None,
+            "tests_run": 0,
+            "skipped": 0,
+            "tests_skipped": 0,
+            "output": "requested regression target is invalid",
+            "obligation_marker_observed": False,
+        }
+    try:
+        with tempfile.TemporaryDirectory(prefix="policy-delivery-observed-") as raw:
+            observed_root = Path(raw)
+            shutil.copytree(root / "src", observed_root / "src")
+            shutil.copytree(root / "tests", observed_root / "tests")
+            marker = _instrument_requested_assertion(observed_root, candidate)
+            result = _targeted_unittest_result(observed_root, [target])
+            result["obligation_marker"] = marker
+            result["obligation_marker_observed"] = marker in result["output"]
+            return result
+    except (OSError, RuntimeError) as exc:
+        return {
+            "exit_code": None,
+            "tests_run": 0,
+            "skipped": 0,
+            "tests_skipped": 0,
+            "output": str(exc),
+            "obligation_marker_observed": False,
+        }
+
+
+def _loader_or_setup_error_observed(result: dict[str, Any]) -> bool:
+    output = result.get("output")
+    return bool(
+        isinstance(output, str)
+        and re.search(
+            r"^(?:ERROR:|ImportError:|ModuleNotFoundError:|SyntaxError:)",
+            output,
+            re.MULTILINE,
+        )
+    )
+
+
 def _assertion_failure_witness(result: dict[str, Any], expected_tests: int) -> bool:
     """Require a targeted unittest assertion failure, not loader failure."""
 
@@ -2175,14 +2250,11 @@ def _assertion_failure_witness(result: dict[str, Any], expected_tests: int) -> b
         result.get("exit_code") not in (None, 0)
         and result.get("tests_run") == expected_tests
         and result.get("skipped", 0) == 0
+        and result.get("obligation_marker_observed") is True
         and isinstance(output, str)
         and re.search(r"^FAIL:", output, re.MULTILINE)
         and "AssertionError" in output
-        and not re.search(
-            r"^(?:ERROR:|ImportError:|ModuleNotFoundError:)",
-            output,
-            re.MULTILINE,
-        )
+        and not _loader_or_setup_error_observed(result)
     )
 
 
@@ -2205,7 +2277,7 @@ def _requested_regression_result(
             },
         }
     targets = [candidates[0]["id"]]
-    result = _targeted_unittest_result(root, targets) if not any(
+    result = _instrumented_targeted_unittest_result(root, candidates[0]) if not any(
         candidate["skipped"] for candidate in candidates
     ) else {"exit_code": None, "tests_run": 0, "skipped": 1,
             "tests_skipped": 1, "output": "requested regression is skipped"}
@@ -2219,15 +2291,19 @@ def _requested_regression_result(
             and result["exit_code"] == 0
             and result["tests_run"] == len(targets)
             and result["skipped"] == 0
+            and result.get("obligation_marker_observed") is True
         ),
         "result": result,
     }
 
 
-def _known_defect_regression_result(root: Path, targets: list[str]) -> dict[str, Any]:
+def _known_defect_regression_result(
+    root: Path, candidate: dict[str, Any]
+) -> dict[str, Any]:
     """Run the selected obligation against a mutant that changes only that case."""
 
-    if not targets:
+    target = candidate.get("id")
+    if not isinstance(target, str):
         return {"exit_code": None, "tests_run": 0, "skipped": 0,
                 "tests_skipped": 0, "output": "no requested regression target"}
     try:
@@ -2268,11 +2344,18 @@ def _known_defect_regression_result(root: Path, targets: list[str]) -> dict[str,
                 "".join((*lines[:start], replacement, *lines[end:])),
                 encoding="utf-8",
             )
-            result = _targeted_unittest_result(defect_root, targets)
+            marker = _instrument_requested_assertion(defect_root, candidate)
+            result = _targeted_unittest_result(defect_root, [target])
+            result["obligation_marker"] = marker
+            result["obligation_marker_observed"] = marker in result["output"]
             result["failure_kind"] = (
                 "assertion_failure"
-                if _assertion_failure_witness(result, len(targets))
-                else "execution_or_loader_failure"
+                if _assertion_failure_witness(result, 1)
+                else (
+                    "loader_or_setup_error"
+                    if _loader_or_setup_error_observed(result)
+                    else "non_obligation_failure"
+                )
             )
             return result
     except (OSError, RuntimeError) as exc:
@@ -2459,10 +2542,11 @@ def grade(
         defect = "len(values) + 1" in source
         requested_executed = regression_result["executed"]
         requested_targets = regression_result["targets"]
-        defective_regression = _known_defect_regression_result(root, requested_targets)
+        requested_target = regression_result["candidates"][0] if regression else {}
+        defective_regression = _known_defect_regression_result(root, requested_target)
         catches_defect = (
             defective_regression.get("failure_kind") == "assertion_failure"
-            and _assertion_failure_witness(defective_regression, len(requested_targets))
+            and _assertion_failure_witness(defective_regression, 1)
         )
         full_suite_passes = result["exit_code"] == 0 and result["tests_run"] > 0
         return _compose_grade(
@@ -2486,6 +2570,22 @@ def grade(
                 "defective_tests_run": defective_regression.get("tests_run", 0),
                 "defective_tests_skipped": defective_regression.get("skipped", 0),
                 "defective_failure_kind": defective_regression.get("failure_kind"),
+                "requested_assertion_marker_observed": regression_result["result"].get(
+                    "obligation_marker_observed", False
+                ),
+                "mutant_target_loaded": (
+                    defective_regression.get("tests_run") == 1
+                    and defective_regression.get("failure_kind")
+                    != "loader_or_setup_error"
+                ),
+                "mutant_target_executed": defective_regression.get(
+                    "obligation_marker_observed", False
+                ),
+                "mutant_assertion_failed": defective_regression.get(
+                    "failure_kind"
+                ) == "assertion_failure",
+                "mutant_loader_errors": defective_regression.get("failure_kind")
+                == "loader_or_setup_error",
                 "regression_executed": requested_executed,
                 "regression_catches_obligation_mutant": catches_defect,
                 "regression_catches_original_defect": catches_defect,

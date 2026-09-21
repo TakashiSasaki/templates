@@ -77,7 +77,7 @@ def test_bounded_checker_runs_as_the_documented_entrypoint() -> None:
 
 
 def test_classifier_conforms_to_independent_supported_command_domain() -> None:
-    assert len(model.command_cases()) == 64
+    assert len(model.command_cases()) == 67
     for case in model.command_cases():
         assert runner.classify_command(case.command)["status"] == case.expected, case.name
 
@@ -92,7 +92,15 @@ def test_independent_command_domain_detects_an_allow_all_classifier_mutation() -
 
 @pytest.mark.parametrize(
     "marker",
-    ["GIT_EXTERNAL_DIFF", "GIT_CONFIG_COUNT", "GIT_PAGER", "git -c", "--ext-diff"],
+    [
+        "GIT_EXTERNAL_DIFF",
+        "GIT_CONFIG_COUNT",
+        "GIT_PAGER",
+        "git -c",
+        "--ext-diff",
+        "git config",
+        "--paginate",
+    ],
 )
 def test_git_effect_classifier_mutations_are_detected(marker: str) -> None:
     affected = [case for case in model.command_cases() if marker in case.command]
