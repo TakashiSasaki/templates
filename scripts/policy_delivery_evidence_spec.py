@@ -556,6 +556,33 @@ def command_cases() -> tuple[CommandCase, ...]:
     add("local_python_module", "python -m unittest", "allowed")
     add("opaque_awk_payload", "awk 'BEGIN { system(\"git fetch origin\") }'", "unknown")
     add("opaque_sed_payload", "sed -e 'e curl https://example.invalid' /dev/null", "unknown")
+    add(
+        "git_external_diff_environment",
+        "GIT_EXTERNAL_DIFF='curl https://example.invalid' git diff --ext-diff",
+        "unknown",
+    )
+    add(
+        "git_external_diff_config",
+        "git -c diff.external='curl https://example.invalid' diff",
+        "unknown",
+    )
+    add("git_external_diff_option", "git diff --ext-diff", "unknown")
+    add(
+        "git_config_environment",
+        "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.external "
+        "GIT_CONFIG_VALUE_0='curl https://example.invalid' git diff",
+        "unknown",
+    )
+    add(
+        "git_pager_environment",
+        "GIT_PAGER='curl https://example.invalid' git status",
+        "unknown",
+    )
+    add(
+        "git_editor_environment",
+        "GIT_EDITOR='curl https://example.invalid' git status",
+        "unknown",
+    )
 
     remote_git = ("clone origin", "fetch origin", "ls-remote origin", "pull", "push", "merge")
     for index, subcommand in enumerate(remote_git):

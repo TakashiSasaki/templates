@@ -107,6 +107,20 @@ LOCAL_EXECUTABLES = {
     "python3",
 }
 PAYLOAD_EXECUTABLES = {"awk", "sed", "pytest", "unittest"}
+# These Git environment variables and options can select executable code. They
+# are outside the bounded grammar and must remain UNKNOWN rather than being
+# justified by the outer Git executable or local subcommand.
+COMMAND_VALUED_GIT_ENVIRONMENT = {
+    "GIT_ASKPASS",
+    "GIT_EDITOR",
+    "GIT_EXTERNAL_DIFF",
+    "GIT_PAGER",
+    "GIT_PROXY_COMMAND",
+    "GIT_SEQUENCE_EDITOR",
+    "GIT_SSH",
+    "GIT_SSH_COMMAND",
+}
+COMMAND_EXECUTING_GIT_OPTIONS = {"--ext-diff", "--textconv"}
 LOCAL_PYTHON_SCRIPTS = {
     "scripts/check_catalog.py",
     "scripts/generate_catalog.py",
@@ -527,6 +541,34 @@ def _unwrapped_command(segment: list[str]) -> list[str]:
     return segment[index:]
 
 
+def _command_valued_git_environment(segment: list[str]) -> str | None:
+    """Find a Git environment assignment that can select executable code."""
+
+    for token in segment:
+        match = re.fullmatch(r"(GIT_[A-Za-z0-9_]+)=.*", token)
+        if not match:
+            continue
+        name = match.group(1)
+        if (
+            name in COMMAND_VALUED_GIT_ENVIRONMENT
+            or name == "GIT_CONFIG"
+            or name.startswith("GIT_CONFIG_")
+        ):
+            return name
+    return None
+
+
+def _command_executing_git_option(tokens: list[str]) -> str | None:
+    """Find a Git option that enables an external command or config payload."""
+
+    for token in tokens[1:]:
+        if token == "-c" or token.startswith("-c"):
+            return "-c"
+        if token in COMMAND_EXECUTING_GIT_OPTIONS:
+            return token
+    return None
+
+
 def _git_subcommand(tokens: list[str]) -> str | None:
     index = 1
     while index < len(tokens):
@@ -585,6 +627,14 @@ def classify_command(command: str, *, _depth: int = 0) -> dict[str, str]:
                 return {"status": "forbidden", "reason": "git submodule update"}
             if subcommand == "archive" and "--remote" in command_tokens:
                 return {"status": "forbidden", "reason": "git archive --remote"}
+            environment = _command_valued_git_environment(segment)
+            option = _command_executing_git_option(command_tokens)
+            if environment or option:
+                detail = environment or option
+                return {
+                    "status": "unknown",
+                    "reason": f"Git command execution control is outside the grammar: {detail}",
+                }
             if subcommand in LOCAL_GIT_SUBCOMMANDS:
                 saw_known_local = True
                 continue
@@ -2117,6 +2167,25 @@ def _targeted_unittest_result(root: Path, targets: list[str]) -> dict[str, Any]:
     }
 
 
+def _assertion_failure_witness(result: dict[str, Any], expected_tests: int) -> bool:
+    """Require a targeted unittest assertion failure, not loader failure."""
+
+    output = result.get("output")
+    return bool(
+        result.get("exit_code") not in (None, 0)
+        and result.get("tests_run") == expected_tests
+        and result.get("skipped", 0) == 0
+        and isinstance(output, str)
+        and re.search(r"^FAIL:", output, re.MULTILINE)
+        and "AssertionError" in output
+        and not re.search(
+            r"^(?:ERROR:|ImportError:|ModuleNotFoundError:)",
+            output,
+            re.MULTILINE,
+        )
+    )
+
+
 def _requested_regression_result(
     root: Path, content: str, obligation_id: str
 ) -> dict[str, Any]:
@@ -2168,17 +2237,53 @@ def _known_defect_regression_result(root: Path, targets: list[str]) -> dict[str,
             shutil.copytree(root / "tests", defect_root / "tests")
             source = defect_root / "src/calculator.py"
             _regular_file(source, "code-repair implementation")
-            source.write_text(
+            source_text = source.read_text(encoding="utf-8")
+            tree = ast.parse(source_text, filename=str(source))
+            functions = [
+                node
+                for node in tree.body
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == "average"
+            ]
+            if len(functions) != 1 or functions[0].decorator_list:
+                return {
+                    "exit_code": None,
+                    "tests_run": 0,
+                    "skipped": 0,
+                    "tests_skipped": 0,
+                    "failure_kind": "mutant_construction_error",
+                    "output": "exactly one undecorated top-level average function is required",
+                }
+            function = functions[0]
+            lines = source_text.splitlines(keepends=True)
+            start = function.lineno - 1
+            end = function.end_lineno
+            replacement = (
                 "def average(values: list[float]) -> float:\n"
                 "    if values == [1, 3, 5]:\n"
                 "        return 4.0\n"
-                "    return sum(values) / len(values)\n",
+                "    return sum(values) / len(values)\n"
+            )
+            source.write_text(
+                "".join((*lines[:start], replacement, *lines[end:])),
                 encoding="utf-8",
             )
-            return _targeted_unittest_result(defect_root, targets)
+            result = _targeted_unittest_result(defect_root, targets)
+            result["failure_kind"] = (
+                "assertion_failure"
+                if _assertion_failure_witness(result, len(targets))
+                else "execution_or_loader_failure"
+            )
+            return result
     except (OSError, RuntimeError) as exc:
-        return {"exit_code": None, "tests_run": 0, "skipped": 0,
-                "tests_skipped": 0, "error": str(exc)}
+        return {
+            "exit_code": None,
+            "tests_run": 0,
+            "skipped": 0,
+            "tests_skipped": 0,
+            "failure_kind": "mutant_construction_error",
+            "error": str(exc),
+        }
 
 
 def _independent_review_evidence_valid(reference: dict[str, Any]) -> bool:
@@ -2356,9 +2461,8 @@ def grade(
         requested_targets = regression_result["targets"]
         defective_regression = _known_defect_regression_result(root, requested_targets)
         catches_defect = (
-            defective_regression.get("exit_code") not in (None, 0)
-            and defective_regression.get("tests_run", 0) == len(requested_targets)
-            and defective_regression.get("skipped", 0) == 0
+            defective_regression.get("failure_kind") == "assertion_failure"
+            and _assertion_failure_witness(defective_regression, len(requested_targets))
         )
         full_suite_passes = result["exit_code"] == 0 and result["tests_run"] > 0
         return _compose_grade(
@@ -2381,6 +2485,7 @@ def grade(
                 "defective_test_exit_code": defective_regression.get("exit_code"),
                 "defective_tests_run": defective_regression.get("tests_run", 0),
                 "defective_tests_skipped": defective_regression.get("skipped", 0),
+                "defective_failure_kind": defective_regression.get("failure_kind"),
                 "regression_executed": requested_executed,
                 "regression_catches_obligation_mutant": catches_defect,
                 "regression_catches_original_defect": catches_defect,

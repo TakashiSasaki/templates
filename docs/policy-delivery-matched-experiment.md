@@ -79,16 +79,16 @@ manifest. The following block is generated and checked by
 - Candidate #998 revision: `04c8c69404eb728b18e6b10496a6d6508c6aa276`
 - Provider tree: `dca9a1c1bf21fd0136b75806699e4b1d450c4082`
 - Evaluator source: `scripts/run_matched_policy_delivery_experiment.py`
-- Evaluator SHA-256: `775310b53f2c8e4108f384578a3d92983b46d60a16738f760b30ae4a1736343e`
-- Evidence specification SHA-256: `96e4c35e6a6f940b3b66c33172d6865dd23e2f8f1c39e470882a78472542e30c`
+- Evaluator SHA-256: `1985c5397a509904a9e908a7fba920798a0b2b5d71df34c9a359eb6cd04bb335`
+- Evidence specification SHA-256: `4277a2a70c8cce99389de7fcea57f12bb0033d023416f571ce8e37b4a3bf7be9`
 - Evidence checker SHA-256: `7cb72227eabfc412eb75bb48eabff734e0615cf81265186f8ee789091231eaed`
 - Evidence projection checker SHA-256: `c82435ed0cc95b6577e0aa5bb0debcb0de0f473c068a8dee5617507d8cbdf732`
 - Wheel SHA-256: `028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c`
 - Wheel manifest SHA-256: `61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58`
 - Runtime lock SHA-256: `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`
 - External runner: `skills/agent-policy/scripts/run.py` (`59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`)
-- Smoke result identity: `240e7146319c305a3bc17dc2035b68761666acdb9b67cef923de9d60a02cef48`
-- Qualification metrics: `command_domain_case_count=58; evidence_state_count=472392; reachable_evidence_state_count=41472; reachable_evidence_transition_count=1050624; review_state_count=112; review_transition_count=1232; semantic_mutation_count=7; accepted_witness_count=3`
+- Smoke result identity: `e770c817762756cf687f5dd9cd6ed5f85c533c27d47bc82d9e8029b13592e8c9`
+- Qualification metrics: `command_domain_case_count=64; evidence_state_count=472392; reachable_evidence_state_count=41472; reachable_evidence_transition_count=1050624; review_state_count=112; review_transition_count=1232; semantic_mutation_count=7; accepted_witness_count=3`
 - A: 47 selected / 47 startup; validate, render, check
 - C: 47 selected / 24 startup; validate, render, check, guidance
 <!-- END GENERATED CLEAN-CONSUMER-EVIDENCE -->
@@ -266,8 +266,9 @@ its runtime-cache selection. The external runner bytes were SHA-256
 `59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`.
 Both conditions also passed `validate`, `render`, and `check` from a nested
 consumer directory using the installed package; C also completed nested
-guidance retrieval. This smoke was rerun after the retained-artifact and
-independent-grading repair; the complete redacted condition manifest is in
+guidance retrieval. The retained exact wheel and installed A/C consumers were
+rerun after the current evaluator/spec/checker identity update; the complete
+redacted condition manifest is in
 [`policy-delivery-clean-consumer-smoke-final.json`](policy-delivery-clean-consumer-smoke-final.json).
 This is distribution-boundary evidence only; it is not one of the six fresh
 agent trials and does not establish a performance result.
