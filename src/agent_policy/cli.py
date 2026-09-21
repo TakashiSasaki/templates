@@ -39,6 +39,7 @@ def parser() -> argparse.ArgumentParser:
         item.add_argument("--config", default=".agent-policy.yml")
 
     guidance = sub.add_parser("guidance", help=argparse.SUPPRESS)
+    guidance.add_argument("--config", default=".agent-policy.yml")
     guidance.add_argument("--script", required=True)
     guidance.add_argument("--bundle")
     guidance.add_argument("--operation")
@@ -179,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "guidance":
         return guidance_command.run(
             repository_root,
+            config_path=args.config,
             script=args.script,
             bundle=args.bundle,
             operation=args.operation,

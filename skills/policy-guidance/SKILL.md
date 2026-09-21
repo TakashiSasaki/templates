@@ -24,16 +24,19 @@ reinterpret severity, decide applicability, or authorize a mutation.
 Run it before the dependent operation:
 
 ```bash
-python "$(git -C . rev-parse --show-toplevel)/.agents/skills/agent-policy/scripts/run.py" \
+python "${AGENT_POLICY_SKILL_ROOT:?Set AGENT_POLICY_SKILL_ROOT to the installed agent-policy Skill root}/scripts/run.py" \
   --repository "$(git -C . rev-parse --show-toplevel)" guidance \
+  --config {{ config_path_shell }} \
   --script .agents/skills/policy-guidance/scripts/policy_guidance.py \
   --bundle={{ policy_delivery_bundle_path_shell }} --operation <operation>
 ```
 
-The pinned agent-policy runtime launches the retrieval script. The script locates the nearest repository ancestor containing the generated
-`.agent-policy.lock` from its installed path, so this command also works from a
-nested repository directory and does not assume a default configuration
-filename. Use `--root <repository>` when an explicit root is required.
+Set `AGENT_POLICY_SKILL_ROOT` to the actual installed `agent-policy` Skill
+directory before running this command. The installed Skill validates the
+generated guidance script and launches the pinned runtime; it does not execute
+a repository-local runner. The command also works from a nested repository
+directory and does not assume a default configuration filename. Use
+`--root <repository>` when an explicit root is required.
 
 Use `--rule-id <id>` for one exact rule or `--all` when the operation route is
 missing or ambiguous. A validation error is a blocking condition for the

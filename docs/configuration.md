@@ -87,6 +87,11 @@ the exact applicable rule text. Missing, stale, corrupt, or unmapped detail is
 a blocking condition for that dependent operation. Existing configurations
 continue to use `agents-md` unless this output is explicitly enabled.
 
+Set `AGENT_POLICY_SKILL_ROOT` to the actual installed `agent-policy` Skill
+directory before using the generated command. The command invokes that
+external Skill's `scripts/run.py`, which selects the repository-pinned runtime;
+it does not assume that a repository-local runner has been generated.
+
 The retrieval script revalidates the current configuration, selected context,
 repository-policy inputs, installed toolchain sources, and presentation map at
 the point of retrieval. The bundle and lock therefore bind a snapshot rather

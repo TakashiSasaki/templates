@@ -81,6 +81,37 @@ def _run_guidance(root: Path, *arguments: str) -> subprocess.CompletedProcess[st
     )
 
 
+def _run_pinned_guidance(
+    root: Path,
+    *arguments: str,
+    config: str = ".agent-policy.yml",
+) -> subprocess.CompletedProcess[str]:
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+    return subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from agent_policy.cli import main; raise SystemExit(main())",
+            "--repository",
+            str(root),
+            "guidance",
+            "--config",
+            config,
+            "--script",
+            ".agents/skills/policy-guidance/scripts/policy_guidance.py",
+            *arguments,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
 def _rewrite_bundle_and_lock(root: Path, mutate) -> None:
     bundle_path = root / ".agent-policy/preview/policy-details.json"
     bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
@@ -185,6 +216,56 @@ def test_staged_guidance_rejects_bundle_digest_drift(tmp_path: Path) -> None:
 
     assert result.returncode == 2
     assert "does not match .agent-policy.lock" in result.stderr
+
+
+def test_pinned_guidance_rejects_tampered_script_before_execution(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    script = tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    script.write_text("print('FORGED GUIDANCE')\n", encoding="utf-8")
+
+    result = _run_pinned_guidance(tmp_path, "--rule-id", GUIDANCE)
+
+    assert result.returncode == 2
+    assert "generated-output lock" in result.stderr
+    assert "FORGED GUIDANCE" not in result.stdout
+
+
+def test_pinned_guidance_binds_bundle_to_enabled_staged_output(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    bundle_a = tmp_path / ".agent-policy/preview/policy-details.json"
+    original = bundle_a.read_bytes()
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "detail_bundle: .agent-policy/preview/policy-details.json",
+            "detail_bundle: .agent-policy/preview/policy-details-b.json",
+        ),
+        encoding="utf-8",
+    )
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    bundle_a.write_bytes(original)
+    lock_path = tmp_path / ".agent-policy.lock"
+    lock = load_yaml(lock_path)
+    lock["outputs"][bundle_a.relative_to(tmp_path).as_posix()] = {
+        "sha256": hashlib.sha256(original).hexdigest()
+    }
+    lock_path.write_text(dump_yaml(lock), encoding="utf-8")
+
+    result = _run_pinned_guidance(
+        tmp_path,
+        "--bundle=.agent-policy/preview/policy-details.json",
+        "--rule-id",
+        GUIDANCE,
+    )
+
+    assert result.returncode == 2
+    assert "enabled staged output" in result.stderr
 
 
 def test_staged_render_is_deterministic_and_check_detects_input_drift(
@@ -407,8 +488,12 @@ def test_generated_guidance_commands_quote_bundle_paths(
     quoted = shlex.quote(bundle_path)
     assert f"--bundle={quoted} --operation" in startup
     assert f"--bundle={quoted} --operation" in skill
-    assert ".agents/skills/agent-policy/scripts/run.py" in startup
-    assert ".agents/skills/agent-policy/scripts/run.py" in skill
+    assert "AGENT_POLICY_SKILL_ROOT" in startup
+    assert "AGENT_POLICY_SKILL_ROOT" in skill
+    assert ".agents/skills/agent-policy/scripts/run.py" not in startup
+    assert ".agents/skills/agent-policy/scripts/run.py" not in skill
+    assert "--config .agent-policy.yml" in startup
+    assert "--config .agent-policy.yml" in skill
 
     environment = dict(os.environ)
     source_root = str(Path(__file__).parents[1] / "src")
@@ -432,7 +517,8 @@ def test_generated_guidance_commands_quote_bundle_paths(
     assert result.returncode == 0
 
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    runtime_runner = tmp_path / ".agents/skills/agent-policy/scripts/run.py"
+    runtime_root = tmp_path.parent / f"{tmp_path.name}-installed-agent-policy"
+    runtime_runner = runtime_root / "scripts/run.py"
     runtime_runner.parent.mkdir(parents=True, exist_ok=True)
     runtime_runner.write_text(
         "from agent_policy.cli import main\n"
@@ -457,7 +543,7 @@ def test_generated_guidance_commands_quote_bundle_paths(
         check=False,
         capture_output=True,
         text=True,
-        env=environment,
+        env={**environment, "AGENT_POLICY_SKILL_ROOT": str(runtime_root)},
     )
     assert nested_result.returncode == 0
 

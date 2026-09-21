@@ -236,6 +236,7 @@ def render_staged_agents(
     template = environment().get_template("AGENTS-staged.md.j2")
     startup = template.render(
         config=config,
+        config_path_shell=shlex.quote(config.relative_path),
         context_name=context_name,
         project_policy_files=project_policy_files,
         bundle_path=bundle_path,
