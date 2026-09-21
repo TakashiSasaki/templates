@@ -417,13 +417,15 @@ def test_render_rolls_back_owned_outputs_after_late_ownership_conflict(
     calls = 0
     original_write = render._write_atomic
 
-    def replace_bundle_before_second_write(path: Path, content: str) -> None:
+    def replace_bundle_before_second_write(
+        path: Path, content: str, **kwargs: object
+    ) -> None:
         nonlocal calls
         calls += 1
         if calls == 1:
             bundle_path.parent.mkdir(parents=True, exist_ok=True)
             bundle_path.write_text(authored, encoding="utf-8")
-        original_write(path, content)
+        original_write(path, content, **kwargs)
 
     monkeypatch.setattr(render, "_write_atomic", replace_bundle_before_second_write)
 
@@ -435,6 +437,96 @@ def test_render_rolls_back_owned_outputs_after_late_ownership_conflict(
     assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
     assert bundle_path.read_text(encoding="utf-8") == authored
     assert not (tmp_path / ".agent-policy.lock").exists()
+
+
+def test_render_rejects_replacement_after_last_ownership_check(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    startup_path = tmp_path / ".agent-policy/preview/AGENTS.md"
+    startup_before = startup_path.read_text(encoding="utf-8")
+    lock_path = tmp_path / ".agent-policy.lock"
+    lock_before = lock_path.read_text(encoding="utf-8")
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    authored = '{"user_data":"KEEP"}\n'
+    validations = 0
+    original_validate = render._validate_generated_write
+
+    def replace_after_bundle_validation(
+        path: Path, content: str, *, json_output: bool = False
+    ) -> None:
+        nonlocal validations
+        original_validate(path, content, json_output=json_output)
+        if path == bundle_path:
+            validations += 1
+            if validations == 2:
+                bundle_path.write_text(authored, encoding="utf-8")
+
+    monkeypatch.setattr(
+        render, "_validate_generated_write", replace_after_bundle_validation
+    )
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "changed during render" in diagnostics[0].message
+    assert startup_path.read_text(encoding="utf-8") == startup_before
+    assert bundle_path.read_text(encoding="utf-8") == authored
+    assert lock_path.read_text(encoding="utf-8") == lock_before
+
+
+def test_render_revalidates_obsolete_output_before_unlink(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    old_startup = tmp_path / ".agent-policy/preview/AGENTS.md"
+    old_bundle = tmp_path / ".agent-policy/preview/policy-details.json"
+    old_startup_content = old_startup.read_text(encoding="utf-8")
+
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8")
+        .replace(
+            ".agent-policy/preview/AGENTS.md",
+            ".agent-policy/preview/new-AGENTS.md",
+        )
+        .replace(
+            ".agent-policy/preview/policy-details.json",
+            ".agent-policy/preview/new-policy-details.json",
+        ),
+        encoding="utf-8",
+    )
+    authored = '{"user_data":"KEEP"}\n'
+    original_write = render._write_atomic
+    injected = False
+
+    def replace_obsolete_before_unlink(
+        path: Path, content: str, **kwargs: object
+    ) -> None:
+        nonlocal injected
+        if not injected:
+            old_bundle.write_text(authored, encoding="utf-8")
+            injected = True
+        original_write(path, content, **kwargs)
+
+    monkeypatch.setattr(
+        render, "_write_atomic", replace_obsolete_before_unlink
+    )
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "changed obsolete generated output" in diagnostics[0].message
+    assert old_startup.read_text(encoding="utf-8") == old_startup_content
+    assert old_bundle.read_text(encoding="utf-8") == authored
+    assert not (tmp_path / ".agent-policy/preview/new-AGENTS.md").exists()
+    assert not (tmp_path / ".agent-policy/preview/new-policy-details.json").exists()
 
 
 def test_pinned_guidance_rejects_runtime_lock_revision_drift(

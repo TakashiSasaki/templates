@@ -27,14 +27,34 @@ from ..renderer import (
     render_skill,
 )
 
+_NO_EXPECTED_CONTENT = object()
 
-def _write_atomic(path: Path, content: str) -> None:
+
+def _write_atomic(
+    path: Path,
+    content: str,
+    *,
+    expected_existing: str | None | object = _NO_EXPECTED_CONTENT,
+) -> None:
+    if expected_existing is not _NO_EXPECTED_CONTENT:
+        current = path.read_text(encoding="utf-8") if path.exists() else None
+        if current != expected_existing:
+            raise FileExistsError(
+                f"Refusing to replace file changed during render: {path}"
+            )
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
         "w", encoding="utf-8", dir=path.parent, delete=False
     ) as handle:
         handle.write(content)
         temporary = Path(handle.name)
+    if expected_existing is not _NO_EXPECTED_CONTENT:
+        current = path.read_text(encoding="utf-8") if path.exists() else None
+        if current != expected_existing:
+            temporary.unlink(missing_ok=True)
+            raise FileExistsError(
+                f"Refusing to replace file changed during render: {path}"
+            )
     os.replace(temporary, path)
 
 
@@ -62,18 +82,36 @@ def _validate_generated_write(
 
 def _safe_generated_write(
     path: Path, content: str, *, json_output: bool = False
-) -> None:
+) -> str | None:
+    previous = path.read_text(encoding="utf-8") if path.exists() else None
     _validate_generated_write(path, content, json_output=json_output)
-    _write_atomic(path, content)
+    _write_atomic(path, content, expected_existing=previous)
+    return previous
+
+
+def _safe_generated_remove(path: Path, expected: str, *, json_output: bool) -> None:
+    current = path.read_text(encoding="utf-8")
+    if current != expected:
+        raise FileExistsError(
+            f"Refusing to remove changed obsolete generated output: {path}"
+        )
+    if not _is_generated_content(current, json_output=json_output):
+        raise FileExistsError(
+            f"Refusing to remove non-generated obsolete output: {path}"
+        )
+    path.unlink()
 
 
 def _restore_owned_file(path: Path, previous: str | None, written: str) -> None:
     if not path.exists() or path.read_text(encoding="utf-8") != written:
         return
-    if previous is None:
-        path.unlink()
-    else:
-        _write_atomic(path, previous)
+    try:
+        if previous is None:
+            _safe_generated_remove(path, written, json_output=False)
+        else:
+            _write_atomic(path, previous, expected_existing=written)
+    except (FileExistsError, FileNotFoundError):
+        return
 
 
 def _paths_overlap(left: Path, right: Path) -> bool:
@@ -143,7 +181,7 @@ def _obsolete_generated_outputs(
 
     planned_targets = {target for target, _content in planned.values()}
     locked_targets: dict[Path, str] = {}
-    obsolete: list[Path] = []
+    obsolete: list[tuple[Path, str, bool]] = []
     for relative, locked_digest in load_lock_outputs(lock_path).items():
         if relative in planned:
             continue
@@ -178,17 +216,23 @@ def _obsolete_generated_outputs(
             raise FileExistsError(
                 f"Refusing to remove non-generated obsolete output: {relative}"
             )
-        obsolete.append(target)
+        obsolete.append(
+            (
+                target,
+                target.read_text(encoding="utf-8"),
+                relative in json_outputs,
+            )
+        )
     return obsolete
 
 
 def _reject_obsolete_output_overlaps(
     repository_root: Path,
-    obsolete: list[Path],
+    obsolete: list[tuple[Path, str, bool]],
     planned: dict[str, tuple[Path, str]],
 ) -> None:
     root = repository_root.resolve()
-    for obsolete_target in obsolete:
+    for obsolete_target, _content, _json_output in obsolete:
         obsolete_relative = obsolete_target.relative_to(root).as_posix()
         for planned_relative, (planned_target, _content) in planned.items():
             if obsolete_target in planned_target.parents:
@@ -319,19 +363,17 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
         try:
             outputs: dict[str, Path] = {}
             for relative, (target, content) in planned.items():
-                previous = (
-                    target.read_text(encoding="utf-8") if target.exists() else None
-                )
-                _safe_generated_write(
+                previous = _safe_generated_write(
                     target,
                     content,
                     json_output=relative in staged_bundle_paths,
                 )
                 written.append((target, previous, content))
                 outputs[relative] = target
-            for target in obsolete:
-                previous = target.read_text(encoding="utf-8")
-                target.unlink()
+            for target, previous, json_output in obsolete:
+                _safe_generated_remove(
+                    target, previous, json_output=json_output
+                )
                 removed.append((target, previous))
 
             toolchain = config.data["toolchain"]
@@ -347,7 +389,11 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 if lock_path.exists()
                 else None
             )
-            _write_atomic(lock_path, lock_content)
+            _write_atomic(
+                lock_path,
+                lock_content,
+                expected_existing=previous_lock,
+            )
             written.append((lock_path, previous_lock, lock_content))
         except Exception:
             for path, previous in reversed(removed):
