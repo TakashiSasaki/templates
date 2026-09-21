@@ -47,3 +47,20 @@ the output mutations and lock replacement were all completed while their
 validated bindings remained owned by the invocation. Retained operation-private
 state or an unprovable rollback is reported as an authority-needed failure,
 not as successful synchronization.
+
+## Transaction finalization
+
+The transaction exposes an explicit lifecycle: preparation and mutation are
+followed by `PUBLIC_STATE_INSTALLED`, `COMMITTED`, post-commit private cleanup,
+and `COMPLETE`. The logical commit point is the successful binding check after
+all public output, obsolete-output, and lock mutations have been installed.
+Every backup and rollback record remains available until that point.
+
+After commit, private backup removal is cleanup rather than a reason to run
+ordinary rollback. If cleanup fails, or if the final public binding check
+detects a concurrent output, lock, or containment change, the operation reports
+post-commit incomplete/retained state and leaves the public state untouched.
+The final binding check is the last internal operation before success; no
+cleanup step that could invalidate the result follows it. Pre-commit failures
+remain eligible for rollback, and rollback failures are reported separately as
+incomplete rather than being presented as a successful render.
