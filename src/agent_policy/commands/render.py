@@ -38,25 +38,26 @@ def _write_atomic(path: Path, content: str) -> None:
     os.replace(temporary, path)
 
 
-def _is_generated_content(content: str) -> bool:
+def _is_generated_content(content: str, *, json_output: bool = False) -> bool:
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
-        # A staged detail bundle is JSON.  Do not let malformed JSON that
+        # A staged detail bundle is JSON. Do not let malformed JSON that
         # merely contains the textual marker take the destructive fallback;
-        # otherwise an authored, JSON-shaped file could be overwritten.
-        if content.lstrip().startswith(("{", "[")):
+        # otherwise an authored file could be overwritten.
+        if json_output:
             return False
         return GENERATED_MARKER in content
     return isinstance(parsed, dict) and parsed.get("agent-policy-generated") is True
 
 
-def _safe_generated_write(path: Path, content: str) -> None:
+def _validate_generated_write(
+    path: Path, content: str, *, json_output: bool = False
+) -> None:
     if path.exists():
         existing = path.read_text(encoding="utf-8")
-        if not _is_generated_content(existing):
+        if not _is_generated_content(existing, json_output=json_output):
             raise FileExistsError(f"Refusing to overwrite non-generated file: {path}")
-    _write_atomic(path, content)
 
 
 def _paths_overlap(left: Path, right: Path) -> bool:
@@ -118,6 +119,7 @@ def _obsolete_generated_outputs(
     repository_root: Path,
     planned: dict[str, tuple[Path, str]],
     protected_inputs: set[Path],
+    json_outputs: set[str],
 ) -> list[Path]:
     lock_path = resolve_lock_path(repository_root, allow_missing=True)
     if not lock_path.exists():
@@ -153,7 +155,10 @@ def _obsolete_generated_outputs(
             raise ValueError(
                 f"Refusing to remove modified obsolete generated output: {relative}"
             )
-        if not _is_generated_content(target.read_text(encoding="utf-8")):
+        if not _is_generated_content(
+            target.read_text(encoding="utf-8"),
+            json_output=relative in json_outputs,
+        ):
             raise FileExistsError(
                 f"Refusing to remove non-generated obsolete output: {relative}"
             )
@@ -283,12 +288,19 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
             repository_root,
             planned,
             protected_inputs,
+            set(staged_bundle_paths),
         )
         _reject_obsolete_output_overlaps(repository_root, obsolete, planned)
 
+        for relative, (target, content) in planned.items():
+            _validate_generated_write(
+                target,
+                content,
+                json_output=relative in staged_bundle_paths,
+            )
         outputs: dict[str, Path] = {}
         for relative, (target, content) in planned.items():
-            _safe_generated_write(target, content)
+            _write_atomic(target, content)
             outputs[relative] = target
         for target in obsolete:
             target.unlink()

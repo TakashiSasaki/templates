@@ -212,6 +212,7 @@ def test_render_rejects_nested_json_generated_marker_before_overwrite(
     assert diagnostics[0].code == "RENDER"
     assert "non-generated file" in diagnostics[0].message
     assert bundle_path.read_text(encoding="utf-8") == original
+    assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
 
 
 def test_render_rejects_malformed_json_marker_before_overwrite(
@@ -229,6 +230,33 @@ def test_render_rejects_malformed_json_marker_before_overwrite(
     assert diagnostics[0].code == "RENDER"
     assert "non-generated file" in diagnostics[0].message
     assert bundle_path.read_text(encoding="utf-8") == original
+    assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
+
+
+@pytest.mark.parametrize(
+    "original",
+    [
+        '\ufeff{"user_data":"agent-policy-generated: true"}\n',
+        '/* authored */ {"user_data":"agent-policy-generated: true"}\n',
+    ],
+    ids=["bom", "comment"],
+)
+def test_render_rejects_parse_failed_json_bundle_before_overwrite(
+    tmp_path: Path,
+    original: str,
+) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    bundle_path.parent.mkdir(parents=True, exist_ok=True)
+    bundle_path.write_text(original, encoding="utf-8")
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "non-generated file" in diagnostics[0].message
+    assert bundle_path.read_text(encoding="utf-8") == original
+    assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
 
 
 def test_staged_delivery_rejects_missing_guidance_skill(tmp_path: Path) -> None:
