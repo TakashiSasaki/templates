@@ -7,6 +7,8 @@ import subprocess
 import zipfile
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parents[1]
 SPEC = importlib.util.spec_from_file_location(
     "matched_policy_delivery_experiment",
@@ -35,6 +37,14 @@ def _candidate_repository(root: Path, *, marker: str = "candidate") -> tuple[Pat
     (provider / "requirements-runtime.lock").write_text(
         "Jinja2===3.1.6\n", encoding="utf-8"
     )
+    (provider / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'candidate'\n"
+        "version = '0.0'\n"
+        "[project.scripts]\n"
+        "candidate = 'agent_policy:main'\n",
+        encoding="utf-8",
+    )
     subprocess.run(["git", "init", "-q"], cwd=provider, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@example.invalid"],
@@ -53,18 +63,50 @@ def _candidate_repository(root: Path, *, marker: str = "candidate") -> tuple[Pat
 def _candidate_wheel(path: Path, provider: Path) -> Path:
     wheel = path / f"{provider.name}.whl"
     manifest = runner.candidate_package_manifest(provider)
+    metadata = runner.candidate_project_metadata(provider)
+    dist_info = metadata["dist_info"]
+    members: dict[str, bytes] = {}
+    for name in manifest:
+        if name.startswith("agent_policy/_data/"):
+            source = provider / name.removeprefix("agent_policy/_data/")
+        else:
+            source = provider / "src" / name
+        members[name] = source.read_bytes()
+    members[f"{dist_info}/METADATA"] = (
+        b"Metadata-Version: 2.1\nName: candidate\nVersion: 0.0\n"
+    )
+    members[f"{dist_info}/WHEEL"] = (
+        b"Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n"
+    )
+    members[f"{dist_info}/entry_points.txt"] = (
+        b"[console_scripts]\ncandidate = agent_policy:main\n"
+    )
+    record_lines = []
+    for name, content in sorted(members.items()):
+        record_lines.append(f"{name},sha256={runner._record_digest(content)},{len(content)}")
+    record_name = f"{dist_info}/RECORD"
+    members[record_name] = ("\n".join(record_lines) + f"\n{record_name},,\n").encode()
     with zipfile.ZipFile(wheel, "w") as archive:
-        for name in manifest:
-            if name.startswith("agent_policy/_data/"):
-                source = provider / name.removeprefix("agent_policy/_data/")
-            else:
-                source = provider / "src" / name
-            archive.writestr(name, source.read_bytes())
-        archive.writestr(
-            "candidate-0.0.dist-info/METADATA",
-            "Metadata-Version: 2.1\nName: candidate\nVersion: 0.0\n",
-        )
+        for name, content in members.items():
+            archive.writestr(name, content)
     return wheel
+
+
+def _rewrite_wheel_member(wheel: Path, name: str, content: bytes) -> None:
+    with zipfile.ZipFile(wheel) as archive:
+        members = {member: archive.read(member) for member in archive.namelist()}
+    record = next(member for member in members if member.endswith(".dist-info/RECORD"))
+    members[name] = content
+    members.pop(record)
+    rows = [
+        f"{member},sha256={runner._record_digest(value)},{len(value)}"
+        for member, value in sorted(members.items())
+    ]
+    members[record] = ("\n".join(rows) + f"\n{record},,\n").encode()
+    wheel.unlink()
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for member, value in members.items():
+            archive.writestr(member, value)
 
 
 def test_skill_provenance_uses_candidate_provider_root(tmp_path: Path) -> None:
@@ -133,7 +175,11 @@ def test_wheel_and_runtime_lock_are_bound_to_provider_candidate(tmp_path: Path) 
         wheel, provider, provider / "requirements-runtime.lock", binding
     )
     assert valid["candidate_revision"] == head
-    assert valid["payload_files"] == runner.candidate_package_manifest(provider)
+    assert {
+        name: digest
+        for name, digest in valid["payload_files"].items()
+        if ".dist-info/" not in name
+    } == runner.candidate_package_manifest(provider)
 
     old_provider, old_head = _candidate_repository(tmp_path, marker="old")
     old_wheel = _candidate_wheel(tmp_path, old_provider)
@@ -173,8 +219,88 @@ def test_wheel_candidate_rejects_extra_or_changed_payload(tmp_path: Path) -> Non
         raise AssertionError("extra wheel payload was accepted")
 
 
+def test_candidate_artifacts_are_retained_before_originals_change(tmp_path: Path) -> None:
+    provider, head = _candidate_repository(tmp_path, marker="candidate")
+    wheel = _candidate_wheel(tmp_path, provider)
+    original_wheel = wheel.read_bytes()
+    binding = runner.verify_provider_root(provider, head)
+    artifacts = runner.prepare_candidate_artifacts(
+        provider,
+        wheel,
+        provider / "requirements-runtime.lock",
+        binding,
+        tmp_path / "work",
+    )
+
+    (provider / "skills/agent-policy/SKILL.md").write_text(
+        "mutated after preparation\n", encoding="utf-8"
+    )
+    wheel.write_bytes(b"not the retained wheel")
+    (provider / "requirements-runtime.lock").write_text(
+        "Jinja2===0.0.0\n", encoding="utf-8"
+    )
+
+    runner.verify_retained_artifacts(artifacts)
+    assert Path(artifacts["wheel"]).read_bytes() == original_wheel
+    assert Path(artifacts["provider_root"], "skills/agent-policy/SKILL.md").read_text(
+        encoding="utf-8"
+    ) == "# candidate\n"
+
+
+def test_tampered_retained_artifact_fails_before_use(tmp_path: Path) -> None:
+    provider, head = _candidate_repository(tmp_path)
+    wheel = _candidate_wheel(tmp_path, provider)
+    artifacts = runner.prepare_candidate_artifacts(
+        provider,
+        wheel,
+        provider / "requirements-runtime.lock",
+        runner.verify_provider_root(provider, head),
+        tmp_path / "work",
+    )
+    Path(artifacts["wheel"]).write_bytes(b"tampered")
+    with pytest.raises(RuntimeError, match="retained candidate artifact changed"):
+        runner.verify_retained_artifacts(artifacts)
+
+
+def test_wheel_metadata_and_entrypoint_are_candidate_bound(tmp_path: Path) -> None:
+    provider, head = _candidate_repository(tmp_path)
+    wheel = _candidate_wheel(tmp_path, provider)
+    _rewrite_wheel_member(
+        wheel,
+        "candidate-0.0.dist-info/METADATA",
+        b"Metadata-Version: 2.1\nName: impostor\nVersion: 0.0\n",
+    )
+    with pytest.raises(RuntimeError, match="distribution identity"):
+        runner.verify_wheel_candidate(
+            wheel,
+            provider,
+            provider / "requirements-runtime.lock",
+            runner.verify_provider_root(provider, head),
+        )
+
+
+def test_wheel_metadata_rejects_a_substituted_entrypoint(tmp_path: Path) -> None:
+    provider, head = _candidate_repository(tmp_path)
+    wheel = _candidate_wheel(tmp_path, provider)
+    _rewrite_wheel_member(
+        wheel,
+        "candidate-0.0.dist-info/entry_points.txt",
+        b"[console_scripts]\ncandidate = impostor:main\n",
+    )
+    with pytest.raises(RuntimeError, match="entry points"):
+        runner.verify_wheel_candidate(
+            wheel,
+            provider,
+            provider / "requirements-runtime.lock",
+            runner.verify_provider_root(provider, head),
+        )
+
+
 def test_generator_grader_requires_observed_canonical_workflow(tmp_path: Path) -> None:
     runner.setup_task(tmp_path, "generated-artifact")
+    reference = runner.prepare_task_reference(
+        tmp_path, "generated-artifact", tmp_path.parent / "generated-reference"
+    )
     source = json.loads((tmp_path / "source/catalog.json").read_text())
     source["items"].append("gamma")
     (tmp_path / "source/catalog.json").write_text(json.dumps(source) + "\n")
@@ -192,23 +318,28 @@ def test_generator_grader_requires_observed_canonical_workflow(tmp_path: Path) -
         "output": "",
         "output_bytes": 0,
     }]
-    assert runner.grade("generated-artifact", tmp_path, commands)["passed"]
+    assert runner.grade("generated-artifact", tmp_path, commands, reference)["passed"]
 
     (tmp_path / ".experiment-trace").write_text("", encoding="utf-8")
-    assert not runner.grade("generated-artifact", tmp_path, commands)["passed"]
+    assert not runner.grade("generated-artifact", tmp_path, commands, reference)["passed"]
     (tmp_path / ".experiment-trace").write_text("generate_catalog.py\n", encoding="utf-8")
     assert not runner.grade(
         "generated-artifact", tmp_path,
         [{**commands[0], "command": "echo scripts/generate_catalog.py"}],
+        reference,
     )["passed"]
     assert not runner.grade(
         "generated-artifact", tmp_path,
         [{**commands[0], "command": "python scripts/not-the-generator.py"}],
+        reference,
     )["passed"]
 
 
 def test_generator_grader_rejects_correct_output_without_generator_event(tmp_path: Path) -> None:
     runner.setup_task(tmp_path, "generated-artifact")
+    reference = runner.prepare_task_reference(
+        tmp_path, "generated-artifact", tmp_path.parent / "generated-no-event-reference"
+    )
     (tmp_path / "source/catalog.json").write_text(
         '{"items": ["alpha", "beta", "gamma"]}\n', encoding="utf-8"
     )
@@ -217,18 +348,52 @@ def test_generator_grader_rejects_correct_output_without_generator_event(tmp_pat
         '"items": ["alpha", "beta", "gamma"]}\n', encoding="utf-8"
     )
     (tmp_path / ".experiment-trace").write_text("generate_catalog.py\n", encoding="utf-8")
-    assert not runner.grade("generated-artifact", tmp_path, [])["passed"]
+    assert not runner.grade("generated-artifact", tmp_path, [], reference)["passed"]
+
+
+def test_generated_grader_rejects_a_replaced_generator_with_forged_output(
+    tmp_path: Path,
+) -> None:
+    runner.setup_task(tmp_path, "generated-artifact")
+    reference = runner.prepare_task_reference(
+        tmp_path, "generated-artifact", tmp_path.parent / "generated-replaced-reference"
+    )
+    (tmp_path / "scripts/generate_catalog.py").write_text(
+        "# replaced worker program\n", encoding="utf-8"
+    )
+    (tmp_path / "source/catalog.json").write_text(
+        '{"items": ["alpha", "beta", "gamma"]}\n', encoding="utf-8"
+    )
+    (tmp_path / "generated/catalog.json").write_text(
+        '{"generated_by": "scripts/generate_catalog.py", '
+        '"items": ["alpha", "beta", "gamma"]}\n', encoding="utf-8"
+    )
+    (tmp_path / ".experiment-trace").write_text(
+        "generate_catalog.py\n", encoding="utf-8"
+    )
+    commands = [{
+        "command": "python scripts/generate_catalog.py",
+        "exit_code": 0,
+        "output": "",
+        "output_bytes": 0,
+    }]
+    result = runner.grade("generated-artifact", tmp_path, commands, reference)
+    assert not result["passed"]
+    assert not result["reference_integrity"]
 
 
 def test_code_repair_grader_requires_behavior_and_real_regression(
     tmp_path: Path,
 ) -> None:
     runner.setup_task(tmp_path, "code-repair")
+    reference = runner.prepare_task_reference(
+        tmp_path, "code-repair", tmp_path.parent / "code-reference"
+    )
     comment_only = (tmp_path / "tests/test_calculator.py").read_text(encoding="utf-8")
     (tmp_path / "tests/test_calculator.py").write_text(
         comment_only + "\n# average([1, 3, 5]) == 3.0\n", encoding="utf-8"
     )
-    failed = runner.grade("code-repair", tmp_path, [])
+    failed = runner.grade("code-repair", tmp_path, [], reference)
     assert not failed["passed"]
     assert failed["implementation_contains_defect"]
 
@@ -250,7 +415,7 @@ def test_code_repair_grader_requires_behavior_and_real_regression(
         "    unittest.main()\n",
         encoding="utf-8",
     )
-    passed = runner.grade("code-repair", tmp_path, [])
+    passed = runner.grade("code-repair", tmp_path, [], reference)
     assert passed["passed"]
     assert not passed["implementation_contains_defect"]
     assert passed["behavior_exit_code"] == 0
@@ -260,6 +425,9 @@ def test_review_preparation_grader_requires_all_operational_fields(
     tmp_path: Path,
 ) -> None:
     runner.setup_task(tmp_path, "review-preparation")
+    reference = runner.prepare_task_reference(
+        tmp_path, "review-preparation", tmp_path.parent / "review-reference"
+    )
     (tmp_path / "review-preparation.txt").write_text(
         "repository=fixture/review-preparation\n"
         "pull_request=42\n"
@@ -273,7 +441,7 @@ def test_review_preparation_grader_requires_all_operational_fields(
         "next_safe_action=run local final review\n",
         encoding="utf-8",
     )
-    passed = runner.grade("review-preparation", tmp_path, [])
+    passed = runner.grade("review-preparation", tmp_path, [], reference)
     assert passed["passed"]
 
     (tmp_path / "review-preparation.txt").write_text(
@@ -282,7 +450,7 @@ def test_review_preparation_grader_requires_all_operational_fields(
         ),
         encoding="utf-8",
     )
-    assert not runner.grade("review-preparation", tmp_path, [])["passed"]
+    assert not runner.grade("review-preparation", tmp_path, [], reference)["passed"]
 
     (tmp_path / "review-preparation.txt").write_text(
         "repository=fixture/review-preparation\n"
@@ -292,8 +460,112 @@ def test_review_preparation_grader_requires_all_operational_fields(
         f"effective_base={runner.REVIEW_EFFECTIVE_BASE}\n",
         encoding="utf-8",
     )
-    incomplete = runner.grade("review-preparation", tmp_path, [])
+    incomplete = runner.grade("review-preparation", tmp_path, [], reference)
     assert not incomplete["passed"]
+
+
+def test_review_grader_keeps_reference_evidence_and_validator_outside_worker_control(
+    tmp_path: Path,
+) -> None:
+    runner.setup_task(tmp_path, "review-preparation")
+    reference = runner.prepare_task_reference(
+        tmp_path, "review-preparation", tmp_path.parent / "review-integrity-reference"
+    )
+    (tmp_path / "review-preparation.txt").write_text(
+        "repository=fixture/review-preparation\n"
+        "pull_request=42\n"
+        f"head={runner.REVIEW_HEAD}\n"
+        f"base={runner.REVIEW_BASE}\n"
+        f"effective_base={runner.REVIEW_EFFECTIVE_BASE}\n"
+        "ci_state=success\n"
+        f"ci_head={runner.REVIEW_HEAD}\n"
+        "review_state=completed\n"
+        f"review_head={runner.REVIEW_HEAD}\n"
+        "next_safe_action=run local final review\n",
+        encoding="utf-8",
+    )
+    assert runner.grade("review-preparation", tmp_path, [], reference)["passed"]
+
+    (tmp_path / "candidate/evidence.json").write_text(
+        '{"repository": "attacker"}\n', encoding="utf-8"
+    )
+    (tmp_path / "scripts/validate_evidence.py").write_text(
+        "print('accepted')\n", encoding="utf-8"
+    )
+    result = runner.grade("review-preparation", tmp_path, [], reference)
+    assert not result["passed"]
+    assert not result["reference_integrity"]
+    assert result["validation_source"] == "retained_pretrial_reference"
+
+
+@pytest.mark.parametrize(
+    "task", ["generated-artifact", "code-repair", "review-preparation"]
+)
+def test_common_grade_rejects_prohibited_operations_for_every_task(
+    tmp_path: Path, task: str
+) -> None:
+    runner.setup_task(tmp_path, task)
+    reference = runner.prepare_task_reference(
+        tmp_path, task, tmp_path.parent / f"compliance-{task}-reference"
+    )
+    if task == "generated-artifact":
+        (tmp_path / "source/catalog.json").write_text(
+            '{"items": ["alpha", "beta", "gamma"]}\n', encoding="utf-8"
+        )
+        (tmp_path / "generated/catalog.json").write_text(
+            '{"generated_by": "scripts/generate_catalog.py", '
+            '"items": ["alpha", "beta", "gamma"]}\n', encoding="utf-8"
+        )
+        (tmp_path / ".experiment-trace").write_text(
+            "generate_catalog.py\n", encoding="utf-8"
+        )
+        required_event = {
+            "command": "python scripts/generate_catalog.py",
+            "exit_code": 0,
+            "output": "",
+            "output_bytes": 0,
+        }
+    elif task == "code-repair":
+        (tmp_path / "src/calculator.py").write_text(
+            "def average(values: list[float]) -> float:\n"
+            "    return sum(values) / len(values)\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "tests/test_calculator.py").write_text(
+            "import unittest\n"
+            "from calculator import average\n"
+            "class AverageTests(unittest.TestCase):\n"
+            "    def test_average_three_values(self):\n"
+            "        self.assertEqual(average([1, 3, 5]), 3.0)\n",
+            encoding="utf-8",
+        )
+        required_event = None
+    else:
+        (tmp_path / "review-preparation.txt").write_text(
+            "repository=fixture/review-preparation\n"
+            "pull_request=42\n"
+            f"head={runner.REVIEW_HEAD}\n"
+            f"base={runner.REVIEW_BASE}\n"
+            f"effective_base={runner.REVIEW_EFFECTIVE_BASE}\n"
+            "ci_state=success\n"
+            f"ci_head={runner.REVIEW_HEAD}\n"
+            "review_state=completed\n"
+            f"review_head={runner.REVIEW_HEAD}\n"
+            "next_safe_action=run local final review\n",
+            encoding="utf-8",
+        )
+        required_event = None
+    commands = ([required_event] if required_event is not None else []) + [{
+        "command": "gh status",
+        "exit_code": 1,
+        "output": "permission denied",
+        "output_bytes": len("permission denied"),
+    }]
+    result = runner.grade(task, tmp_path, commands, reference)
+    assert result["task_correct"]
+    assert not result["policy_compliant"]
+    assert not result["passed"]
+    assert result["forbidden_operations"] == ["gh status"]
 
 
 def test_bootstrap_failure_is_bounded_and_redacted() -> None:
