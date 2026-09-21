@@ -58,14 +58,18 @@ candidate was not trialled because the six-attempt budget is exhausted.
 
 The repaired evaluation candidate was also checked without starting an agent
 trial. For #998 head
-`24dd583f9a81b74a49b1376499313bb28a32d080`, the exact wheel was
+`379659e25b269269bb7a7ba997fb1ae666394e68`, the exact wheel was
 `takashisasaki_agent_policy-0.1.0-py3-none-any.whl` with SHA-256
-`37c9ec6ad629866b88b60d14af56e39c382e1abe046b75c2f451cc8feef8d549`.
+`02266dc44fbc9a47e713cdd75e3a45fee69ac4caf569978c61a4ab7d969fe620`.
 The clean-consumer smoke used Python 3.12.3, imported the installed package
 from its venv site-packages, selected 47 rules with 24 startup rules, and
 executed the copied external Skill `scripts/run.py` through its runtime-cache
 selection. The external runner bytes were SHA-256
 `59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`.
+Both conditions also passed `validate`, `render`, and `check` from a nested
+consumer directory using the installed package. The complete redacted
+condition manifest is in
+[`policy-delivery-clean-consumer-smoke-379.json`](policy-delivery-clean-consumer-smoke-379.json).
 This is distribution-boundary evidence only; it is not one of the six fresh
 agent trials and does not establish a performance result.
 
