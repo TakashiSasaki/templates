@@ -245,15 +245,18 @@ def render_consumer(root: Path, python: Path, condition: str, revision: str) -> 
                 "list(context.project_policy_files), "
                 "declared_overrides=context.override_reasons, "
                 "require_explicit_overrides=True); "
-                "print(json.dumps([rule.id for rule in rules]))"
+                "print(json.dumps({'ids': [rule.id for rule in rules], "
+                "'body_bytes': {rule.id: len(rule.body.encode('utf-8')) "
+                "for rule in rules}}))"
             ),
         ],
         root,
         env=environment,
     )
-    selected = json.loads(selection.stdout)
+    selection_data = json.loads(selection.stdout)
+    selected = selection_data["ids"]
     startup: list[str] = []
-    body_bytes: dict[str, int] = {}
+    body_bytes = selection_data["body_bytes"]
     if condition == "C":
         bundle = json.loads((root / paths[3]).read_text(encoding="utf-8"))
         startup = [row["id"] for row in bundle["presentation"]["routes"] if row["startup"]]
