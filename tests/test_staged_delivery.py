@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
+import venv
 from pathlib import Path
 
 import pytest
 
 from agent_policy import delivery
 from agent_policy.commands import check, render, validate
+from agent_policy.commands import guidance as guidance_command
 from agent_policy.config import load_config
 from agent_policy.delivery import load_presentation_map
 from agent_policy.policy_loader import load_rules
@@ -85,14 +89,14 @@ def _run_pinned_guidance(
     root: Path,
     *arguments: str,
     config: str = ".agent-policy.yml",
+    runtime_revision: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     environment = dict(os.environ)
     source_root = str(Path(__file__).parents[1] / "src")
     environment["PYTHONPATH"] = ":".join(
         item for item in (source_root, environment.get("PYTHONPATH", "")) if item
     )
-    return subprocess.run(
-        [
+    command = [
             sys.executable,
             "-c",
             "from agent_policy.cli import main; raise SystemExit(main())",
@@ -104,7 +108,11 @@ def _run_pinned_guidance(
             "--script",
             ".agents/skills/policy-guidance/scripts/policy_guidance.py",
             *arguments,
-        ],
+        ]
+    if runtime_revision is not None:
+        command.extend(["--runtime-revision", runtime_revision])
+    return subprocess.run(
+        command,
         check=False,
         capture_output=True,
         text=True,
@@ -266,6 +274,61 @@ def test_pinned_guidance_binds_bundle_to_enabled_staged_output(
 
     assert result.returncode == 2
     assert "enabled staged output" in result.stderr
+
+
+def test_pinned_guidance_rejects_runtime_lock_revision_drift(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    result = _run_pinned_guidance(
+        tmp_path,
+        "--rule-id",
+        GUIDANCE,
+        runtime_revision="b" * 40,
+    )
+
+    assert result.returncode == 2
+    assert "selected runtime revision" in result.stderr
+
+
+def test_pinned_guidance_executes_the_authenticated_script_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    script = tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    authenticated = script.read_bytes()
+    observed: dict[str, object] = {}
+
+    def mutate_during_check(_root: Path, _config: str) -> list[object]:
+        script.write_text("print('FORGED AFTER CHECK')\n", encoding="utf-8")
+        return []
+
+    def capture_execution(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed["input"] = kwargs["input"]
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(check, "run", mutate_during_check)
+    monkeypatch.setattr(guidance_command.subprocess, "run", capture_execution)
+
+    assert (
+        guidance_command.run(
+            tmp_path,
+            config_path=".agent-policy.yml",
+            script=".agents/skills/policy-guidance/scripts/policy_guidance.py",
+            bundle=None,
+            runtime_revision=TEST_REVISION,
+            operation=None,
+            rule_id=GUIDANCE,
+            all_rules=False,
+            output_format="text",
+        )
+        == 0
+    )
+    assert observed["input"] == authenticated
 
 
 def test_staged_render_is_deterministic_and_check_detects_input_drift(
@@ -517,33 +580,98 @@ def test_generated_guidance_commands_quote_bundle_paths(
     assert result.returncode == 0
 
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    source_skill = Path(__file__).parents[1] / "skills/agent-policy"
     runtime_root = tmp_path.parent / f"{tmp_path.name}-installed-agent-policy"
-    runtime_runner = runtime_root / "scripts/run.py"
-    runtime_runner.parent.mkdir(parents=True, exist_ok=True)
-    runtime_runner.write_text(
-        "from agent_policy.cli import main\n"
-        "raise SystemExit(main())\n",
+    shutil.copytree(source_skill, runtime_root)
+    runtime_module_spec = importlib.util.spec_from_file_location(
+        "test_external_agent_policy_runtime",
+        runtime_root / "scripts/runtime.py",
+    )
+    assert runtime_module_spec and runtime_module_spec.loader
+    runtime_module = importlib.util.module_from_spec(runtime_module_spec)
+    sys.modules[runtime_module_spec.name] = runtime_module
+    runtime_module_spec.loader.exec_module(runtime_module)
+
+    cache = tmp_path.parent / f"{tmp_path.name}-runtime-cache"
+    pin = runtime_module.RuntimePin(
+        "TakashiSasaki/templates",
+        TEST_REVISION,
+        "requirements-runtime.lock",
+        None,
+        "takashisasaki-agent-policy",
+        None,
+        "agent-policy",
+    )
+    identity = runtime_module.RuntimeIdentity(
+        pin.repository,
+        pin.revision,
+        "c" * 64,
+        runtime_module.python_token(),
+        runtime_module.platform_token(),
+    )
+    cached_runtime = cache / identity.digest()
+    venv.EnvBuilder(with_pip=False, system_site_packages=True).create(
+        cached_runtime / "venv"
+    )
+    runtime_python = runtime_module.venv_python(cached_runtime)
+    site_packages = Path(
+        subprocess.check_output(
+            [str(runtime_python), "-I", "-c", "import site; print(site.getsitepackages()[0])"],
+            text=True,
+        ).strip()
+    )
+    installed_package = site_packages / "agent_policy"
+    shutil.copytree(
+        Path(__file__).parents[1] / "src/agent_policy",
+        installed_package,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    data_root = installed_package / "_data"
+    for resource in ("schemas", "profiles", "policy", "templates", "skills", "delivery"):
+        shutil.copytree(Path(__file__).parents[1] / resource, data_root / resource)
+    executable = runtime_module.executable_path(cached_runtime, pin.executable)
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+    executable.chmod(0o755)
+    runtime_module.marker_path(cached_runtime).write_text(
+        json.dumps(runtime_module.expected_marker(identity, pin, "0.1.0")) + "\n",
         encoding="utf-8",
     )
+
+    package_location = subprocess.check_output(
+        [str(runtime_python), "-I", "-c", "import agent_policy; print(agent_policy.__file__)"],
+        text=True,
+    ).strip()
+    assert str(installed_package) in package_location
+    assert str(Path(__file__).parents[1] / "src") not in package_location
     nested = tmp_path / "nested" / "work"
     nested.mkdir(parents=True)
-    command = next(
-        line.strip()
-        for line in startup.splitlines()
-        if line.strip().startswith("python ")
-    )
-    command = command.replace("python ", f"{shlex.quote(sys.executable)} ", 1)
-    command = command.replace(
-        "--operation <inspect|plan|edit|generate|validate|review|merge|publish>",
-        f"--rule-id {shlex.quote(GUIDANCE)}",
-    )
     nested_result = subprocess.run(
-        ["sh", "-c", command],
+        [
+            sys.executable,
+            str(runtime_root / "scripts/run.py"),
+            "--repository",
+            str(tmp_path),
+            "guidance",
+            "--config",
+            ".agent-policy.yml",
+            "--script",
+            ".agents/skills/policy-guidance/scripts/policy_guidance.py",
+            f"--bundle={bundle_path}",
+            "--rule-id",
+            GUIDANCE,
+        ],
         cwd=nested,
         check=False,
         capture_output=True,
         text=True,
-        env={**environment, "AGENT_POLICY_SKILL_ROOT": str(runtime_root)},
+        env={
+            key: value
+            for key, value in {
+                **environment,
+                "AGENT_POLICY_RUNTIME_CACHE": str(cache),
+            }.items()
+            if key != "PYTHONPATH"
+        },
     )
     assert nested_result.returncode == 0
 

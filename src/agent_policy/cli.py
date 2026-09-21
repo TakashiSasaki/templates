@@ -42,6 +42,7 @@ def parser() -> argparse.ArgumentParser:
     guidance.add_argument("--config", default=".agent-policy.yml")
     guidance.add_argument("--script", required=True)
     guidance.add_argument("--bundle")
+    guidance.add_argument("--runtime-revision", help=argparse.SUPPRESS)
     guidance.add_argument("--operation")
     guidance.add_argument("--rule-id")
     guidance.add_argument("--all", action="store_true", dest="all_rules")
@@ -183,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             config_path=args.config,
             script=args.script,
             bundle=args.bundle,
+            runtime_revision=args.runtime_revision,
             operation=args.operation,
             rule_id=args.rule_id,
             all_rules=args.all_rules,

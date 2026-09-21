@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import sys
 from pathlib import Path
 
 from ..config import load_config, validate_config
-from ..lockfile import load_lock, resolve_lock_path, sha256_file
+from ..lockfile import load_lock, resolve_lock_path
 from ..paths import resolve_inside
 
 GUIDANCE_SCRIPT = ".agents/skills/policy-guidance/scripts/policy_guidance.py"
@@ -18,6 +19,7 @@ def _validate_execution_surface(
     config_path: str,
     script: str,
     bundle: str | None,
+    runtime_revision: str | None,
 ) -> tuple[bytes, str]:
     config = load_config(repository_root, config_path)
     errors = [
@@ -55,8 +57,17 @@ def _validate_execution_surface(
 
     lock_path = resolve_lock_path(repository_root, allow_missing=False)
     lock = load_lock(lock_path)
+    if runtime_revision is not None:
+        if runtime_revision != lock["toolchain"]["revision"]:
+            raise ValueError(
+                "selected runtime revision does not match the repository lock"
+            )
     expected_digest = lock["outputs"].get(script_relative)
-    if not isinstance(expected_digest, str) or sha256_file(script_path) != expected_digest:
+    script_bytes = script_path.read_bytes()
+    if (
+        not isinstance(expected_digest, str)
+        or hashlib.sha256(script_bytes).hexdigest() != expected_digest
+    ):
         raise ValueError("guidance script does not match the generated-output lock")
 
     from . import check as check_command
@@ -70,7 +81,7 @@ def _validate_execution_surface(
         rendered = "; ".join(f"{item.code}: {item.message}" for item in check_errors)
         raise ValueError(f"generated policy outputs are stale: {rendered}")
 
-    return script_path.read_bytes(), bundle
+    return script_bytes, bundle
 
 
 def run(
@@ -79,6 +90,7 @@ def run(
     config_path: str,
     script: str,
     bundle: str | None,
+    runtime_revision: str | None,
     operation: str | None,
     rule_id: str | None,
     all_rules: bool,
@@ -90,6 +102,7 @@ def run(
             config_path=config_path,
             script=script,
             bundle=bundle,
+            runtime_revision=runtime_revision,
         )
         # Execute authenticated bytes rather than reopening the mutable path
         # after validation, which also closes the check-to-use race.
