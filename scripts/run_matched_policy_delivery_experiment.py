@@ -223,23 +223,46 @@ def render_consumer(root: Path, python: Path, condition: str, revision: str) -> 
         if result.returncode:
             raise RuntimeError(result.stderr)
     if condition == "C":
+        runtime_root = root.parent / f"{root.name}-installed-agent-policy"
         # Keep the venv launcher path.  Resolving its symlink to the system
         # interpreter would discard pyvenv.cfg and make -I hide the wheel.
         runtime = str(python)
         write(
-            root / ".agents/skills/agent-policy/scripts/run.py",
+            runtime_root / "scripts/run.py",
             "from __future__ import annotations\n"
             "import os\n"
             "import sys\n"
             f"runtime = {runtime!r}\n"
             "os.execv(runtime, [runtime, '-I', '-m', 'agent_policy.cli', *sys.argv[1:]])\n",
         )
+        nested = root / "nested" / "consumer"
+        nested.mkdir(parents=True, exist_ok=True)
+        guidance_result = run(
+            [
+                str(python),
+                str(runtime_root / "scripts/run.py"),
+                "--repository",
+                str(root),
+                "guidance",
+                "--config",
+                ".agent-policy.yml",
+                "--script",
+                ".agents/skills/policy-guidance/scripts/policy_guidance.py",
+                "--bundle=.agent-policy/preview/policy-details.json",
+                "--operation",
+                "inspect",
+            ],
+            nested,
+            env=environment,
+            check=False,
+        )
+        if guidance_result.returncode:
+            raise RuntimeError(guidance_result.stderr)
     paths = [Path(".agent-policy.yml"), Path(".agent-policy.lock"), Path("AGENTS.md")]
     if condition == "C":
         paths += [Path(".agent-policy/preview/policy-details.json"),
                   Path(".agents/skills/policy-guidance/SKILL.md"),
-                  Path(".agents/skills/policy-guidance/scripts/policy_guidance.py"),
-                  Path(".agents/skills/agent-policy/scripts/run.py")]
+                  Path(".agents/skills/policy-guidance/scripts/policy_guidance.py")]
     files = {}
     for path in paths:
         content = (root / path).read_bytes()
@@ -276,9 +299,18 @@ def render_consumer(root: Path, python: Path, condition: str, revision: str) -> 
         body_bytes = {row["id"]: len(row["body"].encode()) for row in bundle["rules"]}
     else:
         startup = list(selected)
-    return {"files": files, "selected_rule_ids": selected,
-            "startup_rule_ids": startup, "rule_body_bytes": body_bytes,
-            "clean_consumer": True}
+    manifest = {"files": files, "selected_rule_ids": selected,
+                "startup_rule_ids": startup, "rule_body_bytes": body_bytes,
+                "clean_consumer": True}
+    if condition == "C":
+        runtime_file = runtime_root / "scripts/run.py"
+        manifest["installed_runtime"] = {
+            "path": "external-agent-policy/scripts/run.py",
+            "bytes": runtime_file.stat().st_size,
+            "sha256": sha(runtime_file.read_bytes()),
+        }
+        manifest["_runtime_skill_root"] = str(runtime_root)
+    return manifest
 
 
 def parse_events(stdout: str) -> list[dict[str, Any]]:
@@ -404,6 +436,11 @@ def grade(task: str, root: Path, commands_seen: list[dict[str, Any]]) -> dict[st
 def trial(codex: Path, python: Path, root: Path, task: str, condition: str,
           manifest: dict[str, Any], raw: Path, timeout: int) -> dict[str, Any]:
     environment = env_for(python)
+    runtime_root = manifest.pop("_runtime_skill_root", None)
+    if condition == "C":
+        if not isinstance(runtime_root, str):
+            raise RuntimeError("staged trial is missing its installed Skill root")
+        environment["AGENT_POLICY_SKILL_ROOT"] = runtime_root
     environment["POLICY_EXPERIMENT_TRACE"] = str(root / ".experiment-trace")
     argv = [str(codex), "exec", "--ephemeral", "--json", "--sandbox", "workspace-write",
             "--model", MODEL, "-c", f"model_reasoning_effort={EFFORT}",
