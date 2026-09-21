@@ -61,6 +61,14 @@ def _apply(
     )
 
 
+def _holding_directories(root: Path) -> list[Path]:
+    return sorted(
+        path
+        for path in root.iterdir()
+        if path.is_dir() and path.name.startswith(".agent-policy-mutation-")
+    )
+
+
 _DESTRUCTIVE_METHODS = {
     "unlink",
     "remove",
@@ -529,3 +537,221 @@ def test_lock_replacement_is_bound_and_rolls_back_prior_output(
     assert injected
     assert (tmp_path / ".agent-policy.lock").read_bytes() == AUTHORED
     assert (tmp_path / "target.md").read_bytes() == GENERATED
+
+
+def _seed_two_generated_outputs(root: Path) -> None:
+    _apply(root, {"first.md": _write_spec(GENERATED), "second.md": _write_spec(GENERATED)})
+
+
+@pytest.mark.parametrize("failing_cleanup", ["first.md", "second.md"])
+def test_post_commit_cleanup_failure_never_rolls_back_discarded_backups(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failing_cleanup: str,
+) -> None:
+    _seed_two_generated_outputs(tmp_path)
+    original = mutation._Transaction._delete_private
+
+    def fail_during_cleanup(
+        transaction: mutation._Transaction,
+        name: str,
+        expected_identity: tuple[int, int],
+        relative: str,
+        expected_content: bytes | None = None,
+    ) -> None:
+        if (
+            transaction.phase == mutation.TransactionPhase.POST_COMMIT_CLEANUP
+            and relative == failing_cleanup
+        ):
+            raise OSError("injected post-commit cleanup failure")
+        original(transaction, name, expected_identity, relative, expected_content)
+
+    monkeypatch.setattr(mutation._Transaction, "_delete_private", fail_during_cleanup)
+
+    with pytest.raises(mutation.MutationSafetyError) as error:
+        _apply(
+            tmp_path,
+            {"first.md": _write_spec(REPLACEMENT), "second.md": _write_spec(REPLACEMENT)},
+        )
+
+    assert error.value.phase == mutation.TransactionPhase.FAILED_POST_COMMIT
+    assert error.value.retained
+    assert (tmp_path / "first.md").read_bytes() == REPLACEMENT
+    assert (tmp_path / "second.md").read_bytes() == REPLACEMENT
+    assert _holding_directories(tmp_path)
+
+
+def test_post_commit_cleanup_does_not_invoke_rollback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_two_generated_outputs(tmp_path)
+    original = mutation._Transaction._delete_private
+    rollback_called = False
+
+    def fail_cleanup(
+        transaction: mutation._Transaction,
+        name: str,
+        expected_identity: tuple[int, int],
+        relative: str,
+        expected_content: bytes | None = None,
+    ) -> None:
+        if (
+            transaction.phase == mutation.TransactionPhase.POST_COMMIT_CLEANUP
+            and relative == "second.md"
+        ):
+            raise OSError("injected cleanup failure")
+        original(transaction, name, expected_identity, relative, expected_content)
+
+    def forbidden_rollback(*_args: object, **_kwargs: object) -> None:
+        nonlocal rollback_called
+        rollback_called = True
+        raise AssertionError("post-commit cleanup must not invoke rollback")
+
+    monkeypatch.setattr(mutation._Transaction, "_delete_private", fail_cleanup)
+    monkeypatch.setattr(mutation._Transaction, "_rollback_record", forbidden_rollback)
+
+    with pytest.raises(mutation.MutationSafetyError):
+        _apply(
+            tmp_path,
+            {"first.md": _write_spec(REPLACEMENT), "second.md": _write_spec(REPLACEMENT)},
+        )
+
+    assert not rollback_called
+    assert (tmp_path / "first.md").read_bytes() == REPLACEMENT
+    assert (tmp_path / "second.md").read_bytes() == REPLACEMENT
+
+
+@pytest.mark.parametrize("target", ["first.md", "second.md"])
+def test_public_output_change_during_post_commit_cleanup_fails_final_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    target: str,
+) -> None:
+    _seed_two_generated_outputs(tmp_path)
+    original = mutation._Transaction._delete_private
+    changed = False
+
+    def change_public_output(
+        transaction: mutation._Transaction,
+        name: str,
+        expected_identity: tuple[int, int],
+        relative: str,
+        expected_content: bytes | None = None,
+    ) -> None:
+        nonlocal changed
+        if (
+            transaction.phase == mutation.TransactionPhase.POST_COMMIT_CLEANUP
+            and relative == target
+            and not changed
+        ):
+            (tmp_path / target).write_bytes(AUTHORED)
+            changed = True
+        original(transaction, name, expected_identity, relative, expected_content)
+
+    monkeypatch.setattr(mutation._Transaction, "_delete_private", change_public_output)
+
+    with pytest.raises(mutation.MutationSafetyError, match="post-commit public state") as error:
+        _apply(
+            tmp_path,
+            {"first.md": _write_spec(REPLACEMENT), "second.md": _write_spec(REPLACEMENT)},
+        )
+
+    assert changed
+    assert error.value.phase == mutation.TransactionPhase.FAILED_POST_COMMIT
+    assert (tmp_path / target).read_bytes() == AUTHORED
+
+
+def test_public_lock_change_during_post_commit_cleanup_fails_final_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_two_generated_outputs(tmp_path)
+    original = mutation._Transaction._delete_private
+    changed = False
+
+    def change_lock(
+        transaction: mutation._Transaction,
+        name: str,
+        expected_identity: tuple[int, int],
+        relative: str,
+        expected_content: bytes | None = None,
+    ) -> None:
+        nonlocal changed
+        if (
+            transaction.phase == mutation.TransactionPhase.POST_COMMIT_CLEANUP
+            and relative == "first.md"
+            and not changed
+        ):
+            (tmp_path / ".agent-policy.lock").write_bytes(AUTHORED)
+            changed = True
+        original(transaction, name, expected_identity, relative, expected_content)
+
+    monkeypatch.setattr(mutation._Transaction, "_delete_private", change_lock)
+
+    with pytest.raises(mutation.MutationSafetyError, match="post-commit public state"):
+        _apply(
+            tmp_path,
+            {"first.md": _write_spec(REPLACEMENT), "second.md": _write_spec(REPLACEMENT)},
+        )
+
+    assert changed
+    assert (tmp_path / ".agent-policy.lock").read_bytes() == AUTHORED
+
+
+def test_deleted_path_recreated_during_post_commit_cleanup_is_retained(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _apply(tmp_path, {"obsolete.md": _write_spec(GENERATED)})
+    original = mutation._Transaction._delete_private
+    recreated = False
+
+    def recreate_deleted_path(
+        transaction: mutation._Transaction,
+        name: str,
+        expected_identity: tuple[int, int],
+        relative: str,
+        expected_content: bytes | None = None,
+    ) -> None:
+        nonlocal recreated
+        if (
+            transaction.phase == mutation.TransactionPhase.POST_COMMIT_CLEANUP
+            and relative == "obsolete.md"
+            and not recreated
+        ):
+            (tmp_path / relative).write_bytes(AUTHORED)
+            recreated = True
+        original(transaction, name, expected_identity, relative, expected_content)
+
+    monkeypatch.setattr(mutation._Transaction, "_delete_private", recreate_deleted_path)
+
+    with pytest.raises(mutation.MutationSafetyError, match="post-commit public state"):
+        _apply(tmp_path, {}, {"obsolete.md": _delete_spec(GENERATED)})
+
+    assert recreated
+    assert (tmp_path / "obsolete.md").read_bytes() == AUTHORED
+
+
+def test_pre_commit_failure_restores_all_records_and_reports_rollback_phase(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _seed_two_generated_outputs(tmp_path)
+
+    def fail_before_commit(_transaction: mutation._Transaction) -> None:
+        raise mutation.MutationSafetyError("injected pre-commit validation failure")
+
+    monkeypatch.setattr(mutation._Transaction, "_check_record_bindings", fail_before_commit)
+
+    with pytest.raises(mutation.MutationSafetyError) as error:
+        _apply(
+            tmp_path,
+            {"first.md": _write_spec(REPLACEMENT), "second.md": _write_spec(REPLACEMENT)},
+        )
+
+    assert error.value.phase == mutation.TransactionPhase.FAILED_ROLLED_BACK
+    assert not error.value.retained
+    assert (tmp_path / "first.md").read_bytes() == GENERATED
+    assert (tmp_path / "second.md").read_bytes() == GENERATED
+    assert (tmp_path / ".agent-policy.lock").read_bytes() == b"lock\n"
