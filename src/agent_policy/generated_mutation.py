@@ -106,6 +106,8 @@ class _Binding:
     relative: str
     parent_fd: int
     name: str
+    parent_parts: tuple[str, ...]
+    parent_identities: tuple[tuple[int, int], ...]
     exists: bool
     identity: tuple[int, int] | None
     mode: int | None
@@ -121,6 +123,15 @@ class _Record:
     old_name: str | None = None
     old_identity: tuple[int, int] | None = None
     current_content: bytes | None = None
+
+
+@dataclass(frozen=True)
+class _CreatedDirectory:
+    parent_fd: int
+    name: str
+    identity: tuple[int, int]
+    parent_parts: tuple[str, ...]
+    parent_identities: tuple[tuple[int, int], ...]
 
 
 def _libc() -> ctypes.CDLL:
@@ -219,11 +230,12 @@ class _Transaction:
         self.root = root.resolve()
         self.stack = ExitStack()
         self.root_fd: int | None = None
+        self.root_identity: tuple[int, int] | None = None
         self.holding_fd: int | None = None
         self.holding_name: str | None = None
         self.holding_identity: tuple[int, int] | None = None
         self.records: list[_Record] = []
-        self.created_directories: list[tuple[int, str, tuple[int, int]]] = []
+        self.created_directories: list[_CreatedDirectory] = []
         self.retained = False
         self.aliases: dict[str, str] = {}
 
@@ -233,6 +245,7 @@ class _Transaction:
         try:
             flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
             self.root_fd = os.open(self.root, flags)
+            self.root_identity = _identity(os.fstat(self.root_fd))
             self.stack.callback(os.close, self.root_fd)
             try:
                 fcntl.flock(self.root_fd, fcntl.LOCK_EX)
@@ -294,34 +307,55 @@ class _Transaction:
             return
         raise MutationSafetyError("could not allocate an operation-private mutation namespace")
 
-    def _open_parent(self, relative: str) -> tuple[int, str]:
+    def _open_parent(
+        self, relative: str
+    ) -> tuple[int, str, tuple[str, ...], tuple[tuple[int, int], ...]]:
         assert self.root_fd is not None
         parts = _relative_parts(relative)
         parent_fd = self.root_fd
+        parent_parts: list[str] = []
+        parent_identities: list[tuple[int, int]] = []
         for component in parts[:-1]:
             flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            created = False
             try:
                 child_fd = os.open(component, flags, dir_fd=parent_fd)
             except FileNotFoundError:
                 try:
                     os.mkdir(component, 0o755, dir_fd=parent_fd)
+                    created = True
                 except FileExistsError:
                     pass
                 child_fd = os.open(component, flags, dir_fd=parent_fd)
-                child_result = os.fstat(child_fd)
+            child_result = os.fstat(child_fd)
+            child_identity = _identity(child_result)
+            if created:
                 self.created_directories.append(
-                    (parent_fd, component, _identity(child_result))
+                    _CreatedDirectory(
+                        parent_fd,
+                        component,
+                        child_identity,
+                        tuple(parent_parts),
+                        tuple(parent_identities),
+                    )
                 )
             self.stack.callback(os.close, child_fd)
             parent_fd = child_fd
-        return parent_fd, parts[-1]
+            parent_parts.append(component)
+            parent_identities.append(child_identity)
+        return (
+            parent_fd,
+            parts[-1],
+            tuple(parent_parts),
+            tuple(parent_identities),
+        )
 
     def _bind(
         self,
         relative: str,
         owns_existing: Callable[[bytes], bool],
     ) -> _Binding:
-        parent_fd, name = self._open_parent(relative)
+        parent_fd, name, parent_parts, parent_identities = self._open_parent(relative)
         try:
             fd = os.open(
                 name,
@@ -329,7 +363,18 @@ class _Transaction:
                 dir_fd=parent_fd,
             )
         except FileNotFoundError:
-            return _Binding(relative, parent_fd, name, False, None, None, None, owns_existing)
+            return _Binding(
+                relative,
+                parent_fd,
+                name,
+                parent_parts,
+                parent_identities,
+                False,
+                None,
+                None,
+                None,
+                owns_existing,
+            )
         except OSError as exc:
             if exc.errno == errno.ELOOP:
                 raise MutationSafetyError(
@@ -353,12 +398,151 @@ class _Transaction:
             relative,
             parent_fd,
             name,
+            parent_parts,
+            parent_identities,
             True,
             _identity(result),
             stat.S_IMODE(result.st_mode),
             content,
             owns_existing,
         )
+
+    def _check_root_binding(self) -> None:
+        assert self.root_fd is not None and self.root_identity is not None
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        try:
+            fd = os.open(self.root, flags)
+        except OSError as exc:
+            raise MutationSafetyError(
+                "repository root containment changed during generated mutation"
+            ) from exc
+        try:
+            if _identity(os.fstat(fd)) != self.root_identity:
+                raise MutationSafetyError(
+                    "repository root containment changed during generated mutation"
+                )
+        finally:
+            os.close(fd)
+
+    def _check_parent_chain(
+        self,
+        parts: tuple[str, ...],
+        identities: tuple[tuple[int, int], ...],
+        relative: str,
+    ) -> None:
+        """Prove that the public path still reaches the bound parent chain."""
+
+        if len(parts) != len(identities):
+            raise MutationSafetyError(
+                f"incomplete generated parent binding: {relative}"
+            )
+        self._check_root_binding()
+        assert self.root_fd is not None
+        opened: list[int] = []
+        parent_fd = self.root_fd
+        try:
+            flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            for component, expected in zip(parts, identities, strict=True):
+                try:
+                    child_fd = os.open(component, flags, dir_fd=parent_fd)
+                except OSError as exc:
+                    raise MutationSafetyError(
+                        f"generated parent containment changed at {relative}"
+                    ) from exc
+                opened.append(child_fd)
+                if _identity(os.fstat(child_fd)) != expected:
+                    raise MutationSafetyError(
+                        f"generated parent containment changed at {relative}"
+                    )
+                parent_fd = child_fd
+        finally:
+            for fd in reversed(opened):
+                os.close(fd)
+
+    def _check_binding_parent(self, binding: _Binding) -> None:
+        self._check_parent_chain(
+            binding.parent_parts,
+            binding.parent_identities,
+            binding.relative,
+        )
+
+    def _open_public_target(self, relative: str) -> tuple[int, os.stat_result]:
+        """Open the current public target through the current public chain."""
+
+        assert self.root_fd is not None
+        parts = _relative_parts(relative)
+        opened: list[int] = []
+        parent_fd = self.root_fd
+        try:
+            flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            for component in parts[:-1]:
+                parent_fd = os.open(component, flags, dir_fd=parent_fd)
+                opened.append(parent_fd)
+            target_fd = os.open(
+                parts[-1],
+                os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                dir_fd=parent_fd,
+            )
+            result = os.fstat(target_fd)
+            return target_fd, result
+        finally:
+            for fd in reversed(opened):
+                os.close(fd)
+
+    def _check_public_object(
+        self,
+        binding: _Binding,
+        expected_identity: tuple[int, int],
+        expected_content: bytes,
+    ) -> None:
+        """Check the object reached by the public path, not only a held fd."""
+
+        self._check_binding_parent(binding)
+        try:
+            fd, result = self._open_public_target(binding.relative)
+        except OSError as exc:
+            raise MutationSafetyError(
+                f"public generated target is not reachable: {binding.relative}"
+            ) from exc
+        try:
+            if (
+                _identity(result) != expected_identity
+                or not stat.S_ISREG(result.st_mode)
+                or result.st_nlink != 1
+                or _read_fd(fd) != expected_content
+            ):
+                raise MutationSafetyError(
+                    f"public generated target changed at mutation boundary: "
+                    f"{binding.relative}"
+                )
+        finally:
+            os.close(fd)
+
+    def _check_public_absent(self, binding: _Binding) -> None:
+        self._check_binding_parent(binding)
+        try:
+            fd, _result = self._open_public_target(binding.relative)
+        except FileNotFoundError:
+            return
+        finally:
+            if "fd" in locals():
+                os.close(fd)
+        raise MutationSafetyError(
+            f"public generated target was recreated: {binding.relative}"
+        )
+
+    def _check_record_bindings(self) -> None:
+        for record in self.records:
+            if record.action in {"create", "replace"}:
+                assert record.current_identity is not None
+                assert record.current_content is not None
+                self._check_public_object(
+                    record.binding,
+                    record.current_identity,
+                    record.current_content,
+                )
+            elif record.action == "delete":
+                self._check_public_absent(record.binding)
 
     def _check_aliases(self) -> None:
         for actual, lexical in self.aliases.items():
@@ -406,6 +590,13 @@ class _Transaction:
 
     def _restore_private(self, name: str, binding: _Binding) -> None:
         assert self.holding_fd is not None
+        fd, result = self._open_private(name)
+        try:
+            expected_identity = _identity(result)
+            expected_content = _read_fd(fd)
+        finally:
+            os.close(fd)
+        self._check_binding_parent(binding)
         try:
             _native_rename_noreplace(self.holding_fd, name, binding.parent_fd, binding.name)
         except FileExistsError as exc:
@@ -413,15 +604,30 @@ class _Transaction:
                 f"concurrent replacement retained at {binding.relative}; "
                 f"operation-private state retained: {name}"
             ) from exc
+        try:
+            self._check_public_object(binding, expected_identity, expected_content)
+        except Exception:
+            self.retained = True
+            raise
 
     def _detach_public(self, binding: _Binding, name: str) -> tuple[int, int]:
         assert self.holding_fd is not None
+        try:
+            self._check_binding_parent(binding)
+        except Exception:
+            self.retained = True
+            raise
         _native_rename_noreplace(
             binding.parent_fd,
             binding.name,
             self.holding_fd,
             name,
         )
+        try:
+            self._check_binding_parent(binding)
+        except Exception:
+            self.retained = True
+            raise
         fd, result = self._open_private(name)
         try:
             if not stat.S_ISREG(result.st_mode) or result.st_nlink != 1:
@@ -500,25 +706,18 @@ class _Transaction:
         expected_content: bytes,
     ) -> None:
         assert self.holding_fd is not None
+        self._check_binding_parent(binding)
         _native_rename_noreplace(
             self.holding_fd,
             prepared_name,
             binding.parent_fd,
             binding.name,
         )
-        fd = os.open(
-            binding.name,
-            os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
-            dir_fd=binding.parent_fd,
-        )
         try:
-            result = os.fstat(fd)
-            if _identity(result) != expected_identity or _read_fd(fd) != expected_content:
-                raise MutationSafetyError(
-                    f"installed target identity changed: {binding.relative}"
-                )
-        finally:
-            os.close(fd)
+            self._check_public_object(binding, expected_identity, expected_content)
+        except Exception:
+            self.retained = True
+            raise
 
     def _write(self, binding: _Binding, spec: WriteSpec) -> _Record:
         assert self.holding_fd is not None
@@ -678,17 +877,33 @@ class _Transaction:
 
     def _remove_created_directory(
         self,
-        parent_fd: int,
-        name: str,
-        expected: tuple[int, int],
+        directory: _CreatedDirectory,
     ) -> None:
         assert self.holding_fd is not None
         detached = _new_name("rollback-directory")
-        _native_rename_noreplace(parent_fd, name, self.holding_fd, detached)
+        self._check_parent_chain(
+            directory.parent_parts,
+            directory.parent_identities,
+            directory.name,
+        )
+        _native_rename_noreplace(
+            directory.parent_fd,
+            directory.name,
+            self.holding_fd,
+            detached,
+        )
         try:
+            self._check_parent_chain(
+                directory.parent_parts,
+                directory.parent_identities,
+                directory.name,
+            )
             fd, result = self._open_private(detached)
             try:
-                if _identity(result) != expected or not stat.S_ISDIR(result.st_mode):
+                if (
+                    _identity(result) != directory.identity
+                    or not stat.S_ISDIR(result.st_mode)
+                ):
                     raise MutationSafetyError(
                         "concurrent directory state retained during rollback"
                     )
@@ -698,15 +913,25 @@ class _Transaction:
         except Exception:
             try:
                 if self._private_exists(detached):
-                    _native_rename_noreplace(self.holding_fd, detached, parent_fd, name)
+                    self._check_parent_chain(
+                        directory.parent_parts,
+                        directory.parent_identities,
+                        directory.name,
+                    )
+                    _native_rename_noreplace(
+                        self.holding_fd,
+                        detached,
+                        directory.parent_fd,
+                        directory.name,
+                    )
             except Exception:
                 self.retained = True
             raise
 
     def _remove_created_directories(self) -> None:
-        for parent_fd, name, expected in reversed(self.created_directories):
+        for directory in reversed(self.created_directories):
             try:
-                self._remove_created_directory(parent_fd, name, expected)
+                self._remove_created_directory(directory)
             except FileNotFoundError:
                 continue
             except (OSError, MutationSafetyError):
@@ -717,6 +942,7 @@ class _Transaction:
             return
         try:
             if remove and not self.retained:
+                self._check_root_binding()
                 try:
                     _native_unlink(self.holding_fd, _HOLDING_MARKER)
                 except FileNotFoundError:
@@ -726,6 +952,7 @@ class _Transaction:
                 os.close(holding_fd)
                 cleanup_name = _new_name("mutation-cleanup")
                 assert self.root_fd is not None
+                self._check_root_binding()
                 _native_rename_noreplace(
                     self.root_fd,
                     self.holding_name,
@@ -746,8 +973,12 @@ class _Transaction:
                     _native_unlink(self.root_fd, cleanup_name, _AT_REMOVEDIR)
                 finally:
                     os.close(fd)
+                self._check_root_binding()
             else:
                 self.retained = True
+        except Exception:
+            self.retained = True
+            raise
         finally:
             if self.holding_fd is not None:
                 os.close(self.holding_fd)
@@ -787,6 +1018,7 @@ class _Transaction:
         self._check_aliases()
         self.records.append(self._write(lock_binding, lock))
         self._check_aliases()
+        self._check_record_bindings()
 
         try:
             for record in self.records:

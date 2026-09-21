@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import ctypes
 import os
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -49,14 +50,49 @@ def _apply(
     deletes: dict[str, mutation.DeleteSpec] | None = None,
     *,
     lock: bytes = b"lock\n",
+    lock_path: str = ".agent-policy.lock",
 ) -> None:
     mutation.apply_generated_mutations(
         root,
         writes,
         {} if deletes is None else deletes,
-        lock_path=".agent-policy.lock",
+        lock_path=lock_path,
         lock=mutation.WriteSpec(lock, lambda _content: True),
     )
+
+
+_DESTRUCTIVE_METHODS = {
+    "unlink",
+    "remove",
+    "rmdir",
+    "rename",
+    "replace",
+    "move",
+    "rmtree",
+}
+_DESTRUCTIVE_MODULES = {"os", "shutil"}
+
+
+def _assert_no_unapproved_destructive_calls(source: str) -> None:
+    tree = ast.parse(textwrap.dedent(source))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        function = node.func
+        if isinstance(function, ast.Name) and function.id in _DESTRUCTIVE_METHODS:
+            raise AssertionError(f"unapproved destructive call: {function.id}")
+        if not isinstance(function, ast.Attribute):
+            continue
+        if function.attr not in _DESTRUCTIVE_METHODS:
+            continue
+        value = function.value
+        if isinstance(value, ast.Name) and value.id in _DESTRUCTIVE_MODULES:
+            raise AssertionError(f"unapproved destructive call: {value.id}.{function.attr}")
+        if isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
+            if value.func.id == "Path":
+                raise AssertionError(f"unapproved Path destructive call: {function.attr}")
+        if isinstance(value, (ast.Name, ast.Attribute)):
+            raise AssertionError(f"unapproved path-method destructive call: {function.attr}")
 
 
 def test_inventory_and_renderer_boundary_are_structural() -> None:
@@ -76,28 +112,201 @@ def test_inventory_and_renderer_boundary_are_structural() -> None:
     }
     assert actual_operations == expected_operations
 
-    tree = ast.parse(Path(render.__file__).read_text(encoding="utf-8"))
-    forbidden = {
-        ("os", "replace"),
-        ("os", "rename"),
-        ("os", "unlink"),
-        ("os", "remove"),
-        ("os", "rmdir"),
-    }
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
-            continue
-        if (
-            isinstance(node.func.value, ast.Name)
-            and (node.func.value.id, node.func.attr) in forbidden
+    _assert_no_unapproved_destructive_calls(
+        Path(render.__file__).read_text(encoding="utf-8")
+    )
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "os.replace(source, target)",
+        "os.rename(source, target)",
+        "os.unlink(target)",
+        "os.remove(target)",
+        "os.rmdir(target)",
+        "shutil.move(source, target)",
+        "shutil.rmtree(target)",
+        "target.unlink()",
+        "target.rename(other)",
+        "target.replace(other)",
+        "target.rmdir()",
+        "Path('x').unlink()",
+        "Path('x').rename('y')",
+        "Path('x').replace('y')",
+    ],
+)
+def test_structural_gate_rejects_representative_bypasses(source: str) -> None:
+    with pytest.raises(AssertionError):
+        _assert_no_unapproved_destructive_calls(source)
+
+
+def _replace_parent(root: Path, relative: str, content: bytes = AUTHORED) -> None:
+    parent = root / relative
+    old = root / f"{relative}.old"
+    parent.rename(old)
+    parent.mkdir()
+    (parent / "target.md").write_bytes(content)
+
+
+@pytest.mark.parametrize("operation", ["create", "replace", "delete"])
+def test_parent_replacement_at_mutation_boundary_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    target = nested / "target.md"
+    if operation in {"replace", "delete"}:
+        target.write_bytes(GENERATED)
+    original = mutation._native_rename_noreplace
+    injected = False
+
+    def replace_parent(
+        source_fd: int, source: str, destination_fd: int, destination: str
+    ) -> None:
+        nonlocal injected
+        if not injected and (
+            destination == "target.md" or source == "target.md"
         ):
-            raise AssertionError(
-                f"renderer bypasses the approved mutation boundary: {node.func.value.id}."
-                f"{node.func.attr}"
-            )
-        if node.func.attr in {"unlink", "rename"} and isinstance(node.func.value, ast.Attribute):
-            if node.func.value.attr == "Path":
-                raise AssertionError("renderer uses a path-based destructive mutation")
+            nested.rename(tmp_path / "nested.old")
+            nested.mkdir()
+            (nested / "target.md").write_bytes(AUTHORED)
+            injected = True
+        original(source_fd, source, destination_fd, destination)
+
+    monkeypatch.setattr(mutation, "_native_rename_noreplace", replace_parent)
+    if operation == "create":
+        writes = {"nested/target.md": _write_spec(GENERATED)}
+        deletes = {}
+    elif operation == "replace":
+        writes = {"nested/target.md": _write_spec(REPLACEMENT)}
+        deletes = {}
+    else:
+        writes = {}
+        deletes = {"nested/target.md": _delete_spec(GENERATED)}
+
+    with pytest.raises(mutation.MutationSafetyError):
+        _apply(tmp_path, writes, deletes)
+
+    assert injected
+    assert (nested / "target.md").read_bytes() == AUTHORED
+
+
+def test_ancestor_replacement_fails_closed_before_lock_claim(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ancestor = tmp_path / "one"
+    nested = ancestor / "two"
+    nested.mkdir(parents=True)
+    (nested / "target.md").write_bytes(GENERATED)
+    original = mutation._native_rename_noreplace
+    injected = False
+
+    def replace_ancestor(
+        source_fd: int, source: str, destination_fd: int, destination: str
+    ) -> None:
+        nonlocal injected
+        if source == "target.md" and not injected:
+            ancestor.rename(tmp_path / "one.old")
+            ancestor.mkdir()
+            (ancestor / "two").mkdir()
+            (ancestor / "two" / "target.md").write_bytes(AUTHORED)
+            injected = True
+        original(source_fd, source, destination_fd, destination)
+
+    monkeypatch.setattr(mutation, "_native_rename_noreplace", replace_ancestor)
+    with pytest.raises(mutation.MutationSafetyError):
+        _apply(tmp_path, {"one/two/target.md": _write_spec(REPLACEMENT)})
+
+    assert injected
+    assert (ancestor / "two" / "target.md").read_bytes() == AUTHORED
+    assert not (tmp_path / ".agent-policy.lock").exists()
+
+
+def test_lock_parent_replacement_is_not_claimed_as_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lock_parent = tmp_path / "locks"
+    lock_parent.mkdir()
+    (lock_parent / "policy.lock").write_bytes(b"old-lock\n")
+    original = mutation._native_rename_noreplace
+    injected = False
+
+    def replace_lock_parent(
+        source_fd: int, source: str, destination_fd: int, destination: str
+    ) -> None:
+        nonlocal injected
+        if source == "policy.lock" and not injected:
+            lock_parent.rename(tmp_path / "locks.old")
+            lock_parent.mkdir()
+            (lock_parent / "policy.lock").write_bytes(AUTHORED)
+            injected = True
+        original(source_fd, source, destination_fd, destination)
+
+    monkeypatch.setattr(mutation, "_native_rename_noreplace", replace_lock_parent)
+    with pytest.raises(mutation.MutationSafetyError):
+        _apply(
+            tmp_path,
+            {"target.md": _write_spec(GENERATED)},
+            lock_path="locks/policy.lock",
+            lock=b"new-lock\n",
+        )
+
+    assert injected
+    assert (lock_parent / "policy.lock").read_bytes() == AUTHORED
+    assert not (tmp_path / "target.md").exists()
+
+
+def test_created_parent_replacement_during_rollback_is_retained(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_rename = mutation._native_rename_noreplace
+    failed_second_install = False
+
+    def fail_second_install(
+        source_fd: int, source: str, destination_fd: int, destination: str
+    ) -> None:
+        nonlocal failed_second_install
+        if destination == "second.md" and not failed_second_install:
+            (tmp_path / destination).write_bytes(AUTHORED)
+            failed_second_install = True
+        original_rename(source_fd, source, destination_fd, destination)
+
+    monkeypatch.setattr(mutation, "_native_rename_noreplace", fail_second_install)
+    original_detach = mutation._Transaction._detach_owned_public
+    parent_replaced = False
+
+    def replace_created_parent(
+        transaction: mutation._Transaction, record: mutation._Record
+    ) -> str:
+        nonlocal parent_replaced
+        if record.binding.relative == "nested/first.md" and not parent_replaced:
+            parent = tmp_path / "nested"
+            parent.rename(tmp_path / "nested.old")
+            parent.mkdir()
+            (parent / "first.md").write_bytes(AUTHORED)
+            parent_replaced = True
+        return original_detach(transaction, record)
+
+    monkeypatch.setattr(
+        mutation._Transaction,
+        "_detach_owned_public",
+        replace_created_parent,
+    )
+    with pytest.raises(mutation.MutationSafetyError):
+        _apply(
+            tmp_path,
+            {
+                "nested/first.md": _write_spec(GENERATED),
+                "second.md": _write_spec(GENERATED),
+            },
+        )
+
+    assert failed_second_install and parent_replaced
+    assert (tmp_path / "nested" / "first.md").read_bytes() == AUTHORED
+    assert (tmp_path / "second.md").read_bytes() == AUTHORED
 
 
 def test_create_refuses_a_concurrent_creator_at_install_boundary(
