@@ -21,13 +21,13 @@ in the authenticated detail bundle.
 Before a dependent operation, retrieve the applicable exact rule text with:
 
 ```bash
-python "$(git -C . rev-parse --show-toplevel)/.agents/skills/policy-guidance/scripts/policy_guidance.py" --bundle={{ bundle_path_shell }} --operation <inspect|plan|edit|generate|validate|review|merge|publish>
+python "$(git -C . rev-parse --show-toplevel)/.agents/skills/agent-policy/scripts/run.py" --repository "$(git -C . rev-parse --show-toplevel)" guidance --script .agents/skills/policy-guidance/scripts/policy_guidance.py --bundle={{ bundle_path_shell }} --operation <inspect|plan|edit|generate|validate|review|merge|publish>
 ```
 
-The generated command resolves the installed script through the Git repository
-root, and the script uses the generated lock to discover that root, so the
-command remains valid from nested directories and with a non-default
-configuration filename. Supply
+The generated command resolves the pinned agent-policy runtime and installed
+guidance script through the Git repository root. The retrieval script also
+uses the generated lock to discover that root, so the command remains valid
+from nested directories and with a non-default configuration filename. Supply
 `--root <repository>` when the root must be explicit.
 
 If the bundle, lock, route, source identity, or retrieval command cannot be

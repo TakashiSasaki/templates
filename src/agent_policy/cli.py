@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .commands import adopt as adopt_command
 from .commands import check as check_command
+from .commands import guidance as guidance_command
 from .commands import init as init_command
 from .commands import onboard as onboard_command
 from .commands import render as render_command
@@ -36,6 +37,14 @@ def parser() -> argparse.ArgumentParser:
     for name in ["validate", "render", "check"]:
         item = sub.add_parser(name)
         item.add_argument("--config", default=".agent-policy.yml")
+
+    guidance = sub.add_parser("guidance", help=argparse.SUPPRESS)
+    guidance.add_argument("--script", required=True)
+    guidance.add_argument("--bundle")
+    guidance.add_argument("--operation")
+    guidance.add_argument("--rule-id")
+    guidance.add_argument("--all", action="store_true", dest="all_rules")
+    guidance.add_argument("--format", choices=["text", "json"], default="text")
 
     review_bundle = sub.add_parser("review-bundle", help=argparse.SUPPRESS)
     review_bundle.add_argument("--config", default=".agent-policy.yml")
@@ -167,6 +176,16 @@ def main(argv: list[str] | None = None) -> int:
         diagnostics = render_command.run(repository_root, args.config)
     elif args.command == "check":
         diagnostics = check_command.run(repository_root, args.config)
+    elif args.command == "guidance":
+        return guidance_command.run(
+            repository_root,
+            script=args.script,
+            bundle=args.bundle,
+            operation=args.operation,
+            rule_id=args.rule_id,
+            all_rules=args.all_rules,
+            output_format=args.format,
+        )
     elif args.command == "review-bundle":
         if args.review_bundle_command == "materialize":
             diagnostics = review_bundle_command.materialize(

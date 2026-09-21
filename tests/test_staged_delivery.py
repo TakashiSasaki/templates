@@ -407,6 +407,8 @@ def test_generated_guidance_commands_quote_bundle_paths(
     quoted = shlex.quote(bundle_path)
     assert f"--bundle={quoted} --operation" in startup
     assert f"--bundle={quoted} --operation" in skill
+    assert ".agents/skills/agent-policy/scripts/run.py" in startup
+    assert ".agents/skills/agent-policy/scripts/run.py" in skill
 
     environment = dict(os.environ)
     source_root = str(Path(__file__).parents[1] / "src")
@@ -430,6 +432,13 @@ def test_generated_guidance_commands_quote_bundle_paths(
     assert result.returncode == 0
 
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    runtime_runner = tmp_path / ".agents/skills/agent-policy/scripts/run.py"
+    runtime_runner.parent.mkdir(parents=True, exist_ok=True)
+    runtime_runner.write_text(
+        "from agent_policy.cli import main\n"
+        "raise SystemExit(main())\n",
+        encoding="utf-8",
+    )
     nested = tmp_path / "nested" / "work"
     nested.mkdir(parents=True)
     command = next(

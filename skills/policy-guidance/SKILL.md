@@ -24,11 +24,13 @@ reinterpret severity, decide applicability, or authorize a mutation.
 Run it before the dependent operation:
 
 ```bash
-python "$(git -C . rev-parse --show-toplevel)/.agents/skills/policy-guidance/scripts/policy_guidance.py" \
+python "$(git -C . rev-parse --show-toplevel)/.agents/skills/agent-policy/scripts/run.py" \
+  --repository "$(git -C . rev-parse --show-toplevel)" guidance \
+  --script .agents/skills/policy-guidance/scripts/policy_guidance.py \
   --bundle={{ policy_delivery_bundle_path_shell }} --operation <operation>
 ```
 
-The script locates the nearest repository ancestor containing the generated
+The pinned agent-policy runtime launches the retrieval script. The script locates the nearest repository ancestor containing the generated
 `.agent-policy.lock` from its installed path, so this command also works from a
 nested repository directory and does not assume a default configuration
 filename. Use `--root <repository>` when an explicit root is required.
