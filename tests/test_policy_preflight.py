@@ -82,6 +82,8 @@ def test_fast_profile_requires_local_checkout_behavioral_suite() -> None:
     assert "tests/test_pr_state_observation.py" in preflight.FOCUSED_TESTS
     assert "tests/test_pr_state_observation_replay.py" in preflight.FOCUSED_TESTS
     assert "tests/test_review_scope_selection.py" in preflight.FOCUSED_TESTS
+    assert "tests/test_matched_policy_delivery.py" in preflight.FOCUSED_TESTS
+    assert "tests/test_policy_delivery_evidence_spec.py" in preflight.FOCUSED_TESTS
     assert all((ROOT / path).is_file() for path in preflight.FOCUSED_TESTS)
 
 
