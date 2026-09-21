@@ -99,6 +99,15 @@ error; it is not silently treated as an empty valid route. The
 so disabling that output while leaving the Skill enabled is rejected during
 validation instead of failing later during rendering.
 
+The staged path must also be checked from a clean installed consumer, without
+the provider checkout on `PYTHONPATH`. The supported package build includes the
+presentation map, strict lock parser, canonical profiles, templates, and Skill
+assets. A clean-consumer smoke test should run `validate`, `render`, `check`,
+and the generated retrieval script, including from a nested directory with an
+explicit configuration path containing shell-sensitive characters. This proves
+package distribution and binding validation; it does not prove host prompt
+inclusion or qualify staged delivery for adoption.
+
 The current schema intentionally has no review-result JSON renderer. Provider-specific event names, API requests, inline-anchor formats, or serialization contracts must not become semantic review policy or a second generated review-procedure authority.
 
 All configured repository-local policy inputs are included in the generated lock. Each output, however, is rendered only from the profiles and repository-local policy files belonging to its referenced context. Output paths must be unique and must not overwrite configuration, policy input, or reserved generated-state paths.
