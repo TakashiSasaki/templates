@@ -35,3 +35,4 @@
 - [Staged CI and preflight](docs/staged-ci.md) - Explains local preflight and staged continuous integration checks.
 - [Revision-bound qualification](docs/revision-bound-qualification.md) - Defines qualification evidence bound to immutable revisions.
 - [Preparing reliable agent tasks](docs/agent-task-design.md) - Turns existing change-contract and evidence rules into proportional specification and instruction-design guidance.
+- [Agent task, goal, and steering templates](docs/agent-task-briefs.md) - Provides copyable briefs and examples with explicit obligations, evidence, and stop boundaries.

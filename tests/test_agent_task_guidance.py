@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGES = ("docs/agent-task-design.md",)
+PAGES = ("docs/agent-task-design.md", "docs/agent-task-briefs.md")
 
 
 class AgentTaskGuidanceTests(unittest.TestCase):
@@ -62,6 +62,34 @@ class AgentTaskGuidanceTests(unittest.TestCase):
         for heading in required:
             self.assertIn(heading, headings)
 
+
+    def test_templates_have_unambiguous_copy_boundaries(self) -> None:
+        text = (ROOT / "docs/agent-task-briefs.md").read_text(encoding="utf-8")
+        for name in ("GOAL", "TASK BRIEF", "STEERING"):
+            with self.subTest(template=name):
+                begin, end = f"<!-- BEGIN {name} TEMPLATE -->", f"<!-- END {name} TEMPLATE -->"
+                self.assertEqual(text.count(begin), 1)
+                self.assertEqual(text.count(end), 1)
+                self.assertLess(text.index(begin), text.index(end))
+                block = text.split(begin, 1)[1].split(end, 1)[0].strip()
+                self.assertTrue(block.startswith("```text\n"))
+                self.assertTrue(block.endswith("\n```"))
+
+    def test_expanded_brief_keeps_required_fields(self) -> None:
+        text = (ROOT / "docs/agent-task-briefs.md").read_text(encoding="utf-8")
+        block = text.split("<!-- BEGIN TASK BRIEF TEMPLATE -->", 1)[1].split(
+            "<!-- END TASK BRIEF TEMPLATE -->", 1
+        )[0]
+        for heading in (
+            "Outcome and completion", "Authority and scope", "Assumptions and observations",
+            "Acceptance obligations", "Design and implementation", "Validation and review",
+            "Budget and stop", "Handoff",
+        ):
+            self.assertIn(f"## {heading}\n", block)
+
+    def test_templates_link_to_the_method(self) -> None:
+        brief = (ROOT / "docs/agent-task-briefs.md").read_text(encoding="utf-8")
+        self.assertIn("](agent-task-design.md)", brief)
 
 if __name__ == "__main__":
     unittest.main()
