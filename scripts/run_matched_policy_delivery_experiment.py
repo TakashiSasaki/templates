@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -215,7 +216,26 @@ def policy(python: Path, root: Path, command: str) -> list[str]:
     return [str(python.parent / "agent-policy"), "--repository", str(root), command]
 
 
-def render_consumer(root: Path, python: Path, condition: str, revision: str) -> dict[str, Any]:
+def load_external_runtime(skill_root: Path) -> Any:
+    module_name = f"policy_delivery_runtime_{sha(str(skill_root).encode())[:12]}"
+    spec = importlib.util.spec_from_file_location(
+        module_name, skill_root / "scripts/runtime.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("installed agent-policy Skill runtime cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def render_consumer(
+    root: Path,
+    python: Path,
+    condition: str,
+    revision: str,
+    runtime_requirements: Path,
+) -> dict[str, Any]:
     environment = env_for(python)
     write_config(root, condition, revision)
     for command in ("validate", "render", "check"):
@@ -224,28 +244,72 @@ def render_consumer(root: Path, python: Path, condition: str, revision: str) -> 
             raise RuntimeError(result.stderr)
     if condition == "C":
         runtime_root = root.parent / f"{root.name}-installed-agent-policy"
-        # Keep the venv launcher path.  Resolving its symlink to the system
-        # interpreter would discard pyvenv.cfg and make -I hide the wheel.
-        runtime = str(python)
-        write(
-            runtime_root / "scripts/run.py",
-            "from __future__ import annotations\n"
-            "import os\n"
-            "import sys\n"
-            f"runtime = {runtime!r}\n"
-            "os.execv(runtime, [runtime, '-I', '-m', 'agent_policy.cli', *sys.argv[1:]])\n",
+        source_skill = Path(__file__).parents[1] / "skills/agent-policy"
+        shutil.copytree(source_skill, runtime_root)
+        runtime_module = load_external_runtime(runtime_root)
+        runtime_lock = runtime_requirements
+        lock_sha256 = sha(runtime_lock.read_bytes())
+        runtime_pin = runtime_module.RuntimePin(
+            "TakashiSasaki/templates",
+            revision,
+            "requirements-runtime.lock",
+            None,
+            "takashisasaki-agent-policy",
+            None,
+            "agent-policy",
         )
+        # The wheel is installed in the dedicated condition-C environment. Make
+        # that real venv the cache-selected runtime rather than generating a
+        # second runner that bypasses the installed Skill.
+        runtime_identity = runtime_module.RuntimeIdentity(
+            runtime_pin.repository,
+            runtime_pin.revision,
+            lock_sha256,
+            runtime_module.python_token(),
+            runtime_module.platform_token(),
+        )
+        package_version = run(
+            [
+                str(python),
+                "-c",
+                "import importlib.metadata as m; print(m.version('takashisasaki-agent-policy'))",
+            ],
+            root,
+            env=environment,
+        ).stdout.strip()
+        runtime_pin = runtime_module.RuntimePin(
+            runtime_pin.repository,
+            runtime_pin.revision,
+            runtime_pin.lock_path,
+            runtime_pin.expected_lock_sha256,
+            runtime_pin.project_distribution,
+            package_version,
+            runtime_pin.executable,
+        )
+        cache = root.parent / f"{root.name}-runtime-cache"
+        cache_entry = cache / runtime_identity.digest()
+        cache_entry.mkdir(parents=True, exist_ok=True)
+        (cache_entry / "venv").symlink_to(python.parent.parent, target_is_directory=True)
+        runtime_module.marker_path(cache_entry).write_text(
+            json.dumps(
+                runtime_module.expected_marker(
+                    runtime_identity, runtime_pin, package_version
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        environment["AGENT_POLICY_RUNTIME_CACHE"] = str(cache)
         nested = root / "nested" / "consumer"
         nested.mkdir(parents=True, exist_ok=True)
         guidance_result = run(
             [
-                str(python),
+                sys.executable,
                 str(runtime_root / "scripts/run.py"),
                 "--repository",
                 str(root),
                 "guidance",
-                "--config",
-                ".agent-policy.yml",
+                "--config=.agent-policy.yml",
                 "--script",
                 ".agents/skills/policy-guidance/scripts/policy_guidance.py",
                 "--bundle=.agent-policy/preview/policy-details.json",
@@ -507,7 +571,9 @@ def main() -> int:
         setup_task(root, task)
         git_baseline(root)
         python, identity = environments[condition]
-        manifest = render_consumer(root, python, condition, args.revision)
+        manifest = render_consumer(
+            root, python, condition, args.revision, requirements
+        )
         task_files = {}
         for path in sorted(root.rglob("*")):
             if not path.is_file() or ".git" in path.parts:
