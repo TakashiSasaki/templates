@@ -1,12 +1,18 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "candidate": {
-    "revision": "1a6efe96f5147864f80557f72f658be9ce1a106f",
+    "revision": "04c8c69404eb728b18e6b10496a6d6508c6aa276",
+    "provider_tree": "dca9a1c1bf21fd0136b75806699e4b1d450c4082",
     "wheel": "takashisasaki_agent_policy-0.1.0-py3-none-any.whl",
-    "wheel_sha256": "3bf3ca8371147fd07ddb7f21df49c2d108b1d9fadfefcd55b353ea56a1670d14",
+    "wheel_sha256": "028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c",
+    "wheel_payload_manifest_sha256": "8f7250833634d154dc6c19a87d826bdb3341d7ab524f7096539908a1cfb6a844",
+    "runtime_lock_sha256": "b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8",
     "python": "3.12.3",
     "package_version": "0.1.0",
-    "external_runner_sha256": "59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87"
+    "external_runner": {
+      "path": "skills/agent-policy/scripts/run.py",
+      "sha256": "59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87"
+    }
   },
   "conditions": {
     "A": {
@@ -15,12 +21,12 @@
       "selected_rule_count": 47,
       "startup_rule_count": 47,
       "nested_validate_render_check": true,
+      "operations": ["validate", "render", "check"],
       "files": {
-        ".agent-policy.yml": {"bytes": 808, "sha256": "ae02f981bd65707f21de368df0a9e38c97c1af279120c7e08038545b7cc7954d"},
-        ".agent-policy.lock": {"bytes": 1291, "sha256": "d84be44950cffd9cbf7370f2e7406caaba4feff5e019fe8a855a5f6a970e16e7"},
-        "AGENTS.md": {"bytes": 98190, "sha256": "6bacb00ad2b58f386b2b07bd992b07a2e3947cd0daf9c8a87ad3244209434134"}
-      },
-      "operations": ["validate", "render", "check"]
+        ".agent-policy.lock": {"bytes": 1291, "sha256": "f84041cb2b0d3f513330862e2659ffc039720cb0aa760c54727db01c224e73a5"},
+        ".agent-policy.yml": {"bytes": 808, "sha256": "e27366869a3a2c2d862e29ebb0a9e101d583a74bf121d44c771f9d560b498cd5"},
+        "AGENTS.md": {"bytes": 98190, "sha256": "a9952b58c5dd29fa21ac2a34fd30b557e1359f4e763625f3034af75f25ab3bb3"}
+      }
     },
     "C": {
       "renderer": "agents-md-staged",
@@ -29,16 +35,17 @@
       "startup_rule_count": 24,
       "nested_validate_render_check": true,
       "nested_guidance": {"operation": "inspect", "succeeded": true},
-      "external_skill": "skills/agent-policy/scripts/run.py",
+      "operations": ["validate", "render", "check", "guidance"],
+      "installed_skill_tree_sha256": "4d6994c6f41291bbf60b05238c9e3afdd3a3a1f70b0a5a45e94be4830525ed0a",
       "files": {
-        ".agent-policy.yml": {"bytes": 895, "sha256": "02f28b97fdfa06b19a4aecba8c99887c6568abbc7ee76998f336409c0775ba18"},
-        ".agent-policy.lock": {"bytes": 1671, "sha256": "965705bf522570dfabc7fbf60f846ffe5fce554f9740e10a88441c6306acd5cb"},
-        ".agent-policy/preview/policy-details.json": {"bytes": 148342, "sha256": "dc2feac341e9fd271d6c0f5f23185805475298f0eb632ed5d5f42bd1f369a270"},
+        ".agent-policy.lock": {"bytes": 1671, "sha256": "7a94bef8cc625943c51f82caf251f4673f70884ec92891d064843a6ceb1016a8"},
+        ".agent-policy.yml": {"bytes": 895, "sha256": "853daf604f73ab5c2ca9f8318516684fe9f2019646728480bbd51d9d0a778770"},
+        ".agent-policy/preview/policy-details.json": {"bytes": 148342, "sha256": "e4c5234908a15bdea5f26f166a11701d671a5ebb191a0c413832e5b40b4ad3a9"},
         ".agents/skills/policy-guidance/SKILL.md": {"bytes": 2374, "sha256": "7d4516ec3bd2dd2f5ee73bc7ee713dd35ca6d339f7bdb75ca888928a0e5dfe77"},
         ".agents/skills/policy-guidance/scripts/policy_guidance.py": {"bytes": 22601, "sha256": "866c75f9b4701d50d44181aad803443d7d8e8ee129e4f91a5840314189f2f239"},
-        "AGENTS.md": {"bytes": 30840, "sha256": "96e49b17357a20920a903a01bc80419be013e5c9d3eaeb47d2670761886e20fc"}
-      },
-      "operations": ["validate", "render", "check", "guidance"]
+        "AGENTS.md": {"bytes": 30840, "sha256": "ca225a3aa258557dc9e082470f2e3a50b197c6e2749186e10f159b1905bbd125"}
+      }
     }
-  }
+  },
+  "interpretation": "Distribution-boundary smoke only; no fresh agent trial or performance claim."
 }

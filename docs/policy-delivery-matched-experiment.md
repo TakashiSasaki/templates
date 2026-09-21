@@ -91,18 +91,21 @@ were launched and the cost gate remains `NOT_ESTABLISHED`.
 
 The repaired implementation candidate was also checked without starting an
 agent trial. For the final restacked #998 head
-`1a6efe96f5147864f80557f72f658be9ce1a106f`, including the generic mutation
-safety layer, the exact wheel was
+`04c8c69404eb728b18e6b10496a6d6508c6aa276`, including the finalized generic
+mutation transaction layer, the exact wheel was
 `takashisasaki_agent_policy-0.1.0-py3-none-any.whl` with SHA-256
-`3bf3ca8371147fd07ddb7f21df49c2d108b1d9fadfefcd55b353ea56a1670d14`.
+`028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c`.
+The wheel payload manifest was verified against provider tree
+`dca9a1c1bf21fd0136b75806699e4b1d450c4082`, and the runtime lock SHA-256 was
+`b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`.
 The clean-consumer smoke used Python 3.12.3, imported the installed package
 from its venv site-packages, selected 47 rules with 24 startup rules, and
-executed the copied external Skill `scripts/run.py` through its runtime-cache
-selection. The external runner bytes were SHA-256
+executed the candidate-bound copied external Skill `scripts/run.py` through
+its runtime-cache selection. The external runner bytes were SHA-256
 `59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`.
 Both conditions also passed `validate`, `render`, and `check` from a nested
-consumer directory using the installed package. The complete redacted
-condition manifest is in
+consumer directory using the installed package; C also completed nested
+guidance retrieval. The complete redacted condition manifest is in
 [`policy-delivery-clean-consumer-smoke-final.json`](policy-delivery-clean-consumer-smoke-final.json).
 This is distribution-boundary evidence only; it is not one of the six fresh
 agent trials and does not establish a performance result.
