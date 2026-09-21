@@ -462,9 +462,12 @@ def _select(
 def _discover_repository_root() -> Path:
     script = Path(__file__).resolve()
     for candidate in (script.parent, *script.parents):
-        if (candidate / ".agent-policy.yml").is_file():
+        if (candidate / ".agent-policy.lock").is_file():
             return candidate
-    return Path.cwd()
+    raise ValueError(
+        "could not discover the repository root from the installed guidance script; "
+        "pass --root explicitly"
+    )
 
 
 def main() -> int:
@@ -476,8 +479,8 @@ def main() -> int:
     parser.add_argument("--all", action="store_true", dest="all_rules")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     args = parser.parse_args()
-    root = args.root if args.root is not None else _discover_repository_root()
     try:
+        root = args.root if args.root is not None else _discover_repository_root()
         bundle = _load_bundle(root, args.bundle)
         selected = _select(bundle, args.operation, args.rule_id, args.all_rules)
     except (OSError, ValueError, KeyError) as exc:

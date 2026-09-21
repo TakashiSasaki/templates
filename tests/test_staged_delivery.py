@@ -349,6 +349,34 @@ def test_guidance_discovers_repository_root_from_nested_directory(tmp_path: Path
     assert "Retrieve this rule before changing generated files." in result.stdout
 
 
+def test_guidance_discovers_root_without_default_config_name(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    default_config = tmp_path / ".agent-policy.yml"
+    custom_config = tmp_path / "policy config &.yml"
+    default_config.rename(custom_config)
+    assert render.run(tmp_path, custom_config.name) == []
+    nested = tmp_path / "nested" / "work"
+    nested.mkdir(parents=True)
+    skill = tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(skill), "--rule-id", GUIDANCE],
+        cwd=nested,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+    assert result.returncode == 0
+    assert "Retrieve this rule before changing generated files." in result.stdout
+
+
 @pytest.mark.parametrize(
     "bundle_path",
     [
@@ -400,6 +428,29 @@ def test_generated_guidance_commands_quote_bundle_paths(
         env=environment,
     )
     assert result.returncode == 0
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    nested = tmp_path / "nested" / "work"
+    nested.mkdir(parents=True)
+    command = next(
+        line.strip()
+        for line in startup.splitlines()
+        if line.strip().startswith("python ")
+    )
+    command = command.replace("python ", f"{shlex.quote(sys.executable)} ", 1)
+    command = command.replace(
+        "--operation <inspect|plan|edit|generate|validate|review|merge|publish>",
+        f"--rule-id {shlex.quote(GUIDANCE)}",
+    )
+    nested_result = subprocess.run(
+        ["sh", "-c", command],
+        cwd=nested,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert nested_result.returncode == 0
 
 
 def test_guidance_uses_structural_lock_for_quoted_output_path(tmp_path: Path) -> None:
