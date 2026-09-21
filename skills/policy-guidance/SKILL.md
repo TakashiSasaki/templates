@@ -26,7 +26,7 @@ Run it before the dependent operation:
 ```bash
 python "${AGENT_POLICY_SKILL_ROOT:?Set AGENT_POLICY_SKILL_ROOT to the installed agent-policy Skill root}/scripts/run.py" \
   --repository "$(git -C . rev-parse --show-toplevel)" guidance \
-  --config {{ config_path_shell }} \
+  --config={{ config_path_shell }} \
   --script .agents/skills/policy-guidance/scripts/policy_guidance.py \
   --bundle={{ policy_delivery_bundle_path_shell }} --operation <operation>
 ```

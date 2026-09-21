@@ -122,6 +122,8 @@ def run(
         ]
         if bundle is not None:
             command.append(f"--bundle={bundle}")
+        if runtime_revision is not None:
+            command.append(f"--runtime-revision={runtime_revision}")
         if operation is not None:
             command.extend(["--operation", operation])
         if rule_id is not None:

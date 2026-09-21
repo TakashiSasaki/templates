@@ -293,6 +293,31 @@ def test_pinned_guidance_rejects_runtime_lock_revision_drift(
     assert "selected runtime revision" in result.stderr
 
 
+def test_generated_guidance_rechecks_selected_runtime_revision_at_use_boundary(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(TEST_REVISION, "b" * 40),
+        encoding="utf-8",
+    )
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    result = _run_guidance(
+        tmp_path,
+        "--runtime-revision",
+        TEST_REVISION,
+        "--rule-id",
+        GUIDANCE,
+    )
+
+    assert result.returncode == 2
+    assert "selected runtime revision" in result.stderr
+
+
 def test_pinned_guidance_executes_the_authenticated_script_bytes(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -308,6 +333,7 @@ def test_pinned_guidance_executes_the_authenticated_script_bytes(
         return []
 
     def capture_execution(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed["command"] = command
         observed["input"] = kwargs["input"]
         return subprocess.CompletedProcess(command, 0)
 
@@ -329,6 +355,7 @@ def test_pinned_guidance_executes_the_authenticated_script_bytes(
         == 0
     )
     assert observed["input"] == authenticated
+    assert f"--runtime-revision={TEST_REVISION}" in observed["command"]
 
 
 def test_staged_render_is_deterministic_and_check_detects_input_drift(
@@ -522,14 +549,15 @@ def test_guidance_discovers_root_without_default_config_name(tmp_path: Path) -> 
 
 
 @pytest.mark.parametrize(
-    "bundle_path",
+    ("bundle_path", "config_path"),
     [
-        ".agent-policy/preview/policy details &copy.json",
-        "-details.json",
+        (".agent-policy/preview/policy details &copy.json", ".agent-policy.yml"),
+        ("-details.json", ".agent-policy.yml"),
+        (".agent-policy/preview/policy-details.json", "-policy.yml"),
     ],
 )
 def test_generated_guidance_commands_quote_bundle_paths(
-    tmp_path: Path, bundle_path: str
+    tmp_path: Path, bundle_path: str, config_path: str
 ) -> None:
     _write_staged_repository(tmp_path)
     config = tmp_path / ".agent-policy.yml"
@@ -540,8 +568,10 @@ def test_generated_guidance_commands_quote_bundle_paths(
         ),
         encoding="utf-8",
     )
+    if config_path != ".agent-policy.yml":
+        config.rename(tmp_path / config_path)
 
-    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert render.run(tmp_path, config_path) == []
     startup = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
         encoding="utf-8"
     )
@@ -555,8 +585,9 @@ def test_generated_guidance_commands_quote_bundle_paths(
     assert "AGENT_POLICY_SKILL_ROOT" in skill
     assert ".agents/skills/agent-policy/scripts/run.py" not in startup
     assert ".agents/skills/agent-policy/scripts/run.py" not in skill
-    assert "--config .agent-policy.yml" in startup
-    assert "--config .agent-policy.yml" in skill
+    config_token = shlex.quote(config_path)
+    assert f"--config={config_token}" in startup
+    assert f"--config={config_token}" in skill
 
     environment = dict(os.environ)
     source_root = str(Path(__file__).parents[1] / "src")
@@ -652,8 +683,7 @@ def test_generated_guidance_commands_quote_bundle_paths(
             "--repository",
             str(tmp_path),
             "guidance",
-            "--config",
-            ".agent-policy.yml",
+            f"--config={config_path}",
             "--script",
             ".agents/skills/policy-guidance/scripts/policy_guidance.py",
             f"--bundle={bundle_path}",

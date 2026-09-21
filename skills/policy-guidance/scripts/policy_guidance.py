@@ -341,10 +341,21 @@ def _validate_current_bindings(
         raise ValueError("installed presentation map differs from detail bundle")
 
 
-def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
+def _load_bundle(
+    root: Path, bundle_relative: str, runtime_revision: str | None
+) -> dict[str, Any]:
     bundle_path = _safe_path(root, bundle_relative)
     actual = bundle_path.read_bytes()
     lock = _load_lock(_safe_path(root, ".agent-policy.lock"))
+    if runtime_revision is not None:
+        toolchain = lock.get("toolchain")
+        if (
+            not isinstance(toolchain, dict)
+            or toolchain.get("revision") != runtime_revision
+        ):
+            raise ValueError(
+                "selected runtime revision does not match the repository lock"
+            )
     expected = lock["outputs"].get(bundle_relative)
     if not isinstance(expected, str) or SHA256_RE.fullmatch(expected) is None:
         raise ValueError(f"lock has no valid output digest for {bundle_relative}")
@@ -474,6 +485,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path)
     parser.add_argument("--bundle", default=DEFAULT_BUNDLE_PATH)
+    parser.add_argument("--runtime-revision", help=argparse.SUPPRESS)
     parser.add_argument("--operation")
     parser.add_argument("--rule-id")
     parser.add_argument("--all", action="store_true", dest="all_rules")
@@ -481,7 +493,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         root = args.root if args.root is not None else _discover_repository_root()
-        bundle = _load_bundle(root, args.bundle)
+        bundle = _load_bundle(root, args.bundle, args.runtime_revision)
         selected = _select(bundle, args.operation, args.rule_id, args.all_rules)
     except (OSError, ValueError, KeyError) as exc:
         print(f"policy-guidance error: {exc}", file=sys.stderr)

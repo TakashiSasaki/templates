@@ -21,7 +21,7 @@ in the authenticated detail bundle.
 Before a dependent operation, retrieve the applicable exact rule text with:
 
 ```bash
-python "${AGENT_POLICY_SKILL_ROOT:?Set AGENT_POLICY_SKILL_ROOT to the installed agent-policy Skill root}/scripts/run.py" --repository "$(git -C . rev-parse --show-toplevel)" guidance --config {{ config_path_shell }} --script .agents/skills/policy-guidance/scripts/policy_guidance.py --bundle={{ bundle_path_shell }} --operation <inspect|plan|edit|generate|validate|review|merge|publish>
+python "${AGENT_POLICY_SKILL_ROOT:?Set AGENT_POLICY_SKILL_ROOT to the installed agent-policy Skill root}/scripts/run.py" --repository "$(git -C . rev-parse --show-toplevel)" guidance --config={{ config_path_shell }} --script .agents/skills/policy-guidance/scripts/policy_guidance.py --bundle={{ bundle_path_shell }} --operation <inspect|plan|edit|generate|validate|review|merge|publish>
 ```
 
 Set `AGENT_POLICY_SKILL_ROOT` to the actual installed `agent-policy` Skill
