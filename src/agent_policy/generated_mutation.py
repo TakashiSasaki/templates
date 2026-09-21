@@ -81,8 +81,44 @@ MUTATION_INVENTORY = (
 )
 
 
+class TransactionPhase:
+    """Observable lifecycle phases for one generated-state transaction."""
+
+    PREPARED = "prepared"
+    MUTATING = "mutating"
+    PUBLIC_STATE_INSTALLED = "public_state_installed"
+    COMMITTED = "committed"
+    POST_COMMIT_CLEANUP = "post_commit_cleanup"
+    COMPLETE = "complete"
+    ROLLING_BACK = "rolling_back"
+    FAILED_ROLLED_BACK = "failed_rolled_back"
+    FAILED_ROLLBACK_INCOMPLETE = "failed_rollback_incomplete"
+    FAILED_POST_COMMIT = "failed_post_commit"
+
+
+_POST_COMMIT_PHASES = frozenset(
+    {
+        TransactionPhase.COMMITTED,
+        TransactionPhase.POST_COMMIT_CLEANUP,
+        TransactionPhase.COMPLETE,
+        TransactionPhase.FAILED_POST_COMMIT,
+    }
+)
+
+
 class MutationSafetyError(RuntimeError):
     """The requested mutation could not be safely bound or rolled back."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        phase: str | None = None,
+        retained: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.phase = phase
+        self.retained = retained
 
 
 @dataclass(frozen=True)
@@ -238,6 +274,7 @@ class _Transaction:
         self.created_directories: list[_CreatedDirectory] = []
         self.retained = False
         self.aliases: dict[str, str] = {}
+        self.phase = TransactionPhase.PREPARED
 
     def __enter__(self) -> _Transaction:
         _require_supported_operations()
@@ -263,6 +300,11 @@ class _Transaction:
     def __exit__(self, exc_type, exc, traceback) -> bool:
         try:
             self._close_holding(not self.retained)
+        except Exception:
+            self.retained = True
+            if self.phase in _POST_COMMIT_PHASES:
+                self.phase = TransactionPhase.FAILED_POST_COMMIT
+            raise
         finally:
             self.stack.__exit__(exc_type, exc, traceback)
         return False
@@ -1007,6 +1049,7 @@ class _Transaction:
         lock_binding = self._bind(lock_path, lambda _content: True)
         bindings[lock_path] = lock_binding
 
+        self.phase = TransactionPhase.MUTATING
         for relative, spec in writes.items():
             self._check_aliases()
             record = self._write(bindings[relative], spec)
@@ -1020,6 +1063,13 @@ class _Transaction:
         self._check_aliases()
         self._check_record_bindings()
 
+        # This is the logical commit point.  All restoration state remains
+        # available until this check succeeds.  From here onward, ordinary
+        # rollback is forbidden because private backups may be retired.
+        self.phase = TransactionPhase.PUBLIC_STATE_INSTALLED
+        self.phase = TransactionPhase.COMMITTED
+        self.phase = TransactionPhase.POST_COMMIT_CLEANUP
+
         try:
             for record in self.records:
                 if record.action in {"replace", "delete"}:
@@ -1032,11 +1082,42 @@ class _Transaction:
                     )
             if self.retained:
                 raise MutationSafetyError(
-                    "generated mutation completed with retained concurrent state"
+                    "post-commit cleanup retained concurrent state"
                 )
-        except Exception:
+        except Exception as exc:
             self.retained = True
-            raise
+            self.phase = TransactionPhase.FAILED_POST_COMMIT
+            if isinstance(exc, MutationSafetyError):
+                exc.phase = self.phase
+                exc.retained = True
+                raise
+            raise MutationSafetyError(
+                f"post-commit cleanup incomplete: {exc}",
+                phase=self.phase,
+                retained=True,
+            ) from exc
+
+        try:
+            # Cleanup can race with a public writer.  This is the final
+            # public-state validation before success; no later operation may
+            # change generated outputs or the lock.
+            self._check_aliases()
+            self._check_record_bindings()
+        except Exception as exc:
+            self.retained = True
+            self.phase = TransactionPhase.FAILED_POST_COMMIT
+            if isinstance(exc, MutationSafetyError):
+                raise MutationSafetyError(
+                    f"post-commit public state changed: {exc}",
+                    phase=self.phase,
+                    retained=True,
+                ) from exc
+            raise MutationSafetyError(
+                f"post-commit public state validation failed: {exc}",
+                phase=self.phase,
+                retained=True,
+            ) from exc
+        self.phase = TransactionPhase.COMPLETE
 
 
 def apply_generated_mutations(
@@ -1062,6 +1143,20 @@ def apply_generated_mutations(
                     aliases=aliases,
                 )
             except Exception as exc:
+                if transaction.phase in _POST_COMMIT_PHASES:
+                    transaction.retained = True
+                    transaction.phase = TransactionPhase.FAILED_POST_COMMIT
+                    if isinstance(exc, MutationSafetyError):
+                        exc.phase = transaction.phase
+                        exc.retained = True
+                        raise
+                    raise MutationSafetyError(
+                        f"post-commit generated mutation failed: {exc}",
+                        phase=transaction.phase,
+                        retained=True,
+                    ) from exc
+
+                transaction.phase = TransactionPhase.ROLLING_BACK
                 rollback_errors: list[str] = []
                 for record in reversed(transaction.records):
                     try:
@@ -1070,15 +1165,34 @@ def apply_generated_mutations(
                         rollback_errors.append(
                             f"{record.binding.relative}: {rollback_error}"
                         )
-                if rollback_errors:
+                if rollback_errors or transaction.retained:
                     transaction.retained = True
+                    transaction.phase = TransactionPhase.FAILED_ROLLBACK_INCOMPLETE
                     raise MutationSafetyError(
                         f"generated mutation failed ({exc}); rollback incomplete: "
-                        + "; ".join(rollback_errors)
+                        + "; ".join(rollback_errors or ["retained state"]),
+                        phase=transaction.phase,
+                        retained=True,
                     ) from exc
                 transaction._remove_created_directories()
+                if transaction.retained:
+                    transaction.phase = TransactionPhase.FAILED_ROLLBACK_INCOMPLETE
+                    raise MutationSafetyError(
+                        f"generated mutation failed ({exc}); rollback incomplete: "
+                        "created directory state retained",
+                        phase=transaction.phase,
+                        retained=True,
+                    ) from exc
+                transaction.phase = TransactionPhase.FAILED_ROLLED_BACK
+                if isinstance(exc, MutationSafetyError):
+                    exc.phase = transaction.phase
+                    exc.retained = False
                 raise
     except MutationSafetyError:
         raise
     except Exception as exc:
-        raise MutationSafetyError(f"generated mutation failed: {exc}") from exc
+        raise MutationSafetyError(
+            f"generated mutation failed: {exc}",
+            phase=transaction.phase,
+            retained=transaction.retained,
+        ) from exc
