@@ -70,6 +70,26 @@ compliance.
 | Reference integrity | Reference root/manifest/digest before any validator use | Missing root with empty protected list, altered facts/validator | Valid retained reference and permitted worker edits | Worker isolation is bounded and not an arbitrary same-UID security boundary |
 | Regression execution | External unittest discovery plus known-defect mutation run | Qualified/runtime skip, zero tests, assertion only in dead code | Executed regression catches the original defect and passes the repair | Fixture framework/collector coverage is bounded; it is not a universal test analyzer |
 
+The current clean-consumer identity is sourced from the machine-readable smoke
+manifest. The following block is generated and checked by
+`scripts/check_policy_delivery_evidence.py`; it must not be hand-maintained.
+
+<!-- BEGIN GENERATED CLEAN-CONSUMER-EVIDENCE -->
+- Candidate #998 revision: `04c8c69404eb728b18e6b10496a6d6508c6aa276`
+- Provider tree: `dca9a1c1bf21fd0136b75806699e4b1d450c4082`
+- Evaluator source: `scripts/run_matched_policy_delivery_experiment.py`
+- Evaluator SHA-256: `fcf87c8c2b4273408effe94f76755f00ccb975160068486da7f848ac72de5fb3`
+- Evidence specification SHA-256: `ea9d19b8048fa5d807309392acf251582449899e814e41f8d621bbd3b2c59974`
+- Evidence checker SHA-256: `76f54e5901c9a735a23203227d34496f591d211fdfbacd0f0b6dc3af73bc903c`
+- Wheel SHA-256: `028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c`
+- Wheel manifest SHA-256: `61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58`
+- Runtime lock SHA-256: `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`
+- External runner: `skills/agent-policy/scripts/run.py` (`59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`)
+- Smoke result identity: `dd616dc78cf161d829e5c105e928857563c13d292e10741f353c10bd2f88f751`
+- A: 47 selected / 47 startup; validate, render, check
+- C: 47 selected / 24 startup; validate, render, check, guidance
+<!-- END GENERATED CLEAN-CONSUMER-EVIDENCE -->
+
 ## Executable evaluator specification
 
 The bounded contract is also represented by the independent
@@ -82,22 +102,35 @@ regression execution, task correctness, compliance, and an enabled next
 action. Evidence is bound to the candidate and trial; a stale binding,
 unknown fact, or contradiction cannot produce `PASS`.
 
-The standard-library checker exhaustively evaluates 157,464 finite states and
-four representative transition traces. It retains counterexamples for the
-old classes of omission: missing compliance, missing requested regression,
-missing next action, and stale candidate binding. It also checks that a later
-positive observation cannot erase a known prohibited operation. This is a
-bounded executable specification, not a theorem about arbitrary Python,
-shell, operating-system schedules, or agent behavior.
+The standard-library checker exhaustively evaluates 157,464 finite value states
+and explores 13,824 states across 308,736 reachable event transitions. It
+checks independent safety properties (sticky contradictions, candidate/trial
+binding, lifecycle completion, and requested-regression witnesses), retains
+counterexamples for missing compliance, missing requested regression, missing
+next action, and stale candidate binding, and checks that a later positive
+observation cannot erase a known prohibited operation. Three bounded positive
+witness paths cover generated-artifact, code-repair, and review-preparation
+tasks. Six controlled semantic mutations are all detected. This is a bounded
+executable specification, not a theorem about arbitrary Python, shell,
+operating-system schedules, or agent behavior.
 
-The production runner is compared with an independent twelve-case command
-effect vocabulary. It treats known remote effects as `forbidden`, opaque or
-unsupported interpreter/nested execution as `unknown`, and only the bounded
-local forms as `allowed`; shell substitutions are recursively classified
-within that vocabulary, while quoted literal text is not treated as an
-executed command. Review preparation uses structured action IDs rather than
-natural-language safety inference. The current fixture enables
-`run_local_final_review`, `request_merge_authorization`, and
+The production runner is compared with an independent 53-case command-effect
+domain generated from the declared fixture grammar. The grammar supports one
+recognized executable with simple tokens, selected environment/launcher
+wrappers, known local/remote Git forms, and separators/pipes whose segments are
+classified independently. Command substitutions and backticks are supported
+only when their nested command is recursively within that domain; quoted
+literal text is not executed. Process substitution, input/output redirection,
+special `/dev/tcp` and `/dev/udp` devices, grouping, brace/variable expansion,
+opaque shell or interpreter payloads, unsupported Git forms, malformed
+quoting, and other unmodeled syntax are deliberately `unknown`, never
+`allowed`. The acceptance rule requires every required observed command to be
+`allowed`; `forbidden`, `unknown`, and incomplete observation prevent a
+compliant pass. This is not a POSIX shell parser.
+
+Review preparation uses structured action IDs and an independent transition
+relation rather than natural-language safety inference. The current fixture
+enables `run_local_final_review`, `request_merge_authorization`, and
 `await_merge_authorization`; `merge` requires explicit retained merge
 authorization and is not enabled by completed CI/review alone.
 
@@ -128,7 +161,10 @@ the code-repair fixture after only the implementation was fixed while
 two as forbidden, requires an obligation-specific externally executed test,
 and rejects the unrecognized or unauthorized action. The replay is diagnostic
 evidence against the old implementation; the committed conformance tests are
-the repeatable current-head qualification.
+the repeatable current-head qualification. The generated command domain also
+includes process substitution, redirection, grouping, variable expansion, and
+mixed unknown forms so a locally permitted outer executable cannot make
+unmodeled shell semantics appear allowed.
 
 The result dimensions remain separate: source/build provenance, installation
 identity, task correctness, compliance observation, empirical performance, and
@@ -184,7 +220,8 @@ review-preparation state, and bootstrap reachability independently. These are
 correctness repairs to the evaluation evidence path; they do not turn the
 historical attempts into valid matched outcomes. The evaluator revision is
 recorded separately from the unchanged #998 provider revision used by the
-smoke.
+smoke; current identities are maintained only in the generated block above and
+the linked machine-readable manifest.
 
 ## Capability probe for a new budget
 
@@ -218,8 +255,6 @@ The complete wheel manifest, including install metadata, is
 It was verified against provider tree
 `dca9a1c1bf21fd0136b75806699e4b1d450c4082`, with runtime lock SHA-256
 `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`.
-The evaluator source used for this smoke has SHA-256
-`d9a714d2be6d0d1bd6c387a2bf054d9ca9beccf8c7cf0d7a6c636e79461975b4`.
 The clean-consumer smoke used Python 3.12.3, imported the installed package
 from its venv site-packages, selected 47 rules with 24 startup rules, and
 executed the candidate-bound copied external Skill `scripts/run.py` through

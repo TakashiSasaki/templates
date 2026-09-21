@@ -244,6 +244,115 @@ def _shell_tokens(command: str) -> list[str]:
     return list(lexer)
 
 
+def _substitution_end(command: str, start: int) -> int | None:
+    """Return the end of one supported substitution, or ``None``."""
+
+    if command.startswith("$(", start):
+        depth = 1
+        quote: str | None = None
+        escaped = False
+        index = start + 2
+        while index < len(command):
+            char = command[index]
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif quote:
+                if char == quote:
+                    quote = None
+            elif char in {"'", '"'}:
+                quote = char
+            elif char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth == 0:
+                    return index + 1
+            index += 1
+        return None
+    if start < len(command) and command[start] == "`":
+        escaped = False
+        index = start + 1
+        while index < len(command):
+            char = command[index]
+            if not escaped and char == "`":
+                return index + 1
+            escaped = not escaped and char == "\\"
+            if char != "\\":
+                escaped = False
+            index += 1
+    return None
+
+
+def _unsupported_shell_syntax(command: str) -> str | None:
+    """Reject shell syntax outside the deliberately modeled grammar.
+
+    Separators and the two recursively inspected substitution forms are part of
+    the bounded grammar.  Redirections, process substitutions, grouping,
+    variable/brace expansion, special network devices, and other unmodeled
+    syntax are not parsed and therefore fail closed as ``unknown``.
+    """
+
+    quote: str | None = None
+    escaped = False
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if escaped:
+            escaped = False
+            index += 1
+            continue
+        if char == "\\":
+            escaped = True
+            index += 1
+            continue
+        if quote == "'":
+            if char == "'":
+                quote = None
+            index += 1
+            continue
+        if quote == '"':
+            if char == '"':
+                quote = None
+                index += 1
+                continue
+            if command.startswith("$(", index) or char == "`":
+                end = _substitution_end(command, index)
+                if end is None:
+                    return "malformed shell substitution"
+                index = end
+                continue
+            if char == "$":
+                return "unsupported shell expansion"
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            index += 1
+            continue
+        if command.startswith("$(", index) or char == "`":
+            end = _substitution_end(command, index)
+            if end is None:
+                return "malformed shell substitution"
+            index = end
+            continue
+        if char in {"<", ">", "(", ")", "{", "}"}:
+            return f"unsupported shell syntax: {char}"
+        if char in {"\n", "\r"}:
+            return "unsupported shell newline"
+        if char == "$":
+            return "unsupported shell expansion"
+        if command.startswith("/dev/tcp/", index) or command.startswith(
+            "/dev/udp/", index
+        ):
+            return "unsupported special network device"
+        index += 1
+    if quote or escaped:
+        return "unterminated shell quote or escape"
+    return None
+
+
 def _substitution_payloads(command: str) -> tuple[list[str], bool]:
     """Extract bounded command substitutions outside single-quoted text.
 
@@ -272,8 +381,58 @@ def _substitution_payloads(command: str) -> tuple[list[str], bool]:
                 quote = None
             index += 1
             continue
-        if quote == '"' and char == '"':
-            quote = None
+        if quote == '"':
+            if char == '"':
+                quote = None
+                index += 1
+                continue
+            if command.startswith("$(", index) or char == "`":
+                if command.startswith("$(", index):
+                    depth = 1
+                    inner_start = index + 2
+                    cursor = inner_start
+                    inner_quote: str | None = None
+                    inner_escaped = False
+                    while cursor < len(command):
+                        inner = command[cursor]
+                        if inner_escaped:
+                            inner_escaped = False
+                        elif inner == "\\":
+                            inner_escaped = True
+                        elif inner_quote:
+                            if inner == inner_quote:
+                                inner_quote = None
+                        elif inner in {"'", '"'}:
+                            inner_quote = inner
+                        elif inner == "(":
+                            depth += 1
+                        elif inner == ")":
+                            depth -= 1
+                            if depth == 0:
+                                payloads.append(command[inner_start:cursor])
+                                index = cursor + 1
+                                break
+                        cursor += 1
+                    else:
+                        malformed = True
+                        break
+                    continue
+                cursor = index + 1
+                inner_escaped = False
+                while cursor < len(command):
+                    inner = command[cursor]
+                    if not inner_escaped and inner == "`":
+                        payloads.append(command[index + 1:cursor])
+                        index = cursor + 1
+                        break
+                    inner_escaped = not inner_escaped and inner == "\\"
+                    if inner != "\\":
+                        inner_escaped = False
+                    cursor += 1
+                else:
+                    malformed = True
+                    break
+                continue
             index += 1
             continue
         if char in {"'", '"'}:
@@ -389,6 +548,9 @@ def classify_command(command: str, *, _depth: int = 0) -> dict[str, str]:
         return {"status": "unknown", "reason": "missing command"}
     if _depth > 3:
         return {"status": "unknown", "reason": "nested shell depth is unsupported"}
+    unsupported = _unsupported_shell_syntax(command)
+    if unsupported:
+        return {"status": "unknown", "reason": unsupported}
     substitutions, malformed_substitution = _substitution_payloads(command)
     if malformed_substitution:
         return {"status": "unknown", "reason": "malformed shell substitution"}

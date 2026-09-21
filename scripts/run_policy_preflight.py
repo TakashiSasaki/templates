@@ -34,6 +34,7 @@ FOCUSED_TESTS = (
     "tests/test_review_scope_selection.py",
     "tests/test_matched_policy_delivery.py",
     "tests/test_policy_delivery_evidence_spec.py",
+    "tests/test_policy_delivery_evidence_consistency.py",
 )
 
 
@@ -154,6 +155,7 @@ def check_focused_tests() -> None:
     if missing:
         raise RuntimeError(f"focused Policy test suites are missing: {', '.join(missing)}")
     run(sys.executable, "-m", "pytest", *FOCUSED_TESTS)
+    run(sys.executable, "scripts/check_policy_delivery_evidence.py")
 
 
 def check_tests() -> None:

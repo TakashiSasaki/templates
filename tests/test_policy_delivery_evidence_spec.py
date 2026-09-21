@@ -44,6 +44,22 @@ def test_bounded_evidence_model_is_exhaustively_qualified() -> None:
         "candidate_invalidation": False,
         "grade_before_observation": False,
     }
+    assert result["reachable_state_count"] == 13824
+    assert result["reachable_transition_count"] == 308736
+    assert result["reachable_invariant_violations"] == []
+    assert result["witness_results"] == {
+        "generated-artifact": True,
+        "code-repair": True,
+        "review-preparation": True,
+    }
+    assert all(result["witness_paths"].values())
+    assert result["review_reachable_state_count"] == 112
+    assert result["review_reachable_transition_count"] == 1232
+    assert result["review_invariant_violations"] == []
+    assert result["review_witness_passes"]
+    mutation_checks = model.run_mutation_checks()
+    assert mutation_checks["mutation_count"] == 6
+    assert mutation_checks["all_detected"]
 
 
 def test_bounded_checker_runs_as_the_documented_entrypoint() -> None:
@@ -60,6 +76,7 @@ def test_bounded_checker_runs_as_the_documented_entrypoint() -> None:
 
 
 def test_classifier_conforms_to_independent_supported_command_domain() -> None:
+    assert len(model.command_cases()) == 56
     for case in model.command_cases():
         assert runner.classify_command(case.command)["status"] == case.expected, case.name
 
