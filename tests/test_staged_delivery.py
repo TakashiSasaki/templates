@@ -200,7 +200,7 @@ def test_render_rejects_nested_json_generated_marker_before_overwrite(
     bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
     authored = {
         "metadata": {"agent-policy-generated": True},
-        "user_data": "KEEP",
+        "user_data": "KEEP: agent-policy-generated: true",
     }
     bundle_path.parent.mkdir(parents=True, exist_ok=True)
     original = json.dumps(authored, indent=2) + "\n"

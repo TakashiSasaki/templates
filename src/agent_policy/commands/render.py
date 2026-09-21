@@ -39,12 +39,10 @@ def _write_atomic(path: Path, content: str) -> None:
 
 
 def _is_generated_content(content: str) -> bool:
-    if GENERATED_MARKER in content:
-        return True
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
-        return False
+        return GENERATED_MARKER in content
     return isinstance(parsed, dict) and parsed.get("agent-policy-generated") is True
 
 
