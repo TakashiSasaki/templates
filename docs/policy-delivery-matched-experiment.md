@@ -58,9 +58,9 @@ candidate was not trialled because the six-attempt budget is exhausted.
 
 The repaired evaluation candidate was also checked without starting an agent
 trial. For #998 head
-`ccc2d07598fad91161b8450013fec48ab7e125a7`, the exact wheel was
+`d33ee6d16187e1ddea178b96597b295f6f55f0e4`, the exact wheel was
 `takashisasaki_agent_policy-0.1.0-py3-none-any.whl` with SHA-256
-`775f889a2cd01b70f2346692bc696e52b78d6dd3c9245ea28348405f5d37d8e2`.
+`d7ca1aa02c733fb07b0a1e3d831df33dbf1f67043376a00f557d10776b59b67a`.
 The clean-consumer smoke used Python 3.12.3, imported the installed package
 from its venv site-packages, selected 47 rules with 24 startup rules, and
 executed the copied external Skill `scripts/run.py` through its runtime-cache
