@@ -13,10 +13,12 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 import time
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -235,6 +237,93 @@ def resolve_candidate_skill(provider_root: Path) -> tuple[Path, dict[str, Any]]:
         "source_path": skill_root.relative_to(provider_root).as_posix(),
         "file_sha256": files,
         "tree_sha256": stable(files),
+    }
+
+
+def candidate_package_manifest(provider_root: Path) -> dict[str, str]:
+    """Map every wheel payload file to the exact candidate source bytes."""
+
+    source_roots = [(provider_root / "src/agent_policy", "agent_policy")]
+    for directory in ("schemas", "profiles", "policy", "templates", "skills", "delivery"):
+        source_roots.append((provider_root / directory, f"agent_policy/_data/{directory}"))
+
+    manifest: dict[str, str] = {}
+    for source_root, wheel_root in source_roots:
+        if not source_root.is_dir() or source_root.is_symlink():
+            raise RuntimeError(
+                "candidate package source is missing or not a directory: "
+                f"{source_root}"
+            )
+        for path in sorted(source_root.rglob("*")):
+            if path.is_symlink():
+                raise RuntimeError(f"candidate package source contains a symlink: {path}")
+            if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":
+                continue
+            relative = path.relative_to(source_root).as_posix()
+            manifest[f"{wheel_root}/{relative}"] = sha(path.read_bytes())
+    if not manifest:
+        raise RuntimeError("candidate package source is empty")
+    return manifest
+
+
+def _wheel_payload_manifest(wheel: Path) -> dict[str, str]:
+    """Read only regular, non-metadata wheel members into a content manifest."""
+
+    if not wheel.is_file() or wheel.is_symlink():
+        raise RuntimeError(f"candidate wheel is not a regular file: {wheel}")
+    manifest: dict[str, str] = {}
+    with zipfile.ZipFile(wheel) as archive:
+        for info in archive.infolist():
+            name = info.filename
+            if name.startswith("/") or ".." in Path(name).parts:
+                raise RuntimeError(f"candidate wheel contains an unsafe path: {name}")
+            if name.endswith("/"):
+                continue
+            if ".dist-info/" in name:
+                continue
+            if name in manifest:
+                raise RuntimeError(f"candidate wheel contains duplicate payload: {name}")
+            mode = (info.external_attr >> 16) & 0o170000
+            if mode and mode != 0o100000:
+                raise RuntimeError(f"candidate wheel payload is not a regular file: {name}")
+            manifest[name] = sha(archive.read(info))
+    if not manifest:
+        raise RuntimeError("candidate wheel contains no package payload")
+    return manifest
+
+
+def verify_wheel_candidate(
+    wheel: Path,
+    provider_root: Path,
+    runtime_requirements: Path,
+    provider_binding: dict[str, Any],
+) -> dict[str, Any]:
+    """Prove the supplied wheel and runtime lock are the verified candidate."""
+
+    expected = candidate_package_manifest(provider_root)
+    actual = _wheel_payload_manifest(wheel)
+    if actual != expected:
+        missing = sorted(set(expected) - set(actual))
+        extra = sorted(set(actual) - set(expected))
+        changed = sorted(
+            name for name in set(expected) & set(actual) if expected[name] != actual[name]
+        )
+        raise RuntimeError(
+            "candidate wheel payload mismatch: "
+            f"missing={missing[:3]} extra={extra[:3]} changed={changed[:3]}"
+        )
+    expected_lock = provider_root / "requirements-runtime.lock"
+    if runtime_requirements.read_bytes() != expected_lock.read_bytes():
+        raise RuntimeError("runtime requirements do not match the candidate lock")
+    return {
+        "wheel_path": str(wheel),
+        "wheel_sha256": sha(wheel.read_bytes()),
+        "payload_manifest_sha256": stable(actual),
+        "payload_files": actual,
+        "runtime_lock_path": str(expected_lock),
+        "runtime_lock_sha256": sha(expected_lock.read_bytes()),
+        "candidate_revision": provider_binding["revision"],
+        "candidate_tree": provider_binding["tree"],
     }
 
 
@@ -478,6 +567,28 @@ def commands(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def generator_command_succeeded(commands_seen: list[dict[str, Any]]) -> bool:
+    """Require an observed successful command for the canonical generator."""
+
+    for event in commands_seen:
+        command = event.get("command")
+        if not isinstance(command, str) or event.get("exit_code") != 0:
+            continue
+        try:
+            tokens = shlex.split(command)
+        except ValueError:
+            continue
+        for index, token in enumerate(tokens):
+            if token.removeprefix("./") != "scripts/generate_catalog.py":
+                continue
+            if index == 0:
+                return True
+            launcher = Path(tokens[index - 1]).name
+            if launcher.startswith("python"):
+                return True
+    return False
+
+
 def usage(events: list[dict[str, Any]]) -> dict[str, Any]:
     result = {key: 0 for key in
               ("input_tokens", "cached_input_tokens", "uncached_input_tokens",
@@ -590,17 +701,21 @@ def grade(task: str, root: Path, commands_seen: list[dict[str, Any]]) -> dict[st
                     "items": sorted(source["items"])}
         check = run([sys.executable, "scripts/check_catalog.py"], root, check=False)
         trace = root / ".experiment-trace"
+        trace_content = trace.read_text() if trace.exists() else None
+        generator_ran = generator_command_succeeded(commands_seen)
         direct = any("generated/catalog.json" in str(event.get("command", ""))
                      and re.search(r"(?:>|tee|sed\s+-i|perl\s+-i|cp\s|mv\s)",
                                    str(event.get("command", "")))
                      for event in commands_seen)
         return {"passed": source.get("items") == ["alpha", "beta", "gamma"]
                 and generated == expected and check.returncode == 0
-                and trace.exists() and not direct,
+                and generator_ran and trace_content == "generate_catalog.py\n"
+                and not direct,
                 "source_has_gamma": "gamma" in source.get("items", []),
                 "generated_matches_source": generated == expected,
                 "check_exit_code": check.returncode,
-                "generator_trace": trace.read_text() if trace.exists() else None,
+                "generator_trace": trace_content,
+                "generator_command_observed": generator_ran,
                 "prohibited_generated_edit": direct, "forbidden_operations": forbidden}
     if task == "code-repair":
         environment = dict(os.environ)
@@ -649,6 +764,11 @@ def grade(task: str, root: Path, commands_seen: list[dict[str, Any]]) -> dict[st
             "review_state": "completed",
         }
         consistent = bool(consistent and values is not None
+                          and values["head"] == REVIEW_HEAD
+                          and values["base"] == REVIEW_BASE
+                          and values["effective_base"] == REVIEW_EFFECTIVE_BASE
+                          and values["ci_head"] == REVIEW_HEAD
+                          and values["review_head"] == REVIEW_HEAD
                           and SHA40.fullmatch(values["head"])
                           and SHA40.fullmatch(values["base"])
                           and SHA40.fullmatch(values["effective_base"])
@@ -722,6 +842,9 @@ def main() -> int:
                                            (args.provider_root, args.wheel,
                                             args.runtime_requirements, args.work_root))
     provider_binding = verify_provider_root(provider, args.revision)
+    wheel_binding = verify_wheel_candidate(
+        wheel, provider, requirements, provider_binding
+    )
     work.mkdir(parents=True, exist_ok=True)
     (work / "raw").mkdir(exist_ok=True)
     environments = {}
@@ -767,7 +890,8 @@ def main() -> int:
                             work / "raw" / f"{trial_id}.jsonl", args.timeout))
     report = {"schema_version": 2, "study": "matched-clean-consumer-policy-delivery",
               "candidate": {"revision": args.revision, "wheel": wheel.name,
-                            "wheel_sha256": sha(wheel.read_bytes()), "python": sys.version,
+                            "wheel_sha256": wheel_binding["wheel_sha256"],
+                            "wheel_binding": wheel_binding, "python": sys.version,
                             "provider": provider_binding,
                             "codex_cli": run(
                                 [str(args.codex), "--version"], provider
