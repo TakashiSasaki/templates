@@ -20,9 +20,34 @@ pairs in this order: `A1, C1, A2, C2, A3, C3`.
 
 Condition B was not run because this host does not expose a reproducible way to
 distinguish its prompt inclusion from A. The runner installs one exact wheel in
-both isolated consumers. Its staged path invokes the actual external
+both isolated consumers. It first retains a verified candidate source/artifact
+snapshot, builds the wheel used by both conditions from that snapshot, and
+revalidates the snapshot before each installation, render, and trial use. Its
+staged path invokes the actual external
 `skills/agent-policy/scripts/run.py` and its lock-selected runtime cache; it
 does not generate a test-only wrapper.
+
+## Current evaluation-integrity contract
+
+The evaluation runner is qualified as a diagnostic harness, not as a
+performance result. Candidate source, runtime-lock bytes, Skill bytes, and the
+wheel are retained from the verified provider revision. Wheel verification
+covers package payloads and the complete install metadata closure, including
+`METADATA`, `WHEEL`, `RECORD`, and declared console entry points. A changed or
+lost retained file fails closed before it is used.
+
+Each disposable task has a pre-trial reference outside the worker fixture.
+Protected generators, checkers, evidence, and validators are compared with
+that reference. Generated-artifact grading runs the retained checker against
+the worker's outputs; review preparation is graded against retained expected
+facts rather than executing a worker-modifiable validator. A common grade
+composition requires task correctness, reference integrity, policy compliance,
+and evidence validity, so an observed prohibited operation prevents a pass
+for every task type.
+
+The corrected negative controls are local deterministic tests only. They do not
+launch a model worker, retry the blocked capability probe, or change the
+`NOT_ESTABLISHED` whole-task-cost classification.
 
 ## Six historical attempts
 
@@ -95,9 +120,13 @@ agent trial. For the final restacked #998 head
 mutation transaction layer, the exact wheel was
 `takashisasaki_agent_policy-0.1.0-py3-none-any.whl` with SHA-256
 `028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c`.
-The wheel payload manifest was verified against provider tree
-`dca9a1c1bf21fd0136b75806699e4b1d450c4082`, and the runtime lock SHA-256 was
+The complete wheel manifest, including install metadata, is
+`61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58`.
+It was verified against provider tree
+`dca9a1c1bf21fd0136b75806699e4b1d450c4082`, with runtime lock SHA-256
 `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`.
+The evaluator source used for this smoke has SHA-256
+`6635ebbe1e4fd265c10b600d2d9c719d1c469bfc32a4ed20dc111175e8beabca`.
 The clean-consumer smoke used Python 3.12.3, imported the installed package
 from its venv site-packages, selected 47 rules with 24 startup rules, and
 executed the candidate-bound copied external Skill `scripts/run.py` through
@@ -105,7 +134,8 @@ its runtime-cache selection. The external runner bytes were SHA-256
 `59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`.
 Both conditions also passed `validate`, `render`, and `check` from a nested
 consumer directory using the installed package; C also completed nested
-guidance retrieval. The complete redacted condition manifest is in
+guidance retrieval. This smoke was rerun after the retained-artifact and
+independent-grading repair; the complete redacted condition manifest is in
 [`policy-delivery-clean-consumer-smoke-final.json`](policy-delivery-clean-consumer-smoke-final.json).
 This is distribution-boundary evidence only; it is not one of the six fresh
 agent trials and does not establish a performance result.

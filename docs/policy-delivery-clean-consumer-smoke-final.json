@@ -3,9 +3,13 @@
   "candidate": {
     "revision": "04c8c69404eb728b18e6b10496a6d6508c6aa276",
     "provider_tree": "dca9a1c1bf21fd0136b75806699e4b1d450c4082",
+    "evaluator_source": {
+      "path": "scripts/run_matched_policy_delivery_experiment.py",
+      "sha256": "6635ebbe1e4fd265c10b600d2d9c719d1c469bfc32a4ed20dc111175e8beabca"
+    },
     "wheel": "takashisasaki_agent_policy-0.1.0-py3-none-any.whl",
     "wheel_sha256": "028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c",
-    "wheel_payload_manifest_sha256": "8f7250833634d154dc6c19a87d826bdb3341d7ab524f7096539908a1cfb6a844",
+    "wheel_payload_manifest_sha256": "61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58",
     "runtime_lock_sha256": "b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8",
     "python": "3.12.3",
     "package_version": "0.1.0",
@@ -47,5 +51,5 @@
       }
     }
   },
-  "interpretation": "Distribution-boundary smoke only; no fresh agent trial or performance claim."
+  "interpretation": "Distribution-boundary smoke only; candidate preparation and clean-consumer use were rerun with the retained-artifact evaluator above; no fresh agent trial or performance claim."
 }
