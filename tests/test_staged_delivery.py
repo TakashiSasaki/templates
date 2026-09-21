@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_policy import delivery
+from agent_policy import delivery, generated_mutation
 from agent_policy.commands import check, render, validate
 from agent_policy.commands import guidance as guidance_command
 from agent_policy.config import load_config
@@ -414,26 +414,30 @@ def test_render_rolls_back_owned_outputs_after_late_ownership_conflict(
     _write_staged_repository(tmp_path)
     bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
     authored = '{"user_data":"KEEP"}\n'
-    calls = 0
-    original_write = render._write_atomic
+    injected = False
+    original_rename = generated_mutation._native_rename_noreplace
 
-    def replace_bundle_before_second_write(
-        path: Path, content: str, **kwargs: object
+    def replace_bundle_at_install_boundary(
+        source_fd: int, source: str, destination_fd: int, destination: str
     ) -> None:
-        nonlocal calls
-        calls += 1
-        if calls == 1:
-            bundle_path.parent.mkdir(parents=True, exist_ok=True)
+        nonlocal injected
+        if destination == "policy-details.json" and not injected:
             bundle_path.write_text(authored, encoding="utf-8")
-        original_write(path, content, **kwargs)
+            injected = True
+        original_rename(source_fd, source, destination_fd, destination)
 
-    monkeypatch.setattr(render, "_write_atomic", replace_bundle_before_second_write)
+    monkeypatch.setattr(
+        generated_mutation,
+        "_native_rename_noreplace",
+        replace_bundle_at_install_boundary,
+    )
 
     diagnostics = render.run(tmp_path, ".agent-policy.yml")
 
     assert len(diagnostics) == 1
     assert diagnostics[0].code == "RENDER"
-    assert "non-generated file" in diagnostics[0].message
+    assert "created concurrently" in diagnostics[0].message
+    assert injected
     assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
     assert bundle_path.read_text(encoding="utf-8") == authored
     assert not (tmp_path / ".agent-policy.lock").exists()
@@ -451,28 +455,30 @@ def test_render_rejects_replacement_after_last_ownership_check(
     lock_before = lock_path.read_text(encoding="utf-8")
     bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
     authored = '{"user_data":"KEEP"}\n'
-    validations = 0
-    original_validate = render._validate_generated_write
+    injected = False
+    original_rename = generated_mutation._native_rename_noreplace
 
-    def replace_after_bundle_validation(
-        path: Path, content: str, *, json_output: bool = False
+    def replace_before_bundle_detach(
+        source_fd: int, source: str, destination_fd: int, destination: str
     ) -> None:
-        nonlocal validations
-        original_validate(path, content, json_output=json_output)
-        if path == bundle_path:
-            validations += 1
-            if validations == 2:
-                bundle_path.write_text(authored, encoding="utf-8")
+        nonlocal injected
+        if source == "policy-details.json" and not injected:
+            bundle_path.write_text(authored, encoding="utf-8")
+            injected = True
+        original_rename(source_fd, source, destination_fd, destination)
 
     monkeypatch.setattr(
-        render, "_validate_generated_write", replace_after_bundle_validation
+        generated_mutation,
+        "_native_rename_noreplace",
+        replace_before_bundle_detach,
     )
 
     diagnostics = render.run(tmp_path, ".agent-policy.yml")
 
     assert len(diagnostics) == 1
     assert diagnostics[0].code == "RENDER"
-    assert "changed during render" in diagnostics[0].message
+    assert "content or ownership" in diagnostics[0].message
+    assert injected
     assert startup_path.read_text(encoding="utf-8") == startup_before
     assert bundle_path.read_text(encoding="utf-8") == authored
     assert lock_path.read_text(encoding="utf-8") == lock_before
@@ -502,27 +508,30 @@ def test_render_revalidates_obsolete_output_before_unlink(
         encoding="utf-8",
     )
     authored = '{"user_data":"KEEP"}\n'
-    original_write = render._write_atomic
+    original_rename = generated_mutation._native_rename_noreplace
     injected = False
 
-    def replace_obsolete_before_unlink(
-        path: Path, content: str, **kwargs: object
+    def replace_obsolete_before_detach(
+        source_fd: int, source: str, destination_fd: int, destination: str
     ) -> None:
         nonlocal injected
-        if not injected:
+        if source == "policy-details.json" and not injected:
             old_bundle.write_text(authored, encoding="utf-8")
             injected = True
-        original_write(path, content, **kwargs)
+        original_rename(source_fd, source, destination_fd, destination)
 
     monkeypatch.setattr(
-        render, "_write_atomic", replace_obsolete_before_unlink
+        generated_mutation,
+        "_native_rename_noreplace",
+        replace_obsolete_before_detach,
     )
 
     diagnostics = render.run(tmp_path, ".agent-policy.yml")
 
     assert len(diagnostics) == 1
     assert diagnostics[0].code == "RENDER"
-    assert "changed obsolete generated output" in diagnostics[0].message
+    assert "content or ownership" in diagnostics[0].message
+    assert injected
     assert old_startup.read_text(encoding="utf-8") == old_startup_content
     assert old_bundle.read_text(encoding="utf-8") == authored
     assert not (tmp_path / ".agent-policy/preview/new-AGENTS.md").exists()

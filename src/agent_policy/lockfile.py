@@ -29,7 +29,10 @@ def create_lock(
     toolchain_revision: str,
     inputs: Mapping[str, Path],
     outputs: Mapping[str, Path],
+    *,
+    output_digests: Mapping[str, str] | None = None,
 ) -> str:
+    digests = {} if output_digests is None else dict(output_digests)
     value = {
         "lock_version": 1,
         "toolchain": {
@@ -37,7 +40,12 @@ def create_lock(
             "revision": toolchain_revision,
         },
         "inputs": {name: {"sha256": sha256_file(path)} for name, path in sorted(inputs.items())},
-        "outputs": {name: {"sha256": sha256_file(path)} for name, path in sorted(outputs.items())},
+        "outputs": {
+            name: {
+                "sha256": digests[name] if name in digests else sha256_file(path)
+            }
+            for name, path in sorted(outputs.items())
+        },
     }
     return dump_yaml(value)
 
