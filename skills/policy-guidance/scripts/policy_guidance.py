@@ -336,6 +336,13 @@ def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
             not isinstance(rule_id, str)
             or not rule_id
             or rule_id in seen
+            or not isinstance(rule.get("title"), str)
+            or not isinstance(rule.get("severity"), str)
+            or not isinstance(rule.get("overridable"), bool)
+            or not isinstance(rule.get("order"), int)
+            or isinstance(rule.get("order"), bool)
+            or not isinstance(rule.get("origin"), str)
+            or not isinstance(rule.get("source"), str)
             or not isinstance(body, str)
             or not isinstance(body_digest, str)
             or SHA256_RE.fullmatch(body_digest) is None
@@ -343,7 +350,7 @@ def _load_bundle(root: Path, bundle_relative: str) -> dict[str, Any]:
             or not isinstance(source_digest, str)
             or SHA256_RE.fullmatch(source_digest) is None
         ):
-            raise ValueError("detail bundle rule identity or body is invalid")
+            raise ValueError("detail bundle rule identity, metadata, or body is invalid")
         seen.add(rule_id)
     presentation = bundle.get("presentation")
     if not isinstance(presentation, dict):

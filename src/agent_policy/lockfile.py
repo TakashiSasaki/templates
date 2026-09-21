@@ -67,7 +67,12 @@ def load_lock(path: Path) -> dict[str, Any]:
     value = load_yaml(path)
     if not isinstance(value, dict):
         raise ValueError("Lock file root must be a mapping")
-    if value.get("lock_version") != 1:
+    lock_version = value.get("lock_version")
+    if (
+        not isinstance(lock_version, int)
+        or isinstance(lock_version, bool)
+        or lock_version != 1
+    ):
         raise ValueError("Unsupported lock file version")
 
     toolchain = value.get("toolchain")

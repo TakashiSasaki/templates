@@ -25,7 +25,7 @@ Run it before the dependent operation:
 
 ```bash
 python .agents/skills/policy-guidance/scripts/policy_guidance.py \
-  --bundle {{ policy_delivery_bundle_path_shell }} --operation <operation>
+  --bundle={{ policy_delivery_bundle_path_shell }} --operation <operation>
 ```
 
 Use `--rule-id <id>` for one exact rule or `--all` when the operation route is
@@ -34,5 +34,5 @@ dependent operation. Missing, contradictory, incomplete, or stale bindings
 must be repaired or regenerated before retrying. `--all` is a safe fallback
 only for a valid bundle whose operation route is explicitly absent; it does not
 bypass bundle or input validation. The generated command shell-quotes the bundle
-path, so configured paths containing whitespace or shell metacharacters remain
-one argument.
+path, so configured paths containing whitespace, shell metacharacters, or a
+leading hyphen remain one argument.

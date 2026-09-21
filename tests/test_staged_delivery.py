@@ -279,7 +279,9 @@ def test_guidance_rejects_current_input_drift(
         ("title", "Tampered title"),
         ("severity", "advisory"),
         ("overridable", False),
+        ("overridable", 1),
         ("order", 9999),
+        ("order", 1000.0),
     ],
 )
 def test_guidance_rejects_policy_metadata_drift_after_lock_update(
@@ -296,12 +298,20 @@ def test_guidance_rejects_policy_metadata_drift_after_lock_update(
     result = _run_guidance(tmp_path, "--rule-id", GUIDANCE)
 
     assert result.returncode == 2
-    assert "current rule metadata or source changed" in result.stderr
+    assert "metadata" in result.stderr
 
 
-def test_generated_guidance_commands_quote_bundle_paths(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "bundle_path",
+    [
+        ".agent-policy/preview/policy details &copy.json",
+        "-details.json",
+    ],
+)
+def test_generated_guidance_commands_quote_bundle_paths(
+    tmp_path: Path, bundle_path: str
+) -> None:
     _write_staged_repository(tmp_path)
-    bundle_path = ".agent-policy/preview/policy details &copy.json"
     config = tmp_path / ".agent-policy.yml"
     config.write_text(
         config.read_text(encoding="utf-8").replace(
@@ -319,8 +329,8 @@ def test_generated_guidance_commands_quote_bundle_paths(tmp_path: Path) -> None:
         encoding="utf-8"
     )
     quoted = shlex.quote(bundle_path)
-    assert f"--bundle {quoted} --operation" in startup
-    assert f"--bundle {quoted} --operation" in skill
+    assert f"--bundle={quoted} --operation" in startup
+    assert f"--bundle={quoted} --operation" in skill
 
     environment = dict(os.environ)
     source_root = str(Path(__file__).parents[1] / "src")
@@ -333,7 +343,7 @@ def test_generated_guidance_commands_quote_bundle_paths(tmp_path: Path) -> None:
             "-c",
             f"{shlex.quote(sys.executable)} "
             ".agents/skills/policy-guidance/scripts/policy_guidance.py "
-            f"--bundle {quoted} --rule-id {GUIDANCE}",
+            f"--bundle={quoted} --rule-id {GUIDANCE}",
         ],
         cwd=tmp_path,
         check=False,
@@ -412,6 +422,21 @@ def test_guidance_rejects_duplicate_lock_section(tmp_path: Path) -> None:
 
     assert result.returncode == 2
     assert "Duplicate YAML key" in result.stderr
+
+
+def test_guidance_rejects_boolean_lock_version(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    lock = load_yaml(tmp_path / ".agent-policy.lock")
+    lock["lock_version"] = True
+    (tmp_path / ".agent-policy.lock").write_text(
+        dump_yaml(lock), encoding="utf-8"
+    )
+
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "Unsupported lock file version" in result.stderr
 
 
 def test_disabled_staged_output_with_guidance_is_rejected_before_render(

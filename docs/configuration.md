@@ -101,7 +101,8 @@ validation instead of failing later during rendering. Retrieval also compares
 every policy-significant field in the bundled rule with the freshly loaded rule,
 including title, severity, overrideability, and order. Generated retrieval
 commands shell-quote the configured detail-bundle path, so whitespace and shell
-metacharacters do not split the bundle argument.
+metacharacters do not split the bundle argument; the equals form also preserves
+paths beginning with a hyphen as a value rather than an option.
 
 The staged path must also be checked from a clean installed consumer, without
 the provider checkout on `PYTHONPATH`. The supported package build includes the
