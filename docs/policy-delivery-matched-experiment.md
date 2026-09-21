@@ -20,10 +20,15 @@ pairs in this order: `A1, C1, A2, C2, A3, C3`.
 
 Condition B was not run because this host does not expose a reproducible way to
 distinguish its prompt inclusion from A. The runner installs one exact wheel in
-both isolated consumers. It first retains a verified candidate source/artifact
-snapshot, builds the wheel used by both conditions from that snapshot, and
-revalidates the snapshot before each installation, render, and trial use. Its
-staged path invokes the actual external
+both isolated consumers. It does not accept a caller-supplied wheel: it first
+retains a verified candidate source/artifact snapshot, builds the wheel used by
+both conditions from that snapshot, and revalidates the retained manifest
+before each dependency installation, wheel installation, render, and trial
+use. It validates the installed distribution, payload hashes and sizes,
+installed `RECORD`, metadata, and console entry point before the consumer is
+usable. Documented pip-generated files (`__pycache__`, installer bookkeeping,
+and the console-script wrapper) are explicit installation transformations;
+unexpected files or metadata fail closed. Its staged path invokes the actual external
 `skills/agent-policy/scripts/run.py` and its lock-selected runtime cache; it
 does not generate a test-only wrapper.
 
@@ -33,17 +38,43 @@ The evaluation runner is qualified as a diagnostic harness, not as a
 performance result. Candidate source, runtime-lock bytes, Skill bytes, and the
 wheel are retained from the verified provider revision. Wheel verification
 covers package payloads and the complete install metadata closure, including
-`METADATA`, `WHEEL`, `RECORD`, and declared console entry points. A changed or
-lost retained file fails closed before it is used.
+`METADATA`, `WHEEL`, `RECORD`, and declared console entry points. The `WHEEL`
+field set and filename tags are checked against the retained build, not merely
+for the presence of `Root-Is-Purelib`. A changed or lost retained file fails
+closed before it is used, and the installed result is checked again at the
+installation boundary.
 
-Each disposable task has a pre-trial reference outside the worker fixture.
-Protected generators, checkers, evidence, and validators are compared with
-that reference. Generated-artifact grading runs the retained checker against
-the worker's outputs; review preparation is graded against retained expected
-facts rather than executing a worker-modifiable validator. A common grade
-composition requires task correctness, reference integrity, policy compliance,
-and evidence validity, so an observed prohibited operation prevents a pass
-for every task type.
+Each disposable task has a pre-trial reference outside the worker fixture,
+including the reference root and manifest even for the editable code-repair
+task whose protected-file set is empty. Protected generators, checkers,
+evidence, and validators are compared with that reference. Generated-artifact
+grading runs the retained checker against the worker's outputs; review
+preparation is graded against retained expected facts rather than executing a
+worker-modifiable validator. Code repair uses external `unittest` discovery,
+rejects skipped/zero-test execution, and reruns the retained regression against
+the known defective implementation to prove that the regression is meaningful.
+A common grade composition requires task correctness, reference integrity,
+policy compliance, and evidence validity, so an observed prohibited operation
+prevents a pass for every task type.
+
+## Contract-to-counterexample matrix
+
+This is the bounded acceptance contract for the diagnostic harness. It records
+what is actually observed, rather than treating a missing event as proof of
+compliance.
+
+| Claim | Enforcing/observing boundary | Negative control | Positive control | Limit |
+| --- | --- | --- | --- | --- |
+| Local-only task compliance | Parsed command events plus conservative unknown handling | `git fetch origin`, wrappers, unsupported/empty event stream | Bounded local `git status`/generator/test commands | Shell text cannot prove arbitrary Python or network absence; unknown remains non-compliant |
+| Candidate artifact identity | Retained manifest, wheel `RECORD`/metadata, and installed distribution inspection | Changed/lost artifact, substituted wheel, unexpected installed payload | One retained build installed into both A and C | Same-UID mutation between a final check and an external installer is outside this cooperative harness |
+| Reference integrity | Reference root/manifest/digest before any validator use | Missing root with empty protected list, altered facts/validator | Valid retained reference and permitted worker edits | Worker isolation is bounded and not an arbitrary same-UID security boundary |
+| Regression execution | External unittest discovery plus known-defect mutation run | Qualified/runtime skip, zero tests, assertion only in dead code | Executed regression catches the original defect and passes the repair | Fixture framework/collector coverage is bounded; it is not a universal test analyzer |
+
+The result dimensions remain separate: source/build provenance, installation
+identity, task correctness, compliance observation, empirical performance, and
+adoption are not interchangeable claims. `forbidden` means an observed
+prohibited event; `unknown` means the collector could not establish the
+required property. Neither is silently converted into a successful pass.
 
 The corrected negative controls are local deterministic tests only. They do not
 launch a model worker, retry the blocked capability probe, or change the
@@ -91,7 +122,9 @@ The runner now refuses a dirty or wrong-revision provider root, derives the C
 Skill tree from that verified candidate root, and grades code-repair behavior,
 review-preparation state, and bootstrap reachability independently. These are
 correctness repairs to the evaluation evidence path; they do not turn the
-historical attempts into valid matched outcomes.
+historical attempts into valid matched outcomes. The evaluator revision is
+recorded separately from the unchanged #998 provider revision used by the
+smoke.
 
 ## Capability probe for a new budget
 
@@ -126,7 +159,7 @@ It was verified against provider tree
 `dca9a1c1bf21fd0136b75806699e4b1d450c4082`, with runtime lock SHA-256
 `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`.
 The evaluator source used for this smoke has SHA-256
-`6635ebbe1e4fd265c10b600d2d9c719d1c469bfc32a4ed20dc111175e8beabca`.
+`d9a714d2be6d0d1bd6c387a2bf054d9ca9beccf8c7cf0d7a6c636e79461975b4`.
 The clean-consumer smoke used Python 3.12.3, imported the installed package
 from its venv site-packages, selected 47 rules with 24 startup rules, and
 executed the candidate-bound copied external Skill `scripts/run.py` through
