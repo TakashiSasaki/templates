@@ -37,6 +37,10 @@ GUIDANCE = re.compile(r"policy_guidance\.py")
 OPERATION = re.compile(r"--operation(?:=|\s+)([\w-]+)")
 RULE_ID = re.compile(r"rule ID:\s*([^\s|]+)")
 FORBIDDEN = re.compile(r"(?:^|[;&|\s])(?:gh\b|curl\b|wget\b|git\s+(?:push|pull|merge|rebase)\b)")
+SHA40 = re.compile(r"^[0-9a-f]{40}$")
+REVIEW_HEAD = "1" * 40
+REVIEW_BASE = "2" * 40
+REVIEW_EFFECTIVE_BASE = "3" * 40
 
 TASK_PROMPTS = {
     "generated-artifact": (
@@ -56,10 +60,11 @@ TASK_PROMPTS = {
     "review-preparation": (
         "Prepare the local review-qualification handoff. Follow applicable review "
         "guidance before the review operation, validate candidate/evidence.json "
-        "with scripts/validate_evidence.py, and write review-preparation.md with "
-        "the exact repository, PR, head, base, effective base, CI/review state, "
-        "and next safe action. Do not post comments, call gh, merge, push, or "
-        "use the network."
+        "with scripts/validate_evidence.py, and write review-preparation.txt as "
+        "strict key=value lines for repository, pull_request, head, base, "
+        "effective_base, ci_state, ci_head, review_state, review_head, and "
+        "next_safe_action. Use the validated values and do not omit any key. "
+        "Do not post comments, call gh, merge, push, or use the network."
     ),
 }
 
@@ -136,19 +141,20 @@ if __name__ == "__main__":
     elif task == "review-preparation":
         write(root / "candidate/evidence.json", json.dumps({
             "repository": "fixture/review-preparation", "pull_request": 42,
-            "head": "h" * 40, "base": "b" * 40, "effective_base": "e" * 40,
-            "ci": {"state": "success", "head": "h" * 40},
-            "review": {"state": "completed", "head": "h" * 40},
+            "head": REVIEW_HEAD, "base": REVIEW_BASE,
+            "effective_base": REVIEW_EFFECTIVE_BASE,
+            "ci": {"state": "success", "head": REVIEW_HEAD},
+            "review": {"state": "completed", "head": REVIEW_HEAD},
         }, indent=2) + "\n")
         write(root / "scripts/validate_evidence.py", '''from __future__ import annotations
 import json
 from pathlib import Path
 data = json.loads(Path(__file__).parents[1].joinpath("candidate/evidence.json").read_text())
-assert data["head"] == "h" * 40
-assert data["base"] == "b" * 40
-assert data["effective_base"] == "e" * 40
-assert data["ci"] == {"state": "success", "head": "h" * 40}
-assert data["review"] == {"state": "completed", "head": "h" * 40}
+assert data["head"] == "1" * 40
+assert data["base"] == "2" * 40
+assert data["effective_base"] == "3" * 40
+assert data["ci"] == {"state": "success", "head": "1" * 40}
+assert data["review"] == {"state": "completed", "head": "1" * 40}
 print("evidence is applicable")
 ''')
     else:
@@ -198,6 +204,65 @@ def git_baseline(root: Path) -> None:
     run(["git", "commit", "-qm", "fixture baseline"], root)
 
 
+def skill_tree_manifest(skill_root: Path) -> dict[str, str]:
+    """Return a deterministic manifest of the executable Skill source tree."""
+
+    skill_root = skill_root.resolve()
+    if not skill_root.is_dir() or skill_root.is_symlink():
+        raise RuntimeError(f"candidate Skill root is not a regular directory: {skill_root}")
+    files: dict[str, str] = {}
+    for path in sorted(skill_root.rglob("*")):
+        if path.is_symlink():
+            raise RuntimeError(f"candidate Skill source contains a symlink: {path}")
+        if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":
+            continue
+        relative = path.relative_to(skill_root).as_posix()
+        files[relative] = sha(path.read_bytes())
+    if not files:
+        raise RuntimeError(f"candidate Skill root is empty: {skill_root}")
+    return files
+
+
+def resolve_candidate_skill(provider_root: Path) -> tuple[Path, dict[str, Any]]:
+    provider_root = provider_root.resolve()
+    skill_root = provider_root / "skills/agent-policy"
+    try:
+        skill_root.relative_to(provider_root)
+    except ValueError as exc:
+        raise RuntimeError("candidate Skill path escaped provider root") from exc
+    files = skill_tree_manifest(skill_root)
+    return skill_root, {
+        "source_path": skill_root.relative_to(provider_root).as_posix(),
+        "file_sha256": files,
+        "tree_sha256": stable(files),
+    }
+
+
+def verify_provider_root(provider_root: Path, revision: str) -> dict[str, Any]:
+    """Authenticate the source checkout used for all experiment inputs."""
+
+    provider_root = provider_root.resolve()
+    head = run(["git", "rev-parse", "HEAD"], provider_root).stdout.strip()
+    tree = run(["git", "rev-parse", "HEAD^{tree}"], provider_root).stdout.strip()
+    status = run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        provider_root,
+    ).stdout
+    if head != revision:
+        raise RuntimeError(
+            f"provider root revision mismatch: expected {revision}, got {head}"
+        )
+    if status:
+        raise RuntimeError("provider root is dirty; candidate bytes are not immutable")
+    _skill_root, skill = resolve_candidate_skill(provider_root)
+    return {
+        "provider_root": str(provider_root),
+        "revision": head,
+        "tree": tree,
+        "skill": skill,
+    }
+
+
 def install_env(path: Path, wheel: Path, requirements: Path) -> tuple[Path, dict[str, Any]]:
     run([sys.executable, "-m", "venv", str(path)], path.parent)
     python = path / "bin/python"
@@ -235,6 +300,8 @@ def render_consumer(
     condition: str,
     revision: str,
     runtime_requirements: Path,
+    provider_root: Path,
+    provider_binding: dict[str, Any],
 ) -> dict[str, Any]:
     environment = env_for(python)
     write_config(root, condition, revision)
@@ -244,8 +311,11 @@ def render_consumer(
             raise RuntimeError(result.stderr)
     if condition == "C":
         runtime_root = root.parent / f"{root.name}-installed-agent-policy"
-        source_skill = Path(__file__).parents[1] / "skills/agent-policy"
+        source_skill, source_manifest = resolve_candidate_skill(provider_root)
         shutil.copytree(source_skill, runtime_root)
+        copied_manifest = skill_tree_manifest(runtime_root)
+        if copied_manifest != source_manifest["file_sha256"]:
+            raise RuntimeError("copied Skill bytes do not match the candidate source")
         runtime_module = load_external_runtime(runtime_root)
         runtime_lock = runtime_requirements
         lock_sha256 = sha(runtime_lock.read_bytes())
@@ -365,13 +435,18 @@ def render_consumer(
         startup = list(selected)
     manifest = {"files": files, "selected_rule_ids": selected,
                 "startup_rule_ids": startup, "rule_body_bytes": body_bytes,
-                "clean_consumer": True}
+                "clean_consumer": True, "candidate_source": provider_binding}
     if condition == "C":
         runtime_file = runtime_root / "scripts/run.py"
         manifest["installed_runtime"] = {
             "path": "external-agent-policy/scripts/run.py",
             "bytes": runtime_file.stat().st_size,
             "sha256": sha(runtime_file.read_bytes()),
+        }
+        manifest["installed_skill_source"] = {
+            "source_path": source_manifest["source_path"],
+            "tree_sha256": source_manifest["tree_sha256"],
+            "file_sha256": source_manifest["file_sha256"],
         }
         manifest["_runtime_skill_root"] = str(runtime_root)
     return manifest
@@ -453,6 +528,58 @@ def guidance(commands_seen: list[dict[str, Any]], manifest: dict[str, Any]) -> d
             "observability": "aggregated command output only; guidance token counts unobserved"}
 
 
+def parse_key_value_report(content: str) -> dict[str, str] | None:
+    values: dict[str, str] = {}
+    for line in content.splitlines():
+        if not line.strip():
+            continue
+        if "=" not in line:
+            return None
+        key, value = line.split("=", 1)
+        if not re.fullmatch(r"[a-z_]+", key) or key in values:
+            return None
+        values[key] = value
+    return values
+
+
+def bootstrap_evidence(
+    stderr: str,
+    exit_code: int | None,
+    timed_out: bool,
+    events: list[dict[str, Any]],
+    commands_seen: list[dict[str, Any]],
+) -> dict[str, Any]:
+    normalized_reason: str | None = None
+    if "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted" in stderr:
+        normalized_reason = "sandbox_bootstrap_network_namespace_unavailable"
+    elif "sandbox helper failed" in stderr:
+        normalized_reason = "sandbox_bootstrap_helper_failed"
+    elif not events and not commands_seen:
+        normalized_reason = "no_child_events_or_tool_boundary"
+
+    if timed_out:
+        classification = "timeout"
+    elif commands_seen:
+        classification = "task_execution"
+    elif normalized_reason is not None:
+        classification = "bootstrap_failure"
+    else:
+        classification = "infrastructure_failure"
+
+    return {
+        "classification": classification,
+        "child_exit_code": exit_code,
+        "tool_event_count": len(commands_seen),
+        "reached_tool_boundary": bool(commands_seen),
+        "normal_task_completion_event": bool(commands_seen) and any(
+            event.get("type") == "turn.completed" for event in events
+        ),
+        "normalized_reason": normalized_reason,
+        "stderr_sha256": sha(stderr.encode("utf-8")),
+        "stderr_bytes": len(stderr.encode("utf-8")),
+    }
+
+
 def grade(task: str, root: Path, commands_seen: list[dict[str, Any]]) -> dict[str, Any]:
     forbidden = [event["command"] for event in commands_seen
                  if isinstance(event.get("command"), str) and FORBIDDEN.search(event["command"])]
@@ -476,23 +603,63 @@ def grade(task: str, root: Path, commands_seen: list[dict[str, Any]]) -> dict[st
                 "generator_trace": trace.read_text() if trace.exists() else None,
                 "prohibited_generated_edit": direct, "forbidden_operations": forbidden}
     if task == "code-repair":
+        environment = dict(os.environ)
+        environment["PYTHONPATH"] = str(root / "src")
+        behavior = run(
+            [
+                sys.executable,
+                "-c",
+                "from calculator import average; "
+                "assert average([1, 3, 5]) == 3.0",
+            ],
+            root,
+            env=environment,
+            check=False,
+        )
         result = run([sys.executable, "tests/test_calculator.py"], root, check=False)
         tests = (root / "tests/test_calculator.py").read_text()
         source = (root / "src/calculator.py").read_text()
-        return {"passed": result.returncode == 0 and "average([1, 3, 5])" in tests,
+        regression = (
+            "def test_average_three_values" in tests
+            and "assertEqual(average([1, 3, 5]), 3.0)" in tests
+        )
+        defect = "len(values) + 1" in source
+        return {"passed": behavior.returncode == 0 and result.returncode == 0
+                and regression and not defect,
+                "behavior_exit_code": behavior.returncode,
                 "test_exit_code": result.returncode,
-                "regression_present": "average([1, 3, 5])" in tests,
-                "implementation_contains_defect": "len(values) + 1" in source,
+                "regression_present": regression,
+                "implementation_contains_defect": defect,
                 "forbidden_operations": forbidden}
     if task == "review-preparation":
         result = run([sys.executable, "scripts/validate_evidence.py"], root, check=False)
-        content = ((root / "review-preparation.md").read_text()
-                   if (root / "review-preparation.md").exists() else "")
-        required = ("fixture/review-preparation", "42", "h" * 40, "b" * 40, "e" * 40)
-        return {"passed": result.returncode == 0 and all(item in content for item in required),
+        content = ((root / "review-preparation.txt").read_text()
+                   if (root / "review-preparation.txt").exists() else "")
+        values = parse_key_value_report(content)
+        required_keys = {
+            "repository", "pull_request", "head", "base", "effective_base",
+            "ci_state", "ci_head", "review_state", "review_head",
+            "next_safe_action",
+        }
+        consistent = bool(values) and set(values) == required_keys and values == {
+            **values,
+            "repository": "fixture/review-preparation",
+            "pull_request": "42",
+            "ci_state": "success",
+            "review_state": "completed",
+        }
+        consistent = bool(consistent and values is not None
+                          and SHA40.fullmatch(values["head"])
+                          and SHA40.fullmatch(values["base"])
+                          and SHA40.fullmatch(values["effective_base"])
+                          and values["ci_head"] == values["head"]
+                          and values["review_head"] == values["head"]
+                          and values["next_safe_action"].strip()
+                          and not FORBIDDEN.search(values["next_safe_action"]))
+        return {"passed": result.returncode == 0 and consistent,
                 "validation_exit_code": result.returncode,
                 "report_present": bool(content),
-                "required_bindings_present": all(item in content for item in required),
+                "required_fields_valid": consistent,
                 "forbidden_operations": forbidden}
     raise ValueError(task)
 
@@ -532,6 +699,9 @@ def trial(codex: Path, python: Path, root: Path, task: str, condition: str,
             "usage": usage(events), "turns": sum(e.get("type") == "turn.completed" for e in events),
             "tool_calls": len(seen),
             "failed_tool_calls": sum(e.get("exit_code") not in (0, None) for e in seen),
+            "bootstrap_evidence": bootstrap_evidence(
+                stderr, exit_code, timed_out, events, seen
+            ),
             "guidance": guidance(seen, manifest), "grader": grade(task, root, seen),
             "delivery_manifest": manifest,
             "raw_log": raw.name}
@@ -551,6 +721,7 @@ def main() -> int:
     provider, wheel, requirements, work = (p.resolve() for p in
                                            (args.provider_root, args.wheel,
                                             args.runtime_requirements, args.work_root))
+    provider_binding = verify_provider_root(provider, args.revision)
     work.mkdir(parents=True, exist_ok=True)
     (work / "raw").mkdir(exist_ok=True)
     environments = {}
@@ -572,7 +743,13 @@ def main() -> int:
         git_baseline(root)
         python, identity = environments[condition]
         manifest = render_consumer(
-            root, python, condition, args.revision, requirements
+            root,
+            python,
+            condition,
+            args.revision,
+            requirements,
+            provider,
+            provider_binding,
         )
         task_files = {}
         for path in sorted(root.rglob("*")):
@@ -588,9 +765,10 @@ def main() -> int:
                          "package_identity": identity})
         trials.append(trial(args.codex.resolve(), python, root, task, condition, manifest,
                             work / "raw" / f"{trial_id}.jsonl", args.timeout))
-    report = {"schema_version": 1, "study": "matched-clean-consumer-policy-delivery",
+    report = {"schema_version": 2, "study": "matched-clean-consumer-policy-delivery",
               "candidate": {"revision": args.revision, "wheel": wheel.name,
                             "wheel_sha256": sha(wheel.read_bytes()), "python": sys.version,
+                            "provider": provider_binding,
                             "codex_cli": run(
                                 [str(args.codex), "--version"], provider
                             ).stdout.strip(),

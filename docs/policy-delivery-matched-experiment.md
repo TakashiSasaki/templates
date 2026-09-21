@@ -47,6 +47,27 @@ Consequently there were no task tool calls, no guidance invocations, no
 guidance output bytes, and no valid A/C task comparison. The later repaired
 candidate was not trialled because the six-attempt budget is exhausted.
 
+The historical trial rows now carry bounded `bootstrap_evidence` fields. Those
+fields classify the failure, record the child exit code and tool-boundary reach,
+and retain only the stderr SHA-256/byte count plus a normalized reason. Raw
+stderr remains outside the committed record. The six source stderr artifacts
+were available during this repair and were bound to the rows as follows:
+
+| Trial | Classification | stderr bytes | stderr SHA-256 |
+| --- | --- | ---: | --- |
+| A1 | bootstrap_failure | 801 | `0143d3a0a4e7ad18e1eb234697fef879980dd6bea3254b91e8ea977a8f752332` |
+| C1 | bootstrap_failure | 451 | `7a9b3e141a84154f86af57117e807087a6952dcb5977915517bbec1739d06d93` |
+| A2 | bootstrap_failure | 360 | `415063ba46932d119cd5a7ced6978670da069dee21b6d7527eba8361823d75a0` |
+| C2 | bootstrap_failure | 1190 | `02d6226e66a967b73ac937b51c1d0a2017f111ffecd246e71fffdf2a36149ceb` |
+| A3 | bootstrap_failure | 420 | `a8791b98a94a0f6ca2d498a850f523b20274fd03c7dbe20579bbadb44c5e517c` |
+| C3 | bootstrap_failure | 564 | `7193af7f78b82d3095d991cbf61bf07c429c2eeeb2b49fedc9cfa43f9495209b` |
+
+The runner now refuses a dirty or wrong-revision provider root, derives the C
+Skill tree from that verified candidate root, and grades code-repair behavior,
+review-preparation state, and bootstrap reachability independently. These are
+correctness repairs to the evaluation evidence path; they do not turn the
+historical attempts into valid matched outcomes.
+
 | Trial | Task | Input | Cached | Uncached | Output | Tool calls | Grader |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | A1 | generated artifact | 435161 | 384768 | 50393 | 3838 | 0 | false |

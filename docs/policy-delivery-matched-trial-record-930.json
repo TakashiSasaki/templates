@@ -26,7 +26,7 @@
     "Guidance token counts are not inferred from UTF-8 bytes.",
     "n=3 matched pairs cannot establish universal or statistical performance."
   ],
-  "schema_version": 1,
+  "schema_version": 2,
   "study": "matched-clean-consumer-policy-delivery",
   "trials": [
     {
@@ -224,6 +224,16 @@
         "startup_overlap_rule_ids": []
       },
       "prompt_sha256": "6bf140b57130fc9279fa0123127a7d5f713b936cde47169dafe8db15e2e9ae43",
+      "bootstrap_evidence": {
+        "classification": "bootstrap_failure",
+        "child_exit_code": 0,
+        "tool_event_count": 0,
+        "reached_tool_boundary": false,
+        "normal_task_completion_event": false,
+        "normalized_reason": "sandbox_bootstrap_network_namespace_unavailable",
+        "stderr_sha256": "0143d3a0a4e7ad18e1eb234697fef879980dd6bea3254b91e8ea977a8f752332",
+        "stderr_bytes": 801
+      },
       "raw_log": "A1.jsonl",
       "task": "generated-artifact",
       "timed_out": false,
@@ -427,6 +437,16 @@
         "startup_overlap_rule_ids": []
       },
       "prompt_sha256": "6bf140b57130fc9279fa0123127a7d5f713b936cde47169dafe8db15e2e9ae43",
+      "bootstrap_evidence": {
+        "classification": "bootstrap_failure",
+        "child_exit_code": 0,
+        "tool_event_count": 0,
+        "reached_tool_boundary": false,
+        "normal_task_completion_event": false,
+        "normalized_reason": "sandbox_bootstrap_network_namespace_unavailable",
+        "stderr_sha256": "7a9b3e141a84154f86af57117e807087a6952dcb5977915517bbec1739d06d93",
+        "stderr_bytes": 451
+      },
       "raw_log": "C1.jsonl",
       "task": "generated-artifact",
       "timed_out": false,
@@ -635,6 +655,16 @@
         "startup_overlap_rule_ids": []
       },
       "prompt_sha256": "6bb6eb6ea6afd147f4a1f828c6dd6c22160805033da580b466c0528eab204d9c",
+      "bootstrap_evidence": {
+        "classification": "bootstrap_failure",
+        "child_exit_code": 0,
+        "tool_event_count": 0,
+        "reached_tool_boundary": false,
+        "normal_task_completion_event": false,
+        "normalized_reason": "sandbox_bootstrap_network_namespace_unavailable",
+        "stderr_sha256": "415063ba46932d119cd5a7ced6978670da069dee21b6d7527eba8361823d75a0",
+        "stderr_bytes": 360
+      },
       "raw_log": "A2.jsonl",
       "task": "code-repair",
       "timed_out": false,
@@ -836,6 +866,16 @@
         "startup_overlap_rule_ids": []
       },
       "prompt_sha256": "6bb6eb6ea6afd147f4a1f828c6dd6c22160805033da580b466c0528eab204d9c",
+      "bootstrap_evidence": {
+        "classification": "bootstrap_failure",
+        "child_exit_code": 0,
+        "tool_event_count": 0,
+        "reached_tool_boundary": false,
+        "normal_task_completion_event": false,
+        "normalized_reason": "sandbox_bootstrap_network_namespace_unavailable",
+        "stderr_sha256": "02d6226e66a967b73ac937b51c1d0a2017f111ffecd246e71fffdf2a36149ceb",
+        "stderr_bytes": 1190
+      },
       "raw_log": "C2.jsonl",
       "task": "code-repair",
       "timed_out": false,
@@ -1044,6 +1084,16 @@
         "startup_overlap_rule_ids": []
       },
       "prompt_sha256": "b82e1f03361e12bdecc801cad60256f7ac07bf05956d57cc774c6f0c42e86477",
+      "bootstrap_evidence": {
+        "classification": "bootstrap_failure",
+        "child_exit_code": 0,
+        "tool_event_count": 0,
+        "reached_tool_boundary": false,
+        "normal_task_completion_event": false,
+        "normalized_reason": "sandbox_bootstrap_network_namespace_unavailable",
+        "stderr_sha256": "a8791b98a94a0f6ca2d498a850f523b20274fd03c7dbe20579bbadb44c5e517c",
+        "stderr_bytes": 420
+      },
       "raw_log": "A3.jsonl",
       "task": "review-preparation",
       "timed_out": false,
@@ -1245,6 +1295,16 @@
         "startup_overlap_rule_ids": []
       },
       "prompt_sha256": "b82e1f03361e12bdecc801cad60256f7ac07bf05956d57cc774c6f0c42e86477",
+      "bootstrap_evidence": {
+        "classification": "bootstrap_failure",
+        "child_exit_code": 0,
+        "tool_event_count": 0,
+        "reached_tool_boundary": false,
+        "normal_task_completion_event": false,
+        "normalized_reason": "sandbox_bootstrap_network_namespace_unavailable",
+        "stderr_sha256": "7193af7f78b82d3095d991cbf61bf07c429c2eeeb2b49fedc9cfa43f9495209b",
+        "stderr_bytes": 564
+      },
       "raw_log": "C3.jsonl",
       "task": "review-preparation",
       "timed_out": false,
