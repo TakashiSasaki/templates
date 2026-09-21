@@ -56,11 +56,12 @@ candidate was not trialled because the six-attempt budget is exhausted.
 | A3 | review preparation | 392078 | 336896 | 55182 | 3984 | 0 | false |
 | C3 | review preparation | 627354 | 573184 | 54170 | 6316 | 0 | false |
 
-The repaired evaluation candidate was also checked without starting an agent
-trial. For #998 head
-`c401524225ece0013c911b916beb20a3faf3e899`, the exact wheel was
+The repaired implementation candidate was also checked without starting an
+agent trial. For the final restacked #998 head
+`1a6efe96f5147864f80557f72f658be9ce1a106f`, including the generic mutation
+safety layer, the exact wheel was
 `takashisasaki_agent_policy-0.1.0-py3-none-any.whl` with SHA-256
-`d1168e0db954a69aa2b7a8ad370d69c24c12df25d03bdbe620c8103f3be60c78`.
+`3bf3ca8371147fd07ddb7f21df49c2d108b1d9fadfefcd55b353ea56a1670d14`.
 The clean-consumer smoke used Python 3.12.3, imported the installed package
 from its venv site-packages, selected 47 rules with 24 startup rules, and
 executed the copied external Skill `scripts/run.py` through its runtime-cache
@@ -69,7 +70,7 @@ selection. The external runner bytes were SHA-256
 Both conditions also passed `validate`, `render`, and `check` from a nested
 consumer directory using the installed package. The complete redacted
 condition manifest is in
-[`policy-delivery-clean-consumer-smoke-c401.json`](policy-delivery-clean-consumer-smoke-c401.json).
+[`policy-delivery-clean-consumer-smoke-final.json`](policy-delivery-clean-consumer-smoke-final.json).
 This is distribution-boundary evidence only; it is not one of the six fresh
 agent trials and does not establish a performance result.
 
