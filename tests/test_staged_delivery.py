@@ -588,6 +588,10 @@ def test_generated_guidance_commands_quote_bundle_paths(
     config_token = shlex.quote(config_path)
     assert f"--config={config_token}" in startup
     assert f"--config={config_token}" in skill
+    assert "--repository <repository>" in startup
+    assert "--repository <repository>" in skill
+    assert "--root <repository>" not in startup
+    assert "--root <repository>" not in skill
 
     environment = dict(os.environ)
     source_root = str(Path(__file__).parents[1] / "src")

@@ -36,7 +36,7 @@ directory before running this command. The installed Skill validates the
 generated guidance script and launches the pinned runtime; it does not execute
 a repository-local runner. The command also works from a nested repository
 directory and does not assume a default configuration filename. Use
-`--root <repository>` when an explicit root is required.
+`--repository <repository>` when an explicit root is required.
 
 Use `--rule-id <id>` for one exact rule or `--all` when the operation route is
 missing or ambiguous. A validation error is a blocking condition for the
