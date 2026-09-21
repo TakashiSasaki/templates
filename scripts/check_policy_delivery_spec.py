@@ -10,6 +10,7 @@ REQUIRED_COUNTEREXAMPLES = {
     "missing_requested_regression",
     "missing_next_action",
     "missing_compliance",
+    "missing_full_suite",
     "stale_candidate_binding",
 }
 

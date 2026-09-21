@@ -28,7 +28,7 @@ runner = _load(
 
 def test_bounded_evidence_model_is_exhaustively_qualified() -> None:
     result = model.run_model_checks()
-    assert result["state_count"] == 157464
+    assert result["state_count"] == 472392
     assert result["transition_sequence_count"] == 4
     assert result["positive_state_passes"]
     assert result["violations"] == []
@@ -36,6 +36,7 @@ def test_bounded_evidence_model_is_exhaustively_qualified() -> None:
         "missing_requested_regression",
         "missing_next_action",
         "missing_compliance",
+        "missing_full_suite",
         "stale_candidate_binding",
     }
     assert result["trace_results"] == {
@@ -44,8 +45,8 @@ def test_bounded_evidence_model_is_exhaustively_qualified() -> None:
         "candidate_invalidation": False,
         "grade_before_observation": False,
     }
-    assert result["reachable_state_count"] == 13824
-    assert result["reachable_transition_count"] == 308736
+    assert result["reachable_state_count"] == 41472
+    assert result["reachable_transition_count"] == 1050624
     assert result["reachable_invariant_violations"] == []
     assert result["witness_results"] == {
         "generated-artifact": True,
@@ -58,7 +59,7 @@ def test_bounded_evidence_model_is_exhaustively_qualified() -> None:
     assert result["review_invariant_violations"] == []
     assert result["review_witness_passes"]
     mutation_checks = model.run_mutation_checks()
-    assert mutation_checks["mutation_count"] == 6
+    assert mutation_checks["mutation_count"] == 7
     assert mutation_checks["all_detected"]
 
 
@@ -76,9 +77,17 @@ def test_bounded_checker_runs_as_the_documented_entrypoint() -> None:
 
 
 def test_classifier_conforms_to_independent_supported_command_domain() -> None:
-    assert len(model.command_cases()) == 56
+    assert len(model.command_cases()) == 58
     for case in model.command_cases():
         assert runner.classify_command(case.command)["status"] == case.expected, case.name
+
+
+def test_independent_command_domain_detects_an_allow_all_classifier_mutation() -> None:
+    mismatches = [
+        case for case in model.command_cases() if "allowed" != case.expected
+    ]
+    assert mismatches
+    assert {case.expected for case in mismatches} == {"forbidden", "unknown"}
 
 
 @pytest.mark.parametrize(

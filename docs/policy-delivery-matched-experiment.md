@@ -50,12 +50,13 @@ task whose protected-file set is empty. Protected generators, checkers,
 evidence, and validators are compared with that reference. Generated-artifact
 grading runs the retained checker against the worker's outputs; review
 preparation is graded against retained expected facts rather than executing a
-worker-modifiable validator. Code repair uses external `unittest` discovery,
-rejects skipped/zero-test execution, and reruns the retained regression against
-the known defective implementation to prove that the regression is meaningful.
-A common grade composition requires task correctness, reference integrity,
-policy compliance, and evidence validity, so an observed prohibited operation
-prevents a pass for every task type.
+worker-modifiable validator. Code repair uses the exact retained regression
+obligation identity, direct-target external `unittest` execution, an
+obligation-specific mutant, and a separately observed full discovered suite
+that exits successfully with at least one test. A common grade composition
+requires task correctness, reference integrity, policy compliance, and
+evidence validity, so an observed prohibited operation prevents a pass for
+every task type.
 
 ## Contract-to-counterexample matrix
 
@@ -68,7 +69,7 @@ compliance.
 | Local-only task compliance | Parsed command events plus conservative unknown handling | `git fetch origin`, wrappers, unsupported/empty event stream | Bounded local `git status`/generator/test commands | Shell text cannot prove arbitrary Python or network absence; unknown remains non-compliant |
 | Candidate artifact identity | Retained manifest, wheel `RECORD`/metadata, and installed distribution inspection | Changed/lost artifact, substituted wheel, unexpected installed payload | One retained build installed into both A and C | Same-UID mutation between a final check and an external installer is outside this cooperative harness |
 | Reference integrity | Reference root/manifest/digest before any validator use | Missing root with empty protected list, altered facts/validator | Valid retained reference and permitted worker edits | Worker isolation is bounded and not an arbitrary same-UID security boundary |
-| Regression execution | External unittest discovery plus known-defect mutation run | Qualified/runtime skip, zero tests, assertion only in dead code | Executed regression catches the original defect and passes the repair | Fixture framework/collector coverage is bounded; it is not a universal test analyzer |
+| Regression execution and full suite | Exact retained obligation target, external unittest execution, obligation-specific mutant, and full-suite result | Qualified/runtime skip, zero tests, uncalled/nested assertion, unrelated suite failure | Executed requested regression catches the obligation mutant, passes the repair, and the full suite passes | Fixture framework/collector coverage is bounded; it is not a universal test analyzer |
 
 The current clean-consumer identity is sourced from the machine-readable smoke
 manifest. The following block is generated and checked by
@@ -78,14 +79,16 @@ manifest. The following block is generated and checked by
 - Candidate #998 revision: `04c8c69404eb728b18e6b10496a6d6508c6aa276`
 - Provider tree: `dca9a1c1bf21fd0136b75806699e4b1d450c4082`
 - Evaluator source: `scripts/run_matched_policy_delivery_experiment.py`
-- Evaluator SHA-256: `fcf87c8c2b4273408effe94f76755f00ccb975160068486da7f848ac72de5fb3`
-- Evidence specification SHA-256: `ea9d19b8048fa5d807309392acf251582449899e814e41f8d621bbd3b2c59974`
-- Evidence checker SHA-256: `76f54e5901c9a735a23203227d34496f591d211fdfbacd0f0b6dc3af73bc903c`
+- Evaluator SHA-256: `775310b53f2c8e4108f384578a3d92983b46d60a16738f760b30ae4a1736343e`
+- Evidence specification SHA-256: `96e4c35e6a6f940b3b66c33172d6865dd23e2f8f1c39e470882a78472542e30c`
+- Evidence checker SHA-256: `7cb72227eabfc412eb75bb48eabff734e0615cf81265186f8ee789091231eaed`
+- Evidence projection checker SHA-256: `c82435ed0cc95b6577e0aa5bb0debcb0de0f473c068a8dee5617507d8cbdf732`
 - Wheel SHA-256: `028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c`
 - Wheel manifest SHA-256: `61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58`
 - Runtime lock SHA-256: `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`
 - External runner: `skills/agent-policy/scripts/run.py` (`59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`)
-- Smoke result identity: `dd616dc78cf161d829e5c105e928857563c13d292e10741f353c10bd2f88f751`
+- Smoke result identity: `240e7146319c305a3bc17dc2035b68761666acdb9b67cef923de9d60a02cef48`
+- Qualification metrics: `command_domain_case_count=58; evidence_state_count=472392; reachable_evidence_state_count=41472; reachable_evidence_transition_count=1050624; review_state_count=112; review_transition_count=1232; semantic_mutation_count=7; accepted_witness_count=3`
 - A: 47 selected / 47 startup; validate, render, check
 - C: 47 selected / 24 startup; validate, render, check, guidance
 <!-- END GENERATED CLEAN-CONSUMER-EVIDENCE -->
@@ -96,26 +99,27 @@ The bounded contract is also represented by the independent
 `scripts/policy_delivery_evidence_spec.py` model and checked by
 `scripts/check_policy_delivery_spec.py`. The model has six lifecycle phases
 (`selected`, `prepared`, `installed`, `worker_finished`, `observed`, and
-`graded`) and eight required evidence facts: candidate artifact identity,
+`graded`) and nine required evidence facts: candidate artifact identity,
 installed identity, reference integrity, requested-regression identity,
-regression execution, task correctness, compliance, and an enabled next
-action. Evidence is bound to the candidate and trial; a stale binding,
+regression execution, full-suite success, task correctness, compliance, and an
+enabled next action. Evidence is bound to the candidate and trial; a stale binding,
 unknown fact, or contradiction cannot produce `PASS`.
 
-The standard-library checker exhaustively evaluates 157,464 finite value states
-and explores 13,824 states across 308,736 reachable event transitions. It
+The standard-library checker exhaustively evaluates 472,392 finite value states
+and explores 41,472 states across 1,050,624 reachable event transitions. It
 checks independent safety properties (sticky contradictions, candidate/trial
 binding, lifecycle completion, and requested-regression witnesses), retains
 counterexamples for missing compliance, missing requested regression, missing
 next action, and stale candidate binding, and checks that a later positive
 observation cannot erase a known prohibited operation. Three bounded positive
 witness paths cover generated-artifact, code-repair, and review-preparation
-tasks. Six controlled semantic mutations are all detected. This is a bounded
+tasks. Seven controlled semantic mutations are all detected. This is a bounded
 executable specification, not a theorem about arbitrary Python, shell,
 operating-system schedules, or agent behavior.
 
-The production runner is compared with an independent 53-case command-effect
-domain generated from the declared fixture grammar. The grammar supports one
+The production runner is compared with an independent command-effect domain
+whose case count is rendered in the generated qualification projection above.
+It is generated from the declared fixture grammar. The grammar supports one
 recognized executable with simple tokens, selected environment/launcher
 wrappers, known local/remote Git forms, and separators/pipes whose segments are
 classified independently. Command substitutions and backticks are supported
@@ -148,7 +152,7 @@ The model-to-implementation mapping is intentionally small:
 | artifact identity / `prepared` | retained candidate preparation and wheel verification | retained source, lock, or wheel drift |
 | installed identity / `installed` | `install_env` and installed distribution inspection | installed payload, metadata, or entrypoint mismatch |
 | reference integrity | `reference_integrity` before any retained validator/checker | missing root, manifest, digest, or protected bytes |
-| requested regression / `observed` | AST obligation discovery plus targeted external unittest and known-defect rerun | absent, skipped, undiscovered, or non-failing defective witness |
+| requested regression / `observed` | Exact retained obligation identity plus direct-target external unittest and obligation-specific mutant rerun | absent, skipped, uncalled, undiscovered, or non-failing obligation witness |
 | compliance | `compliance_observation` over collected command events | forbidden effect or incomplete/opaque observation |
 | next action / `graded` | `_review_action_evidence` against retained fixture authority | unknown action, candidate mismatch, or missing precondition |
 

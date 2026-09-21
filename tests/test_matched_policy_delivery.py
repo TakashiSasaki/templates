@@ -420,6 +420,10 @@ def test_code_repair_grader_requires_behavior_and_real_regression(
     assert passed["passed"]
     assert not passed["implementation_contains_defect"]
     assert passed["behavior_exit_code"] == 0
+    assert passed["full_suite_passes"]
+    assert passed["requested_regression_id"] == runner.REQUESTED_REGRESSION_ID
+    assert passed["regression_catches_obligation_mutant"]
+    assert passed["defective_tests_run"] == 1
 
 
 def test_code_repair_requires_the_requested_regression_obligation(
@@ -445,6 +449,76 @@ def test_code_repair_requires_the_requested_regression_obligation(
     assert result["regression_present"] is False
     assert result["regression_executed"] is False
     assert result["regression_catches_original_defect"] is False
+    assert not result["passed"]
+
+
+def test_code_repair_rejects_nested_uncalled_requested_assertion(
+    tmp_path: Path,
+) -> None:
+    runner.setup_task(tmp_path, "code-repair")
+    reference = runner.prepare_task_reference(
+        tmp_path, "code-repair", tmp_path.parent / "nested-regression-reference"
+    )
+    (tmp_path / "src/calculator.py").write_text(
+        "def average(values: list[float]) -> float:\n"
+        "    return sum(values) / len(values)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests/test_calculator.py").write_text(
+        "import unittest\nfrom calculator import average\n"
+        "class AverageTests(unittest.TestCase):\n"
+        "    def test_average_three_values(self):\n"
+        "        def never_called():\n"
+        "            self.assertEqual(average([1, 3, 5]), 3.0)\n"
+        "        self.assertEqual(average([4]), 4.0)\n",
+        encoding="utf-8",
+    )
+    result = runner.grade(
+        "code-repair",
+        tmp_path,
+        [{"command": "python -m unittest discover -s tests", "exit_code": 0,
+          "output": "", "output_bytes": 0}],
+        reference,
+    )
+    assert result["tests_run"] == 1
+    assert result["regression_present"] is False
+    assert result["regression_executed"] is False
+    assert not result["passed"]
+
+
+def test_code_repair_requires_the_full_discovered_suite_to_pass(
+    tmp_path: Path,
+) -> None:
+    runner.setup_task(tmp_path, "code-repair")
+    reference = runner.prepare_task_reference(
+        tmp_path, "code-repair", tmp_path.parent / "full-suite-reference"
+    )
+    (tmp_path / "src/calculator.py").write_text(
+        "def average(values: list[float]) -> float:\n"
+        "    return sum(values) / len(values)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests/test_calculator.py").write_text(
+        "import unittest\nfrom calculator import average\n"
+        "class AverageTests(unittest.TestCase):\n"
+        "    def test_average_three_values(self):\n"
+        "        self.assertEqual(average([1, 3, 5]), 3.0)\n"
+        "    def test_unrelated_failure(self):\n"
+        "        self.fail('unrelated failure')\n",
+        encoding="utf-8",
+    )
+    result = runner.grade(
+        "code-repair",
+        tmp_path,
+        [{"command": "python -m unittest discover -s tests", "exit_code": 1,
+          "output": "", "output_bytes": 0}],
+        reference,
+    )
+    assert result["regression_executed"]
+    assert result["regression_catches_obligation_mutant"]
+    assert result["tests_run"] == 2
+    assert result["test_exit_code"] != 0
+    assert result["full_suite_passes"] is False
     assert not result["passed"]
 
 
@@ -732,6 +806,8 @@ def test_common_grade_rejects_prohibited_operations_for_every_task(
         ("git status --short", "allowed"),
         ("python scripts/generate_catalog.py", "allowed"),
         ("python -c 'import socket'", "unknown"),
+        ("awk 'BEGIN { system(\"git fetch origin\") }'", "unknown"),
+        ("sed -e 'e curl https://example.invalid' /dev/null", "unknown"),
     ],
 )
 def test_command_compliance_classifies_bounded_network_forms(

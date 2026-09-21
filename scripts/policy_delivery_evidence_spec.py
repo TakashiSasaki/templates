@@ -35,6 +35,7 @@ REQUIRED_FACTS = (
     "reference_integrity",
     "requested_regression",
     "regression_execution",
+    "full_suite",
     "task_correct",
     "compliance",
     "next_action",
@@ -53,6 +54,7 @@ class EvidenceState:
     reference_integrity: Fact = Fact.UNKNOWN
     requested_regression: Fact = Fact.UNKNOWN
     regression_execution: Fact = Fact.UNKNOWN
+    full_suite: Fact = Fact.UNKNOWN
     task_correct: Fact = Fact.UNKNOWN
     compliance: Fact = Fact.UNKNOWN
     next_action: Fact = Fact.UNKNOWN
@@ -136,6 +138,8 @@ def advance(state: EvidenceState, event: str) -> EvidenceState:
         return _establish(state, "requested_regression")
     if event == "establish_regression_execution":
         return _establish(state, "regression_execution")
+    if event == "establish_full_suite":
+        return _establish(state, "full_suite")
     if event == "establish_task_correct":
         return _establish(state, "task_correct")
     if event == "establish_compliance":
@@ -156,6 +160,10 @@ def advance(state: EvidenceState, event: str) -> EvidenceState:
         return replace(state, reference_integrity=Fact.CONTRADICTED)
     if event == "regression_skipped":
         return replace(state, regression_execution=Fact.CONTRADICTED)
+    if event == "full_suite_failed":
+        return replace(state, full_suite=Fact.CONTRADICTED)
+    if event == "full_suite_unknown":
+        return state
     if event == "forbidden_observed":
         return replace(state, compliance=Fact.CONTRADICTED)
     if event == "observe_forbidden_command":
@@ -190,6 +198,7 @@ def positive_state() -> EvidenceState:
         "observe",
         "establish_requested_regression",
         "establish_regression_execution",
+        "establish_full_suite",
         "establish_task_correct",
         "establish_compliance",
         "establish_next_action",
@@ -236,6 +245,7 @@ REACHABLE_EVENTS = (
     "observe_unknown_command",
     "establish_requested_regression",
     "establish_regression_execution",
+    "establish_full_suite",
     "establish_task_correct",
     "establish_compliance",
     "establish_next_action",
@@ -244,6 +254,8 @@ REACHABLE_EVENTS = (
     "reference_lost",
     "lose_reference",
     "regression_skipped",
+    "full_suite_failed",
+    "full_suite_unknown",
     "forbidden_observed",
     "candidate_changed",
     "lose_candidate_binding",
@@ -271,19 +283,22 @@ TASK_WITNESS_PATHS = {
     "generated-artifact": (
         "bind_candidate", "bind_trial", "prepare", "install_verified",
         "worker_finished", "observe", "establish_requested_regression",
-        "establish_regression_execution", "establish_task_correct",
+        "establish_regression_execution", "establish_full_suite",
+        "establish_task_correct",
         "establish_compliance", "establish_next_action", "grade",
     ),
     "code-repair": (
         "bind_candidate", "bind_trial", "prepare", "install_verified",
         "worker_finished", "establish_requested_regression",
-        "establish_regression_execution", "establish_task_correct",
+        "establish_regression_execution", "establish_full_suite",
+        "establish_task_correct",
         "observe", "establish_compliance", "establish_next_action", "grade",
     ),
     "review-preparation": (
         "bind_candidate", "bind_trial", "prepare", "install_verified",
         "worker_finished", "observe", "establish_requested_regression",
-        "establish_regression_execution", "establish_task_correct",
+        "establish_regression_execution", "establish_full_suite",
+        "establish_task_correct",
         "establish_compliance", "establish_next_action", "grade",
     ),
 }
@@ -370,7 +385,7 @@ def run_model_checks() -> dict[str, Any]:
 
     baseline = positive_state()
     counterexamples: dict[str, dict[str, Any]] = {}
-    for field in ("requested_regression", "next_action", "compliance"):
+    for field in ("requested_regression", "next_action", "compliance", "full_suite"):
         broken = replace(baseline, **{field: Fact.UNKNOWN})
         if _legacy_without(field, broken) and accepts(broken) is False:
             counterexamples[f"missing_{field}"] = _state_json(broken)
@@ -394,7 +409,7 @@ def run_model_checks() -> dict[str, Any]:
             "bind_candidate", "bind_trial", "prepare", "install_verified",
             "worker_finished", "observe",
             "establish_requested_regression", "establish_regression_execution",
-            "establish_task_correct", "establish_compliance",
+            "establish_full_suite", "establish_task_correct", "establish_compliance",
             "establish_next_action", "grade",
         ],
         "forbidden_then_positive_observation": [
@@ -539,6 +554,8 @@ def command_cases() -> tuple[CommandCase, ...]:
     add("local_pipe", "git status | wc -l", "allowed")
     add("local_python_script", "python scripts/generate_catalog.py", "allowed")
     add("local_python_module", "python -m unittest", "allowed")
+    add("opaque_awk_payload", "awk 'BEGIN { system(\"git fetch origin\") }'", "unknown")
+    add("opaque_sed_payload", "sed -e 'e curl https://example.invalid' /dev/null", "unknown")
 
     remote_git = ("clone origin", "fetch origin", "ls-remote origin", "pull", "push", "merge")
     for index, subcommand in enumerate(remote_git):
@@ -743,6 +760,16 @@ def run_mutation_checks() -> dict[str, Any]:
             "requested_regression", missing_regression
         ),
         "counterexample": _state_json(missing_regression),
+    }
+
+    missing_full_suite = replace(baseline, full_suite=Fact.UNKNOWN)
+    cases["full_suite_omitted"] = {
+        "reference_accepts": accepts(missing_full_suite),
+        "mutant_accepts": _legacy_without("full_suite", missing_full_suite),
+        "detected": accepts(missing_full_suite) != _legacy_without(
+            "full_suite", missing_full_suite
+        ),
+        "counterexample": _state_json(missing_full_suite),
     }
 
     cases["arbitrary_next_action"] = {

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 from pathlib import Path
@@ -26,6 +27,49 @@ SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
 class EvidenceConsistencyError(ValueError):
     """Raised when current evidence or its human projection is inconsistent."""
+
+
+def _load_specification_module() -> Any:
+    path = ROOT / "scripts" / "policy_delivery_evidence_spec.py"
+    spec = importlib.util.spec_from_file_location(
+        "policy_delivery_evidence_spec_for_evidence_check", path
+    )
+    if spec is None or spec.loader is None:
+        raise EvidenceConsistencyError(f"cannot load evidence specification: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _qualification_metrics() -> dict[str, int]:
+    """Derive current qualification metrics from the executable specification."""
+
+    try:
+        specification = _load_specification_module()
+        model = specification.run_model_checks()
+        mutations = specification.run_mutation_checks()
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        raise EvidenceConsistencyError(
+            f"cannot evaluate executable evidence specification: {exc}"
+        ) from exc
+    if model["violations"] or model["reachable_invariant_violations"]:
+        raise EvidenceConsistencyError("executable evidence specification has violations")
+    if not model["positive_state_passes"] or not all(model["witness_results"].values()):
+        raise EvidenceConsistencyError("executable evidence specification lacks valid witnesses")
+    if not mutations["all_detected"]:
+        raise EvidenceConsistencyError("executable evidence mutations are not all detected")
+    return {
+        "command_domain_case_count": len(specification.command_cases()),
+        "evidence_state_count": model["state_count"],
+        "reachable_evidence_state_count": model["reachable_state_count"],
+        "reachable_evidence_transition_count": model["reachable_transition_count"],
+        "review_state_count": model["review_reachable_state_count"],
+        "review_transition_count": model["review_reachable_transition_count"],
+        "semantic_mutation_count": mutations["mutation_count"],
+        "accepted_witness_count": sum(
+            1 for passed in model["witness_results"].values() if passed
+        ),
+    }
 
 
 def _sha_bytes(value: bytes) -> str:
@@ -89,11 +133,13 @@ def projection(manifest: dict[str, Any]) -> str:
     source = candidate.get("evaluator_source")
     spec = candidate.get("evidence_spec")
     checker = candidate.get("evidence_checker")
+    projection_checker = candidate.get("evidence_projection_checker")
     external = candidate.get("external_runner")
     for value, label in (
         (source, "evaluator source"),
         (spec, "evidence specification"),
         (checker, "evidence checker"),
+        (projection_checker, "evidence projection checker"),
         (external, "external runner"),
     ):
         if not isinstance(value, dict) or not isinstance(value.get("path"), str):
@@ -107,7 +153,16 @@ def projection(manifest: dict[str, Any]) -> str:
     smoke_identity = _required_sha(
         manifest.get("smoke_result_identity"), "smoke result identity"
     )
-    expected_identity = _stable({"candidate": candidate, "conditions": conditions})
+    qualification = manifest.get("qualification")
+    if not isinstance(qualification, dict):
+        raise EvidenceConsistencyError("qualification metrics are missing")
+    expected_identity = _stable(
+        {
+            "candidate": candidate,
+            "conditions": conditions,
+            "qualification": qualification,
+        }
+    )
     if smoke_identity != expected_identity:
         raise EvidenceConsistencyError(
             "smoke_result_identity does not match candidate and conditions"
@@ -124,11 +179,29 @@ def projection(manifest: dict[str, Any]) -> str:
         "- Evaluator SHA-256: `" + source["sha256"] + "`",
         "- Evidence specification SHA-256: `" + spec["sha256"] + "`",
         "- Evidence checker SHA-256: `" + checker["sha256"] + "`",
+        "- Evidence projection checker SHA-256: `"
+        + projection_checker["sha256"]
+        + "`",
         "- Wheel SHA-256: `" + candidate["wheel_sha256"] + "`",
         "- Wheel manifest SHA-256: `" + candidate["wheel_payload_manifest_sha256"] + "`",
         "- Runtime lock SHA-256: `" + candidate["runtime_lock_sha256"] + "`",
         "- External runner: `" + external["path"] + "` (`" + external["sha256"] + "`)",
         "- Smoke result identity: `" + smoke_identity + "`",
+        "- Qualification metrics: `"
+        + "; ".join(
+            f"{key}={qualification[key]}"
+            for key in (
+                "command_domain_case_count",
+                "evidence_state_count",
+                "reachable_evidence_state_count",
+                "reachable_evidence_transition_count",
+                "review_state_count",
+                "review_transition_count",
+                "semantic_mutation_count",
+                "accepted_witness_count",
+            )
+        )
+        + "`",
         "- A: " + a_summary,
         "- C: " + c_summary,
         END_MARKER,
@@ -142,6 +215,7 @@ def _validate_source_hashes(root: Path, manifest: dict[str, Any]) -> None:
         ("evaluator_source", "evaluator source"),
         ("evidence_spec", "evidence specification"),
         ("evidence_checker", "evidence checker"),
+        ("evidence_projection_checker", "evidence projection checker"),
     ):
         entry = candidate[key]
         actual = _file_sha(root, entry["path"], label)
@@ -165,6 +239,11 @@ def check(
         raise EvidenceConsistencyError(f"cannot read evidence manifest: {exc}") from exc
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 2:
         raise EvidenceConsistencyError("unsupported evidence manifest schema")
+    expected_qualification = _qualification_metrics()
+    if manifest.get("qualification") != expected_qualification:
+        raise EvidenceConsistencyError(
+            "qualification metrics do not match the executable evidence specification"
+        )
     _validate_source_hashes(root, manifest)
     expected_block = projection(manifest)
     try:
