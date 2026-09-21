@@ -204,6 +204,7 @@ def _validate_current_bindings(
     bundle: dict[str, Any],
     lock: dict[str, Any],
     bundle_relative: str,
+    config_relative: str,
 ) -> None:
     try:
         from agent_policy.config import load_config, package_root, validate_config
@@ -224,7 +225,11 @@ def _validate_current_bindings(
     if bundle.get("renderer") != "agents-md-staged":
         raise ValueError("detail bundle renderer identity is invalid")
 
-    config_path = bundle.get("config_path")
+    if bundle.get("config_path") != config_relative:
+        raise ValueError(
+            "detail bundle configuration path does not match the selected configuration"
+        )
+    config_path = config_relative
     context_name = bundle.get("context")
     expected_context = bindings.get("context")
     if (
@@ -353,7 +358,10 @@ def _validate_current_bindings(
 
 
 def _load_bundle(
-    root: Path, bundle_relative: str, runtime_revision: str | None
+    root: Path,
+    bundle_relative: str,
+    runtime_revision: str | None,
+    config_relative: str | None = None,
 ) -> dict[str, Any]:
     bundle_path = _safe_path(root, bundle_relative)
     actual = bundle_path.read_bytes()
@@ -444,11 +452,17 @@ def _load_bundle(
     bindings = bundle.get("bindings")
     if not isinstance(bindings, dict):
         raise ValueError("detail bundle input bindings are missing")
+    if config_relative is None:
+        config_relative = bundle.get("config_path")
+        if not isinstance(config_relative, str) or not config_relative:
+            raise ValueError("detail bundle configuration path is missing")
     selected_ids = bindings.get("selected_rule_ids")
     if selected_ids != [rule["id"] for rule in rules]:
         raise ValueError("detail bundle selected-rule binding is inconsistent")
     _validate_route_metadata(presentation, rules)
-    _validate_current_bindings(root, bundle, lock, bundle_relative)
+    _validate_current_bindings(
+        root, bundle, lock, bundle_relative, config_relative
+    )
     return bundle
 
 
@@ -495,6 +509,7 @@ def _discover_repository_root() -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path)
+    parser.add_argument("--config")
     parser.add_argument("--bundle", default=DEFAULT_BUNDLE_PATH)
     parser.add_argument("--runtime-revision", help=argparse.SUPPRESS)
     parser.add_argument("--operation")
@@ -504,7 +519,9 @@ def main() -> int:
     args = parser.parse_args()
     try:
         root = args.root if args.root is not None else _discover_repository_root()
-        bundle = _load_bundle(root, args.bundle, args.runtime_revision)
+        bundle = _load_bundle(
+            root, args.bundle, args.runtime_revision, args.config
+        )
         selected = _select(bundle, args.operation, args.rule_id, args.all_rules)
     except (OSError, ValueError, KeyError) as exc:
         print(f"policy-guidance error: {exc}", file=sys.stderr)

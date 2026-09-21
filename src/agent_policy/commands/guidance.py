@@ -119,6 +119,7 @@ def run(
             code,
             "--root",
             str(repository_root),
+            f"--config={config_path}",
         ]
         if bundle is not None:
             command.append(f"--bundle={bundle}")

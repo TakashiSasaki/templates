@@ -60,6 +60,22 @@ def _validate_generated_write(
             raise FileExistsError(f"Refusing to overwrite non-generated file: {path}")
 
 
+def _safe_generated_write(
+    path: Path, content: str, *, json_output: bool = False
+) -> None:
+    _validate_generated_write(path, content, json_output=json_output)
+    _write_atomic(path, content)
+
+
+def _restore_owned_file(path: Path, previous: str | None, written: str) -> None:
+    if not path.exists() or path.read_text(encoding="utf-8") != written:
+        return
+    if previous is None:
+        path.unlink()
+    else:
+        _write_atomic(path, previous)
+
+
 def _paths_overlap(left: Path, right: Path) -> bool:
     return left == right or left in right.parents or right in left.parents
 
@@ -298,21 +314,48 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 content,
                 json_output=relative in staged_bundle_paths,
             )
-        outputs: dict[str, Path] = {}
-        for relative, (target, content) in planned.items():
-            _write_atomic(target, content)
-            outputs[relative] = target
-        for target in obsolete:
-            target.unlink()
+        written: list[tuple[Path, str | None, str]] = []
+        removed: list[tuple[Path, str]] = []
+        try:
+            outputs: dict[str, Path] = {}
+            for relative, (target, content) in planned.items():
+                previous = (
+                    target.read_text(encoding="utf-8") if target.exists() else None
+                )
+                _safe_generated_write(
+                    target,
+                    content,
+                    json_output=relative in staged_bundle_paths,
+                )
+                written.append((target, previous, content))
+                outputs[relative] = target
+            for target in obsolete:
+                previous = target.read_text(encoding="utf-8")
+                target.unlink()
+                removed.append((target, previous))
 
-        toolchain = config.data["toolchain"]
-        lock_content = create_lock(
-            toolchain_repository=toolchain["repository"],
-            toolchain_revision=toolchain["revision"],
-            inputs=inputs,
-            outputs=outputs,
-        )
-        _write_atomic(resolve_lock_path(repository_root), lock_content)
+            toolchain = config.data["toolchain"]
+            lock_content = create_lock(
+                toolchain_repository=toolchain["repository"],
+                toolchain_revision=toolchain["revision"],
+                inputs=inputs,
+                outputs=outputs,
+            )
+            lock_path = resolve_lock_path(repository_root)
+            previous_lock = (
+                lock_path.read_text(encoding="utf-8")
+                if lock_path.exists()
+                else None
+            )
+            _write_atomic(lock_path, lock_content)
+            written.append((lock_path, previous_lock, lock_content))
+        except Exception:
+            for path, previous in reversed(removed):
+                if not path.exists():
+                    _write_atomic(path, previous)
+            for path, previous, content in reversed(written):
+                _restore_owned_file(path, previous, content)
+            raise
         return []
     except Exception as exc:
         return [Diagnostic("error", "RENDER", str(exc))]

@@ -385,6 +385,58 @@ def test_generated_guidance_rebinds_bundle_to_current_output_at_child_boundary(
     assert "enabled staged output" in result.stderr
 
 
+def test_generated_guidance_rebinds_selected_config_at_child_boundary(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    alternate = tmp_path / ".agent-policy-alternate.yml"
+    alternate.write_text(
+        (tmp_path / ".agent-policy.yml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+    result = _run_guidance(
+        tmp_path,
+        "--config=.agent-policy-alternate.yml",
+        "--rule-id",
+        GUIDANCE,
+    )
+
+    assert result.returncode == 2
+    assert "configuration path" in result.stderr
+
+
+def test_render_rolls_back_owned_outputs_after_late_ownership_conflict(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    authored = '{"user_data":"KEEP"}\n'
+    calls = 0
+    original_write = render._write_atomic
+
+    def replace_bundle_before_second_write(path: Path, content: str) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            bundle_path.parent.mkdir(parents=True, exist_ok=True)
+            bundle_path.write_text(authored, encoding="utf-8")
+        original_write(path, content)
+
+    monkeypatch.setattr(render, "_write_atomic", replace_bundle_before_second_write)
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "non-generated file" in diagnostics[0].message
+    assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
+    assert bundle_path.read_text(encoding="utf-8") == authored
+    assert not (tmp_path / ".agent-policy.lock").exists()
+
+
 def test_pinned_guidance_rejects_runtime_lock_revision_drift(
     tmp_path: Path,
 ) -> None:
