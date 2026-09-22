@@ -207,8 +207,11 @@ acceptance evidence is never waived to save review cost.
 Separate a task's diagnostic/experiment budget from an external dependency's
 legitimate pending state. Check a required environment capability with a cheap,
 authorized probe before a costly trial batch. A repeated bootstrap failure with
-no changed precondition calls for a recorded blocker or a different authorized
-strategy, not more identical trials. Do not invent a new trial budget implicitly.
+no changed precondition calls for a genuinely different authorized in-scope
+strategy while one remains materially available, not more identical trials.
+Record a blocker only after materially different suitable strategies are
+exhausted, unavailable, unauthorized, or unsafe. Do not invent a new trial budget
+implicitly.
 
 At handoff, report changes and exact applicable evidence, residual uncertainty,
 known findings, review state, and the next safe action. Implementation, CI,
