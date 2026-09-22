@@ -16,6 +16,7 @@
     "AGENTS.md",
     "CONTRIBUTING.md",
     "README.md",
+    "docs/agent-task-briefs.md",
     "docs/agent-task-design.md",
     "docs/agent-work-orchestration.md",
     "docs/policy-readiness-audit.md",
@@ -66,7 +67,8 @@
       "docs/provider/index.md",
       "docs/policy-maintainer-workflow.md",
       "repository-policy/authority-boundary.md",
-      "docs/agent-task-design.md"
+      "docs/agent-task-design.md",
+      "docs/agent-task-briefs.md"
     ],
     "consumer-distributed": [
       "docs/consumer/index.md",
@@ -91,7 +93,8 @@
       "docs/agent-work-orchestration.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
       "docs/staged-ci.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
       "docs/revision-bound-qualification.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
-      "docs/agent-task-design.md": "Source-only task-preparation guidance is linked from the authority root; published reader navigation remains publication-closed."
+      "docs/agent-task-design.md": "Source-only task-preparation guidance is linked from the authority root; published reader navigation remains publication-closed.",
+      "docs/agent-task-briefs.md": "Source-only task/goal/steering templates are linked from the authority root; published reader navigation remains publication-closed."
     }
   }
 }

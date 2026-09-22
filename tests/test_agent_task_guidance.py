@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGES = ("docs/agent-task-design.md",)
+PAGES = ("docs/agent-task-design.md", "docs/agent-task-briefs.md")
 
 
 class AgentTaskGuidanceTests(unittest.TestCase):
@@ -75,6 +75,64 @@ class AgentTaskGuidanceTests(unittest.TestCase):
             text,
         )
 
+    def test_templates_have_unambiguous_copy_boundaries(self) -> None:
+        text = (ROOT / "docs/agent-task-briefs.md").read_text(encoding="utf-8")
+        for name in ("GOAL", "TASK BRIEF", "STEERING"):
+            with self.subTest(template=name):
+                begin, end = f"<!-- BEGIN {name} TEMPLATE -->", f"<!-- END {name} TEMPLATE -->"
+                self.assertEqual(text.count(begin), 1)
+                self.assertEqual(text.count(end), 1)
+                self.assertLess(text.index(begin), text.index(end))
+                block = text.split(begin, 1)[1].split(end, 1)[0].strip()
+                self.assertTrue(block.startswith("```text\n"))
+                self.assertTrue(block.endswith("\n```"))
+
+    def test_expanded_brief_keeps_required_fields(self) -> None:
+        text = (ROOT / "docs/agent-task-briefs.md").read_text(encoding="utf-8")
+        block = text.split("<!-- BEGIN TASK BRIEF TEMPLATE -->", 1)[1].split(
+            "<!-- END TASK BRIEF TEMPLATE -->", 1
+        )[0]
+        for heading in (
+            "Outcome and completion", "Authority and scope", "Assumptions and observations",
+            "Acceptance obligations", "Design and implementation", "Validation and review",
+            "Budget and stop", "Handoff",
+        ):
+            self.assertIn(f"## {heading}\n", block)
+
+    def test_blocker_requires_material_strategy_exhaustion(self) -> None:
+        brief = (ROOT / "docs/agent-task-briefs.md").read_text(encoding="utf-8")
+        block = brief.split("<!-- BEGIN TASK BRIEF TEMPLATE -->", 1)[1].split(
+            "<!-- END TASK BRIEF TEMPLATE -->", 1
+        )[0]
+        self.assertIn("while one remains materially available", block)
+        self.assertIn(
+            "exhausted, unavailable, unauthorized, or unsafe",
+            block,
+        )
+        self.assertNotIn("or preserve the blocker;", block)
+
+    def test_steering_classifies_evidence_before_violation_or_repair(self) -> None:
+        brief = (ROOT / "docs/agent-task-briefs.md").read_text(encoding="utf-8")
+        block = brief.split("<!-- BEGIN STEERING TEMPLATE -->", 1)[1].split(
+            "<!-- END STEERING TEMPLATE -->", 1
+        )[0]
+        classification = block.index("Evidence classification:")
+        affected = block.index("Affected obligation:")
+        response = block.index("Authorized response:")
+        repair = block.index("Repair unit:")
+        self.assertLess(classification, affected)
+        self.assertLess(affected, response)
+        self.assertLess(response, repair)
+        self.assertIn("scope-or-guarantee expansion proposal", block)
+        self.assertIn(
+            "required only for a demonstrated\nexisting-contract violation",
+            block,
+        )
+        self.assertIn("only when repair is authorized", block)
+
+    def test_templates_link_to_the_method(self) -> None:
+        brief = (ROOT / "docs/agent-task-briefs.md").read_text(encoding="utf-8")
+        self.assertIn("](agent-task-design.md)", brief)
 
 if __name__ == "__main__":
     unittest.main()
