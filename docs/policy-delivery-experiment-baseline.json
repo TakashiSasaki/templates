@@ -107,14 +107,15 @@
     ],
     "execution_model": {
       "coding_agent": "Google Anti-Gravity",
-      "model_semantic_name": "Gemini 3.8 Flash",
-      "reasoning_effort": "Middle",
+      "runtime_model_id": "gemini-3.8-flash-medium",
+      "reasoning_effort_requested": "Middle",
+      "reasoning_effort_cli_argument": null,
+      "reasoning_effort_observed": null,
       "worker_backend": "agy",
       "cli_binary": "/home/ubuntu/.local/bin/agy",
       "cli_version": "1.2.8",
-      "cli_model": "gemini-3.8-flash-medium",
-      "cli_effort": "medium",
-      "positive_worker_probe_mode": "headless non-interactive via --mode accept-edits --output-format stream-json",
+      "positive_probe_used_trusted_sandbox": false,
+      "positive_probe_execution_mode": "unsandboxed transport/telemetry capability characterization only",
       "sandbox_requested": true,
       "sandbox_effective_status": "FAILED_OR_UNAVAILABLE",
       "sandbox_effective_detail": "connecting to sandbox server: read unix @->@: recvmsg: connection reset by peer; host lacks kernel user namespaces, bwrap, or seccomp supervision",
@@ -141,7 +142,7 @@
       },
       "C3_harmless_workspace_action": {
         "description": "Can it perform one harmless local workspace action?",
-        "requirement": "Worker successfully completes a local workspace action (such as file read or local command execution)."
+        "requirement": "Worker successfully completes one harmless local workspace action (retained probe evidence: view_file on /tmp/test.txt)."
       },
       "C4_evaluator_observation": {
         "description": "Can the evaluator observe that action?",
@@ -190,8 +191,8 @@
     "cost_metric_semantics": {
       "primary_metric": "total_tokens",
       "formula": "total_tokens = input_tokens + output_tokens",
-      "cache_accounting": "cache_read_tokens is a sub-metric of input_tokens; uncached_input_tokens = input_tokens - cache_read_tokens",
-      "thinking_accounting": "thinking_tokens is a sub-metric of output_tokens; standard_output_tokens = output_tokens - thinking_tokens",
+      "cache_accounting": "cache_read_tokens is reported by agy as a telemetry subset of input_tokens; total_tokens remains the authoritative primary metric",
+      "thinking_accounting": "thinking_tokens is reported by agy as a telemetry subset of output_tokens; total_tokens remains the authoritative primary metric",
       "double_counting_rules": "thinking_tokens MUST NOT be added to total_tokens; cache_read_tokens MUST NOT be added to total_tokens",
       "missing_usage_rule": "If an event lacks usage, the trial is invalid; no estimation or fabrication is permitted"
     },

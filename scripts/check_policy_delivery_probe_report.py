@@ -7,14 +7,18 @@ This deterministic checker asserts that:
 3. Evaluator source and candidate artifact hashes match actual files on disk.
 4. Fixture mode is non-git and .git absence is explicitly verified.
 5. Required network policy is separated from host enforcement status (NOT_ESTABLISHED).
-6. Capability criteria C1–C9 reflect exact evaluated statuses:
+6. C3 matches retained view_file evidence (no claim of local command execution).
+7. Trusted sandbox is not falsely claimed (positive_probe_used_trusted_sandbox is false).
+8. Requested vs observed reasoning identity is separated; no false CLI --effort claim.
+9. Primary metric is observed total_tokens (input + output).
+10. Capability criteria C1–C9 reflect exact evaluated statuses:
    - C1–C4, C9: ESTABLISHED
    - C6: NOT_APPLICABLE (non-git fixture)
    - C5, C7, C8: NOT_ESTABLISHED
-7. The capability qualification decision is NOT_QUALIFIED.
-8. Zero matched trials were run and valid matched pairs equal 0.
-9. Whole-task cost metrics are UNAVAILABLE and empirical conclusion is NOT_ESTABLISHED.
-10. Machine-readable JSON records and human-readable Markdown reports are fully synchronized.
+11. The capability qualification decision is NOT_QUALIFIED.
+12. Zero matched trials were run and valid matched pairs equal 0.
+13. Whole-task cost metrics are UNAVAILABLE and empirical conclusion is NOT_ESTABLISHED.
+14. Machine-readable JSON records and human-readable Markdown reports are fully synchronized.
 """
 from __future__ import annotations
 
@@ -160,7 +164,77 @@ def check_probe_report(root: Path = ROOT) -> dict[str, Any]:
             "probe qualified_network_enforcement status must be 'NOT_ESTABLISHED'"
         )
 
-    # 5. C1–C9 Qualification Criteria Statuses
+    # 5. P1 — C3 Evidence Verification (Must match retained view_file; no command execution claim)
+    probe_c = probe_data.get("capability_probe", {})
+    c3_probe_evidence = probe_c.get("C3_harmless_workspace_action", {}).get("evidence", "")
+    if "command execution" in c3_probe_evidence or "run_command" in c3_probe_evidence:
+        raise ProbeReportConsistencyError(
+            "C3 probe evidence falsely claims command execution; retained evidence is view_file"
+        )
+    if "view_file" not in c3_probe_evidence or "/tmp/test.txt" not in c3_probe_evidence:
+        raise ProbeReportConsistencyError(
+            "C3 probe evidence must reference retained view_file on /tmp/test.txt"
+        )
+
+    report_c = report_data.get("capability_qualification_results", {})
+    c3_report_evidence = report_c.get("C3_harmless_workspace_action", {}).get("evidence", "")
+    if "command execution" in c3_report_evidence or "run_command" in c3_report_evidence:
+        raise ProbeReportConsistencyError(
+            "C3 report evidence falsely claims command execution; retained evidence is view_file"
+        )
+
+    # 6. P2 — Distinguish Worker Execution from Trusted Sandbox
+    exec_model = protocol.get("execution_model", {})
+    if exec_model.get("positive_probe_used_trusted_sandbox") is not False:
+        raise ProbeReportConsistencyError(
+            "baseline positive_probe_used_trusted_sandbox must be false"
+        )
+    if probe_env.get("positive_probe_used_trusted_sandbox") is not False:
+        raise ProbeReportConsistencyError("probe positive_probe_used_trusted_sandbox must be false")
+    report_env = report_data.get("execution_environment", {})
+    if report_env.get("positive_probe_used_trusted_sandbox") is not False:
+        raise ProbeReportConsistencyError(
+            "report positive_probe_used_trusted_sandbox must be false"
+        )
+
+    if probe_env.get("sandbox_requested") is not True:
+        raise ProbeReportConsistencyError("probe sandbox_requested must be true")
+    if probe_env.get("sandbox_effective_status") != "FAILED_OR_UNAVAILABLE":
+        raise ProbeReportConsistencyError(
+            "probe sandbox_effective_status must be 'FAILED_OR_UNAVAILABLE'"
+        )
+
+    # 7. P3 — Separate Requested and Observed Reasoning Identity
+    if exec_model.get("reasoning_effort_requested") != "Middle":
+        raise ProbeReportConsistencyError("reasoning_effort_requested must be 'Middle'")
+    if exec_model.get("runtime_model_id") != "gemini-3.8-flash-medium":
+        raise ProbeReportConsistencyError("runtime_model_id must be 'gemini-3.8-flash-medium'")
+    if exec_model.get("reasoning_effort_cli_argument") is not None:
+        raise ProbeReportConsistencyError("reasoning_effort_cli_argument must be null")
+
+    c1_probe_evidence = probe_c.get("C1_worker_start", {}).get("evidence", "")
+    if "--effort" in c1_probe_evidence:
+        raise ProbeReportConsistencyError(
+            "C1 probe evidence falsely claims CLI --effort was used"
+        )
+
+    # 8. P4 — Primary Token Accounting Metric
+    token_usage = probe_data.get("probe_execution", {}).get("observed_token_usage", {})
+    inp = token_usage.get("input_tokens")
+    out = token_usage.get("output_tokens")
+    total = token_usage.get("total_tokens")
+    if not isinstance(inp, int) or not isinstance(out, int) or not isinstance(total, int):
+        raise ProbeReportConsistencyError("probe observed_token_usage must contain integers")
+    if total != inp + out:
+        raise ProbeReportConsistencyError(f"probe total_tokens ({total}) != {inp} + {out}")
+    if total != 22763:
+        raise ProbeReportConsistencyError(f"probe total_tokens ({total}) != 22763")
+
+    cost_sem = protocol.get("cost_metric_semantics", {})
+    if cost_sem.get("primary_metric") != "total_tokens":
+        raise ProbeReportConsistencyError("cost primary_metric must be 'total_tokens'")
+
+    # 9. C1–C9 Qualification Criteria Statuses
     expected_statuses = {
         "C1_worker_start": "ESTABLISHED",
         "C2_tool_workspace_boundary": "ESTABLISHED",
@@ -172,8 +246,6 @@ def check_probe_report(root: Path = ROOT) -> dict[str, Any]:
         "C8_trial_identity_binding": "NOT_ESTABLISHED",
         "C9_token_usage_observability": "ESTABLISHED",
     }
-    probe_c = probe_data.get("capability_probe", {})
-    report_c = report_data.get("capability_qualification_results", {})
 
     for cid, expected_status in expected_statuses.items():
         if probe_c.get(cid, {}).get("status") != expected_status:
@@ -183,7 +255,7 @@ def check_probe_report(root: Path = ROOT) -> dict[str, Any]:
                 f"report JSON criterion {cid} status != {expected_status}"
             )
 
-    # 6. Qualification Decision & Missing Facts
+    # 10. Qualification Decision & Missing Facts
     if probe_data.get("decision", {}).get("capability") != "NOT_QUALIFIED":
         raise ProbeReportConsistencyError("probe capability decision must be 'NOT_QUALIFIED'")
     if report_c.get("capability_decision") != "NOT_QUALIFIED":
@@ -199,7 +271,7 @@ def check_probe_report(root: Path = ROOT) -> dict[str, Any]:
     if report_c.get("missing_facts") != expected_missing:
         raise ProbeReportConsistencyError("report missing_facts mismatch")
 
-    # 7. C8 Witness Specification
+    # 11. C8 Witness Specification
     c8_spec = protocol.get("c8_witness_specification", {})
     if c8_spec.get("schema") != EXPECTED_C8_SCHEMA:
         raise ProbeReportConsistencyError(f"C8 schema must be {EXPECTED_C8_SCHEMA}")
@@ -208,7 +280,7 @@ def check_probe_report(root: Path = ROOT) -> dict[str, Any]:
     if c8_spec.get("qualification_status") != "NOT_ESTABLISHED":
         raise ProbeReportConsistencyError("C8 qualification_status must be 'NOT_ESTABLISHED'")
 
-    # 8. Trial Execution & Cost Status
+    # 12. Trial Execution & Cost Status
     trial_exec = report_data.get("trial_execution", {})
     if trial_exec.get("matched_trials_authorized") is not False:
         raise ProbeReportConsistencyError("matched_trials_authorized must be false")
@@ -227,17 +299,7 @@ def check_probe_report(root: Path = ROOT) -> dict[str, Any]:
             "empirical_conclusion.classification must be 'NOT_ESTABLISHED'"
         )
 
-    # 9. Token Accounting Consistency in Probe
-    token_usage = probe_data.get("probe_execution", {}).get("observed_token_usage", {})
-    inp = token_usage.get("input_tokens")
-    out = token_usage.get("output_tokens")
-    total = token_usage.get("total_tokens")
-    if not isinstance(inp, int) or not isinstance(out, int) or not isinstance(total, int):
-        raise ProbeReportConsistencyError("probe observed_token_usage must contain integers")
-    if total != inp + out:
-        raise ProbeReportConsistencyError(f"probe total_tokens ({total}) != {inp} + {out}")
-
-    # 10. Digest Cross-Referencing
+    # 13. Digest Cross-Referencing
     actual_baseline_sha = sha256_file(baseline_path)
     actual_probe_sha = sha256_file(probe_path)
     actual_report_json_sha = sha256_file(report_json_path)
@@ -254,7 +316,7 @@ def check_probe_report(root: Path = ROOT) -> dict[str, Any]:
             f"report JSON recorded capability probe sha256 != actual ({actual_probe_sha})"
         )
 
-    # 11. Markdown Cross-Verification
+    # 14. Markdown Cross-Verification
     for text, name in [
         (report_md_text, "report Markdown"),
         (matched_exp_md_text, "matched experiment Markdown"),

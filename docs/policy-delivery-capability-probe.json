@@ -10,18 +10,19 @@
   },
   "execution_environment": {
     "coding_agent": "Google Anti-Gravity",
-    "model_semantic_name": "Gemini 3.8 Flash",
-    "reasoning_effort": "Middle",
+    "runtime_model_id": "gemini-3.8-flash-medium",
+    "reasoning_effort_requested": "Middle",
+    "reasoning_effort_cli_argument": null,
+    "reasoning_effort_observed": null,
     "worker_backend": "agy",
     "agy_binary": "/home/ubuntu/.local/bin/agy",
     "agy_binary_sha256": "f71174a3d6dc9aac258511363ed8419a591edc3dbd24607ca48132912c98f96d",
     "agy_binary_bytes": 206065848,
     "agy_version": "1.2.8",
-    "agy_model": "gemini-3.8-flash-medium",
-    "agy_effort": "medium",
     "fixture_mode": "non-git",
     "fixture_git_absence_verified": true,
-    "positive_worker_probe_mode": "headless non-interactive via --mode accept-edits --output-format stream-json",
+    "positive_probe_used_trusted_sandbox": false,
+    "positive_probe_execution_mode": "unsandboxed transport/telemetry capability characterization only",
     "sandbox_requested": true,
     "sandbox_effective_status": "FAILED_OR_UNAVAILABLE",
     "sandbox_effective_detail": "connecting to sandbox server: read unix @->@: recvmsg: connection reset by peer; host lacks kernel user namespaces, bwrap, or seccomp supervision",
@@ -73,10 +74,8 @@
       "formula": "total_tokens = input_tokens + output_tokens",
       "input_tokens": 22505,
       "output_tokens": 258,
-      "uncached_input_tokens": 10289,
-      "cached_input_tokens": 12216,
-      "reasoning_output_tokens": 190,
-      "standard_output_tokens": 68
+      "reported_telemetry_cache_read_tokens": 12216,
+      "reported_telemetry_thinking_tokens": 190
     }
   },
   "c8_witness_specification": {
@@ -101,7 +100,7 @@
   "capability_probe": {
     "C1_worker_start": {
       "status": "ESTABLISHED",
-      "evidence": "Worker CLI bootstrapped normally. Google Anti-Gravity CLI (agy v1.2.8) executed non-interactively using --mode accept-edits --output-format stream-json with model gemini-3.8-flash-medium and reasoning effort medium, exiting with code 0."
+      "evidence": "Worker CLI bootstrapped normally. Google Anti-Gravity CLI (agy v1.2.8) executed non-interactively using --mode accept-edits --output-format stream-json with model gemini-3.8-flash-medium, exiting with code 0."
     },
     "C2_tool_workspace_boundary": {
       "status": "ESTABLISHED",
@@ -109,7 +108,7 @@
     },
     "C3_harmless_workspace_action": {
       "status": "ESTABLISHED",
-      "evidence": "Worker successfully performed harmless local workspace actions (view_file on /tmp/test.txt and local command execution)."
+      "evidence": "Worker successfully performed one harmless local workspace action (view_file on /tmp/test.txt, reading 2 lines, 11 bytes)."
     },
     "C4_evaluator_observation": {
       "status": "ESTABLISHED",

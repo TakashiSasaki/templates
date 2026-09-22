@@ -22,9 +22,9 @@ Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`
 - **Exact `policy` Baseline Revision**: [`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`](https://github.com/TakashiSasaki/templates/commit/ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa)
 - **Candidate Provider Tree**: `a5a934b20de544a698eae318fd478c62815e0399`
 - **Experiment Infrastructure Candidate Revision**: [`3d05429778d091412a754e58e4773687e29116f7`](https://github.com/TakashiSasaki/templates/commit/3d05429778d091412a754e58e4773687e29116f7) (PR #1004, `feat/policy-delivery-agy-worker-backend`)
-- **Machine-Readable Baseline Plan**: [`docs/policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json) (SHA-256: `d1f013236d8511e225498c54a150ceb7c1b292c4ff425afe510fd0a7ecbd4ad7`)
-- **Machine-Readable Capability Probe Record**: [`docs/policy-delivery-capability-probe.json`](policy-delivery-capability-probe.json) (SHA-256: `9c468ac7567685ec680c383dfed1b1e088e1f905afd3eadb24f71941bf77f30e`)
-- **Machine-Readable Evidence Report**: [`docs/policy-delivery-experiment-report.json`](policy-delivery-experiment-report.json) (SHA-256: `2b373ab5ded93bfb952c714db903deabe7700cc61b74bed0a56de60d476af143`)
+- **Machine-Readable Baseline Plan**: [`docs/policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json) (SHA-256: `93290c88b1b3d07ee359459d9d6d283555bb8dc5fff49dde39cc9e31e3891e64`)
+- **Machine-Readable Capability Probe Record**: [`docs/policy-delivery-capability-probe.json`](policy-delivery-capability-probe.json) (SHA-256: `f15d18deff31bbad31178f07b3381d7f003490768a3d383840b3e2106c5f614d`)
+- **Machine-Readable Evidence Report**: [`docs/policy-delivery-experiment-report.json`](policy-delivery-experiment-report.json) (SHA-256: `52f9477bf4465f3445b0da4ce798121bfce6c97aac6486e4a3597e57ddb1db3b`)
 - **Evaluator Source Identity**:
   - `scripts/run_matched_policy_delivery_experiment.py` (SHA-256: `b36eaa3a6c007a43e520ece2c581b34f006a5f8535345752ab5d42da797ef6c3`)
 - **Evidence Specification & Checkers**:
@@ -42,17 +42,26 @@ Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`
 ## 3. Execution Environment and Separation of Enforcement
 
 - **Coding Agent**: Google Anti-Gravity
+- **Runtime Model ID**: `gemini-3.8-flash-medium`
+- **Reasoning Effort Requested**: Middle (`Middle`)
+- **Reasoning Effort CLI Argument**: `null` (no `--effort` argument was passed in probe invocation command line)
+- **Reasoning Effort Observed**: `null` (only reported `thinking_tokens: 190` in usage telemetry)
 - **Worker Backend**: `agy` (CLI v1.2.8, binary SHA-256: `f71174a3d6dc9aac258511363ed8419a591edc3dbd24607ca48132912c98f96d`)
-- **Model**: Gemini 3.8 Flash (`gemini-3.8-flash-medium`)
-- **Thinking / Reasoning Effort**: Middle (`medium`)
 - **Fixture Mode**: `non-git` (verified `.git` absent in fixture directory)
-- **Positive Worker Probe Mode**: Headless non-interactive execution via `--mode accept-edits --output-format stream-json`
-- **Sandbox Requested**: `true` (`--sandbox` / terminal restrictions enabled)
+- **Positive Probe Execution Mode**: Unsandboxed transport/telemetry capability characterization only
+- **Positive Probe Used Trusted Sandbox**: `false` (do not characterize C1–C4 as sandboxed execution capability)
+- **Sandbox Requested**: `true` (`--sandbox`)
 - **Sandbox Effective Status**: `FAILED_OR_UNAVAILABLE` (connection reset on unix socket: `connecting to sandbox server: read unix @->@: recvmsg: connection reset by peer`; host lacks kernel user namespaces, bwrap, or seccomp supervision)
 - **Permission Mode**: `accept-edits`
 - **Fallback / Bypass Status**: Sandbox bypass required for worker execution on this host
 - **Required Network Policy**: Prohibited / local only (no network access permitted during worker execution)
 - **Qualified Network Enforcement**: `NOT_ESTABLISHED` (host lacks per-process kernel network namespace or firewall packet filtering to independently verify or enforce network absence; headless permission rejection is not kernel-level network enforcement)
+
+**Intended Interpretation**:
+- `agy` execution works
+- tool telemetry works
+- token telemetry works
+- trusted sandbox enforcement does not
 
 ---
 
@@ -62,9 +71,9 @@ A bounded execution and enforcement probe (`probe-agy-gemini38flash-20260922t064
 
 | ID | Capability Requirement | Status | Concrete Evidence Basis |
 | :--- | :--- | :--- | :--- |
-| **C1** | Can the worker start normally? | `ESTABLISHED` | Worker CLI bootstrapped normally. Google Anti-Gravity CLI (`agy` v1.2.8) executed non-interactively using `--mode accept-edits --output-format stream-json` with model `gemini-3.8-flash-medium` and reasoning effort `medium`, exiting with code 0. |
+| **C1** | Can the worker start normally? | `ESTABLISHED` | Worker CLI bootstrapped normally. Google Anti-Gravity CLI (`agy` v1.2.8) executed non-interactively using `--mode accept-edits --output-format stream-json` with model `gemini-3.8-flash-medium`, exiting with code 0. |
 | **C2** | Can it reach the intended tool/workspace boundary? | `ESTABLISHED` | Worker successfully reached the tool/workspace boundary in disposable fixtures, emitting structured `step_update` tool events in `stream-json` output format. |
-| **C3** | Can it perform one harmless local workspace action? | `ESTABLISHED` | Worker successfully performed harmless local workspace actions (`view_file` on `/tmp/test.txt` and local command execution). |
+| **C3** | Can it perform one harmless local workspace action? | `ESTABLISHED` | Worker successfully performed one harmless local workspace action (`view_file` on `/tmp/test.txt`, reading 2 lines, 11 bytes). |
 | **C4** | Can the evaluator observe that action? | `ESTABLISHED` | Evaluator command-event collector observed and verified structured tool events, parameters, exit codes, and output bytes from `agy` `stream-json` output. |
 | **C5** | Can opaque worker execution be covered by a trusted enforcement boundary? | `NOT_ESTABLISHED` | Host environment lacks an active sandbox supervisor (connecting to sandbox server returns `read unix @->@: recvmsg: connection reset by peer`), requiring sandbox bypass for execution; host lacks kernel-level unprivileged user namespaces, bwrap, or seccomp syscall supervision to intercept and enforce opaque worker execution. |
 | **C6** | Can control-plane integrity be established independently of worker text? | `NOT_APPLICABLE` | Evaluated in non-Git fixture mode where Git control plane integrity is not applicable; in this fixture, `.git` was explicitly verified absent (`git_control_plane_present = false`); in Git fixture mode, host lacks independent filesystem integrity monitoring for `.git` control plane mutations. |
@@ -87,7 +96,7 @@ The predeclared protocol requires an evaluator-owned witness conforming to `poli
   "reference_digest": "<sha256>",
   "infrastructure_revision": "3d05429778d091412a754e58e4773687e29116f7",
   "agy_identity": "/home/ubuntu/.local/bin/agy (v1.2.8, sha256: f71174a3...)",
-  "model_runtime_identity": "gemini-3.8-flash-medium (effort: medium)",
+  "model_runtime_identity": "gemini-3.8-flash-medium",
   "sandbox_enforcement_identity": "<supervisor-id-and-status>",
   "network_enforcement_identity": "<netns-or-firewall-status>",
   "run_log_identity": "<sha256>",
@@ -105,8 +114,7 @@ Because C5 and C7 could not be established on this host, this witness is **absen
 
 The primary cost metric semantics are frozen as follows:
 - **Primary Metric**: `total_tokens = input_tokens + output_tokens` (observed probe value: 22,763).
-- **Cache Accounting**: `cache_read_tokens` (12,216) is a sub-metric of `input_tokens` (22,505); uncached input tokens = 10,289.
-- **Reasoning Accounting**: `thinking_tokens` (190) is a sub-metric of `output_tokens` (258); standard output tokens = 68.
+- **Telemetry Breakdown**: In `agy` telemetry, `cache_read_tokens` (12,216) and `thinking_tokens` (190) are reported in usage events. Authoritative comparison is frozen on `total_tokens`.
 - **Double-Counting Prohibition**: `thinking_tokens` is already included within `output_tokens` and must not be added to `total_tokens` again; `cache_read_tokens` is already included within `input_tokens` and must not be added to `total_tokens` again.
 - **Missing-Usage Rule**: Any trial run lacking structured usage in its terminal result event is invalid; no estimation or fabrication is permitted.
 

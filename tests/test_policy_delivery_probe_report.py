@@ -87,6 +87,45 @@ def test_tampered_capability_decision_is_rejected(tmp_path: Path) -> None:
         checker.check_probe_report(shadow)
 
 
+def test_tampered_c3_command_execution_claim_is_rejected(tmp_path: Path) -> None:
+    checker = _load_checker()
+    shadow = _copy_worktree_files(tmp_path)
+    probe_path = shadow / "docs/policy-delivery-capability-probe.json"
+    data = json.loads(probe_path.read_text(encoding="utf-8"))
+    data["capability_probe"]["C3_harmless_workspace_action"]["evidence"] += (
+        " and local command execution"
+    )
+    probe_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(checker.ProbeReportConsistencyError, match="command execution"):
+        checker.check_probe_report(shadow)
+
+
+def test_tampered_trusted_sandbox_claim_is_rejected(tmp_path: Path) -> None:
+    checker = _load_checker()
+    shadow = _copy_worktree_files(tmp_path)
+    probe_path = shadow / "docs/policy-delivery-capability-probe.json"
+    data = json.loads(probe_path.read_text(encoding="utf-8"))
+    data["execution_environment"]["positive_probe_used_trusted_sandbox"] = True
+    probe_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(
+        checker.ProbeReportConsistencyError, match="positive_probe_used_trusted_sandbox"
+    ):
+        checker.check_probe_report(shadow)
+
+
+def test_tampered_reasoning_effort_cli_argument_is_rejected(tmp_path: Path) -> None:
+    checker = _load_checker()
+    shadow = _copy_worktree_files(tmp_path)
+    baseline_path = shadow / "docs/policy-delivery-experiment-baseline.json"
+    data = json.loads(baseline_path.read_text(encoding="utf-8"))
+    data["protocol"]["execution_model"]["reasoning_effort_cli_argument"] = "medium"
+    baseline_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(
+        checker.ProbeReportConsistencyError, match="reasoning_effort_cli_argument"
+    ):
+        checker.check_probe_report(shadow)
+
+
 def test_tampered_token_accounting_is_rejected(tmp_path: Path) -> None:
     checker = _load_checker()
     shadow = _copy_worktree_files(tmp_path)
