@@ -33,6 +33,8 @@ FOCUSED_TESTS = (
     "tests/test_review_artifacts.py",
     "tests/test_review_scope_selection.py",
     "tests/test_maintainer_source_closure.py",
+    "tests/test_live_review_adapter.py",
+    "tests/test_maintainer_entrypoint_workflow.py",
     "tests/test_matched_policy_delivery.py",
     "tests/test_policy_delivery_evidence_spec.py",
     "tests/test_policy_delivery_evidence_consistency.py",

@@ -252,3 +252,35 @@ authority merge SHA before an actual authorized merge.
 This Skill must not call itself, and the local shim must not call the local
 shim. The only semantic call from this procedure is to the separately pinned
 `pr-merge-gate`; that gate does not delegate back here.
+
+## 7. Standard Maintainer Workflow Entrypoint and Live Adapter
+
+Maintainers execute the review artifacts workflow via the standard CLI entrypoint
+and live adapter rather than hand-writing transient scripts:
+
+- **Bootstrap Runner**: `scripts/run_maintainer_workflow.py`
+  Verifies the immutable source manifest against local Git object storage,
+  materializes the verified closure in an isolated execution environment, and
+  executes the maintainer entrypoint within the closure lifetime while ignoring
+  any mutable worktree modifications.
+- **Entrypoint**: `repository-skills/land-templates-stack/scripts/maintain_review_stack.py`
+  Orchestrates state observation, candidate and revision binding validation,
+  scope planner execution from immutable source references, artifact rendering
+  via `render_review_artifacts.py`, publication via `publish_review_artifacts.py`,
+  offline preview, and safe live revalidation via `live_review_adapter.py`.
+- **Live Adapter**: `repository-skills/land-templates-stack/scripts/live_review_adapter.py`
+  Provides standard `resolve(context, payload, provider)` callback and configured
+  `GitHubLiveRevalidationAdapter` instances for `publish_review_artifacts.py`.
+- **Safety Boundaries**:
+  Preview mode writes normalized artifacts and manifests locally without any external mutations.
+  Remote publication strictly fails closed: it requires explicit `--apply`,
+  `--authorize`, and `--serialized-writer` flags alongside valid credentials.
+- **Usage**:
+  ```bash
+  # Trusted isolated execution via bootstrap runner:
+  python scripts/run_maintainer_workflow.py \
+    --trusted-base-sha <TRUSTED_BASE_SHA> \
+    --pr <PR_NUMBER> --head-sha <HEAD_SHA> --base-sha <BASE_SHA> \
+    --output-dir /path/to/artifacts
+  ```
+
