@@ -80,6 +80,40 @@ an increase in whole-task cost. If the evidence is inconclusive, the measurement
 and protocol remain useful diagnostics and the existing full-text self-host
 output stays unchanged.
 
+## Execution record
+
+The first bounded pilot ran on 2026-09-21 JST with six fresh read-only CLI
+trials, two per condition, and no remote actions. The CLI was Codex `0.154.0`.
+The usage values below are the host's `turn.completed` accounting; they are not
+an observation of the exact model prompt assembly.
+
+| Condition | Input tokens (two trials) | Cached input | Output tokens | Result |
+| --- | ---: | ---: | ---: | --- |
+| A, current full output | 38,487 / 38,345 | 27,136 / 27,136 | 685 / 560 | 2/2 correct |
+| B, isolated complete-output setting | 62,389 / 30,965 | 39,424 / 8,960 | 774 / 151 | 2/2 correct |
+| C, opt-in staged output | 78,661 / 78,678 | 65,536 / 65,536 | 1,043 / 1,215 | 2/2 correct |
+
+The static projection comparison for the same 47 selected rules was:
+
+| Surface | UTF-8 bytes | Lines |
+| --- | ---: | ---: |
+| Existing full `AGENTS.md` | 98,383 | 862 |
+| Staged startup `AGENTS.md` | 30,214 | 327 |
+| Authenticated detail bundle | 146,587 | 1,706 |
+| Grouped retrieval Skill | 8,229 | — |
+
+The staged trials retrieved the requested operation-specific rule IDs and
+reported them correctly. Two pre-existing generated Skills in the disposable
+fixture emitted frontmatter warnings; the trials still completed, and this is
+recorded as an environment warning rather than treated as a delivery win.
+Input variance and the staged retrieval cost mean this six-trial pilot does
+not demonstrate a whole-task token or time reduction. It does demonstrate a
+reproducible smaller startup projection with complete, authenticated,
+on-demand detail. The staged renderer therefore remains explicitly opt-in;
+the current `agents-md` self-host output, Policy semantics, and global agent
+settings are unchanged. A later adoption decision requires a clean installed
+consumer experiment with direct discovery evidence.
+
 ## Measurement and decision-gate disposition
 
 The original six-trial record did not establish the whole-task-cost condition

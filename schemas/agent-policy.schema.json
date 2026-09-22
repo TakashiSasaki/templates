@@ -135,8 +135,13 @@
           "renderer": {
             "enum": [
               "agents-md",
-              "policy-context-md"
+              "policy-context-md",
+              "agents-md-staged"
             ]
+          },
+          "detail_bundle": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

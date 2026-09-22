@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from .paths import UnsafePathError, resolve_inside
 from .yamlutil import dump_yaml, load_yaml
@@ -49,32 +50,67 @@ def create_lock(
     return dump_yaml(value)
 
 
-def load_lock_outputs(path: Path) -> dict[str, str]:
-    value = load_yaml(path)
+def _load_lock_section(value: Any, label: str) -> dict[str, str]:
     if not isinstance(value, dict):
-        raise ValueError("Lock file root must be a mapping")
-    if value.get("lock_version") != 1:
-        raise ValueError("Unsupported lock file version")
-
-    outputs = value.get("outputs")
-    if not isinstance(outputs, dict):
-        raise ValueError("Lock file outputs must be a mapping")
+        raise ValueError(f"Lock file {label} must be a mapping")
 
     result: dict[str, str] = {}
-    for relative, metadata in outputs.items():
+    for relative, metadata in value.items():
         if not isinstance(relative, str) or not relative:
-            raise ValueError("Lock output paths must be non-empty strings")
+            raise ValueError(f"Lock {label} paths must be non-empty strings")
         if not isinstance(metadata, dict):
-            raise ValueError(f"Lock output metadata must be a mapping: {relative}")
+            raise ValueError(f"Lock {label} metadata must be a mapping: {relative}")
         digest = metadata.get("sha256")
         if (
             not isinstance(digest, str)
             or len(digest) != 64
             or any(character not in "0123456789abcdef" for character in digest)
         ):
-            raise ValueError(f"Lock output sha256 is invalid: {relative}")
+            raise ValueError(f"Lock {label} sha256 is invalid: {relative}")
         result[relative] = digest
     return dict(sorted(result.items()))
+
+
+def load_lock(path: Path) -> dict[str, Any]:
+    value = load_yaml(path)
+    if not isinstance(value, dict):
+        raise ValueError("Lock file root must be a mapping")
+    lock_version = value.get("lock_version")
+    if (
+        not isinstance(lock_version, int)
+        or isinstance(lock_version, bool)
+        or lock_version != 1
+    ):
+        raise ValueError("Unsupported lock file version")
+
+    toolchain = value.get("toolchain")
+    if not isinstance(toolchain, dict):
+        raise ValueError("Lock file toolchain must be a mapping")
+    repository = toolchain.get("repository")
+    revision = toolchain.get("revision")
+    if not isinstance(repository, str) or not repository:
+        raise ValueError("Lock file toolchain repository is invalid")
+    if (
+        not isinstance(revision, str)
+        or len(revision) != 40
+        or any(character not in "0123456789abcdef" for character in revision)
+    ):
+        raise ValueError("Lock file toolchain revision is invalid")
+
+    return {
+        "lock_version": 1,
+        "toolchain": {"repository": repository, "revision": revision},
+        "inputs": _load_lock_section(value.get("inputs"), "input"),
+        "outputs": _load_lock_section(value.get("outputs"), "output"),
+    }
+
+
+def load_lock_outputs(path: Path) -> dict[str, str]:
+    return load_lock(path)["outputs"]
+
+
+def load_lock_inputs(path: Path) -> dict[str, str]:
+    return load_lock(path)["inputs"]
 
 
 def load_lock_output_paths(path: Path) -> tuple[str, ...]:

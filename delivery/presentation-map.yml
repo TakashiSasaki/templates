@@ -1,0 +1,149 @@
+schema_version: 1
+context: coding
+fallback:
+  mode: detail-only
+  operations:
+    - all
+  reason: This rule is selected but has no curated operation route; retrieve its full detail before a dependent action.
+rules:
+  core.discover-repository-topology-fail-closed:
+    startup: true
+    operations: [inspect, plan, edit]
+  core.discover-local-checkout-topology-fail-closed:
+    startup: true
+    operations: [inspect, plan, edit]
+  changes.define-contract:
+    startup: true
+    operations: [plan, edit]
+  changes.preserve-acceptance-baseline:
+    startup: true
+    operations: [plan, edit, review, merge]
+  changes.minimize-scope:
+    startup: true
+    operations: [plan, edit, review]
+  decisions.escalate-semantic-ambiguity:
+    startup: true
+    operations: [plan, edit, review, merge]
+  regression.no-weaken-tests:
+    startup: true
+    operations: [edit, generate, validate]
+  testing.run-required-checks:
+    startup: true
+    operations: [edit, generate, validate, review, merge]
+  testing.require-adversarial-invariant-coverage:
+    startup: false
+    operations: [edit, validate, review]
+  verification.separate-evidence-layers:
+    startup: true
+    operations: [validate, review, merge]
+  consistency.synchronize-derived-artifacts:
+    startup: true
+    operations: [edit, generate, validate]
+  discovery.maintain-index-boundaries:
+    startup: false
+    operations: [edit, generate, validate]
+  compatibility.preserve-contracts:
+    startup: false
+    operations: [plan, edit, review]
+  safety.revalidate-destructive-actions:
+    startup: true
+    operations: [edit, generate, publish, merge]
+  safety.bind-validated-state-to-operation:
+    startup: true
+    operations: [edit, generate, publish, merge]
+  safety.limit-rollback-to-owned-changes:
+    startup: false
+    operations: [edit, generate, publish]
+  reporting.truthful-status:
+    startup: true
+    operations: [validate, review, merge]
+  changes.separate-task-review-merge-state:
+    startup: true
+    operations: [review, merge]
+  changes.prevent-diagnostic-stall:
+    startup: false
+    operations: [plan, edit, review]
+  security.no-secrets:
+    startup: true
+    operations: [inspect, edit, publish]
+  security.validate-boundaries:
+    startup: true
+    operations: [inspect, edit, generate, publish]
+  pull-request.require-explicit-stacked-review-coverage:
+    startup: false
+    operations: [review, merge]
+  pull-request.defer-revision-bound-qualification-until-required:
+    startup: false
+    operations: [review, merge]
+  pull-request.verify-target-branch-head-freshness:
+    startup: false
+    operations: [merge]
+  pull-request.select-review-scope-from-current-bindings:
+    startup: false
+    operations: [review]
+  pull-request.preflight-review-acquisition:
+    startup: false
+    operations: [review]
+  pull-request.disposition-known-findings-before-review-reacquisition:
+    startup: false
+    operations: [review]
+  pull-request.discover-review-results-across-applicable-surfaces:
+    startup: false
+    operations: [review, merge]
+  pull-request.require-independent-exact-head-review:
+    startup: false
+    operations: [merge]
+  pull-request.bind-review-result-classification-to-applicable-cycle-and-revision:
+    startup: false
+    operations: [review, merge]
+  pull-request.close-review-threads-before-merge:
+    startup: false
+    operations: [review, merge]
+  pull-request.use-staged-ci-with-preflight:
+    startup: false
+    operations: [validate, review, merge]
+  pull-request.require-exact-head-ci-evidence:
+    startup: false
+    operations: [validate, review, merge]
+  pull-request.fail-closed-on-unresolved-ci-discovery:
+    startup: false
+    operations: [validate, review, merge]
+  pull-request.reuse-valid-exact-head-evidence:
+    startup: false
+    operations: [review, merge]
+  pull-request.require-current-mergeability:
+    startup: false
+    operations: [merge]
+  pull-request.refresh-live-state-before-merge:
+    startup: false
+    operations: [merge]
+  pull-request.guard-merge-against-head-movement:
+    startup: false
+    operations: [merge]
+  pull-request.verify-merge-result:
+    startup: false
+    operations: [merge]
+  policy-repo.preserve-authority-boundary:
+    startup: true
+    operations: [inspect, plan, edit, review, merge]
+  policy-repo.preserve-history-boundary:
+    startup: true
+    operations: [plan, edit, merge]
+  policy-repo.require-architecture-decisions:
+    startup: true
+    operations: [plan, edit, review]
+  policy-repo.preserve-release-trust-model:
+    startup: true
+    operations: [edit, generate, validate, publish]
+  policy-repo.preserve-toolchain-safety-boundaries:
+    startup: true
+    operations: [edit, generate, publish]
+  policy-repo.run-maintainer-validation:
+    startup: true
+    operations: [validate, review, merge]
+  policy-repo.preserve-documentation-deployment-boundary:
+    startup: true
+    operations: [publish, merge]
+  policy-repo.maintainer-merge-routing:
+    startup: true
+    operations: [review, merge]

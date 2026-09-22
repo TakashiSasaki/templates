@@ -63,6 +63,63 @@ The context is the semantic authority boundary. A renderer does not select, add,
 
 `agents-md` preserves the established repository-agent instruction surface. `policy-context-md` produces a provider-neutral semantic context document for uses such as pull-request review. Provider execution, API serialization, and review submission are procedures outside renderer authority; for pull-request review, managed repositories can generate the provider-neutral `pr-review` Skill while keeping provider API references non-normative.
 
+The opt-in `agents-md-staged` renderer presents a compact startup document and
+keeps the complete selected rule text in a lock-bound detail bundle. It requires
+an explicit `detail_bundle` path and the single grouped `policy-guidance` Skill:
+
+```yaml
+outputs:
+  agents-staged:
+    enabled: true
+    path: .agent-policy/preview/AGENTS.md
+    detail_bundle: .agent-policy/preview/policy-details.json
+    context: coding
+    renderer: agents-md-staged
+skills:
+  enabled:
+    - policy-guidance
+```
+
+The staged output is a presentation projection. It does not change rule
+selection, severity, overrides, or enforcement. Before a dependent operation,
+use the generated `policy-guidance` script to validate the bundle and retrieve
+the exact applicable rule text. Missing, stale, corrupt, or unmapped detail is
+a blocking condition for that dependent operation. Existing configurations
+continue to use `agents-md` unless this output is explicitly enabled.
+
+Set `AGENT_POLICY_SKILL_ROOT` to the actual installed `agent-policy` Skill
+directory before using the generated command. The command invokes that
+external Skill's `scripts/run.py`, which selects the repository-pinned runtime;
+it does not assume that a repository-local runner has been generated.
+
+The retrieval script revalidates the current configuration, selected context,
+repository-policy inputs, installed toolchain sources, and presentation map at
+the point of retrieval. The bundle and lock therefore bind a snapshot rather
+than granting an old snapshot authority after the inputs change. Lock outputs
+are parsed structurally with the installed canonical YAML loader, so quoted
+output names and duplicate-key errors retain their YAML meaning. An operation
+route that is malformed or inconsistent with the selected rules is a blocking
+error; it is not silently treated as an empty valid route. The
+`policy-guidance` Skill requires exactly one enabled `agents-md-staged` output,
+so disabling that output while leaving the Skill enabled is rejected during
+validation instead of failing later during rendering. Retrieval also compares
+every policy-significant field in the bundled rule with the freshly loaded rule,
+including title, severity, overrideability, and order. Generated retrieval
+commands shell-quote the configured detail-bundle path, so whitespace and shell
+metacharacters do not split the bundle argument; the equals form also preserves
+paths beginning with a hyphen as a value rather than an option.
+
+The staged path must also be checked from a clean installed consumer, without
+the provider checkout on `PYTHONPATH`. The supported package build includes the
+presentation map, strict lock parser, canonical profiles, templates, and Skill
+assets. A clean-consumer smoke test should run `validate`, `render`, `check`,
+and the generated retrieval script, including from a nested directory with an
+explicit configuration path containing shell-sensitive characters. This proves
+package distribution and binding validation; it does not prove host prompt
+inclusion or qualify staged delivery for adoption. The current presentation map
+is authenticated for the `coding` context only; another context must use the
+ordinary full-text renderer until it has an independently authenticated map.
+
 The current schema intentionally has no review-result JSON renderer. Provider-specific event names, API requests, inline-anchor formats, or serialization contracts must not become semantic review policy or a second generated review-procedure authority.
 
 All configured repository-local policy inputs are included in the generated lock. Each output, however, is rendered only from the profiles and repository-local policy files belonging to its referenced context. Output paths must be unique and must not overwrite configuration, policy input, or reserved generated-state paths.
