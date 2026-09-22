@@ -63,5 +63,18 @@ class AgentTaskGuidanceTests(unittest.TestCase):
             self.assertIn(heading, headings)
 
 
+    def test_guide_requires_strategy_exhaustion_before_blocker(self) -> None:
+        text = (ROOT / "docs/agent-task-design.md").read_text(encoding="utf-8")
+        self.assertIn("while one remains materially available", text)
+        self.assertIn(
+            "exhausted, unavailable, unauthorized, or unsafe",
+            text,
+        )
+        self.assertNotIn(
+            "calls for a recorded blocker or a different authorized\nstrategy",
+            text,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
