@@ -1,0 +1,1148 @@
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+import venv
+from pathlib import Path
+
+import pytest
+
+from agent_policy import delivery, generated_mutation
+from agent_policy.commands import check, render, validate
+from agent_policy.commands import guidance as guidance_command
+from agent_policy.config import load_config
+from agent_policy.delivery import load_presentation_map
+from agent_policy.policy_loader import load_rules
+from agent_policy.renderer import render_agents
+from agent_policy.yamlutil import dump_yaml, load_yaml
+
+TEST_REVISION = "a" * 40
+GUIDANCE = "project.generated-delivery"
+
+
+def _write_staged_repository(root: Path) -> None:
+    (root / ".git").mkdir()
+    (root / "policy").mkdir()
+    (root / "policy/project.md").write_text(
+        """---
+id: project.generated-delivery
+severity: mandatory
+overridable: true
+order: 1000
+---
+# Generated delivery rule
+
+Retrieve this rule before changing generated files.
+""",
+        encoding="utf-8",
+    )
+    (root / ".agent-policy.yml").write_text(
+        f"""schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: {TEST_REVISION}
+contexts:
+  coding:
+    profiles:
+      - core
+    project_policy:
+      files:
+        - policy/project.md
+outputs:
+  agents-staged:
+    enabled: true
+    path: .agent-policy/preview/AGENTS.md
+    detail_bundle: .agent-policy/preview/policy-details.json
+    context: coding
+    renderer: agents-md-staged
+skills:
+  enabled:
+    - policy-guidance
+""",
+        encoding="utf-8",
+    )
+
+
+def _run_guidance(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    skill = root / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+    return subprocess.run(
+        [sys.executable, str(skill), "--root", str(root), *arguments],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
+def _run_pinned_guidance(
+    root: Path,
+    *arguments: str,
+    config: str = ".agent-policy.yml",
+    runtime_revision: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+    command = [
+            sys.executable,
+            "-c",
+            "from agent_policy.cli import main; raise SystemExit(main())",
+            "--repository",
+            str(root),
+            "guidance",
+            "--config",
+            config,
+            "--script",
+            ".agents/skills/policy-guidance/scripts/policy_guidance.py",
+            *arguments,
+        ]
+    if runtime_revision is not None:
+        command.extend(["--runtime-revision", runtime_revision])
+    return subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
+def _rewrite_bundle_and_lock(root: Path, mutate) -> None:
+    bundle_path = root / ".agent-policy/preview/policy-details.json"
+    bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+    mutate(bundle)
+    bundle_path.write_text(
+        json.dumps(bundle, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    lock_path = root / ".agent-policy.lock"
+    lock = load_yaml(lock_path)
+    lock["outputs"][".agent-policy/preview/policy-details.json"]["sha256"] = (
+        hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    )
+    lock_path.write_text(dump_yaml(lock), encoding="utf-8")
+
+
+def test_staged_delivery_preserves_full_rule_set_and_supports_clean_retrieval(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+
+    assert validate.run(tmp_path, ".agent-policy.yml") == []
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    config = load_config(tmp_path, ".agent-policy.yml")
+    context = config.contexts["coding"]
+    rules = load_rules(
+        tmp_path,
+        list(context.profiles),
+        list(context.project_policy_files),
+        declared_overrides=context.override_reasons,
+        require_explicit_overrides=True,
+    )
+    bundle = json.loads(
+        (tmp_path / ".agent-policy/preview/policy-details.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    startup = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+    expected_full = render_agents(
+        config,
+        rules,
+        context_name="coding",
+        project_policy_files=context.project_policy_files,
+    )
+    generated_skill = (
+        tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    )
+
+    assert [item["id"] for item in bundle["rules"]] == [rule.id for rule in rules]
+    assert "project.generated-delivery" in startup
+    assert len(startup.encode("utf-8")) < len(expected_full.encode("utf-8"))
+    assert "{{ policy_delivery_bundle_path" not in generated_skill.read_text(
+        encoding="utf-8"
+    )
+    assert set(load_yaml(tmp_path / ".agent-policy.lock")["outputs"]) == {
+        ".agent-policy/preview/AGENTS.md",
+        ".agent-policy/preview/policy-details.json",
+        ".agents/skills/policy-guidance/SKILL.md",
+        ".agents/skills/policy-guidance/scripts/policy_guidance.py",
+    }
+
+    result = _run_guidance(tmp_path, "--rule-id", GUIDANCE)
+    assert result.returncode == 0
+    assert "Retrieve this rule before changing generated files." in result.stdout
+
+    blocked = _run_guidance(tmp_path, "--operation", "edit")
+    assert blocked.returncode == 2
+    assert "route is incomplete" in blocked.stderr
+
+
+def test_render_rejects_nested_json_generated_marker_before_overwrite(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    authored = {
+        "metadata": {"agent-policy-generated": True},
+        "user_data": "KEEP: agent-policy-generated: true",
+    }
+    bundle_path.parent.mkdir(parents=True, exist_ok=True)
+    original = json.dumps(authored, indent=2) + "\n"
+    bundle_path.write_text(original, encoding="utf-8")
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "non-generated file" in diagnostics[0].message
+    assert bundle_path.read_text(encoding="utf-8") == original
+    assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
+
+
+def test_render_rejects_malformed_json_marker_before_overwrite(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    bundle_path.parent.mkdir(parents=True, exist_ok=True)
+    original = '{"user_data":"agent-policy-generated: true"} trailing\n'
+    bundle_path.write_text(original, encoding="utf-8")
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "non-generated file" in diagnostics[0].message
+    assert bundle_path.read_text(encoding="utf-8") == original
+    assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
+
+
+@pytest.mark.parametrize(
+    "original",
+    [
+        '\ufeff{"user_data":"agent-policy-generated: true"}\n',
+        '/* authored */ {"user_data":"agent-policy-generated: true"}\n',
+    ],
+    ids=["bom", "comment"],
+)
+def test_render_rejects_parse_failed_json_bundle_before_overwrite(
+    tmp_path: Path,
+    original: str,
+) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    bundle_path.parent.mkdir(parents=True, exist_ok=True)
+    bundle_path.write_text(original, encoding="utf-8")
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "non-generated file" in diagnostics[0].message
+    assert bundle_path.read_text(encoding="utf-8") == original
+    assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
+
+
+def test_staged_delivery_rejects_missing_guidance_skill(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "skills:\n  enabled:\n    - policy-guidance\n",
+            "skills:\n  enabled: []\n",
+        ),
+        encoding="utf-8",
+    )
+
+    diagnostics = validate.run(tmp_path, ".agent-policy.yml")
+
+    assert any(item.code == "STAGED_GUIDANCE_SKILL" for item in diagnostics)
+
+
+def test_staged_guidance_rejects_bundle_digest_drift(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    bundle_path.write_text(
+        bundle_path.read_text(encoding="utf-8").replace(
+            "Retrieve this rule before changing generated files.",
+            "Tampered rule text.",
+        ),
+        encoding="utf-8",
+    )
+    result = _run_guidance(tmp_path, "--rule-id", GUIDANCE)
+
+    assert result.returncode == 2
+    assert "does not match .agent-policy.lock" in result.stderr
+
+
+def test_pinned_guidance_rejects_tampered_script_before_execution(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    script = tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    script.write_text("print('FORGED GUIDANCE')\n", encoding="utf-8")
+
+    result = _run_pinned_guidance(tmp_path, "--rule-id", GUIDANCE)
+
+    assert result.returncode == 2
+    assert "generated-output lock" in result.stderr
+    assert "FORGED GUIDANCE" not in result.stdout
+
+
+def test_pinned_guidance_binds_bundle_to_enabled_staged_output(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    bundle_a = tmp_path / ".agent-policy/preview/policy-details.json"
+    original = bundle_a.read_bytes()
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "detail_bundle: .agent-policy/preview/policy-details.json",
+            "detail_bundle: .agent-policy/preview/policy-details-b.json",
+        ),
+        encoding="utf-8",
+    )
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    bundle_a.write_bytes(original)
+    lock_path = tmp_path / ".agent-policy.lock"
+    lock = load_yaml(lock_path)
+    lock["outputs"][bundle_a.relative_to(tmp_path).as_posix()] = {
+        "sha256": hashlib.sha256(original).hexdigest()
+    }
+    lock_path.write_text(dump_yaml(lock), encoding="utf-8")
+
+    result = _run_pinned_guidance(
+        tmp_path,
+        "--bundle=.agent-policy/preview/policy-details.json",
+        "--rule-id",
+        GUIDANCE,
+    )
+
+    assert result.returncode == 2
+    assert "enabled staged output" in result.stderr
+
+
+def test_generated_guidance_rebinds_bundle_to_current_output_at_child_boundary(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "detail_bundle: .agent-policy/preview/policy-details.json",
+            "detail_bundle: .agent-policy/preview/policy-details-b.json",
+        ),
+        encoding="utf-8",
+    )
+    config_digest = hashlib.sha256(config.read_bytes()).hexdigest()
+    bundle["bindings"]["inputs"][".agent-policy.yml"] = config_digest
+    bundle["bindings"]["configuration"][".agent-policy.yml"] = config_digest
+    bundle_bytes = (json.dumps(bundle, indent=2, sort_keys=True) + "\n").encode(
+        "utf-8"
+    )
+    bundle_path.write_bytes(bundle_bytes)
+
+    lock_path = tmp_path / ".agent-policy.lock"
+    lock = load_yaml(lock_path)
+    lock["inputs"][".agent-policy.yml"] = {"sha256": config_digest}
+    lock["outputs"][bundle_path.relative_to(tmp_path).as_posix()] = {
+        "sha256": hashlib.sha256(bundle_bytes).hexdigest()
+    }
+    lock_path.write_text(dump_yaml(lock), encoding="utf-8")
+
+    result = _run_guidance(
+        tmp_path,
+        "--bundle=.agent-policy/preview/policy-details.json",
+        "--rule-id",
+        GUIDANCE,
+    )
+
+    assert result.returncode == 2
+    assert "enabled staged output" in result.stderr
+
+
+def test_generated_guidance_rebinds_selected_config_at_child_boundary(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    alternate = tmp_path / ".agent-policy-alternate.yml"
+    alternate.write_text(
+        (tmp_path / ".agent-policy.yml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+    result = _run_guidance(
+        tmp_path,
+        "--config=.agent-policy-alternate.yml",
+        "--rule-id",
+        GUIDANCE,
+    )
+
+    assert result.returncode == 2
+    assert "configuration path" in result.stderr
+
+
+def test_render_rolls_back_owned_outputs_after_late_ownership_conflict(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    authored = '{"user_data":"KEEP"}\n'
+    injected = False
+    original_rename = generated_mutation._native_rename_noreplace
+
+    def replace_bundle_at_install_boundary(
+        source_fd: int, source: str, destination_fd: int, destination: str
+    ) -> None:
+        nonlocal injected
+        if destination == "policy-details.json" and not injected:
+            bundle_path.write_text(authored, encoding="utf-8")
+            injected = True
+        original_rename(source_fd, source, destination_fd, destination)
+
+    monkeypatch.setattr(
+        generated_mutation,
+        "_native_rename_noreplace",
+        replace_bundle_at_install_boundary,
+    )
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "created concurrently" in diagnostics[0].message
+    assert injected
+    assert not (tmp_path / ".agent-policy/preview/AGENTS.md").exists()
+    assert bundle_path.read_text(encoding="utf-8") == authored
+    assert not (tmp_path / ".agent-policy.lock").exists()
+
+
+def test_render_rejects_replacement_after_last_ownership_check(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    startup_path = tmp_path / ".agent-policy/preview/AGENTS.md"
+    startup_before = startup_path.read_text(encoding="utf-8")
+    lock_path = tmp_path / ".agent-policy.lock"
+    lock_before = lock_path.read_text(encoding="utf-8")
+    bundle_path = tmp_path / ".agent-policy/preview/policy-details.json"
+    authored = '{"user_data":"KEEP"}\n'
+    injected = False
+    original_rename = generated_mutation._native_rename_noreplace
+
+    def replace_before_bundle_detach(
+        source_fd: int, source: str, destination_fd: int, destination: str
+    ) -> None:
+        nonlocal injected
+        if source == "policy-details.json" and not injected:
+            bundle_path.write_text(authored, encoding="utf-8")
+            injected = True
+        original_rename(source_fd, source, destination_fd, destination)
+
+    monkeypatch.setattr(
+        generated_mutation,
+        "_native_rename_noreplace",
+        replace_before_bundle_detach,
+    )
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "content or ownership" in diagnostics[0].message
+    assert injected
+    assert startup_path.read_text(encoding="utf-8") == startup_before
+    assert bundle_path.read_text(encoding="utf-8") == authored
+    assert lock_path.read_text(encoding="utf-8") == lock_before
+
+
+def test_render_revalidates_obsolete_output_before_unlink(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    old_startup = tmp_path / ".agent-policy/preview/AGENTS.md"
+    old_bundle = tmp_path / ".agent-policy/preview/policy-details.json"
+    old_startup_content = old_startup.read_text(encoding="utf-8")
+
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8")
+        .replace(
+            ".agent-policy/preview/AGENTS.md",
+            ".agent-policy/preview/new-AGENTS.md",
+        )
+        .replace(
+            ".agent-policy/preview/policy-details.json",
+            ".agent-policy/preview/new-policy-details.json",
+        ),
+        encoding="utf-8",
+    )
+    authored = '{"user_data":"KEEP"}\n'
+    original_rename = generated_mutation._native_rename_noreplace
+    injected = False
+
+    def replace_obsolete_before_detach(
+        source_fd: int, source: str, destination_fd: int, destination: str
+    ) -> None:
+        nonlocal injected
+        if source == "policy-details.json" and not injected:
+            old_bundle.write_text(authored, encoding="utf-8")
+            injected = True
+        original_rename(source_fd, source, destination_fd, destination)
+
+    monkeypatch.setattr(
+        generated_mutation,
+        "_native_rename_noreplace",
+        replace_obsolete_before_detach,
+    )
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "content or ownership" in diagnostics[0].message
+    assert injected
+    assert old_startup.read_text(encoding="utf-8") == old_startup_content
+    assert old_bundle.read_text(encoding="utf-8") == authored
+    assert not (tmp_path / ".agent-policy/preview/new-AGENTS.md").exists()
+    assert not (tmp_path / ".agent-policy/preview/new-policy-details.json").exists()
+
+
+def test_pinned_guidance_rejects_runtime_lock_revision_drift(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    result = _run_pinned_guidance(
+        tmp_path,
+        "--rule-id",
+        GUIDANCE,
+        runtime_revision="b" * 40,
+    )
+
+    assert result.returncode == 2
+    assert "selected runtime revision" in result.stderr
+
+
+def test_generated_guidance_rechecks_selected_runtime_revision_at_use_boundary(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(TEST_REVISION, "b" * 40),
+        encoding="utf-8",
+    )
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    result = _run_guidance(
+        tmp_path,
+        "--runtime-revision",
+        TEST_REVISION,
+        "--rule-id",
+        GUIDANCE,
+    )
+
+    assert result.returncode == 2
+    assert "selected runtime revision" in result.stderr
+
+
+def test_pinned_guidance_executes_the_authenticated_script_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    script = tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    authenticated = script.read_bytes()
+    observed: dict[str, object] = {}
+
+    def mutate_during_check(_root: Path, _config: str) -> list[object]:
+        script.write_text("print('FORGED AFTER CHECK')\n", encoding="utf-8")
+        return []
+
+    def capture_execution(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed["command"] = command
+        observed["input"] = kwargs["input"]
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(check, "run", mutate_during_check)
+    monkeypatch.setattr(guidance_command.subprocess, "run", capture_execution)
+
+    assert (
+        guidance_command.run(
+            tmp_path,
+            config_path=".agent-policy.yml",
+            script=".agents/skills/policy-guidance/scripts/policy_guidance.py",
+            bundle=None,
+            runtime_revision=TEST_REVISION,
+            operation=None,
+            rule_id=GUIDANCE,
+            all_rules=False,
+            output_format="text",
+        )
+        == 0
+    )
+    assert observed["input"] == authenticated
+    assert f"--runtime-revision={TEST_REVISION}" in observed["command"]
+
+
+def test_staged_render_is_deterministic_and_check_detects_input_drift(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    first_outputs = {
+        relative: (tmp_path / relative).read_bytes()
+        for relative in load_yaml(tmp_path / ".agent-policy.lock")["outputs"]
+    }
+
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    second_outputs = {
+        relative: (tmp_path / relative).read_bytes()
+        for relative in load_yaml(tmp_path / ".agent-policy.lock")["outputs"]
+    }
+    assert first_outputs == second_outputs
+
+    policy = tmp_path / "policy/project.md"
+    policy.write_text(
+        policy.read_text(encoding="utf-8") + "\nAdditional requirement.\n",
+        encoding="utf-8",
+    )
+    stale = check.run(tmp_path, ".agent-policy.yml")
+    assert any(item.code == "STALE_OUTPUT" for item in stale)
+
+
+def test_presentation_map_covers_current_coding_selection() -> None:
+    repository_root = Path(__file__).parents[1]
+    config = load_config(repository_root, ".agent-policy.yml")
+    context = config.contexts["coding"]
+    rules = load_rules(
+        repository_root,
+        list(context.profiles),
+        list(context.project_policy_files),
+        declared_overrides=context.override_reasons,
+        require_explicit_overrides=True,
+    )
+    presentation_map, _ = load_presentation_map()
+
+    assert {rule.id for rule in rules} <= set(presentation_map["rules"])
+
+
+@pytest.mark.parametrize(
+    ("selector", "expected_returncode"),
+    [
+        (["--rule-id", GUIDANCE], 0),
+        (["--operation", "edit"], 2),
+        (["--all"], 0),
+    ],
+)
+def test_every_guidance_selector_revalidates_unchanged_inputs(
+    tmp_path: Path, selector: list[str], expected_returncode: int
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    result = _run_guidance(tmp_path, *selector)
+
+    assert result.returncode == expected_returncode
+    if expected_returncode == 2:
+        assert "operation route is incomplete" in result.stderr
+
+
+@pytest.mark.parametrize("mutation", ["config", "policy", "delete-policy"])
+def test_guidance_rejects_current_input_drift(
+    tmp_path: Path, mutation: str
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    if mutation == "config":
+        config = tmp_path / ".agent-policy.yml"
+        config.write_text(
+            config.read_text(encoding="utf-8").replace(TEST_REVISION, "b" * 40),
+            encoding="utf-8",
+        )
+    elif mutation == "policy":
+        policy = tmp_path / "policy/project.md"
+        policy.write_text(policy.read_text(encoding="utf-8") + "\nChanged.\n", encoding="utf-8")
+    else:
+        (tmp_path / "policy/project.md").unlink()
+
+    result = _run_guidance(tmp_path, "--rule-id", GUIDANCE)
+
+    assert result.returncode == 2
+    assert "current" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("title", "Tampered title"),
+        ("severity", "advisory"),
+        ("overridable", False),
+        ("overridable", 1),
+        ("order", 9999),
+        ("order", 1000.0),
+    ],
+)
+def test_guidance_rejects_policy_metadata_drift_after_lock_update(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        rule = next(item for item in bundle["rules"] if item["id"] == GUIDANCE)
+        rule[field] = value
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--rule-id", GUIDANCE)
+
+    assert result.returncode == 2
+    assert "metadata" in result.stderr
+
+
+@pytest.mark.parametrize("mutation", ["configuration", "project_policy", "renderer"])
+def test_guidance_rejects_contradictory_bundle_identity(
+    tmp_path: Path, mutation: str
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        if mutation == "configuration":
+            bundle["bindings"]["configuration"][".agent-policy.yml"] = "f" * 64
+        elif mutation == "project_policy":
+            bundle["bindings"]["project_policy"]["policy/project.md"] = "f" * 64
+        else:
+            bundle["renderer"] = "agents-md"
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "identity" in result.stderr or "projections" in result.stderr
+
+
+def test_guidance_discovers_repository_root_from_nested_directory(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    nested = tmp_path / "nested" / "work"
+    nested.mkdir(parents=True)
+    skill = tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(skill), "--rule-id", GUIDANCE],
+        cwd=nested,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+    assert result.returncode == 0
+    assert "Retrieve this rule before changing generated files." in result.stdout
+
+
+def test_guidance_discovers_root_without_default_config_name(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    default_config = tmp_path / ".agent-policy.yml"
+    custom_config = tmp_path / "policy config &.yml"
+    default_config.rename(custom_config)
+    assert render.run(tmp_path, custom_config.name) == []
+    nested = tmp_path / "nested" / "work"
+    nested.mkdir(parents=True)
+    skill = tmp_path / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(skill), "--rule-id", GUIDANCE],
+        cwd=nested,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+    assert result.returncode == 0
+    assert "Retrieve this rule before changing generated files." in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("bundle_path", "config_path"),
+    [
+        (".agent-policy/preview/policy details &copy.json", ".agent-policy.yml"),
+        ("-details.json", ".agent-policy.yml"),
+        (".agent-policy/preview/policy-details.json", "-policy.yml"),
+    ],
+)
+def test_generated_guidance_commands_quote_bundle_paths(
+    tmp_path: Path, bundle_path: str, config_path: str
+) -> None:
+    _write_staged_repository(tmp_path)
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "detail_bundle: .agent-policy/preview/policy-details.json",
+            f"detail_bundle: {json.dumps(bundle_path)}",
+        ),
+        encoding="utf-8",
+    )
+    if config_path != ".agent-policy.yml":
+        config.rename(tmp_path / config_path)
+
+    assert render.run(tmp_path, config_path) == []
+    startup = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+    skill = (tmp_path / ".agents/skills/policy-guidance/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    quoted = shlex.quote(bundle_path)
+    assert f"--bundle={quoted} --operation" in startup
+    assert f"--bundle={quoted} --operation" in skill
+    assert "AGENT_POLICY_SKILL_ROOT" in startup
+    assert "AGENT_POLICY_SKILL_ROOT" in skill
+    assert ".agents/skills/agent-policy/scripts/run.py" not in startup
+    assert ".agents/skills/agent-policy/scripts/run.py" not in skill
+    config_token = shlex.quote(config_path)
+    assert f"--config={config_token}" in startup
+    assert f"--config={config_token}" in skill
+    assert "--repository <repository>" in startup
+    assert "--repository <repository>" in skill
+    assert "--root <repository>" not in startup
+    assert "--root <repository>" not in skill
+
+    environment = dict(os.environ)
+    source_root = str(Path(__file__).parents[1] / "src")
+    environment["PYTHONPATH"] = ":".join(
+        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
+    )
+    result = subprocess.run(
+        [
+            "sh",
+            "-c",
+            f"{shlex.quote(sys.executable)} "
+            ".agents/skills/policy-guidance/scripts/policy_guidance.py "
+            f"--bundle={quoted} --rule-id {GUIDANCE}",
+        ],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert result.returncode == 0
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    source_skill = Path(__file__).parents[1] / "skills/agent-policy"
+    runtime_root = tmp_path.parent / f"{tmp_path.name}-installed-agent-policy"
+    shutil.copytree(source_skill, runtime_root)
+    runtime_module_spec = importlib.util.spec_from_file_location(
+        "test_external_agent_policy_runtime",
+        runtime_root / "scripts/runtime.py",
+    )
+    assert runtime_module_spec and runtime_module_spec.loader
+    runtime_module = importlib.util.module_from_spec(runtime_module_spec)
+    sys.modules[runtime_module_spec.name] = runtime_module
+    runtime_module_spec.loader.exec_module(runtime_module)
+
+    cache = tmp_path.parent / f"{tmp_path.name}-runtime-cache"
+    pin = runtime_module.RuntimePin(
+        "TakashiSasaki/templates",
+        TEST_REVISION,
+        "requirements-runtime.lock",
+        None,
+        "takashisasaki-agent-policy",
+        None,
+        "agent-policy",
+    )
+    identity = runtime_module.RuntimeIdentity(
+        pin.repository,
+        pin.revision,
+        "c" * 64,
+        runtime_module.python_token(),
+        runtime_module.platform_token(),
+    )
+    cached_runtime = cache / identity.digest()
+    venv.EnvBuilder(with_pip=False, system_site_packages=True).create(
+        cached_runtime / "venv"
+    )
+    runtime_python = runtime_module.venv_python(cached_runtime)
+    site_packages = Path(
+        subprocess.check_output(
+            [str(runtime_python), "-I", "-c", "import site; print(site.getsitepackages()[0])"],
+            text=True,
+        ).strip()
+    )
+    installed_package = site_packages / "agent_policy"
+    shutil.copytree(
+        Path(__file__).parents[1] / "src/agent_policy",
+        installed_package,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    data_root = installed_package / "_data"
+    for resource in ("schemas", "profiles", "policy", "templates", "skills", "delivery"):
+        shutil.copytree(Path(__file__).parents[1] / resource, data_root / resource)
+    executable = runtime_module.executable_path(cached_runtime, pin.executable)
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+    executable.chmod(0o755)
+    runtime_module.marker_path(cached_runtime).write_text(
+        json.dumps(runtime_module.expected_marker(identity, pin, "0.1.0")) + "\n",
+        encoding="utf-8",
+    )
+
+    package_location = subprocess.check_output(
+        [str(runtime_python), "-I", "-c", "import agent_policy; print(agent_policy.__file__)"],
+        text=True,
+    ).strip()
+    assert str(installed_package) in package_location
+    assert str(Path(__file__).parents[1] / "src") not in package_location
+    nested = tmp_path / "nested" / "work"
+    nested.mkdir(parents=True)
+    nested_result = subprocess.run(
+        [
+            sys.executable,
+            str(runtime_root / "scripts/run.py"),
+            "--repository",
+            str(tmp_path),
+            "guidance",
+            f"--config={config_path}",
+            "--script",
+            ".agents/skills/policy-guidance/scripts/policy_guidance.py",
+            f"--bundle={bundle_path}",
+            "--rule-id",
+            GUIDANCE,
+        ],
+        cwd=nested,
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            key: value
+            for key, value in {
+                **environment,
+                "AGENT_POLICY_RUNTIME_CACHE": str(cache),
+            }.items()
+            if key != "PYTHONPATH"
+        },
+    )
+    assert nested_result.returncode == 0
+
+
+def test_guidance_uses_structural_lock_for_quoted_output_path(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "detail_bundle: .agent-policy/preview/policy-details.json",
+            "detail_bundle: 'true'",
+        ),
+        encoding="utf-8",
+    )
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    result = _run_guidance(tmp_path, "--rule-id", GUIDANCE)
+
+    assert result.returncode == 0
+    assert "'true':" in (tmp_path / ".agent-policy.lock").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("route_case", ["unknown", "missing", "duplicate"])
+def test_guidance_rejects_inconsistent_operation_routes(
+    tmp_path: Path, route_case: str
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        route = bundle["presentation"]["operation_routes"]["edit"]
+        if route_case == "unknown":
+            bundle["presentation"]["operation_routes"]["edit"] = ["nonexistent.rule"]
+        elif route_case == "missing":
+            bundle["presentation"]["operation_routes"]["edit"] = route[:-1]
+        else:
+            bundle["presentation"]["operation_routes"]["edit"] = route + [route[0]]
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--operation", "edit")
+
+    assert result.returncode == 2
+    assert "operation routes" in result.stderr
+
+
+def test_guidance_rejects_presentation_map_drift(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        bundle["presentation"]["map"]["fallback"]["reason"] = "untrusted change"
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "installed presentation map" in result.stderr
+
+
+@pytest.mark.parametrize("startup", [1, 0.0])
+def test_guidance_rejects_presentation_flag_type_coercion(
+    tmp_path: Path, startup: object
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        rule_id = next(iter(bundle["presentation"]["map"]["rules"]))
+        bundle["presentation"]["map"]["rules"][rule_id]["startup"] = startup
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "presentation map rule metadata" in result.stderr
+
+
+@pytest.mark.parametrize("location", ["bundle", "presentation"])
+def test_guidance_rejects_schema_version_type_coercion(
+    tmp_path: Path, location: str
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    def mutate(bundle: dict) -> None:
+        if location == "bundle":
+            bundle["schema_version"] = True
+        else:
+            bundle["presentation"]["map"]["schema_version"] = True
+
+    _rewrite_bundle_and_lock(tmp_path, mutate)
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "schema" in result.stderr
+
+
+def test_staged_output_rejects_non_coding_context(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8")
+        .replace("  coding:\n", "  review:\n")
+        .replace("context: coding", "context: review"),
+        encoding="utf-8",
+    )
+
+    diagnostics = validate.run(tmp_path, ".agent-policy.yml")
+
+    assert any(item.code == "STAGED_CONTEXT" for item in diagnostics)
+    assert any(
+        item.code == "STAGED_CONTEXT"
+        for item in render.run(tmp_path, ".agent-policy.yml")
+    )
+
+
+def test_presentation_map_rejects_boolean_schema_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        delivery,
+        "load_yaml",
+        lambda _path: {"schema_version": True},
+    )
+
+    with pytest.raises(ValueError, match="Unsupported policy-delivery presentation map"):
+        delivery.load_presentation_map()
+
+
+def test_guidance_rejects_duplicate_lock_section(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    lock = tmp_path / ".agent-policy.lock"
+    lock.write_text(
+        lock.read_text(encoding="utf-8") + "outputs: {}\n",
+        encoding="utf-8",
+    )
+
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "Duplicate YAML key" in result.stderr
+
+
+def test_guidance_rejects_boolean_lock_version(tmp_path: Path) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    lock = load_yaml(tmp_path / ".agent-policy.lock")
+    lock["lock_version"] = True
+    (tmp_path / ".agent-policy.lock").write_text(
+        dump_yaml(lock), encoding="utf-8"
+    )
+
+    result = _run_guidance(tmp_path, "--all")
+
+    assert result.returncode == 2
+    assert "Unsupported lock file version" in result.stderr
+
+
+def test_disabled_staged_output_with_guidance_is_rejected_before_render(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    config = tmp_path / ".agent-policy.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "enabled: true\n    path: .agent-policy/preview/AGENTS.md",
+            "enabled: false\n    path: .agent-policy/preview/AGENTS.md",
+        ),
+        encoding="utf-8",
+    )
+
+    diagnostics = validate.run(tmp_path, ".agent-policy.yml")
+    rendered = render.run(tmp_path, ".agent-policy.yml")
+
+    assert any(item.code == "STAGED_GUIDANCE_OUTPUT" for item in diagnostics)
+    assert any(item.code == "STAGED_GUIDANCE_OUTPUT" for item in rendered)
+    assert not (tmp_path / ".agent-policy.lock").exists()

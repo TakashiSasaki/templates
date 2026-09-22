@@ -37,6 +37,7 @@ class OutputSpec:
     path: str
     context: str
     renderer: str
+    detail_bundle_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -129,11 +130,16 @@ class Config:
             enabled = item.get("enabled")
             context = item.get("context")
             renderer = item.get("renderer")
+            detail_bundle_path = item.get("detail_bundle")
             if (
                 not isinstance(path, str)
                 or not isinstance(enabled, bool)
                 or not isinstance(context, str)
                 or not isinstance(renderer, str)
+                or (
+                    detail_bundle_path is not None
+                    and not isinstance(detail_bundle_path, str)
+                )
             ):
                 continue
             result.append(
@@ -143,13 +149,19 @@ class Config:
                     path=path,
                     context=context,
                     renderer=renderer,
+                    detail_bundle_path=detail_bundle_path,
                 )
             )
         return tuple(result)
 
     @property
     def configured_output_paths(self) -> list[str]:
-        return [item.path for item in self.output_specs]
+        paths: list[str] = []
+        for item in self.output_specs:
+            paths.append(item.path)
+            if item.detail_bundle_path is not None:
+                paths.append(item.detail_bundle_path)
+        return paths
 
     @property
     def configured_agents_path(self) -> str | None:
@@ -257,6 +269,67 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                     f"outputs.{output.name}.context",
                 )
             )
+        if output.renderer == "agents-md-staged":
+            if output.context != "coding":
+                diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "STAGED_CONTEXT",
+                        "agents-md-staged currently supports only the coding context",
+                        f"outputs.{output.name}.context",
+                    )
+                )
+            if not output.detail_bundle_path:
+                diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "STAGED_BUNDLE_PATH",
+                        "agents-md-staged requires detail_bundle",
+                        f"outputs.{output.name}.detail_bundle",
+                    )
+                )
+            if output.enabled and "policy-guidance" not in config.enabled_skills:
+                diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "STAGED_GUIDANCE_SKILL",
+                        "Enabled agents-md-staged output requires policy-guidance",
+                        "skills.enabled",
+                    )
+                )
+        elif output.detail_bundle_path is not None:
+            diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "UNEXPECTED_STAGED_BUNDLE",
+                    "detail_bundle is only valid for agents-md-staged",
+                    f"outputs.{output.name}.detail_bundle",
+                )
+            )
+
+    enabled_staged_outputs = [
+        item
+        for item in config.output_specs
+        if item.enabled and item.renderer == "agents-md-staged"
+    ]
+    if len(enabled_staged_outputs) > 1:
+        diagnostics.append(
+            Diagnostic(
+                "error",
+                "STAGED_OUTPUT_COUNT",
+                "Only one enabled agents-md-staged output is supported",
+                "outputs",
+            )
+        )
+    if "policy-guidance" in config.enabled_skills and len(enabled_staged_outputs) != 1:
+        diagnostics.append(
+            Diagnostic(
+                "error",
+                "STAGED_GUIDANCE_OUTPUT",
+                "policy-guidance requires exactly one enabled agents-md-staged output",
+                "skills.enabled",
+            )
+        )
 
     for policy_file in config.project_policy_files:
         try:

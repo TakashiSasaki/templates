@@ -131,7 +131,12 @@ def _validate_config_and_lock(
     if lock_path.stat(follow_symlinks=False).st_nlink != 1:
         raise ValueError("agent-policy lock is hard linked")
     lock = load_yaml(lock_path)
-    if not isinstance(lock, dict) or lock.get("lock_version") != 1:
+    lock_version = lock.get("lock_version") if isinstance(lock, dict) else None
+    if (
+        not isinstance(lock_version, int)
+        or isinstance(lock_version, bool)
+        or lock_version != 1
+    ):
         raise ValueError("agent-policy lock is missing or invalid")
     if lock.get("toolchain") != config.data.get("toolchain"):
         raise ValueError("agent-policy lock toolchain does not match configuration")

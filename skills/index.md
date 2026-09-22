@@ -5,6 +5,7 @@
 - [Agent Policy](agent-policy/SKILL.md) - Installs and runs the Policy toolchain for a consumer repository.
 - [Maintain progressive discovery](maintain-progressive-discovery/SKILL.md) - Maintains semantic index.md boundaries from selected inventories.
 - [Orchestrate repository change](orchestrate-repository-change/SKILL.md) - Routes repository change work through bounded planning and validation.
+- [Policy guidance](policy-guidance/SKILL.md) - Retrieves exact selected rules from an opt-in staged delivery bundle.
 - [PR review](pr-review/SKILL.md) - Performs scoped independent review of a proposed change.
 - [PR merge gate](pr-merge-gate/SKILL.md) - Applies the shared merge-readiness evidence boundary.
 

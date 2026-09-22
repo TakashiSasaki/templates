@@ -288,11 +288,25 @@ def test_cached_runner_places_global_repository_option_before_command(
     repository = tmp_path / "repo"
     repository.mkdir()
     cached_python = tmp_path / "runtime" / "venv" / "python"
-    command_prefix = [str(cached_python), "-I", "-m", "agent_policy.cli"]
+    runtime_root = Path(cached_python).parent.parent.parent
+    command_prefix = runtime.cli_command(runtime_root)
     observed: dict[str, object] = {}
 
     monkeypatch.setattr(runner, "find_repository_root", lambda _value: repository)
-    monkeypatch.setattr(runner, "runtime_command", lambda _value: command_prefix)
+    pin = runtime.RuntimePin(
+        "TakashiSasaki/templates",
+        "a" * 40,
+        "requirements-runtime.lock",
+        None,
+        "takashisasaki-agent-policy",
+        None,
+        "agent-policy",
+    )
+    monkeypatch.setattr(
+        runner,
+        "runtime_selection",
+        lambda _value: (pin, runtime_root),
+    )
     monkeypatch.setattr(
         runner,
         "sanitized_environment",
@@ -319,6 +333,62 @@ def test_cached_runner_places_global_repository_option_before_command(
         "validate",
     ]
     assert observed["cwd"] == repository
+
+
+def test_cached_runner_binds_guidance_to_selected_runtime_revision(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    runtime_root = tmp_path / "runtime"
+    command_prefix = runtime.cli_command(runtime_root)
+    pin = runtime.RuntimePin(
+        "TakashiSasaki/templates",
+        "c" * 40,
+        "requirements-runtime.lock",
+        None,
+        "takashisasaki-agent-policy",
+        None,
+        "agent-policy",
+    )
+    observed: dict[str, object] = {}
+
+    monkeypatch.setattr(runner, "find_repository_root", lambda _value: repository)
+    monkeypatch.setattr(runner, "runtime_selection", lambda _value: (pin, runtime_root))
+    monkeypatch.setattr(runner, "sanitized_environment", lambda: {"PATH": "keep"})
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed["command"] = command
+        observed["environment"] = kwargs["env"]
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run.py",
+            "--repository",
+            str(repository),
+            "guidance",
+            "--script",
+            "script.py",
+        ],
+    )
+
+    assert runner.main() == 0
+    assert observed["command"] == [
+        *command_prefix,
+        "--repository",
+        str(repository),
+        "guidance",
+        "--script",
+        "script.py",
+        "--runtime-revision",
+        "c" * 40,
+    ]
+    assert observed["environment"] == {"PATH": "keep"}
 
 
 @pytest.mark.parametrize(
