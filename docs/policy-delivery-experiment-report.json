@@ -1,16 +1,25 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "report_title": "Staged Policy-Delivery Matched Experiment Report",
-  "baseline": {
-    "policy_revision": "ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa",
+  "policy_baseline": {
+    "revision": "ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa",
     "provider_tree": "a5a934b20de544a698eae318fd478c62815e0399",
+    "description": "Landed Policy baseline (PRs #997-#1002 merged)"
+  },
+  "experiment_infrastructure_candidate": {
+    "revision": "3d05429778d091412a754e58e4773687e29116f7",
+    "pull_request": 1004,
+    "branch": "feat/policy-delivery-agy-worker-backend",
+    "description": "Google Anti-Gravity (agy) worker backend and evaluator infrastructure"
+  },
+  "baseline_artifacts": {
     "experiment_baseline_plan": {
       "path": "docs/policy-delivery-experiment-baseline.json",
-      "sha256": "b853ce4ddc3cea132418e9665e9963c50e58381faf34144acd06d50010c61fb0"
+      "sha256": "d1f013236d8511e225498c54a150ceb7c1b292c4ff425afe510fd0a7ecbd4ad7"
     },
     "capability_probe_record": {
       "path": "docs/policy-delivery-capability-probe.json",
-      "sha256": "18ae7be12f85cfc9e18c6310d28284a62470ddb405344ae94e5adb168d4472d0"
+      "sha256": "9c468ac7567685ec680c383dfed1b1e088e1f905afd3eadb24f71941bf77f30e"
     },
     "evaluator_source": {
       "path": "scripts/run_matched_policy_delivery_experiment.py",
@@ -46,13 +55,28 @@
     "agy_version": "1.2.8",
     "agy_model": "gemini-3.8-flash-medium",
     "agy_effort": "medium",
-    "sandbox_mode": "--sandbox (terminal restrictions enabled)",
-    "permissions": "existing host permissions; no global setting changes; no dangerous bypass"
+    "fixture_mode": "non-git",
+    "fixture_git_absence_verified": true,
+    "positive_worker_probe_mode": "headless non-interactive via --mode accept-edits --output-format stream-json",
+    "sandbox_requested": true,
+    "sandbox_effective_status": "FAILED_OR_UNAVAILABLE",
+    "sandbox_effective_detail": "connecting to sandbox server: read unix @->@: recvmsg: connection reset by peer; host lacks kernel user namespaces, bwrap, or seccomp supervision",
+    "permission_mode": "accept-edits",
+    "fallback_or_bypass_status": "sandbox bypass required for worker execution on this host",
+    "required_network_policy": {
+      "network_access": "prohibited",
+      "local_only": true,
+      "description": "No network access is permitted during worker execution."
+    },
+    "qualified_network_enforcement": {
+      "status": "NOT_ESTABLISHED",
+      "reason": "Host lacks per-process network namespace or firewall packet filtering to independently verify or enforce network absence."
+    }
   },
   "capability_qualification_results": {
     "C1_worker_start": {
       "status": "ESTABLISHED",
-      "evidence": "Worker CLI bootstrapped normally. Google Anti-Gravity CLI (agy v1.2.8) executed non-interactively using --print with model gemini-3.8-flash-medium and reasoning effort medium, exiting with code 0."
+      "evidence": "Worker CLI bootstrapped normally. Google Anti-Gravity CLI (agy v1.2.8) executed non-interactively using --mode accept-edits --output-format stream-json with model gemini-3.8-flash-medium and reasoning effort medium, exiting with code 0."
     },
     "C2_tool_workspace_boundary": {
       "status": "ESTABLISHED",
@@ -60,7 +84,7 @@
     },
     "C3_harmless_workspace_action": {
       "status": "ESTABLISHED",
-      "evidence": "Worker successfully performed harmless local workspace actions (view_file on workspace files and run_command executing local echo commands)."
+      "evidence": "Worker successfully performed harmless local workspace actions (view_file on /tmp/test.txt and local command execution)."
     },
     "C4_evaluator_observation": {
       "status": "ESTABLISHED",
@@ -72,7 +96,7 @@
     },
     "C6_control_plane_integrity": {
       "status": "NOT_APPLICABLE",
-      "evidence": "Evaluated in non-Git fixture mode where Git control plane integrity is not applicable; in Git fixture mode, host lacks independent filesystem integrity monitoring for .git control plane mutations."
+      "evidence": "Evaluated in non-Git fixture mode where Git control plane integrity is not applicable; in this fixture, .git was explicitly verified absent (git_control_plane_present = false); in Git fixture mode, host lacks independent filesystem integrity monitoring for .git control plane mutations."
     },
     "C7_network_policy_enforcement": {
       "status": "NOT_ESTABLISHED",
@@ -84,7 +108,7 @@
     },
     "C9_token_usage_observability": {
       "status": "ESTABLISHED",
-      "evidence": "agy stream-json exposes complete whole-task token usage in its final result event (input_tokens, output_tokens, thinking_tokens, cache_read_tokens, total_tokens)."
+      "evidence": "agy stream-json exposes complete whole-task token usage in its final result event (input_tokens: 22505, output_tokens: 258, thinking_tokens: 190, cache_read_tokens: 12216, total_tokens: 22763)."
     },
     "capability_decision": "NOT_QUALIFIED",
     "missing_facts": [
@@ -92,6 +116,25 @@
       "C7_network_policy_enforcement",
       "C8_trial_identity_binding"
     ]
+  },
+  "c8_witness_specification": {
+    "schema": "policy-worker-boundary-v1",
+    "required_fields": [
+      "schema",
+      "trial_id",
+      "reference_digest",
+      "infrastructure_revision",
+      "agy_identity",
+      "model_runtime_identity",
+      "sandbox_enforcement_identity",
+      "network_enforcement_identity",
+      "run_log_identity",
+      "opaque_worker_code",
+      "control_plane_integrity",
+      "network_policy"
+    ],
+    "witness_status": "absent",
+    "qualification_status": "NOT_ESTABLISHED"
   },
   "trial_execution": {
     "matched_trials_authorized": false,

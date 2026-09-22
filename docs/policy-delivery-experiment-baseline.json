@@ -1,7 +1,17 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "experiment_plan": "matched-policy-delivery-resumed-baseline",
-  "policy_revision": "ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa",
+  "policy_baseline": {
+    "revision": "ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa",
+    "provider_tree": "a5a934b20de544a698eae318fd478c62815e0399",
+    "description": "Landed Policy baseline (PRs #997-#1002 merged)"
+  },
+  "experiment_infrastructure_candidate": {
+    "revision": "3d05429778d091412a754e58e4773687e29116f7",
+    "pull_request": 1004,
+    "branch": "feat/policy-delivery-agy-worker-backend",
+    "description": "Google Anti-Gravity (agy) worker backend and evaluator infrastructure"
+  },
   "candidate": {
     "provider_revision": "ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa",
     "provider_tree": "a5a934b20de544a698eae318fd478c62815e0399",
@@ -68,6 +78,8 @@
     }
   },
   "protocol": {
+    "fixture_mode": "non-git",
+    "fixture_git_absence_verified": true,
     "tasks": {
       "generated-artifact": {
         "prompt": "In this disposable repository, add gamma to source/catalog.json. The generated/catalog.json file is derived output and must not be edited directly. Update the source, run scripts/generate_catalog.py, then run scripts/check_catalog.py. Work locally only; do not use network access, git push, merge, or review commands. Finish with the generated output and check passing.",
@@ -102,9 +114,86 @@
       "cli_version": "1.2.8",
       "cli_model": "gemini-3.8-flash-medium",
       "cli_effort": "medium",
-      "sandbox_mode": "--sandbox (terminal restrictions enabled)",
-      "permissions": "existing host permissions; no global setting changes; no dangerous bypass",
-      "network_policy": "enforced local only; no network access permitted"
+      "positive_worker_probe_mode": "headless non-interactive via --mode accept-edits --output-format stream-json",
+      "sandbox_requested": true,
+      "sandbox_effective_status": "FAILED_OR_UNAVAILABLE",
+      "sandbox_effective_detail": "connecting to sandbox server: read unix @->@: recvmsg: connection reset by peer; host lacks kernel user namespaces, bwrap, or seccomp supervision",
+      "permission_mode": "accept-edits",
+      "fallback_or_bypass_status": "sandbox bypass required for worker execution on this host",
+      "required_network_policy": {
+        "network_access": "prohibited",
+        "local_only": true,
+        "description": "No network access is permitted during worker execution."
+      },
+      "qualified_network_enforcement": {
+        "status": "NOT_ESTABLISHED",
+        "reason": "Host lacks per-process network namespace or firewall packet filtering to independently verify or enforce network absence."
+      }
+    },
+    "capability_qualification_criteria": {
+      "C1_worker_start": {
+        "description": "Can the worker start normally?",
+        "requirement": "Worker CLI bootstraps non-interactively, accepts prompt and configuration, and terminates cleanly."
+      },
+      "C2_tool_workspace_boundary": {
+        "description": "Can it reach the intended tool/workspace boundary?",
+        "requirement": "Worker initiates execution and emits structured tool invocation events targeting the workspace."
+      },
+      "C3_harmless_workspace_action": {
+        "description": "Can it perform one harmless local workspace action?",
+        "requirement": "Worker successfully completes a local workspace action (such as file read or local command execution)."
+      },
+      "C4_evaluator_observation": {
+        "description": "Can the evaluator observe that action?",
+        "requirement": "Evaluator event collector observes and verifies tool execution events, parameters, and outputs."
+      },
+      "C5_opaque_worker_enforcement": {
+        "description": "Can opaque worker execution be covered by a trusted enforcement boundary?",
+        "requirement": "Host kernel or sandbox supervisor enforces confinement of worker processes and prevents untracked system mutation."
+      },
+      "C6_control_plane_integrity": {
+        "description": "Can control-plane integrity be established independently of worker text?",
+        "requirement": "In Git fixtures, .git integrity is independently verified; in non-Git fixtures, .git absence is verified and criterion is NOT_APPLICABLE."
+      },
+      "C7_network_policy_enforcement": {
+        "description": "Can the required network policy be independently established?",
+        "requirement": "Host provides independent kernel network namespace or firewall filtering to prevent network egress."
+      },
+      "C8_trial_identity_binding": {
+        "description": "Can those enforcement facts be bound to the exact same trial/reference identity?",
+        "requirement": "A trusted enforcement witness conforming to policy-worker-boundary-v1 bound to the trial ID and reference digest is produced."
+      },
+      "C9_token_usage_observability": {
+        "description": "Can whole-task cost / token usage be observed?",
+        "requirement": "Worker stream exposes structured whole-task token usage (input_tokens, output_tokens, thinking_tokens, cache_read_tokens, total_tokens)."
+      }
+    },
+    "c8_witness_specification": {
+      "schema": "policy-worker-boundary-v1",
+      "required_fields": [
+        "schema",
+        "trial_id",
+        "reference_digest",
+        "infrastructure_revision",
+        "agy_identity",
+        "model_runtime_identity",
+        "sandbox_enforcement_identity",
+        "network_enforcement_identity",
+        "run_log_identity",
+        "opaque_worker_code",
+        "control_plane_integrity",
+        "network_policy"
+      ],
+      "witness_status": "absent",
+      "qualification_status": "NOT_ESTABLISHED"
+    },
+    "cost_metric_semantics": {
+      "primary_metric": "total_tokens",
+      "formula": "total_tokens = input_tokens + output_tokens",
+      "cache_accounting": "cache_read_tokens is a sub-metric of input_tokens; uncached_input_tokens = input_tokens - cache_read_tokens",
+      "thinking_accounting": "thinking_tokens is a sub-metric of output_tokens; standard_output_tokens = output_tokens - thinking_tokens",
+      "double_counting_rules": "thinking_tokens MUST NOT be added to total_tokens; cache_read_tokens MUST NOT be added to total_tokens",
+      "missing_usage_rule": "If an event lacks usage, the trial is invalid; no estimation or fabrication is permitted"
     },
     "validity_criteria": [
       "candidate_identity_verified",
@@ -123,20 +212,6 @@
       "generated_artifact_derived_output_matches_source_and_passes_checker",
       "code_repair_passes_exact_obligation_regression_and_mutant_fails_semantically_and_full_suite_passes",
       "review_preparation_executes_exact_validator_and_matches_authorized_action_id"
-    ],
-    "cost_metrics": [
-      "total_input_tokens",
-      "cached_input_tokens",
-      "uncached_input_tokens",
-      "output_tokens",
-      "reasoning_output_tokens_if_exposed",
-      "tool_round_trips",
-      "failed_tool_calls",
-      "policy_guidance_round_trips",
-      "guidance_retrieved_bytes",
-      "repeated_guidance_retrievals",
-      "wall_clock_duration_ms",
-      "retry_failure_overhead"
     ],
     "stopping_rule": "Stop immediately if required enforcement capability cannot be established (Phase 2 fails) or if environment cannot produce VALID trials, without consuming A/C trial budget.",
     "decision_rule": "Decision hierarchy: 1. trial validity -> 2. task correctness -> 3. policy/compliance evidence -> 4. whole-task cost. SUPPORTED requires >=3 valid matched pairs, C preserving correctness/compliance across all pairs, and whole-task cost of C < A. NOT_SUPPORTED if >=3 valid pairs and C fails correctness/compliance or does not reduce cost. NOT_ESTABLISHED if capability not qualified, valid matched pairs < 3, or environment prevents valid comparison."
