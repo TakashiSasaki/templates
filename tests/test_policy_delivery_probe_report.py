@@ -135,3 +135,49 @@ def test_tampered_token_accounting_is_rejected(tmp_path: Path) -> None:
     probe_path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(checker.ProbeReportConsistencyError, match="total_tokens"):
         checker.check_probe_report(shadow)
+
+
+def test_tampered_c3_tool_action_is_rejected(tmp_path: Path) -> None:
+    checker = _load_checker()
+    shadow = _copy_worktree_files(tmp_path)
+    probe_path = shadow / "docs/policy-delivery-capability-probe.json"
+    data = json.loads(probe_path.read_text(encoding="utf-8"))
+    data["probe_execution"]["tool_action_executed"] = "run_command"
+    probe_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(checker.ProbeReportConsistencyError, match="tool_action_executed"):
+        checker.check_probe_report(shadow)
+
+
+def test_tampered_c3_target_path_is_rejected(tmp_path: Path) -> None:
+    checker = _load_checker()
+    shadow = _copy_worktree_files(tmp_path)
+    probe_path = shadow / "docs/policy-delivery-capability-probe.json"
+    data = json.loads(probe_path.read_text(encoding="utf-8"))
+    data["probe_execution"]["tool_action_parameters"]["AbsolutePath"] = "/tmp/other.txt"
+    probe_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(checker.ProbeReportConsistencyError, match="AbsolutePath"):
+        checker.check_probe_report(shadow)
+
+
+def test_tampered_c3_exit_code_is_rejected(tmp_path: Path) -> None:
+    checker = _load_checker()
+    shadow = _copy_worktree_files(tmp_path)
+    probe_path = shadow / "docs/policy-delivery-capability-probe.json"
+    data = json.loads(probe_path.read_text(encoding="utf-8"))
+    data["probe_execution"]["exit_code"] = 1
+    probe_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(checker.ProbeReportConsistencyError, match="exit_code"):
+        checker.check_probe_report(shadow)
+
+
+def test_tampered_c3_hash_mismatch_is_rejected(tmp_path: Path) -> None:
+    checker = _load_checker()
+    shadow = _copy_worktree_files(tmp_path)
+    probe_path = shadow / "docs/policy-delivery-capability-probe.json"
+    data = json.loads(probe_path.read_text(encoding="utf-8"))
+    data["probe_execution"]["final_workspace_file_sha256"] = "0" * 64
+    probe_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(
+        checker.ProbeReportConsistencyError, match="read-only probe modified file"
+    ):
+        checker.check_probe_report(shadow)
