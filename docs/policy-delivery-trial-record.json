@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "record_type": "redacted-historical-trial-record",
+  "recorded_on": "2026-09-21",
+  "evidence_labels": {
+    "Observed": "Present in an authorized local trial artifact or usage event.",
+    "Reconstructed": "Derived from an authorized artifact without claiming direct prompt observation.",
+    "Estimated": "Computed from observed values with the method stated.",
+    "Unobserved": "Not exposed by the trial environment or not retained in the export."
+  },
+  "source_artifacts": {
+    "directory": "/tmp/policy-delivery-trials-19r17m7r",
+    "retention": "Authorized local fixture and redacted result metadata; full model outputs are not committed.",
+    "execution_order": {
+      "value": ["A1", "A2", "B1", "B2", "C1", "C2"],
+      "evidence": "Observed from the local trial runner result set"
+    }
+  },
+  "environment": {
+    "launcher": {
+      "value": "Codex CLI 0.154.0",
+      "evidence": "Observed"
+    },
+    "host": {
+      "value": "Ubuntu arm64",
+      "evidence": "Observed"
+    },
+    "python": {
+      "value": "3.12.3",
+      "evidence": "Observed"
+    },
+    "model_identifier": {
+      "value": null,
+      "evidence": "Unobserved"
+    },
+    "reasoning_setting": {
+      "value": null,
+      "evidence": "Unobserved"
+    },
+    "permissions": {
+      "value": "Read-only task fixtures; no remote actions were requested",
+      "evidence": "Reconstructed"
+    },
+    "parent_context_inheritance": {
+      "value": null,
+      "evidence": "Unobserved"
+    },
+    "fresh_session_isolation": {
+      "value": "A separate CLI process and disposable fixture were used per trial; complete host-level prompt isolation was not proven",
+      "evidence": "Reconstructed"
+    },
+    "host_instruction_assembly": {
+      "value": null,
+      "evidence": "Unobserved"
+    },
+    "model_tokenizer": {
+      "value": null,
+      "evidence": "Unobserved"
+    }
+  },
+  "conditions": {
+    "A": {
+      "name": "current actual configuration",
+      "startup_surface": {
+        "path": "A-full-current/AGENTS.md",
+        "bytes": 98383,
+        "sha256": "d2b37fd66dba2019fc4a830e5cc99364e3fa0758bb5f9ed5d974dbf6dac4d692",
+        "evidence": "Observed"
+      },
+      "configuration_hash": {
+        "value": null,
+        "evidence": "Unobserved"
+      },
+      "lock_hash": {
+        "value": null,
+        "evidence": "Unobserved"
+      }
+    },
+    "B": {
+      "name": "purported complete current full-text delivery",
+      "startup_surface": {
+        "path": "B-full-complete/AGENTS.md",
+        "bytes": 98383,
+        "sha256": "d2b37fd66dba2019fc4a830e5cc99364e3fa0758bb5f9ed5d974dbf6dac4d692",
+        "evidence": "Observed"
+      },
+      "configuration_hash": {
+        "value": null,
+        "evidence": "Unobserved"
+      },
+      "lock_hash": {
+        "value": null,
+        "evidence": "Unobserved"
+      },
+      "host_limit_identity": {
+        "value": "A separate per-process setting was supplied, but complete host inclusion was not observed",
+        "evidence": "Reconstructed"
+      }
+    },
+    "C": {
+      "name": "opt-in staged delivery",
+      "startup_surface": {
+        "path": "C-staged/AGENTS.md",
+        "bytes": 30214,
+        "sha256": "191f0ead9a01cfd542b68f11255204ccf8d8525543979a4fe9ef05e67e69822a",
+        "evidence": "Observed"
+      },
+      "detail_bundle": {
+        "path": "C-staged/.agent-policy/preview/policy-details.json",
+        "bytes": 146587,
+        "sha256": "fafeacf7c1d7578611fb32d88a85d88ef2d9ce0ad2926eff46bfe72be4a8fbca",
+        "evidence": "Observed"
+      },
+      "retrieval_skill": {
+        "path": "C-staged/.agents/skills/policy-guidance/SKILL.md",
+        "bytes": 1049,
+        "sha256": "936d679a76007217e717a518114ac5ded60214406c1cf2930b6e05bbbad4fd6a",
+        "evidence": "Observed"
+      },
+      "retrieval_script": {
+        "path": "C-staged/.agents/skills/policy-guidance/scripts/policy_guidance.py",
+        "bytes": 7180,
+        "sha256": "6f2198e388fdec3088e507c959da7eb36aa2fb324f82a924a4054b669d3d591a",
+        "evidence": "Observed"
+      },
+      "lock_hash": {
+        "value": null,
+        "evidence": "Unobserved; the retained fixture did not contain a lock file"
+      },
+      "warnings": [
+        "Two generated Skills reported missing YAML frontmatter during startup loading."
+      ],
+      "warning_evidence": "Observed"
+    }
+  },
+  "trials": [
+    {
+      "id": "A1",
+      "condition": "A",
+      "task": "read-only generated-artifact rule lookup",
+      "task_evidence": "Reconstructed from the retained final response",
+      "result": "reported correct rule and safe first action",
+      "result_evidence": "Reconstructed",
+      "usage": {
+        "input_tokens": 38487,
+        "cached_input_tokens": 27136,
+        "uncached_input_tokens": 11351,
+        "output_tokens": 685,
+        "reasoning_output_tokens": 462,
+        "reasoning_is_included_in_output": true
+      },
+      "usage_evidence": "Observed turn.completed event"
+    },
+    {
+      "id": "A2",
+      "condition": "A",
+      "task": "read-only validation-evidence rule lookup",
+      "task_evidence": "Reconstructed from the retained final response",
+      "result": "reported current authoritative validation requirement",
+      "result_evidence": "Reconstructed",
+      "usage": {
+        "input_tokens": 38345,
+        "cached_input_tokens": 27136,
+        "uncached_input_tokens": 11209,
+        "output_tokens": 560,
+        "reasoning_output_tokens": 399,
+        "reasoning_is_included_in_output": true
+      },
+      "usage_evidence": "Observed turn.completed event"
+    },
+    {
+      "id": "B1",
+      "condition": "B",
+      "task": "read-only generated-artifact rule lookup",
+      "task_evidence": "Reconstructed from the retained final response",
+      "result": "reported correct rule and safe first action",
+      "result_evidence": "Reconstructed",
+      "usage": {
+        "input_tokens": 62389,
+        "cached_input_tokens": 39424,
+        "uncached_input_tokens": 22965,
+        "output_tokens": 774,
+        "reasoning_output_tokens": 579,
+        "reasoning_is_included_in_output": true
+      },
+      "usage_evidence": "Observed turn.completed event"
+    },
+    {
+      "id": "B2",
+      "condition": "B",
+      "task": "read-only validation-evidence rule lookup",
+      "task_evidence": "Reconstructed from the retained final response",
+      "result": "reported current authoritative validation requirement",
+      "result_evidence": "Reconstructed",
+      "usage": {
+        "input_tokens": 30965,
+        "cached_input_tokens": 8960,
+        "uncached_input_tokens": 22005,
+        "output_tokens": 151,
+        "reasoning_output_tokens": 95,
+        "reasoning_is_included_in_output": true
+      },
+      "usage_evidence": "Observed turn.completed event"
+    },
+    {
+      "id": "C1",
+      "condition": "C",
+      "task": "merge-operation rule retrieval without mutation",
+      "task_evidence": "Reconstructed from the retained final response",
+      "result": "reported staged route and selected merge rules",
+      "result_evidence": "Reconstructed",
+      "usage": {
+        "input_tokens": 78661,
+        "cached_input_tokens": 65536,
+        "uncached_input_tokens": 13125,
+        "output_tokens": 1043,
+        "reasoning_output_tokens": 596,
+        "reasoning_is_included_in_output": true
+      },
+      "usage_evidence": "Observed turn.completed event"
+    },
+    {
+      "id": "C2",
+      "condition": "C",
+      "task": "generate-operation rule retrieval without mutation",
+      "task_evidence": "Reconstructed from the retained final response",
+      "result": "reported staged route and selected generation/validation rules",
+      "result_evidence": "Reconstructed",
+      "usage": {
+        "input_tokens": 78678,
+        "cached_input_tokens": 65536,
+        "uncached_input_tokens": 13142,
+        "output_tokens": 1215,
+        "reasoning_output_tokens": 812,
+        "reasoning_is_included_in_output": true
+      },
+      "usage_evidence": "Observed turn.completed event"
+    }
+  ],
+  "interpretation": {
+    "sample_size": 6,
+    "dispersion": "Per-trial values are retained; no inferential estimate is claimed.",
+    "whole_task_cost_gate": "Not established",
+    "compliance_claim": "Not established by these read-only lookups",
+    "installed_consumer_usability": "Not established",
+    "prompt_inclusion": "Unobserved",
+    "notes": [
+      "Cached input is already part of input_tokens; it must not be added again.",
+      "Reasoning output is included in output_tokens for this accounting event and must not be double-counted.",
+      "The retained trial results do not prove that complete files were included in model requests.",
+      "The two C trials include pre-existing frontmatter warnings and are not clean qualification evidence."
+    ]
+  }
+}
