@@ -342,23 +342,69 @@ cached input is a subset of input, and reasoning output is not added again.
 Prompt assembly, the model tokenizer, and complete host-level context
 isolation remain unobserved. UTF-8 byte counts are not token counts.
 
+## Resumed baseline and enforcement-capability qualification (Phase 1 & 2)
+
+Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`,
+PRs #997–#1002 merged) and the implementation of the real Google Anti-Gravity
+(`agy`) worker backend and evaluator infrastructure (PR #1004, `3d05429778d091412a754e58e4773687e29116f7`),
+the experiment protocol and machine-readable baseline were frozen in
+[`policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json).
+The trial execution model is Google Anti-Gravity (`agy` CLI v1.2.8) with Gemini 3.8 Flash
+(`gemini-3.8-flash-medium`, Middle reasoning effort requested) executed headless non-interactively
+using `--mode accept-edits --output-format stream-json` against a disposable non-Git fixture.
+The positive probe characterized unsandboxed transport and telemetry capability only (`positive_probe_used_trusted_sandbox = false`).
+The required network policy prohibits network access (local only), but independent kernel
+network enforcement could not be qualified.
+
+The bounded execution/enforcement capability probe (Phase 2, `probe-agy-gemini38flash-20260922t064419z`)
+evaluated properties C1–C9 with `agy`:
+- **C1 (Worker start)**: `ESTABLISHED` — Worker CLI bootstrapped normally. `agy`
+  executed non-interactively with model `gemini-3.8-flash-medium`, exiting with code 0.
+- **C2 (Tool/workspace boundary reach)**: `ESTABLISHED` — Worker reached the tool
+  boundary in disposable fixtures, emitting structured `step_update` tool events
+  in `stream-json` format.
+- **C3 (Harmless workspace action)**: `ESTABLISHED` — Worker successfully performed
+  one harmless local workspace action (`view_file` on `/tmp/test.txt`, reading 2 lines, 11 bytes).
+- **C4 (Evaluator observation)**: `ESTABLISHED` — Evaluator command collector
+  observed and parsed structured tool events, parameters, exit codes, and outputs.
+- **C5 (Opaque worker enforcement)**: `NOT_ESTABLISHED` — Host lacks an active sandbox
+  supervisor (connecting to sandbox server returns `read unix @->@: recvmsg: connection reset by peer`),
+  requiring sandbox bypass for execution; host lacks kernel-level unprivileged user
+  namespaces, bwrap, or seccomp syscall supervision.
+- **C6 (Control-plane integrity)**: `NOT_APPLICABLE` — Evaluated in non-Git fixture
+  mode where Git control plane integrity is not applicable; in this fixture, `.git` was
+  explicitly verified absent (`git_control_plane_present = false`); in Git fixture mode,
+  host lacks independent filesystem integrity monitoring.
+- **C7 (Network policy enforcement)**: `NOT_ESTABLISHED` — Host lacks per-process
+  kernel network namespace or firewall isolation to independently enforce network
+  absence. Headless application-level permission rejection does not constitute
+  kernel-level network enforcement.
+- **C8 (Trial identity binding)**: `NOT_ESTABLISHED` — Without C5 and C7, no trusted
+  enforcement witness conforming to `policy-worker-boundary-v1` bound to trial ID
+  and reference digest can be produced.
+- **C9 (Token usage observability)**: `ESTABLISHED` — `agy` `stream-json` exposes
+  complete whole-task token usage in its final `result` event (`input_tokens`: 22505,
+  `output_tokens`: 258, `thinking_tokens`: 190, `cache_read_tokens`: 12216, `total_tokens`: 22763).
+
+Capability decision: **`NOT_QUALIFIED`** (Missing facts: C5, C7, C8). In accordance
+with the predeclared stopping rule, zero matched A/C trials were run, valid matched
+pairs remain **0**, and the whole-task-cost classification remains **`NOT_ESTABLISHED`**.
+
 ## Decision
 
-The original whole-task-cost gate is **`NOT_ESTABLISHED`**. The six attempts
-cannot support a causal performance, compliance, or autonomy claim because no
-task reached the agent/tool boundary and the historical rows were not a valid
-matched A/C outcome comparison.
+The whole-task-cost gate remains **`NOT_ESTABLISHED`**. The required trusted
+enforcement and execution capability cannot be qualified in the current host
+environment, and valid matched A/C pairs cannot be executed.
 
 The full-text renderer remains the default. Staged delivery remains opt-in,
-unadopted, and an unqualified diagnostic prototype. PR #997 remains useful as
-measurement/provenance infrastructure subject to its independent review and
-merge gate. PR #998 should not be self-adopted or presented as a demonstrated
-cost improvement.
+unadopted, and an unqualified diagnostic prototype. No adoption, default cutover,
+promotion, downstream repin, or deployment occurred.
 
 ## Next safe action
 
-After an explicit new experiment budget and a sandbox configuration that permits
-the child process to start, rebuild one exact wheel from the then-qualified
-candidate and run a fresh matched A/C study with the current runner. Do not
-reuse these blocked attempts as task-success evidence or rerun them merely to
-obtain a favourable result.
+Preserve **`NOT_ESTABLISHED`**. If causal empirical comparison is to be pursued in
+a future iteration, establish a separate trusted enforcement-capability
+investment (providing verified kernel sandbox isolation, independent control-plane
+integrity verification, and isolated network policy enforcement conforming to
+`policy-worker-boundary-v1`) before initiating model trial execution.
+

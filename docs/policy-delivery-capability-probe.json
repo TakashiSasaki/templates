@@ -1,34 +1,151 @@
 {
-  "schema_version": 1,
-  "candidate_revision": "eab3977f13466dcc67fe77544c40f44f6c534b96",
-  "codex_cli": "codex-cli 0.154.0",
-  "model": "gpt-reserve",
-  "reasoning_effort": "xhigh",
-  "sandbox": "workspace-write",
-  "permissions": "existing host permissions; no global setting changes",
-  "attempts": [
-    {
-      "classification": "probe_fixture_rejected",
-      "reason": "Codex refused a non-Git disposable directory before starting",
-      "tool_command_events": 0,
-      "workspace_reached": false,
-      "stderr_bytes": 115,
-      "stderr_sha256": "121db64788d9c8d29af50964b03ed3db1be4105f3d8ad29a6c5f343c59368f64"
+  "schema_version": 2,
+  "probe_id": "probe-agy-gemini38flash-20260922t064419z",
+  "probe_timestamp": "2026-09-22T06:44:19Z",
+  "policy_baseline_revision": "ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa",
+  "infrastructure_candidate_revision": "3d05429778d091412a754e58e4773687e29116f7",
+  "evaluator_source": {
+    "path": "scripts/run_matched_policy_delivery_experiment.py",
+    "sha256": "b36eaa3a6c007a43e520ece2c581b34f006a5f8535345752ab5d42da797ef6c3"
+  },
+  "execution_environment": {
+    "coding_agent": "Google Anti-Gravity",
+    "runtime_model_id": "gemini-3.8-flash-medium",
+    "reasoning_effort_requested": "Middle",
+    "reasoning_effort_cli_argument": null,
+    "reasoning_effort_observed": null,
+    "worker_backend": "agy",
+    "agy_binary": "/home/ubuntu/.local/bin/agy",
+    "agy_binary_sha256": "f71174a3d6dc9aac258511363ed8419a591edc3dbd24607ca48132912c98f96d",
+    "agy_binary_bytes": 206065848,
+    "agy_version": "1.2.8",
+    "fixture_mode": "non-git",
+    "fixture_git_absence_verified": true,
+    "positive_probe_used_trusted_sandbox": false,
+    "positive_probe_execution_mode": "unsandboxed transport/telemetry capability characterization only",
+    "sandbox_requested": true,
+    "sandbox_effective_status": "FAILED_OR_UNAVAILABLE",
+    "sandbox_effective_detail": "connecting to sandbox server: read unix @->@: recvmsg: connection reset by peer; host lacks kernel user namespaces, bwrap, or seccomp supervision",
+    "permission_mode": "accept-edits",
+    "fallback_or_bypass_status": "sandbox bypass required for worker execution on this host",
+    "required_network_policy": {
+      "network_access": "prohibited",
+      "local_only": true,
+      "description": "No network access is permitted during worker execution."
     },
-    {
-      "classification": "bootstrap_failure",
-      "reason": "sandbox_tool_execution_unavailable",
-      "tool_command_events": 0,
-      "workspace_reached": false,
-      "event_count": 5,
-      "child_exit_code": 0,
-      "stderr_bytes": 39,
-      "stderr_sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+    "qualified_network_enforcement": {
+      "status": "NOT_ESTABLISHED",
+      "reason": "Host lacks per-process network namespace or firewall packet filtering to independently verify or enforce network absence."
     }
-  ],
+  },
+  "probe_execution": {
+    "task_id": "17a564c5-0a35-4aec-ac47-df3ff5ab6fc1/task-452",
+    "conversation_id": "f3c69df3-e3b0-46fe-9db9-cb90fa55bd0d",
+    "command_line": "/home/ubuntu/.local/bin/agy -p \"Read the content of /tmp/test.txt using view_file.\" --mode accept-edits --output-format stream-json --model gemini-3.8-flash-medium",
+    "prompt": "Read the content of /tmp/test.txt using view_file.",
+    "prompt_bytes": 50,
+    "prompt_sha256": "63f7e570cf3d77149b9aa338fd531ec18d404d632865f3594ee6fbbf10d091f0",
+    "initial_workspace_file": "/tmp/test.txt",
+    "initial_workspace_file_bytes": 11,
+    "initial_workspace_file_sha256": "d1b81a303d340fb689c6b6f4f474d9e04f314ed9ad8925686e4106452b53181b",
+    "final_workspace_file_bytes": 11,
+    "final_workspace_file_sha256": "d1b81a303d340fb689c6b6f4f474d9e04f314ed9ad8925686e4106452b53181b",
+    "git_control_plane_present": false,
+    "exit_code": 0,
+    "duration_seconds": 9.174208351,
+    "stream_json_log": "/home/ubuntu/.gemini/antigravity-cli/brain/17a564c5-0a35-4aec-ac47-df3ff5ab6fc1/.system_generated/tasks/task-452.log",
+    "stream_json_bytes": 3413,
+    "stream_json_sha256": "76d9c389d6278fc0837f56c563feb65747493ec6b63a229c71abf97a107db94f",
+    "tool_action_executed": "view_file",
+    "tool_action_parameters": {
+      "AbsolutePath": "/tmp/test.txt"
+    },
+    "tool_action_output": "2 lines, 11 bytes",
+    "observed_token_usage": {
+      "input_tokens": 22505,
+      "output_tokens": 258,
+      "thinking_tokens": 190,
+      "cache_read_tokens": 12216,
+      "total_tokens": 22763
+    },
+    "token_accounting": {
+      "primary_cost_metric": "total_tokens",
+      "value": 22763,
+      "formula": "total_tokens = input_tokens + output_tokens",
+      "input_tokens": 22505,
+      "output_tokens": 258,
+      "reported_telemetry_cache_read_tokens": 12216,
+      "reported_telemetry_thinking_tokens": 190
+    }
+  },
+  "c8_witness_specification": {
+    "schema": "policy-worker-boundary-v1",
+    "required_fields": [
+      "schema",
+      "trial_id",
+      "reference_digest",
+      "infrastructure_revision",
+      "agy_identity",
+      "model_runtime_identity",
+      "sandbox_enforcement_identity",
+      "network_enforcement_identity",
+      "run_log_identity",
+      "opaque_worker_code",
+      "control_plane_integrity",
+      "network_policy"
+    ],
+    "witness_status": "absent",
+    "qualification_status": "NOT_ESTABLISHED"
+  },
+  "capability_probe": {
+    "C1_worker_start": {
+      "status": "ESTABLISHED",
+      "evidence": "Worker CLI bootstrapped normally. Google Anti-Gravity CLI (agy v1.2.8) executed non-interactively using --mode accept-edits --output-format stream-json with model gemini-3.8-flash-medium, exiting with code 0."
+    },
+    "C2_tool_workspace_boundary": {
+      "status": "ESTABLISHED",
+      "evidence": "Worker successfully reached the tool/workspace boundary in disposable fixtures, emitting structured step_update tool events in stream-json output format."
+    },
+    "C3_harmless_workspace_action": {
+      "status": "ESTABLISHED",
+      "evidence": "Worker successfully performed one harmless local workspace action (view_file on /tmp/test.txt, reading 2 lines, 11 bytes)."
+    },
+    "C4_evaluator_observation": {
+      "status": "ESTABLISHED",
+      "evidence": "Evaluator command-event collector observed and verified structured tool events, parameters, exit codes, and output bytes from agy stream-json output."
+    },
+    "C5_opaque_worker_enforcement": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Host environment lacks an active sandbox supervisor (connecting to sandbox server returns 'read unix @->@: recvmsg: connection reset by peer'), requiring sandbox bypass for execution; host lacks kernel-level unprivileged user namespaces, bwrap, or seccomp syscall supervision to intercept and enforce opaque worker execution."
+    },
+    "C6_control_plane_integrity": {
+      "status": "NOT_APPLICABLE",
+      "evidence": "Evaluated in non-Git fixture mode where Git control plane integrity is not applicable; in this fixture, .git was explicitly verified absent (git_control_plane_present = false); in Git fixture mode, host lacks independent filesystem integrity monitoring for .git control plane mutations."
+    },
+    "C7_network_policy_enforcement": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Host environment lacks per-process kernel network namespace or firewall isolation to independently enforce network absence during worker execution. Headless application-level permission rejection does not constitute kernel-level network enforcement."
+    },
+    "C8_trial_identity_binding": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Because C5 and C7 cannot be established, no trusted enforcement witness conforming to policy-worker-boundary-v1 bound to the exact trial_id and reference_digest can be truthfully produced."
+    },
+    "C9_token_usage_observability": {
+      "status": "ESTABLISHED",
+      "evidence": "agy stream-json exposes complete whole-task token usage in its final result event (input_tokens: 22505, output_tokens: 258, thinking_tokens: 190, cache_read_tokens: 12216, total_tokens: 22763)."
+    }
+  },
   "decision": {
-    "probe_reached_tool_boundary": false,
-    "additional_matched_trials_run": 0,
-    "cost_gate": "NOT_ESTABLISHED"
+    "capability": "NOT_QUALIFIED",
+    "probe_reached_tool_boundary": true,
+    "missing_facts": [
+      "C5_opaque_worker_enforcement",
+      "C7_network_policy_enforcement",
+      "C8_trial_identity_binding"
+    ],
+    "matched_trials_run": 0,
+    "valid_matched_pairs": 0,
+    "cost_gate": "NOT_ESTABLISHED",
+    "empirical_conclusion": "NOT_ESTABLISHED"
   }
 }
