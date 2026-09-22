@@ -79,7 +79,7 @@ def test_bounded_checker_runs_as_the_documented_entrypoint() -> None:
 
 
 def test_classifier_conforms_to_independent_supported_command_domain() -> None:
-    assert len(model.command_cases()) == 76
+    assert len(model.command_cases()) == 78
     for case in model.command_cases():
         assert runner.classify_command(case.command)["status"] == case.expected, case.name
 
