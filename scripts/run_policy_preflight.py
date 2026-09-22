@@ -9,8 +9,8 @@ import subprocess
 import sys
 import threading
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -24,8 +24,7 @@ PYTHON_ROOTS = (
 )
 
 
-@dataclass(frozen=True)
-class FocusedTest:
+class FocusedTest(NamedTuple):
     path: str
     parallel_safe: bool
     reason: str = ""

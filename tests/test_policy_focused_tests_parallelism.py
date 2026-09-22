@@ -78,6 +78,21 @@ def test_unclassified_test_addition_fails_closed() -> None:
     assert hasattr(arbitrary_spec, "reason")
 
 
+def test_dynamic_import_without_sys_modules_registration() -> None:
+    """Verify run_policy_preflight can be dynamically loaded without being in sys.modules."""
+    import importlib.util
+
+    script_path = ROOT / "scripts" / "run_policy_preflight.py"
+    spec = importlib.util.spec_from_file_location("isolated_run_policy_preflight", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    # Ensure it is NOT in sys.modules during execution
+    sys.modules.pop("isolated_run_policy_preflight", None)
+    spec.loader.exec_module(module)
+    assert hasattr(module, "FOCUSED_TEST_SPECS")
+    assert len(module.FOCUSED_TEST_SPECS) > 0
+
+
 # -----------------------------------------------------------------------------
 # Execution & Control Flow Tests
 # -----------------------------------------------------------------------------
