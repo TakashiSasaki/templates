@@ -44,11 +44,12 @@ REQUIRED_FACTS = (
 
 @dataclass(frozen=True)
 class EvidenceState:
-    """Finite evaluator state; binding booleans model candidate invalidation."""
+    """Finite evaluator state with an explicit bounded trial generation."""
 
     phase: Phase = Phase.SELECTED
     candidate_bound: bool = False
     trial_bound: bool = False
+    trial_generation: int = 0
     artifact_identity: Fact = Fact.UNKNOWN
     installed_identity: Fact = Fact.UNKNOWN
     reference_integrity: Fact = Fact.UNKNOWN
@@ -82,6 +83,14 @@ def _establish(state: EvidenceState, field: str) -> EvidenceState:
     return replace(state, **{field: Fact.ESTABLISHED})
 
 
+def _reset_trial(state: EvidenceState) -> EvidenceState:
+    """Invalidate every trial-scoped fact at a new trial identity boundary."""
+
+    if state.trial_generation >= 1:
+        raise ValueError("bounded model supports one trial identity change")
+    return EvidenceState(candidate_bound=state.candidate_bound, trial_generation=1)
+
+
 def advance(state: EvidenceState, event: str) -> EvidenceState:
     """Apply one bounded lifecycle, observation, or invalidation event."""
 
@@ -97,6 +106,8 @@ def advance(state: EvidenceState, event: str) -> EvidenceState:
     if event == "bind_trial":
         if not state.candidate_bound:
             raise ValueError("bind_trial requires a bound candidate")
+        if state.trial_bound:
+            raise ValueError("bind_trial cannot rebind an active trial")
         return replace(state, trial_bound=True)
 
     if event == "prepare":
@@ -177,9 +188,9 @@ def advance(state: EvidenceState, event: str) -> EvidenceState:
     if event == "lose_trial_binding":
         return replace(state, trial_bound=False)
     if event == "candidate_changed":
-        return replace(state, candidate_bound=False)
+        return EvidenceState()
     if event == "trial_changed":
-        return replace(state, trial_bound=False)
+        return _reset_trial(state)
     if event.startswith("establish_"):
         field = event.removeprefix("establish_")
         if field in REQUIRED_FACTS:
@@ -210,13 +221,18 @@ def positive_state() -> EvidenceState:
 
 def _state_values() -> Iterable[EvidenceState]:
     facts = tuple(Fact)
-    for phase, candidate_bound, trial_bound, values in product(
-        tuple(Phase), (False, True), (False, True), product(facts, repeat=len(REQUIRED_FACTS))
+    for phase, candidate_bound, trial_bound, generation, values in product(
+        tuple(Phase),
+        (False, True),
+        (False, True),
+        (0, 1),
+        product(facts, repeat=len(REQUIRED_FACTS)),
     ):
         yield EvidenceState(
             phase=phase,
             candidate_bound=candidate_bound,
             trial_bound=trial_bound,
+            trial_generation=generation,
             **dict(zip(REQUIRED_FACTS, values, strict=True)),
         )
 
@@ -226,6 +242,7 @@ def _state_json(state: EvidenceState) -> dict[str, Any]:
         "phase": state.phase.value,
         "candidate_bound": state.candidate_bound,
         "trial_bound": state.trial_bound,
+        "trial_generation": state.trial_generation,
         **{name: getattr(state, name).value for name in REQUIRED_FACTS},
     }
 
@@ -399,6 +416,15 @@ def run_model_checks() -> dict[str, Any]:
     ):
         counterexamples["stale_candidate_binding"] = _state_json(stale)
 
+    reset_trial = advance(baseline, "trial_changed")
+    rebound = advance(reset_trial, "bind_trial")
+    if accepts(rebound):
+        violations.append({"property": "trial_rebind_reused_evidence", **_state_json(rebound)})
+    stale_rebind = replace(baseline, trial_bound=False)
+    stale_rebind = replace(stale_rebind, trial_bound=True, trial_generation=1)
+    if accepts(rebound) is False and accepts(stale_rebind):
+        counterexamples["stale_trial_rebinding"] = _state_json(stale_rebind)
+
     contradiction = advance(baseline, "forbidden_observed")
     contradiction = advance(contradiction, "establish_compliance")
     if contradiction.compliance is not Fact.CONTRADICTED or accepts(contradiction):
@@ -423,6 +449,7 @@ def run_model_checks() -> dict[str, Any]:
             "observe", "establish_next_action", "grade",
         ],
         "grade_before_observation": ["grade"],
+        "trial_rebinding": ["trial_changed", "bind_trial"],
     }
     trace_results: dict[str, bool] = {}
     for name, events in traces.items():
@@ -442,6 +469,8 @@ def run_model_checks() -> dict[str, Any]:
         violations.append({"trace": "candidate_invalidation"})
     if trace_results["grade_before_observation"]:
         violations.append({"trace": "grade_before_observation"})
+    if trace_results["trial_rebinding"]:
+        violations.append({"trace": "trial_rebinding"})
 
     reachable, reachable_transitions, event_counts = _reachable_state_graph()
     reachable_violations = _independent_invariant_violations(reachable)
@@ -558,8 +587,8 @@ def command_cases() -> tuple[CommandCase, ...]:
     add("local_separator", "echo ok;git status", "allowed")
     add("local_and", "echo ok && git status", "allowed")
     add("local_pipe", "git status | wc -l", "allowed")
-    add("local_python_script", "python scripts/generate_catalog.py", "allowed")
-    add("local_python_module", "python -m unittest", "allowed")
+    add("opaque_python_script", "python scripts/generate_catalog.py", "unknown")
+    add("opaque_python_module", "python -m unittest", "unknown")
     add("opaque_awk_payload", "awk 'BEGIN { system(\"git fetch origin\") }'", "unknown")
     add("opaque_sed_payload", "sed -e 'e curl https://example.invalid' /dev/null", "unknown")
     add(
@@ -856,6 +885,14 @@ def run_mutation_checks() -> dict[str, Any]:
         "detected": accepts(stale_trial)
         != (stale_trial.phase is Phase.GRADED and stale_candidate is not None),
         "counterexample": _state_json(stale_trial),
+    }
+    correct_rebind = advance(advance(baseline, "trial_changed"), "bind_trial")
+    broken_rebind = replace(baseline, trial_bound=True, trial_generation=1)
+    cases["trial_rebinding_reuses_accepted_evidence"] = {
+        "reference_accepts": accepts(correct_rebind),
+        "mutant_accepts": accepts(broken_rebind),
+        "detected": accepts(correct_rebind) != accepts(broken_rebind),
+        "counterexample": _state_json(broken_rebind),
     }
     return {
         "mutation_count": len(cases),

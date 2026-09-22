@@ -5,15 +5,15 @@
     "provider_tree": "dca9a1c1bf21fd0136b75806699e4b1d450c4082",
     "evaluator_source": {
       "path": "scripts/run_matched_policy_delivery_experiment.py",
-      "sha256": "d9b7f4fcea9930212333bb16f1d0941971c86776edef8216dccd307aa41cae38"
+      "sha256": "bee09e1a4b3ffc16408ab7db15464427687f28976580dd0d6c34107154544642"
     },
     "evidence_spec": {
       "path": "scripts/policy_delivery_evidence_spec.py",
-      "sha256": "fcc08d967a7b1c137856c04ec75e9203c748780383ad4b8b0b888337e020ac37"
+      "sha256": "0d2941817b2ff7745b7721be45e7d0dfb0ba380e0b4abc70aea6405b4bb073da"
     },
     "evidence_checker": {
       "path": "scripts/check_policy_delivery_spec.py",
-      "sha256": "7cb72227eabfc412eb75bb48eabff734e0615cf81265186f8ee789091231eaed"
+      "sha256": "2fc1b1adb31eba427729218c03c7c35e5f6a27795651d0feb04693e793b34f1a"
     },
     "evidence_projection_checker": {
       "path": "scripts/check_policy_delivery_evidence.py",
@@ -32,12 +32,12 @@
   },
   "qualification": {
     "command_domain_case_count": 76,
-    "evidence_state_count": 472392,
-    "reachable_evidence_state_count": 41472,
-    "reachable_evidence_transition_count": 1050624,
+    "evidence_state_count": 944784,
+    "reachable_evidence_state_count": 82944,
+    "reachable_evidence_transition_count": 2039040,
     "review_state_count": 112,
     "review_transition_count": 1232,
-    "semantic_mutation_count": 7,
+    "semantic_mutation_count": 8,
     "accepted_witness_count": 3
   },
   "conditions": {
@@ -73,6 +73,6 @@
       }
     }
   },
-  "smoke_result_identity": "74df2abb9f36deae2b651b650fbdeafed10ce24e0a57413505bfe65fb6ccf048",
+  "smoke_result_identity": "6dfa7b01bc2422784a958f4c56817486232a7c5cacefa1c42b6baa04e2a4b810",
   "interpretation": "Distribution-boundary smoke only; the retained exact wheel and installed A/C consumers were rerun after the current evaluator/spec/checker identity update; no fresh agent trial or performance claim."
 }

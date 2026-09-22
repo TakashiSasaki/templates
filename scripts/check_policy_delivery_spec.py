@@ -12,6 +12,7 @@ REQUIRED_COUNTEREXAMPLES = {
     "missing_compliance",
     "missing_full_suite",
     "stale_candidate_binding",
+    "stale_trial_rebinding",
 }
 
 
