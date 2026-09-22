@@ -100,9 +100,11 @@ Review completion, merge permission, and merge completion remain separate.
 ## Budget and stop
 Authorized trials / diagnostic attempts / resources: [scope-specific limit]
 On a repeated failure, record what changed and switch to a genuinely different
-in-scope method or preserve the blocker; do not retry an invalidated path without
-new applicability evidence. Stop at the stated completion boundary. Do not turn
-review feedback into new scope without explicit authorization.
+authorized in-scope method while one remains materially available. Report or
+preserve a blocker only after materially different in-scope strategies are
+exhausted, unavailable, unauthorized, or unsafe; do not retry an invalidated path
+without new applicability evidence. Stop at the stated completion boundary. Do
+not turn review feedback into new scope without explicit authorization.
 
 ## Handoff
 Report changed artifacts, candidate identities, evidence and limits, known
@@ -122,8 +124,16 @@ mere clarification. Reuse unaffected evidence and do not resend the entire brief
 This supplements [active brief / goal reference]. The outcome, allowed authority,
 and stop condition remain unchanged unless an explicit authorized change follows.
 New evidence: [reproduction / review locator / observation].
-Affected obligation: [R-ID and violated invariant, not only the reported line].
-Repair unit: [bounded change and materially reachable siblings to check].
+Evidence classification: [demonstrated existing-contract violation / missing
+observation / ambiguous assumption / falsified report / unknown state /
+scope-or-guarantee expansion proposal].
+Affected obligation: [R-ID]. Violated invariant: [required only for a demonstrated
+existing-contract violation; otherwise record unknown/not-established or the
+decision needed].
+Authorized response: [repair for an existing-contract violation / obtain missing
+evidence / resolve an authorized decision / hand off a scope-expansion proposal].
+Repair unit: [only when repair is authorized; bounded change and materially
+reachable siblings to check].
 Keep unchanged: [unaffected responsibilities / PR heads / permissions].
 Qualification: [negative/positive evidence and affected canonical checks].
 No new external review during known remediation; use the existing scope planner
