@@ -5,12 +5,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.orchestrate_preflights import (  # noqa: E402
     MAX_SUMMARY_BYTES,
+    build_parser,
     orchestrate_preflights,
     run_single_preflight,
 )
@@ -228,3 +231,82 @@ def test_cli_execution_with_json_output(tmp_path: Path) -> None:
     data = json.loads(proc.stdout)
     assert data["overall_status"] == "PASSED"
     assert data["authorities"][0]["authority"] == "policy"
+    assert data["concurrency"] == 2
+
+
+def test_default_concurrency_is_two_api(tmp_path: Path) -> None:
+    repo_root = tmp_path / "workspace"
+    _create_mock_authority(repo_root, "policy", exit_code=0, output_text="POLICY_OK")
+
+    res = orchestrate_preflights(
+        authorities=["policy"],
+        repo_root=repo_root,
+    )
+    assert res["overall_status"] == "PASSED"
+    assert res["concurrency"] == 2
+
+    with pytest.raises(ValueError, match="concurrent_jobs must be at least 1"):
+        orchestrate_preflights(
+            authorities=["policy"],
+            repo_root=repo_root,
+            concurrent_jobs=0,
+        )
+
+    with pytest.raises(ValueError, match="concurrent_jobs must be at least 1"):
+        orchestrate_preflights(
+            authorities=["policy"],
+            repo_root=repo_root,
+            concurrent_jobs=-1,
+        )
+
+
+def test_cli_jobs_argument_parsing_and_overrides(tmp_path: Path) -> None:
+    parser = build_parser()
+    args_default = parser.parse_args([])
+    assert args_default.jobs == 2
+
+    args_serial = parser.parse_args(["--jobs", "1"])
+    assert args_serial.jobs == 1
+
+    args_four = parser.parse_args(["-j", "4"])
+    assert args_four.jobs == 4
+
+    repo_root = tmp_path / "workspace"
+    _create_mock_authority(repo_root, "policy", exit_code=0, output_text="POLICY_OK")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "orchestrate_preflights.py"),
+            "policy",
+            "--repo-root",
+            str(repo_root),
+            "--jobs",
+            "1",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"CLI failed: {proc.stderr}"
+    data = json.loads(proc.stdout)
+    assert data["concurrency"] == 1
+
+    proc_invalid = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "orchestrate_preflights.py"),
+            "policy",
+            "--repo-root",
+            str(repo_root),
+            "--jobs",
+            "0",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc_invalid.returncode != 0
+    assert "--jobs must be at least 1" in proc_invalid.stderr
+

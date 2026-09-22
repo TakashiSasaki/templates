@@ -307,7 +307,7 @@ The orchestrator:
   - `integration`: `scripts/run_integration_preflight.py fast`
   - `site`: `scripts/run_site_preflight.py fast`
 - Binds to exact worktree heads via `git rev-parse HEAD` and verifies against `--expected-heads-json` when supplied.
-- Executes validations with finite timeouts (`--timeout`) and optional concurrency (`-j / --jobs`).
+- Executes validations with finite timeouts (`--timeout`) and bounded concurrency (default: 2, configurable via `-j / --jobs`; explicit `--jobs 1` selects serial execution).
 - Captures full logs (`--log-dir`) while returning a concise, bounded summary table (`<= 8 KiB`).
 - Preserves authority boundaries: does NOT re-implement or reinterpret authority validation semantics.
 

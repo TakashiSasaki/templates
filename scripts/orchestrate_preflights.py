@@ -264,11 +264,13 @@ def orchestrate_preflights(
     expected_heads: dict[str, str] | None = None,
     tier_overrides: dict[str, list[str]] | None = None,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
-    concurrent_jobs: int = 1,
+    concurrent_jobs: int = 2,
     log_dir: Path | None = None,
     python_bin: str | None = None,
 ) -> dict[str, Any]:
     """Orchestrate canonical preflights across specified authorities."""
+    if concurrent_jobs < 1:
+        raise ValueError(f"concurrent_jobs must be at least 1, got {concurrent_jobs}")
     selected_authorities = list(authorities or ALL_AUTHORITIES)
     root = (repo_root or Path.cwd()).resolve()
 
@@ -388,8 +390,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--jobs",
         "-j",
         type=int,
-        default=1,
-        help="number of concurrent jobs (default: 1 serial)",
+        default=2,
+        help="number of concurrent jobs (default: 2)",
     )
     parser.add_argument(
         "--log-dir",
@@ -408,6 +410,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.jobs < 1:
+        parser.error(f"--jobs must be at least 1, got {args.jobs}")
 
     expected_heads: dict[str, str] | None = None
     if args.expected_heads_json:
