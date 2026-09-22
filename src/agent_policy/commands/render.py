@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 import os
-import tempfile
 from pathlib import Path
 
 from ..config import load_config, validate_config
 from ..diagnostics import Diagnostic
+from ..generated_mutation import (
+    DeleteSpec,
+    MutationSafetyError,
+    WriteSpec,
+    apply_generated_mutations,
+)
 from ..lockfile import (
     LOCK_PATH,
     create_lock,
@@ -18,22 +24,11 @@ from ..policy_loader import load_rules
 from ..renderer import GENERATED_MARKER, render_output, render_skill
 
 
-def _write_atomic(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        "w", encoding="utf-8", dir=path.parent, delete=False
-    ) as handle:
-        handle.write(content)
-        temporary = Path(handle.name)
-    os.replace(temporary, path)
-
-
-def _safe_generated_write(path: Path, content: str) -> None:
-    if path.exists():
-        existing = path.read_text(encoding="utf-8")
-        if GENERATED_MARKER not in existing:
-            raise FileExistsError(f"Refusing to overwrite non-generated file: {path}")
-    _write_atomic(path, content)
+def _generated_bytes(content: bytes) -> bool:
+    try:
+        return GENERATED_MARKER in content.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
 
 
 def _paths_overlap(left: Path, right: Path) -> bool:
@@ -95,14 +90,14 @@ def _obsolete_generated_outputs(
     repository_root: Path,
     planned: dict[str, tuple[Path, str]],
     protected_inputs: set[Path],
-) -> list[Path]:
+) -> list[tuple[str, Path, bytes]]:
     lock_path = resolve_lock_path(repository_root, allow_missing=True)
     if not lock_path.exists():
         return []
 
     planned_targets = {target for target, _content in planned.values()}
     locked_targets: dict[Path, str] = {}
-    obsolete: list[Path] = []
+    obsolete: list[tuple[str, Path, bytes]] = []
     for relative, locked_digest in load_lock_outputs(lock_path).items():
         if relative in planned:
             continue
@@ -126,25 +121,26 @@ def _obsolete_generated_outputs(
             raise FileExistsError(
                 f"Refusing to remove non-file obsolete generated output: {relative}"
             )
+        content = target.read_bytes()
         if sha256_file(target) != locked_digest:
             raise ValueError(
                 f"Refusing to remove modified obsolete generated output: {relative}"
             )
-        if GENERATED_MARKER not in target.read_text(encoding="utf-8"):
+        if not _generated_bytes(content):
             raise FileExistsError(
                 f"Refusing to remove non-generated obsolete output: {relative}"
             )
-        obsolete.append(target)
+        obsolete.append((relative, target, content))
     return obsolete
 
 
 def _reject_obsolete_output_overlaps(
     repository_root: Path,
-    obsolete: list[Path],
+    obsolete: list[tuple[str, Path, bytes]],
     planned: dict[str, tuple[Path, str]],
 ) -> None:
     root = repository_root.resolve()
-    for obsolete_target in obsolete:
+    for _relative, obsolete_target, _content in obsolete:
         obsolete_relative = obsolete_target.relative_to(root).as_posix()
         for planned_relative, (planned_target, _content) in planned.items():
             if obsolete_target in planned_target.parents:
@@ -220,12 +216,9 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
         )
         _reject_obsolete_output_overlaps(repository_root, obsolete, planned)
 
-        outputs: dict[str, Path] = {}
-        for relative, (target, content) in planned.items():
-            _safe_generated_write(target, content)
-            outputs[relative] = target
-        for target in obsolete:
-            target.unlink()
+        outputs: dict[str, Path] = {
+            relative: target for relative, (target, _content) in planned.items()
+        }
 
         toolchain = config.data["toolchain"]
         lock_content = create_lock(
@@ -233,8 +226,43 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
             toolchain_revision=toolchain["revision"],
             inputs=inputs,
             outputs=outputs,
+            output_digests={
+                relative: hashlib.sha256(content.encode("utf-8")).hexdigest()
+                for relative, (_target, content) in planned.items()
+            },
         )
-        _write_atomic(resolve_lock_path(repository_root), lock_content)
+        writes = {
+            _target.relative_to(repository_root.resolve()).as_posix(): WriteSpec(
+                content=content.encode("utf-8"),
+                owns_existing=_generated_bytes,
+            )
+            for relative, (_target, content) in planned.items()
+        }
+        aliases = {
+            _target.relative_to(repository_root.resolve()).as_posix(): relative
+            for relative, (_target, _content) in planned.items()
+            if _target.relative_to(repository_root.resolve()).as_posix() != relative
+        }
+        deletes = {
+            relative: DeleteSpec(
+                expected=content,
+                owns_existing=_generated_bytes,
+            )
+            for relative, _target, content in obsolete
+        }
+        apply_generated_mutations(
+            repository_root,
+            writes,
+            deletes,
+            lock_path=LOCK_PATH,
+            lock=WriteSpec(
+                content=lock_content.encode("utf-8"),
+                owns_existing=lambda _content: True,
+            ),
+            aliases=aliases,
+        )
         return []
+    except MutationSafetyError as exc:
+        return [Diagnostic("error", "RENDER", str(exc))]
     except Exception as exc:
         return [Diagnostic("error", "RENDER", str(exc))]
