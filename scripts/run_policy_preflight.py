@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,31 +23,150 @@ PYTHON_ROOTS = (
     ROOT / "skills" / "agent-policy" / "scripts",
 )
 
-FOCUSED_TESTS = (
-    "tests/test_config_driven_check.py",
-    "tests/test_topology_contract_provenance.py",
-    "tests/test_topology_change_orchestration.py",
-    "tests/test_local_checkout_discovery.py",
-    "tests/test_local_checkout_contract_provenance.py",
-    "tests/test_observe_pr_state.py",
-    "tests/test_pr_state_observation.py",
-    "tests/test_pr_state_observation_replay.py",
-    "tests/test_publish_review_artifacts.py",
-    "tests/test_review_artifacts.py",
-    "tests/test_review_scope_selection.py",
-    "tests/test_maintainer_source_closure.py",
-    "tests/test_live_review_adapter.py",
-    "tests/test_maintainer_entrypoint_workflow.py",
-    "tests/test_maintainer_efficiency_measurement.py",
-    "tests/test_qualification_sequencing.py",
-    "tests/test_preflight_orchestration.py",
-    "tests/test_maintainer_progressive_disclosure.py",
-    "tests/test_automation_boundaries.py",
-    "tests/test_policy_fast_preflight_parallelism.py",
-    "tests/test_matched_policy_delivery.py",
-    "tests/test_policy_delivery_evidence_spec.py",
-    "tests/test_policy_delivery_evidence_consistency.py",
+
+@dataclass(frozen=True)
+class FocusedTest:
+    path: str
+    parallel_safe: bool
+    reason: str = ""
+
+
+FOCUSED_TEST_SPECS: tuple[FocusedTest, ...] = (
+    FocusedTest(
+        "tests/test_config_driven_check.py",
+        parallel_safe=True,
+        reason="isolated tmp_path repo checks",
+    ),
+    FocusedTest(
+        "tests/test_topology_contract_provenance.py",
+        parallel_safe=True,
+        reason="read-only snapshot provenance",
+    ),
+    FocusedTest(
+        "tests/test_topology_change_orchestration.py",
+        parallel_safe=True,
+        reason="read-only topology specification and in-memory structures",
+    ),
+    FocusedTest(
+        "tests/test_local_checkout_discovery.py",
+        parallel_safe=True,
+        reason="isolated tmp_path checkout discovery",
+    ),
+    FocusedTest(
+        "tests/test_local_checkout_contract_provenance.py",
+        parallel_safe=True,
+        reason="read-only snapshot provenance",
+    ),
+    FocusedTest(
+        "tests/test_observe_pr_state.py",
+        parallel_safe=True,
+        reason="mocked subprocess in-memory observation",
+    ),
+    FocusedTest(
+        "tests/test_pr_state_observation.py",
+        parallel_safe=True,
+        reason="in-memory observation candidate structures",
+    ),
+    FocusedTest(
+        "tests/test_pr_state_observation_replay.py",
+        parallel_safe=True,
+        reason="in-memory observation replay structures",
+    ),
+    FocusedTest(
+        "tests/test_publish_review_artifacts.py",
+        parallel_safe=True,
+        reason="mocked provider in-memory artifact publishing",
+    ),
+    FocusedTest(
+        "tests/test_review_artifacts.py",
+        parallel_safe=True,
+        reason="mocked in-memory artifact rendering and isolated tmp_path git",
+    ),
+    FocusedTest(
+        "tests/test_review_scope_selection.py",
+        parallel_safe=True,
+        reason="pure functional review scope selection",
+    ),
+    FocusedTest(
+        "tests/test_maintainer_source_closure.py",
+        parallel_safe=False,
+        reason="process-global working directory mutation (os.chdir) and sys.path manipulation",
+    ),
+    FocusedTest(
+        "tests/test_live_review_adapter.py",
+        parallel_safe=True,
+        reason="mocked provider live revalidation",
+    ),
+    FocusedTest(
+        "tests/test_maintainer_entrypoint_workflow.py",
+        parallel_safe=False,
+        reason=(
+            "adversarial in-place poisoning of canonical worktree maintainer "
+            "entrypoint and sibling files"
+        ),
+    ),
+    FocusedTest(
+        "tests/test_maintainer_efficiency_measurement.py",
+        parallel_safe=True,
+        reason="in-memory efficiency report calculations",
+    ),
+    FocusedTest(
+        "tests/test_qualification_sequencing.py",
+        parallel_safe=True,
+        reason="in-memory frontier sequencing and isolated tmp_path repin checks",
+    ),
+    FocusedTest(
+        "tests/test_preflight_orchestration.py",
+        parallel_safe=True,
+        reason="mock authorities executed strictly inside tmp_path",
+    ),
+    FocusedTest(
+        "tests/test_maintainer_progressive_disclosure.py",
+        parallel_safe=False,
+        reason="adversarial in-place poisoning of canonical worktree reference file",
+    ),
+    FocusedTest(
+        "tests/test_automation_boundaries.py",
+        parallel_safe=True,
+        reason="pure functional permission and separation checks",
+    ),
+    FocusedTest(
+        "tests/test_policy_fast_preflight_parallelism.py",
+        parallel_safe=True,
+        reason="in-memory mock registry and event synchronization",
+    ),
+    FocusedTest(
+        "tests/test_policy_focused_tests_parallelism.py",
+        parallel_safe=True,
+        reason="in-memory command construction and classification invariant checks",
+    ),
+    FocusedTest(
+        "tests/test_matched_policy_delivery.py",
+        parallel_safe=True,
+        reason=(
+            "synthetic candidate repositories and experiments created strictly inside tmp_path"
+        ),
+    ),
+    FocusedTest(
+        "tests/test_policy_delivery_evidence_spec.py",
+        parallel_safe=True,
+        reason="exhaustive in-memory transition state-machine model checking",
+    ),
+    FocusedTest(
+        "tests/test_policy_delivery_evidence_consistency.py",
+        parallel_safe=True,
+        reason="read-only smoke result verification and tmp_path tamper tests",
+    ),
 )
+
+FOCUSED_TESTS: tuple[str, ...] = tuple(spec.path for spec in FOCUSED_TEST_SPECS)
+PARALLEL_SAFE_FOCUSED_TESTS: tuple[str, ...] = tuple(
+    spec.path for spec in FOCUSED_TEST_SPECS if spec.parallel_safe
+)
+SERIAL_FOCUSED_TESTS: tuple[str, ...] = tuple(
+    spec.path for spec in FOCUSED_TEST_SPECS if not spec.parallel_safe
+)
+PARALLEL_FOCUSED_TEST_WORKERS: int = 2
 
 
 def sanitized_environment() -> dict[str, str]:
@@ -165,7 +285,17 @@ def check_focused_tests() -> None:
     missing = [path for path in FOCUSED_TESTS if not (ROOT / path).is_file()]
     if missing:
         raise RuntimeError(f"focused Policy test suites are missing: {', '.join(missing)}")
-    run(sys.executable, "-m", "pytest", *FOCUSED_TESTS)
+    if PARALLEL_SAFE_FOCUSED_TESTS:
+        run(
+            sys.executable,
+            "-m",
+            "pytest",
+            "-n",
+            str(PARALLEL_FOCUSED_TEST_WORKERS),
+            *PARALLEL_SAFE_FOCUSED_TESTS,
+        )
+    if SERIAL_FOCUSED_TESTS:
+        run(sys.executable, "-m", "pytest", *SERIAL_FOCUSED_TESTS)
     run(sys.executable, "scripts/check_policy_delivery_evidence.py")
 
 
