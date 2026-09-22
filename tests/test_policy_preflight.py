@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import os
 from pathlib import Path
@@ -82,6 +83,12 @@ def test_fast_profile_requires_local_checkout_behavioral_suite() -> None:
     assert "tests/test_pr_state_observation.py" in preflight.FOCUSED_TESTS
     assert "tests/test_pr_state_observation_replay.py" in preflight.FOCUSED_TESTS
     assert "tests/test_review_scope_selection.py" in preflight.FOCUSED_TESTS
+    assert "tests/test_matched_policy_delivery.py" in preflight.FOCUSED_TESTS
+    assert "tests/test_policy_delivery_evidence_spec.py" in preflight.FOCUSED_TESTS
+    assert "tests/test_policy_delivery_evidence_consistency.py" in preflight.FOCUSED_TESTS
+    assert "scripts/check_policy_delivery_evidence.py" in inspect.getsource(
+        preflight.check_focused_tests
+    )
     assert all((ROOT / path).is_file() for path in preflight.FOCUSED_TESTS)
 
 
