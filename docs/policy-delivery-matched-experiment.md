@@ -96,7 +96,7 @@ manifest. The following block is generated and checked by
 - Candidate #998 revision: `04c8c69404eb728b18e6b10496a6d6508c6aa276`
 - Provider tree: `dca9a1c1bf21fd0136b75806699e4b1d450c4082`
 - Evaluator source: `scripts/run_matched_policy_delivery_experiment.py`
-- Evaluator SHA-256: `4e38851dc6608d2a4d59bd7fce0cbbeffe9715842bd205854e8a1308d8d739ac`
+- Evaluator SHA-256: `b36eaa3a6c007a43e520ece2c581b34f006a5f8535345752ab5d42da797ef6c3`
 - Evidence specification SHA-256: `f64185a722afe2fb0ba8e55df96b750067465e7e809067ef9c2f61d676347d51`
 - Evidence checker SHA-256: `2fc1b1adb31eba427729218c03c7c35e5f6a27795651d0feb04693e793b34f1a`
 - Evidence projection checker SHA-256: `c82435ed0cc95b6577e0aa5bb0debcb0de0f473c068a8dee5617507d8cbdf732`
@@ -104,7 +104,7 @@ manifest. The following block is generated and checked by
 - Wheel manifest SHA-256: `61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58`
 - Runtime lock SHA-256: `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`
 - External runner: `skills/agent-policy/scripts/run.py` (`59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`)
-- Smoke result identity: `323a6bc76fcb9ab1b81efcdcf41ad0769a63b20c910cf8aa6e27ea92fd97b2cf`
+- Smoke result identity: `ec9b0a0ef550ea3e177beb8a0f812b41b3510b51f668d3df89ede4e9be227846`
 - Qualification metrics: `command_domain_case_count=78; evidence_state_count=944784; reachable_evidence_state_count=82944; reachable_evidence_transition_count=2039040; review_state_count=112; review_transition_count=1232; semantic_mutation_count=8; accepted_witness_count=3`
 - A: 47 selected / 47 startup; validate, render, check
 - C: 47 selected / 24 startup; validate, render, check, guidance

@@ -1349,3 +1349,229 @@ def test_bootstrap_failure_is_bounded_and_redacted() -> None:
     assert evidence["reached_tool_boundary"] is False
     assert evidence["stderr_sha256"] == runner.sha(stderr.encode())
     assert evidence["stderr_bytes"] == len(stderr.encode())
+
+
+def test_agy_commands_parsing_extracts_run_command_and_handles_errors() -> None:
+    events = [
+        {
+            "event": "step_update",
+            "step_update": {
+                "conversation_id": "c-1",
+                "step_index": 1,
+                "state": "ACTIVE",
+                "step_type": "tool",
+                "tool_name": "view_file",
+                "tool_info": {
+                    "name": "view_file",
+                    "parameters": {"AbsolutePath": "/tmp/test"},
+                },
+            },
+        },
+        {
+            "event": "step_update",
+            "step_update": {
+                "conversation_id": "c-1",
+                "step_index": 1,
+                "state": "DONE",
+                "step_type": "tool",
+                "tool_name": "view_file",
+                "tool_info": {
+                    "name": "view_file",
+                    "parameters": {"AbsolutePath": "/tmp/test"},
+                    "output": "ok",
+                },
+            },
+        },
+        {
+            "event": "step_update",
+            "step_update": {
+                "conversation_id": "c-1",
+                "step_index": 2,
+                "state": "ERROR",
+                "step_type": "tool",
+                "tool_name": "run_command",
+                "tool_info": {
+                    "name": "run_command",
+                    "parameters": {
+                        "CommandLine": "curl -sI https://example.com"
+                    },
+                    "error": {
+                        "type": "TOOL_ERROR",
+                        "message": (
+                            "connecting to sandbox server: connection reset"
+                        ),
+                    },
+                },
+            },
+        },
+        {
+            "event": "step_update",
+            "step_update": {
+                "conversation_id": "c-1",
+                "step_index": 3,
+                "state": "DONE",
+                "step_type": "tool",
+                "tool_name": "run_command",
+                "tool_info": {
+                    "name": "run_command",
+                    "parameters": {
+                        "CommandLine": "python scripts/generate_catalog.py"
+                    },
+                    "output": "catalog generated\n",
+                    "execution_identity_sha256": "abcdef",
+                    "execution_identity_source": "trusted_command_boundary",
+                },
+            },
+        },
+    ]
+    seen = runner.commands(events, backend="agy")
+    assert len(seen) == 2
+    assert seen[0]["command"] == "curl -sI https://example.com"
+    assert seen[0]["exit_code"] == 1
+    assert "connection reset" in seen[0]["output"]
+    assert seen[1]["command"] == "python scripts/generate_catalog.py"
+    assert seen[1]["exit_code"] == 0
+    assert seen[1]["output"] == "catalog generated\n"
+    assert seen[1]["execution_identity_sha256"] == "abcdef"
+    assert seen[1]["execution_identity_source"] == "trusted_command_boundary"
+
+
+def test_agy_usage_parsing_from_final_result_and_fallback() -> None:
+    events = [
+        {
+            "event": "step_update",
+            "step_update": {
+                "state": "DONE",
+                "step_type": "agent_response",
+                "usage": {
+                    "input_tokens": 100,
+                    "cache_read_tokens": 20,
+                    "output_tokens": 50,
+                    "thinking_tokens": 30,
+                    "total_tokens": 150,
+                },
+            },
+        },
+        {
+            "event": "result",
+            "result": {
+                "status": "SUCCESS",
+                "usage": {
+                    "input_tokens": 200,
+                    "cache_read_tokens": 50,
+                    "output_tokens": 100,
+                    "thinking_tokens": 60,
+                    "total_tokens": 300,
+                },
+            },
+        },
+    ]
+    usage = runner.usage(events, backend="agy")
+    assert usage["input_tokens"] == 200
+    assert usage["cached_input_tokens"] == 50
+    assert usage["uncached_input_tokens"] == 150
+    assert usage["output_tokens"] == 100
+    assert usage["reasoning_output_tokens"] == 60
+    assert usage["total_tokens"] == 300
+    assert usage["usage_events"] == 1
+
+    # Test fallback without result event
+    usage_fallback = runner.usage(events[:1], backend="agy")
+    assert usage_fallback["input_tokens"] == 100
+    assert usage_fallback["cached_input_tokens"] == 20
+    assert usage_fallback["uncached_input_tokens"] == 80
+    assert usage_fallback["output_tokens"] == 50
+    assert usage_fallback["reasoning_output_tokens"] == 30
+    assert usage_fallback["total_tokens"] == 150
+    assert usage_fallback["usage_events"] == 1
+
+
+def test_agy_bootstrap_evidence_recognizes_sandbox_reset_and_success() -> None:
+    stderr = (
+        "connecting to sandbox server: read unix @->@: recvmsg: connection"
+        " reset by peer\n"
+    )
+    evidence = runner.bootstrap_evidence(
+        stderr, 0, False, [], [], backend="agy"
+    )
+    assert evidence["classification"] == "bootstrap_failure"
+    assert evidence["normalized_reason"] == "sandbox_server_connection_reset"
+
+    events = [
+        {"event": "result", "result": {"status": "SUCCESS", "usage": {}}}
+    ]
+    commands_seen = [
+        {
+            "command": "echo 1",
+            "exit_code": 0,
+            "output": "1\n",
+            "output_bytes": 2,
+        }
+    ]
+    evidence_ok = runner.bootstrap_evidence(
+        "", 0, False, events, commands_seen, backend="agy"
+    )
+    assert evidence_ok["classification"] == "task_execution"
+    assert evidence_ok["reached_tool_boundary"] is True
+    assert evidence_ok["normal_task_completion_event"] is True
+
+
+def test_compliance_observation_non_git_fixture_omits_control_plane_unverified() -> None:
+    commands = [{"command": "git --no-pager diff", "exit_code": 0}]
+    # Default is git fixture: requires independent control plane evidence
+    git_result = runner.compliance_observation(commands, fixture_mode="git")
+    assert git_result["control_plane_unverified"] == ["git --no-pager diff"]
+    assert not git_result["policy_compliant"]
+
+    # Non-git fixture: git control-plane integrity is not applicable
+    non_git_result = runner.compliance_observation(
+        commands, fixture_mode="non-git"
+    )
+    assert non_git_result["control_plane_unverified"] == []
+    assert non_git_result["policy_compliant"]
+
+
+def test_grade_passes_fixture_mode_to_compliance(tmp_path: Path) -> None:
+    runner.setup_task(tmp_path, "code-repair")
+    reference = runner.prepare_task_reference(
+        tmp_path, "code-repair", tmp_path.parent / "non-git-grade-ref"
+    )
+    (tmp_path / "src/calculator.py").write_text(
+        "def average(values: list[float]) -> float:\n"
+        "    return sum(values) / len(values)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests/test_calculator.py").write_text(
+        "import unittest\nfrom calculator import average\n"
+        "class AverageTests(unittest.TestCase):\n"
+        "    def test_average(self):\n"
+        "        self.assertEqual(average([1, 3, 5]), 3.0)\n",
+        encoding="utf-8",
+    )
+    commands = [
+        {
+            "command": "git --no-pager diff",
+            "exit_code": 0,
+            "output": "",
+            "output_bytes": 0,
+        },
+        {
+            "command": "cat src/calculator.py",
+            "exit_code": 0,
+            "output": "def average",
+            "output_bytes": 11,
+        },
+    ]
+    # In git fixture without enforcement witness, git command fails compliance
+    res_git = runner.grade(
+        "code-repair", tmp_path, commands, reference, fixture_mode="git"
+    )
+    assert not res_git["policy_compliant"]
+    assert not res_git["passed"]
+
+    # In non-git fixture, git command does not block compliance
+    res_non_git = runner.grade(
+        "code-repair", tmp_path, commands, reference, fixture_mode="non-git"
+    )
+    assert res_non_git["policy_compliant"]
+

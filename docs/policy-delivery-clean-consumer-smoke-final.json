@@ -5,7 +5,7 @@
     "provider_tree": "dca9a1c1bf21fd0136b75806699e4b1d450c4082",
     "evaluator_source": {
       "path": "scripts/run_matched_policy_delivery_experiment.py",
-      "sha256": "4e38851dc6608d2a4d59bd7fce0cbbeffe9715842bd205854e8a1308d8d739ac"
+      "sha256": "b36eaa3a6c007a43e520ece2c581b34f006a5f8535345752ab5d42da797ef6c3"
     },
     "evidence_spec": {
       "path": "scripts/policy_delivery_evidence_spec.py",
@@ -112,6 +112,6 @@
       }
     }
   },
-  "smoke_result_identity": "323a6bc76fcb9ab1b81efcdcf41ad0769a63b20c910cf8aa6e27ea92fd97b2cf",
+  "smoke_result_identity": "ec9b0a0ef550ea3e177beb8a0f812b41b3510b51f668d3df89ede4e9be227846",
   "interpretation": "Distribution-boundary smoke only; the retained exact wheel and installed A/C consumers were rerun after the current evaluator/spec/checker identity update; no fresh agent trial or performance claim."
 }

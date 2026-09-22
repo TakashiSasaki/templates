@@ -42,6 +42,13 @@ POLICY_FILES = (
 PROFILES = ("core", "security-baseline", "pull-request", "progressive-discovery")
 MODEL = "gpt-reserve"
 EFFORT = "xhigh"
+DEFAULT_BACKEND = "agy"
+DEFAULT_AGY_BIN = Path("/home/ubuntu/.local/bin/agy")
+DEFAULT_CODEX_BIN = Path("/home/ubuntu/.local/bin/codex")
+DEFAULT_AGY_MODEL = "gemini-3.8-flash-medium"
+DEFAULT_AGY_EFFORT = "medium"
+DEFAULT_CODEX_MODEL = "gpt-reserve"
+DEFAULT_CODEX_EFFORT = "xhigh"
 GUIDANCE = re.compile(r"policy_guidance\.py")
 OPERATION = re.compile(r"--operation(?:=|\s+)([\w-]+)")
 RULE_ID = re.compile(r"rule ID:\s*([^\s|]+)")
@@ -779,7 +786,10 @@ def _trusted_enforcement_valid(
 
 
 def compliance_observation(
-    commands_seen: list[dict[str, Any]], *, enforcement_evidence: bool = False
+    commands_seen: list[dict[str, Any]],
+    *,
+    enforcement_evidence: bool = False,
+    fixture_mode: str = "git",
 ) -> dict[str, Any]:
     """Return command evidence without overstating opaque execution effects."""
 
@@ -798,6 +808,7 @@ def compliance_observation(
         elif (
             classification["status"] == "allowed"
             and isinstance(command, str)
+            and fixture_mode == "git"
             and _contains_git_execution(command)
             and not enforcement_evidence
         ):
@@ -1938,10 +1949,69 @@ def parse_events(stdout: str) -> list[dict[str, Any]]:
     return events
 
 
-def commands(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def commands(
+    events: list[dict[str, Any]], *, backend: str = DEFAULT_BACKEND
+) -> list[dict[str, Any]]:
+    is_agy = backend == "agy" or any(event.get("event") for event in events)
+    if is_agy:
+        result = []
+        for event in events:
+            if event.get("event") != "step_update" or not isinstance(
+                event.get("step_update"), dict
+            ):
+                continue
+            step = event["step_update"]
+            if step.get("step_type") != "tool" or step.get("state") not in (
+                "DONE",
+                "ERROR",
+            ):
+                continue
+            tool_name = step.get("tool_name")
+            tool_info = step.get("tool_info")
+            if not isinstance(tool_info, dict):
+                continue
+            parameters = tool_info.get("parameters")
+            if not isinstance(parameters, dict):
+                parameters = {}
+            if tool_name == "run_command":
+                cmd = (
+                    parameters.get("CommandLine")
+                    or parameters.get("command")
+                    or parameters.get("cmd")
+                )
+                if not isinstance(cmd, str):
+                    continue
+                if step.get("state") == "ERROR":
+                    exit_code = 1
+                    err = tool_info.get("error")
+                    output = (
+                        err.get("message", "")
+                        if isinstance(err, dict)
+                        else str(err or "")
+                    )
+                else:
+                    exit_code = 0
+                    output = str(tool_info.get("output", ""))
+                record = {
+                    "command": cmd,
+                    "exit_code": exit_code,
+                    "output": output,
+                    "output_bytes": len(output.encode("utf-8")),
+                }
+                for key in (
+                    "execution_identity_sha256",
+                    "execution_identity_source",
+                ):
+                    if isinstance(tool_info.get(key), str):
+                        record[key] = tool_info[key]
+                result.append(record)
+        return result
+
     result = []
     for event in events:
-        if event.get("type") != "item.completed" or not isinstance(event.get("item"), dict):
+        if event.get("type") != "item.completed" or not isinstance(
+            event.get("item"), dict
+        ):
             continue
         item = event["item"]
         if item.get("type") != "command_execution":
@@ -1984,13 +2054,91 @@ def generator_command_succeeded(commands_seen: list[dict[str, Any]]) -> bool:
     return False
 
 
-def usage(events: list[dict[str, Any]]) -> dict[str, Any]:
-    result = {key: 0 for key in
-              ("input_tokens", "cached_input_tokens", "uncached_input_tokens",
-               "output_tokens", "reasoning_output_tokens")}
+def usage(
+    events: list[dict[str, Any]], *, backend: str = DEFAULT_BACKEND
+) -> dict[str, Any]:
+    is_agy = backend == "agy" or any(event.get("event") for event in events)
+    if is_agy:
+        result = {
+            key: 0
+            for key in (
+                "input_tokens",
+                "cached_input_tokens",
+                "uncached_input_tokens",
+                "output_tokens",
+                "reasoning_output_tokens",
+                "total_tokens",
+            )
+        }
+        final_usage = None
+        for event in events:
+            if (
+                event.get("event") == "result"
+                and isinstance(event.get("result"), dict)
+                and isinstance(event["result"].get("usage"), dict)
+            ):
+                final_usage = event["result"]["usage"]
+                break
+
+        agent_turns = [
+            event["step_update"]
+            for event in events
+            if event.get("event") == "step_update"
+            and isinstance(event.get("step_update"), dict)
+            and event["step_update"].get("step_type") == "agent_response"
+            and event["step_update"].get("state") == "DONE"
+        ]
+
+        if final_usage:
+            inp = int(final_usage.get("input_tokens", 0) or 0)
+            cached = int(final_usage.get("cache_read_tokens", 0) or 0)
+            out = int(final_usage.get("output_tokens", 0) or 0)
+            reasoning = int(final_usage.get("thinking_tokens", 0) or 0)
+            total = int(final_usage.get("total_tokens", 0) or 0)
+            result["input_tokens"] = inp
+            result["cached_input_tokens"] = cached
+            result["uncached_input_tokens"] = max(0, inp - cached)
+            result["output_tokens"] = out
+            result["reasoning_output_tokens"] = reasoning
+            result["total_tokens"] = total or (inp + out)
+            result["usage_events"] = max(1, len(agent_turns))
+            return result
+
+        count = 0
+        for step in agent_turns:
+            values = step.get("usage")
+            if not isinstance(values, dict):
+                continue
+            count += 1
+            inp = int(values.get("input_tokens", 0) or 0)
+            cached = int(values.get("cache_read_tokens", 0) or 0)
+            out = int(values.get("output_tokens", 0) or 0)
+            reasoning = int(values.get("thinking_tokens", 0) or 0)
+            total = int(values.get("total_tokens", 0) or 0)
+            result["input_tokens"] += inp
+            result["cached_input_tokens"] += cached
+            result["uncached_input_tokens"] += max(0, inp - cached)
+            result["output_tokens"] += out
+            result["reasoning_output_tokens"] += reasoning
+            result["total_tokens"] += total or (inp + out)
+        result["usage_events"] = count
+        return result
+
+    result = {
+        key: 0
+        for key in (
+            "input_tokens",
+            "cached_input_tokens",
+            "uncached_input_tokens",
+            "output_tokens",
+            "reasoning_output_tokens",
+        )
+    }
     count = 0
     for event in events:
-        if event.get("type") != "turn.completed" or not isinstance(event.get("usage"), dict):
+        if event.get("type") != "turn.completed" or not isinstance(
+            event.get("usage"), dict
+        ):
             continue
         count += 1
         values = event["usage"]
@@ -1999,8 +2147,10 @@ def usage(events: list[dict[str, Any]]) -> dict[str, Any]:
                 result[key] += values[key]
         if not isinstance(values.get("uncached_input_tokens"), int):
             result["uncached_input_tokens"] += max(
-                0, int(values.get("input_tokens", 0) or 0)
-                - int(values.get("cached_input_tokens", 0) or 0))
+                0,
+                int(values.get("input_tokens", 0) or 0)
+                - int(values.get("cached_input_tokens", 0) or 0),
+            )
     result["usage_events"] = count
     return result
 
@@ -2054,12 +2204,19 @@ def bootstrap_evidence(
     timed_out: bool,
     events: list[dict[str, Any]],
     commands_seen: list[dict[str, Any]],
+    *,
+    backend: str = DEFAULT_BACKEND,
 ) -> dict[str, Any]:
     normalized_reason: str | None = None
     if "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted" in stderr:
         normalized_reason = "sandbox_bootstrap_network_namespace_unavailable"
     elif "sandbox helper failed" in stderr:
         normalized_reason = "sandbox_bootstrap_helper_failed"
+    elif (
+        "connecting to sandbox server: read unix @->@: recvmsg: connection reset by peer"
+        in stderr
+    ):
+        normalized_reason = "sandbox_server_connection_reset"
     elif not events and not commands_seen:
         normalized_reason = "no_child_events_or_tool_boundary"
 
@@ -2072,14 +2229,23 @@ def bootstrap_evidence(
     else:
         classification = "infrastructure_failure"
 
+    has_completion = False
+    if any(event.get("type") == "turn.completed" for event in events):
+        has_completion = True
+    elif any(
+        event.get("event") == "result"
+        and isinstance(event.get("result"), dict)
+        and event["result"].get("status") == "SUCCESS"
+        for event in events
+    ):
+        has_completion = True
+
     return {
         "classification": classification,
         "child_exit_code": exit_code,
         "tool_event_count": len(commands_seen),
         "reached_tool_boundary": bool(commands_seen),
-        "normal_task_completion_event": bool(commands_seen) and any(
-            event.get("type") == "turn.completed" for event in events
-        ),
+        "normal_task_completion_event": bool(commands_seen) and has_completion,
         "normalized_reason": normalized_reason,
         "stderr_sha256": sha(stderr.encode("utf-8")),
         "stderr_bytes": len(stderr.encode("utf-8")),
@@ -2870,6 +3036,8 @@ def grade(
     commands_seen: list[dict[str, Any]],
     reference: dict[str, Any] | None = None,
     trusted_enforcement: dict[str, Any] | None = None,
+    *,
+    fixture_mode: str = "git",
 ) -> dict[str, Any]:
     reference_ok = (
         reference is not None
@@ -2880,7 +3048,9 @@ def grade(
         reference_ok and _trusted_enforcement_valid(trusted_enforcement, reference)
     )
     compliance = compliance_observation(
-        commands_seen, enforcement_evidence=enforcement_ok
+        commands_seen,
+        enforcement_evidence=enforcement_ok,
+        fixture_mode=fixture_mode,
     )
     forbidden = compliance["forbidden_operations"]
     if task == "code-repair":
@@ -3118,7 +3288,7 @@ def grade(
 
 
 def trial(
-    codex: Path,
+    worker: Path,
     python: Path,
     root: Path,
     task: str,
@@ -3128,6 +3298,11 @@ def trial(
     retained_artifacts: dict[str, Any],
     raw: Path,
     timeout: int,
+    *,
+    backend: str = DEFAULT_BACKEND,
+    model: str | None = None,
+    effort: str | None = None,
+    fixture_mode: str = "git",
 ) -> dict[str, Any]:
     verify_retained_artifacts(retained_artifacts)
     environment = env_for(python)
@@ -3138,13 +3313,54 @@ def trial(
             raise RuntimeError("staged trial is missing its installed Skill root")
         environment["AGENT_POLICY_SKILL_ROOT"] = runtime_root
     environment["POLICY_EXPERIMENT_TRACE"] = str(root / ".experiment-trace")
-    argv = [str(codex), "exec", "--ephemeral", "--json", "--sandbox", "workspace-write",
-            "--model", MODEL, "-c", f"model_reasoning_effort={EFFORT}",
-            "--cd", str(root), TASK_PROMPTS[task]]
+
+    if backend == "agy":
+        model_name = model or DEFAULT_AGY_MODEL
+        effort_level = effort or DEFAULT_AGY_EFFORT
+        argv = [
+            str(worker),
+            "--print",
+            TASK_PROMPTS[task],
+            "--output-format",
+            "stream-json",
+            "--mode",
+            "accept-edits",
+            "--model",
+            model_name,
+            "--effort",
+            effort_level,
+            "--sandbox",
+        ]
+    else:
+        model_name = model or DEFAULT_CODEX_MODEL
+        effort_level = effort or DEFAULT_CODEX_EFFORT
+        argv = [
+            str(worker),
+            "exec",
+            "--ephemeral",
+            "--json",
+            "--sandbox",
+            "workspace-write",
+            "--model",
+            model_name,
+            "-c",
+            f"model_reasoning_effort={effort_level}",
+            "--cd",
+            str(root),
+            TASK_PROMPTS[task],
+        ]
+
     started = time.monotonic()
     try:
-        result = subprocess.run(argv, cwd=root, env=environment, capture_output=True,
-                                text=True, timeout=timeout, check=False)
+        result = subprocess.run(
+            argv,
+            cwd=root,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
         stdout = result.stdout
         stderr = result.stderr
         exit_code, timed_out = result.returncode, False
@@ -3155,36 +3371,70 @@ def trial(
     raw.write_text(stdout, encoding="utf-8")
     raw.with_suffix(".stderr").write_text(stderr, encoding="utf-8")
     events = parse_events(stdout)
-    seen = commands(events)
-    return {"condition": condition, "task": task,
-            "prompt_sha256": sha(TASK_PROMPTS[task].encode()),
-            "fixture_sha256": stable(manifest), "agent_exit_code": exit_code,
-            "timed_out": timed_out,
-            "wall_time_ms": round((time.monotonic() - started) * 1000),
-            "usage": usage(events), "turns": sum(e.get("type") == "turn.completed" for e in events),
-            "tool_calls": len(seen),
-            "failed_tool_calls": sum(e.get("exit_code") not in (0, None) for e in seen),
-            "bootstrap_evidence": bootstrap_evidence(
-                stderr, exit_code, timed_out, events, seen
-            ),
-            "guidance": guidance(seen, trial_manifest),
-            "grader": grade(task, root, seen, reference),
-            "delivery_manifest": trial_manifest,
-            "raw_log": raw.name}
+    seen = commands(events, backend=backend)
+    turns = (
+        sum(
+            e.get("event") == "step_update"
+            and isinstance(e.get("step_update"), dict)
+            and e["step_update"].get("step_type") == "agent_response"
+            and e["step_update"].get("state") == "DONE"
+            for e in events
+        )
+        if backend == "agy"
+        else sum(e.get("type") == "turn.completed" for e in events)
+    )
+    return {
+        "condition": condition,
+        "task": task,
+        "backend": backend,
+        "prompt_sha256": sha(TASK_PROMPTS[task].encode()),
+        "fixture_sha256": stable(manifest),
+        "agent_exit_code": exit_code,
+        "timed_out": timed_out,
+        "wall_time_ms": round((time.monotonic() - started) * 1000),
+        "usage": usage(events, backend=backend),
+        "turns": turns,
+        "tool_calls": len(seen),
+        "failed_tool_calls": sum(e.get("exit_code") not in (0, None) for e in seen),
+        "bootstrap_evidence": bootstrap_evidence(
+            stderr, exit_code, timed_out, events, seen, backend=backend
+        ),
+        "guidance": guidance(seen, trial_manifest),
+        "grader": grade(
+            task,
+            root,
+            seen,
+            reference,
+            fixture_mode=fixture_mode,
+        ),
+        "delivery_manifest": trial_manifest,
+        "raw_log": raw.name,
+    }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--provider-root", type=Path, required=True)
     parser.add_argument("--runtime-requirements", type=Path, required=True)
-    parser.add_argument("--codex", type=Path, default=Path("/home/ubuntu/.local/bin/codex"))
+    parser.add_argument(
+        "--backend", choices=("agy", "codex"), default=DEFAULT_BACKEND
+    )
+    parser.add_argument("--agy", type=Path, default=DEFAULT_AGY_BIN)
+    parser.add_argument("--codex", type=Path, default=DEFAULT_CODEX_BIN)
+    parser.add_argument("--model", type=str, default=None)
+    parser.add_argument("--effort", type=str, default=None)
+    parser.add_argument(
+        "--fixture-mode", choices=("git", "non-git"), default="git"
+    )
     parser.add_argument("--work-root", type=Path, required=True)
     parser.add_argument("--record", type=Path, required=True)
     parser.add_argument("--revision", required=True)
     parser.add_argument("--timeout", type=int, default=300)
     args = parser.parse_args()
-    provider, requirements, work = (p.resolve() for p in
-                                    (args.provider_root, args.runtime_requirements, args.work_root))
+    provider, requirements, work = (
+        p.resolve()
+        for p in (args.provider_root, args.runtime_requirements, args.work_root)
+    )
     provider_binding = verify_provider_root(provider, args.revision)
     work.mkdir(parents=True, exist_ok=True)
     (work / "raw").mkdir(exist_ok=True)
@@ -3193,7 +3443,9 @@ def main() -> int:
     )
     retained_provider = Path(retained["provider_root"])
     retained_requirements = Path(retained["runtime_requirements"])
-    actual_wheel, built_binding = build_candidate_wheel(retained, Path(sys.executable))
+    actual_wheel, built_binding = build_candidate_wheel(
+        retained, Path(sys.executable)
+    )
     wheel_binding = verify_wheel_candidate(
         actual_wheel,
         retained_provider,
@@ -3210,10 +3462,22 @@ def main() -> int:
             retained,
             wheel_binding,
         )
-    pairs = (("generated-artifact", "A"), ("generated-artifact", "C"),
-             ("code-repair", "A"), ("code-repair", "C"),
-             ("review-preparation", "A"), ("review-preparation", "C"))
+    pairs = (
+        ("generated-artifact", "A"),
+        ("generated-artifact", "C"),
+        ("code-repair", "A"),
+        ("code-repair", "C"),
+        ("review-preparation", "A"),
+        ("review-preparation", "C"),
+    )
     trials = []
+    worker_bin = args.agy if args.backend == "agy" else args.codex
+    selected_model = args.model or (
+        DEFAULT_AGY_MODEL if args.backend == "agy" else DEFAULT_CODEX_MODEL
+    )
+    selected_effort = args.effort or (
+        DEFAULT_AGY_EFFORT if args.backend == "agy" else DEFAULT_CODEX_EFFORT
+    )
     for index, (task, condition) in enumerate(pairs, 1):
         trial_id = f"{condition}{(index + 1) // 2}"
         root = work / "fixtures" / trial_id
@@ -3223,8 +3487,11 @@ def main() -> int:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(retained_provider / relative, destination)
         setup_task(root, task)
-        reference = prepare_task_reference(root, task, work / "references" / trial_id)
-        git_baseline(root)
+        reference = prepare_task_reference(
+            root, task, work / "references" / trial_id
+        )
+        if args.fixture_mode == "git":
+            git_baseline(root)
         python, identity = environments[condition]
         manifest = render_consumer(
             root,
@@ -3242,17 +3509,29 @@ def main() -> int:
                 continue
             relative = path.relative_to(root).as_posix()
             if relative.startswith(
-                ("source/", "generated/", "scripts/", "src/", "tests/", "candidate/")
+                (
+                    "source/",
+                    "generated/",
+                    "scripts/",
+                    "src/",
+                    "tests/",
+                    "candidate/",
+                )
             ):
                 task_files[relative] = sha(path.read_bytes())
-        manifest.update({"task_input_sha256": stable(task_files),
-                         "condition": condition, "candidate_revision": args.revision,
-                         "package_identity": identity,
-                         "reference_digest": reference["digest"],
-                         "retained_snapshot_sha256": retained["snapshot_sha256"]})
+        manifest.update(
+            {
+                "task_input_sha256": stable(task_files),
+                "condition": condition,
+                "candidate_revision": args.revision,
+                "package_identity": identity,
+                "reference_digest": reference["digest"],
+                "retained_snapshot_sha256": retained["snapshot_sha256"],
+            }
+        )
         trials.append(
             trial(
-                args.codex.resolve(),
+                worker_bin.resolve(),
                 python,
                 root,
                 task,
@@ -3262,39 +3541,59 @@ def main() -> int:
                 retained,
                 work / "raw" / f"{trial_id}.jsonl",
                 args.timeout,
+                backend=args.backend,
+                model=selected_model,
+                effort=selected_effort,
+                fixture_mode=args.fixture_mode,
             )
         )
-    report = {"schema_version": 2, "study": "matched-clean-consumer-policy-delivery",
-              "candidate": {"revision": args.revision, "wheel": actual_wheel.name,
-                            "wheel_sha256": wheel_binding["wheel_sha256"],
-                            "wheel_binding": wheel_binding, "python": sys.version,
-                            "provider": provider_binding,
-                            "retained_artifacts": {
-                                "snapshot_sha256": retained["snapshot_sha256"],
-                                "source_manifest_sha256": stable(retained["source_manifest"]),
-                                "file_count": len(retained["files"]),
-                                "built_wheel": built_binding,
-                            },
-                            "codex_cli": run(
-                                [str(args.codex), "--version"], retained_provider
-                            ).stdout.strip(),
-                            "model": MODEL, "reasoning_effort": EFFORT,
-                            "condition_B": (
-                                "not run; A/B host inclusion was not independently "
-                                "distinguishable"
-                            )},
-              "conditions": {"A": "ordinary agents-md full-text output",
-                             "C": (
-                                 "opt-in agents-md-staged with authenticated detail "
-                                 "bundle and policy-guidance"
-                             )},
-              "execution_order": [f"{condition}{(i + 1) // 2}" for i, (_, condition)
-                                  in enumerate(pairs, 1)],
-              "trials": trials,
-              "limitations": ["Exact prompt assembly is not exposed by the host.",
-                              "Guidance token counts are not inferred from UTF-8 bytes.",
-                              "n=3 matched pairs cannot establish universal or "
-                              "statistical performance."]}
+    worker_cli_version = run(
+        [str(worker_bin), "--version"], retained_provider
+    ).stdout.strip()
+    report = {
+        "schema_version": 2,
+        "study": "matched-clean-consumer-policy-delivery",
+        "candidate": {
+            "revision": args.revision,
+            "wheel": actual_wheel.name,
+            "wheel_sha256": wheel_binding["wheel_sha256"],
+            "wheel_binding": wheel_binding,
+            "python": sys.version,
+            "provider": provider_binding,
+            "retained_artifacts": {
+                "snapshot_sha256": retained["snapshot_sha256"],
+                "source_manifest_sha256": stable(retained["source_manifest"]),
+                "file_count": len(retained["files"]),
+                "built_wheel": built_binding,
+            },
+            "backend": args.backend,
+            "worker_cli": worker_cli_version,
+            "codex_cli": worker_cli_version if args.backend == "codex" else None,
+            "agy_cli": worker_cli_version if args.backend == "agy" else None,
+            "model": selected_model,
+            "reasoning_effort": selected_effort,
+            "fixture_mode": args.fixture_mode,
+            "condition_B": (
+                "not run; A/B host inclusion was not independently distinguishable"
+            ),
+        },
+        "conditions": {
+            "A": "ordinary agents-md full-text output",
+            "C": (
+                "opt-in agents-md-staged with authenticated detail bundle and policy-guidance"
+            ),
+        },
+        "execution_order": [
+            f"{condition}{(i + 1) // 2}"
+            for i, (_, condition) in enumerate(pairs, 1)
+        ],
+        "trials": trials,
+        "limitations": [
+            "Exact prompt assembly is not exposed by the host.",
+            "Guidance token counts are not inferred from UTF-8 bytes.",
+            "n=3 matched pairs cannot establish universal or statistical performance.",
+        ],
+    }
     args.record.parent.mkdir(parents=True, exist_ok=True)
     args.record.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n",
                            encoding="utf-8")
