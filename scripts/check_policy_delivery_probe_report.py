@@ -164,7 +164,39 @@ def check_probe_report(root: Path = ROOT) -> dict[str, Any]:
             "probe qualified_network_enforcement status must be 'NOT_ESTABLISHED'"
         )
 
-    # 5. P1 — C3 Evidence Verification (Must match retained view_file; no command execution claim)
+    # 5. P1 — C3 Structured Evidence Verification
+    probe_exec = probe_data.get("probe_execution", {})
+    if probe_exec.get("tool_action_executed") != "view_file":
+        raise ProbeReportConsistencyError(
+            f"probe tool_action_executed ({probe_exec.get('tool_action_executed')}) != 'view_file'"
+        )
+    params = probe_exec.get("tool_action_parameters", {})
+    if params.get("AbsolutePath") != "/tmp/test.txt":
+        target = params.get("AbsolutePath")
+        raise ProbeReportConsistencyError(
+            f"probe tool_action_parameters.AbsolutePath ({target}) != '/tmp/test.txt'"
+        )
+    if probe_exec.get("exit_code") != 0:
+        raise ProbeReportConsistencyError(
+            f"probe exit_code ({probe_exec.get('exit_code')}) != 0"
+        )
+    if probe_exec.get("initial_workspace_file") != "/tmp/test.txt":
+        init_file = probe_exec.get("initial_workspace_file")
+        raise ProbeReportConsistencyError(
+            f"probe initial_workspace_file ({init_file}) != '/tmp/test.txt'"
+        )
+    init_sha = probe_exec.get("initial_workspace_file_sha256")
+    final_sha = probe_exec.get("final_workspace_file_sha256")
+    if not isinstance(init_sha, str) or len(init_sha) != 64:
+        raise ProbeReportConsistencyError("probe initial_workspace_file_sha256 missing or invalid")
+    if not isinstance(final_sha, str) or len(final_sha) != 64:
+        raise ProbeReportConsistencyError("probe final_workspace_file_sha256 missing or invalid")
+    if init_sha != final_sha:
+        raise ProbeReportConsistencyError(
+            f"probe initial SHA ({init_sha}) != final SHA ({final_sha}); "
+            "read-only probe modified file"
+        )
+
     probe_c = probe_data.get("capability_probe", {})
     c3_probe_evidence = probe_c.get("C3_harmless_workspace_action", {}).get("evidence", "")
     if "command execution" in c3_probe_evidence or "run_command" in c3_probe_evidence:
