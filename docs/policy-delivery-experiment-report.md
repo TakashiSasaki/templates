@@ -13,7 +13,7 @@ This durable repository report records the completed experiment phase for the st
 
 > «Can the normal full-text Policy instruction delivery be replaced, for a selected coding-agent workflow, by a substantially smaller startup "AGENTS.md" plus authenticated on-demand "policy-guidance", while preserving task correctness and reducing whole-task cost?»
 
-Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`, PRs #997–#1002 merged), the baseline and execution protocol were frozen in [`docs/policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json). The Phase 2 capability qualification probe evaluated criteria C1–C8 against a disposable Git fixture. All eight criteria were **`NOT_ESTABLISHED`**, yielding a capability decision of **`NOT_QUALIFIED`**. Under the predeclared stopping rule, matched model trials were not authorized to run. The whole-task-cost classification remains **`NOT_ESTABLISHED`**.
+Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`, PRs #997–#1002 merged) and the implementation of the real Google Anti-Gravity (`agy`) worker backend (PR #1004), the baseline and execution protocol were frozen in [`docs/policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json). The Phase 2 capability qualification probe evaluated criteria C1–C9 with `agy`. Criteria C1, C2, C3, C4, and C9 were **`ESTABLISHED`**, C6 was **`NOT_APPLICABLE`** (evaluated against a non-Git fixture), and C5, C7, and C8 were **`NOT_ESTABLISHED`** due to the lack of kernel-level sandbox and network isolation on this host. This yielded a capability decision of **`NOT_QUALIFIED`**. Under the predeclared stopping rule, matched model trials were not authorized to run. The whole-task-cost classification remains **`NOT_ESTABLISHED`**.
 
 ---
 
@@ -21,10 +21,11 @@ Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`
 
 - **Exact `policy` Baseline Revision**: [`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`](https://github.com/TakashiSasaki/templates/commit/ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa)
 - **Candidate Provider Tree**: `a5a934b20de544a698eae318fd478c62815e0399`
-- **Machine-Readable Baseline Plan**: [`docs/policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json) (SHA-256: `f30daf31052a7bb92d060edcf1111e6d644239725978b9b5189610128e079bd4`)
-- **Machine-Readable Evidence Report**: [`docs/policy-delivery-experiment-report.json`](policy-delivery-experiment-report.json)
+- **Machine-Readable Baseline Plan**: [`docs/policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json) (SHA-256: `b853ce4ddc3cea132418e9665e9963c50e58381faf34144acd06d50010c61fb0`)
+- **Machine-Readable Capability Probe Record**: [`docs/policy-delivery-capability-probe.json`](policy-delivery-capability-probe.json) (SHA-256: `18ae7be12f85cfc9e18c6310d28284a62470ddb405344ae94e5adb168d4472d0`)
+- **Machine-Readable Evidence Report**: [`docs/policy-delivery-experiment-report.json`](policy-delivery-experiment-report.json) (SHA-256: `b574a241a0b70d000ef2a76e3646f7d3b31dc7a1b452c75cc91b7cb436b21ca5`)
 - **Evaluator Source Identity**:
-  - `scripts/run_matched_policy_delivery_experiment.py` (SHA-256: `4e38851dc6608d2a4d59bd7fce0cbbeffe9715842bd205854e8a1308d8d739ac`)
+  - `scripts/run_matched_policy_delivery_experiment.py` (SHA-256: `b36eaa3a6c007a43e520ece2c581b34f006a5f8535345752ab5d42da797ef6c3`)
 - **Evidence Specification & Checkers**:
   - `scripts/policy_delivery_evidence_spec.py` (SHA-256: `f64185a722afe2fb0ba8e55df96b750067465e7e809067ef9c2f61d676347d51`)
   - `scripts/check_policy_delivery_spec.py` (SHA-256: `2fc1b1adb31eba427729218c03c7c35e5f6a27795651d0feb04693e793b34f1a`)
@@ -40,30 +41,32 @@ Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`
 ## 3. Execution Environment
 
 - **Coding Agent**: Google Anti-Gravity
-- **Model**: Gemini 3.8 Flash
-- **Thinking / Reasoning Effort**: Middle
-- **Sandbox Mode**: `workspace-write` / isolated disposable Git fixture
+- **Worker Backend**: `agy` (CLI v1.2.8)
+- **Model**: Gemini 3.8 Flash (`gemini-3.8-flash-medium`)
+- **Thinking / Reasoning Effort**: Middle (`medium`)
+- **Sandbox Mode**: `--sandbox` (terminal restrictions enabled) / non-Git disposable fixture
 - **Permissions**: Existing host permissions; no global setting changes; no dangerous bypass
 - **Network Policy**: Enforced local only; no network access permitted
 
 ---
 
-## 4. Capability Qualification Results (C1–C8)
+## 4. Capability Qualification Results (C1–C9)
 
-A bounded execution and enforcement probe was run against a disposable Git repository fixture:
+A bounded execution and enforcement probe was run using the qualified `agy` backend against a disposable fixture:
 
 | ID | Capability Requirement | Status | Concrete Evidence Basis |
 | :--- | :--- | :--- | :--- |
-| **C1** | Can the worker start normally? | `NOT_ESTABLISHED` | Worker CLI bootstrap failed. Codex CLI fails immediately at startup turn due to exhausted usage limit (`https://chatgpt.com/codex/settings/usage`) and Linux container sandbox unavailability (`bwrap: loopback: Failed RTM_NEWADDR`); host lacks standalone non-interactive CLI runner for Anti-Gravity/Gemini conforming to evaluator command stream. |
-| **C2** | Can it reach the intended tool/workspace boundary? | `NOT_ESTABLISHED` | Worker process failed before emitting structured tool command events; tool/workspace boundary was not reached in disposable fixture. |
-| **C3** | Can it perform one harmless local workspace action? | `NOT_ESTABLISHED` | No autonomous tool action executed in the fixture. |
-| **C4** | Can the evaluator observe that action? | `NOT_ESTABLISHED` | Evaluator command-event collector received no structured events. |
-| **C5** | Can opaque worker execution be covered by a trusted enforcement boundary? | `NOT_ESTABLISHED` | Host lacks kernel-level sandbox/supervisor (no unprivileged user namespaces, no bwrap, no seccomp/eBPF) to intercept and enforce opaque worker execution. |
-| **C6** | Can control-plane integrity be established independently of worker text? | `NOT_ESTABLISHED` | Host lacks independent filesystem/audit boundary to verify Git control-plane paths (`.git/config`, hooks, refs) independently of worker self-report. |
-| **C7** | Can the required network policy be independently established? | `NOT_ESTABLISHED` | Host lacks per-process network namespace or firewall isolation to independently enforce network absence. |
-| **C8** | Can those enforcement facts be bound to the exact same trial/reference identity? | `NOT_ESTABLISHED` | Without C5–C7, no trusted enforcement witness conforming to `policy-worker-boundary-v1` with trial ID and reference digest can be produced. |
+| **C1** | Can the worker start normally? | `ESTABLISHED` | Worker CLI bootstrapped normally. Google Anti-Gravity CLI (`agy` v1.2.8) executed non-interactively using `--print` with model `gemini-3.8-flash-medium` and reasoning effort `medium`, exiting with code 0. |
+| **C2** | Can it reach the intended tool/workspace boundary? | `ESTABLISHED` | Worker successfully reached the tool/workspace boundary in disposable fixtures, emitting structured `step_update` tool events in `stream-json` output format. |
+| **C3** | Can it perform one harmless local workspace action? | `ESTABLISHED` | Worker successfully performed harmless local workspace actions (`view_file` on workspace files and `run_command` executing local echo commands). |
+| **C4** | Can the evaluator observe that action? | `ESTABLISHED` | Evaluator command-event collector observed and verified structured tool events, parameters, exit codes, and output bytes from `agy` `stream-json` output. |
+| **C5** | Can opaque worker execution be covered by a trusted enforcement boundary? | `NOT_ESTABLISHED` | Host environment lacks an active sandbox supervisor (connecting to sandbox server returns `read unix @->@: recvmsg: connection reset by peer`), requiring sandbox bypass for execution; host lacks kernel-level unprivileged user namespaces, bwrap, or seccomp syscall supervision to intercept and enforce opaque worker execution. |
+| **C6** | Can control-plane integrity be established independently of worker text? | `NOT_APPLICABLE` | Evaluated in non-Git fixture mode where Git control plane integrity is not applicable; in Git fixture mode, host lacks independent filesystem integrity monitoring for `.git` control plane mutations. |
+| **C7** | Can the required network policy be independently established? | `NOT_ESTABLISHED` | Host environment lacks per-process kernel network namespace or firewall isolation to independently enforce network absence during worker execution. Headless application-level permission rejection does not constitute kernel-level network enforcement. |
+| **C8** | Can those enforcement facts be bound to the exact same trial/reference identity? | `NOT_ESTABLISHED` | Because C5 and C7 cannot be established, no trusted enforcement witness conforming to `policy-worker-boundary-v1` bound to the exact trial ID and reference digest can be produced. |
+| **C9** | Can whole-task cost / token usage be observed? | `ESTABLISHED` | `agy` `stream-json` exposes complete whole-task token usage in its final `result` event (`input_tokens`, `output_tokens`, `thinking_tokens`, `cache_read_tokens`, `total_tokens`). |
 
-**Capability Decision**: **`NOT_QUALIFIED`** (Missing facts: C1, C2, C3, C4, C5, C6, C7, C8).
+**Capability Decision**: **`NOT_QUALIFIED`** (Missing facts: C5, C7, C8).
 
 ---
 
@@ -110,7 +113,7 @@ All cost metrics are explicitly **`UNAVAILABLE`** because no matched model trial
 **`NOT_ESTABLISHED`**
 
 **Rationale**:
-1. Trial validity could not be established due to lack of trusted enforcement capability (C1–C8 `NOT_ESTABLISHED`).
+1. Trial validity could not be established due to lack of trusted enforcement capability (C5, C7, C8 `NOT_ESTABLISHED`).
 2. Valid matched pairs = 0.
 3. In accordance with the decision hierarchy (1. trial validity → 2. task correctness → 3. policy/compliance evidence → 4. whole-task cost), cost cannot be evaluated when validity is unestablished.
 
@@ -118,10 +121,8 @@ All cost metrics are explicitly **`UNAVAILABLE`** because no matched model trial
 
 ## 9. Limitations and Residual Uncertainty
 
-1. **Host Sandbox Restrictions**: The host Linux container environment lacks unprivileged user namespace / loopback configuration privileges, causing bubblewrap (`bwrap`) to fail.
-2. **Quota Exhaustion**: External Codex CLI quota is exhausted until Sep 25, 2026.
-3. **Runner Interface**: The Google Anti-Gravity / Gemini environment currently lacks an external standalone non-interactive CLI runner interface that connects directly to `scripts/run_matched_policy_delivery_experiment.py`'s JSONL event stream.
-4. **Enforcement Boundary**: Without an independent trusted enforcement supervisor (covering opaque Python execution, Git control-plane integrity, and network isolation), worker compliance remains `UNKNOWN` under the evaluator's strict evidence contract.
+1. **Host Sandbox and Network Isolation**: The host Linux container environment lacks an active sandbox supervisor (connection reset on unix socket) and kernel-level network namespace/firewall isolation.
+2. **Enforcement Boundary**: Without an independent trusted enforcement supervisor (covering opaque worker execution and network isolation), worker compliance remains `UNKNOWN` under the evaluator's strict evidence contract.
 
 ---
 
@@ -130,7 +131,7 @@ All cost metrics are explicitly **`UNAVAILABLE`** because no matched model trial
 - **Default Renderer**: Unchanged. Full-text `agents-md` remains the default.
 - **Staged Delivery Adoption**: None. Staged delivery remains opt-in and unadopted.
 - **Authority / Publication Pins**: No downstream repin, promotion, or deployment was performed.
-- **Git State**: No direct mutation was made to `policy`. All changes are isolated in a pull request.
+- **Git State**: No direct mutation was made to `policy`. All changes are isolated in a stacked pull request.
 
 ---
 
@@ -140,10 +141,10 @@ All cost metrics are explicitly **`UNAVAILABLE`** because no matched model trial
 
 The user explicitly authorized proceeding without an additional automated Codex review due to exhausted quota. The review gate was replaced by the manual exact-head qualification packet:
 1. Changed-file/scope audit: Changes strictly confined to documentation and evidence files (`docs/policy-delivery-experiment-baseline.json`, `docs/policy-delivery-capability-probe.json`, `docs/policy-delivery-experiment-report.json`, `docs/policy-delivery-experiment-report.md`, `docs/policy-delivery-matched-experiment.md`).
-2. Requirement-to-evidence audit: All C1–C8 criteria evaluated with concrete host evidence.
+2. Requirement-to-evidence audit: All C1–C9 criteria evaluated with concrete host evidence.
 3. Sibling/negative-control audit: Verified consistency checkers reject stale or tampered projections.
-4. Focused tests & preflight: Local `run_policy_preflight.py` passed (595 tests, compile, lint, focused tests, evidence consistency, self-check).
-5. Exact-head CI: All 8 GitHub Actions checks passed on PR #1003.
+4. Focused tests & preflight: Local `run_policy_preflight.py` passed (600 tests, compile, lint, focused tests, evidence consistency, self-check).
+5. Exact-head CI: Verified via GitHub Actions checks.
 
 ---
 

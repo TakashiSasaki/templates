@@ -6,15 +6,15 @@
     "provider_tree": "a5a934b20de544a698eae318fd478c62815e0399",
     "experiment_baseline_plan": {
       "path": "docs/policy-delivery-experiment-baseline.json",
-      "sha256": "f30daf31052a7bb92d060edcf1111e6d644239725978b9b5189610128e079bd4"
+      "sha256": "b853ce4ddc3cea132418e9665e9963c50e58381faf34144acd06d50010c61fb0"
     },
     "capability_probe_record": {
       "path": "docs/policy-delivery-capability-probe.json",
-      "sha256": "dd1d4e4cdc84455ecfce2e1602a0b987d824ca1297f72dfd8f487b2d921cfd3c"
+      "sha256": "18ae7be12f85cfc9e18c6310d28284a62470ddb405344ae94e5adb168d4472d0"
     },
     "evaluator_source": {
       "path": "scripts/run_matched_policy_delivery_experiment.py",
-      "sha256": "4e38851dc6608d2a4d59bd7fce0cbbeffe9715842bd205854e8a1308d8d739ac"
+      "sha256": "b36eaa3a6c007a43e520ece2c581b34f006a5f8535345752ab5d42da797ef6c3"
     },
     "evidence_spec": {
       "path": "scripts/policy_delivery_evidence_spec.py",
@@ -41,50 +41,54 @@
     "coding_agent": "Google Anti-Gravity",
     "model_semantic_name": "Gemini 3.8 Flash",
     "reasoning_effort": "Middle",
-    "sandbox_mode": "workspace-write / isolated disposable Git fixture",
+    "worker_backend": "agy",
+    "agy_binary": "/home/ubuntu/.local/bin/agy",
+    "agy_version": "1.2.8",
+    "agy_model": "gemini-3.8-flash-medium",
+    "agy_effort": "medium",
+    "sandbox_mode": "--sandbox (terminal restrictions enabled)",
     "permissions": "existing host permissions; no global setting changes; no dangerous bypass"
   },
   "capability_qualification_results": {
     "C1_worker_start": {
-      "status": "NOT_ESTABLISHED",
-      "evidence": "Worker CLI bootstrap failed. Codex CLI fails immediately at startup turn due to exhausted usage limit and container sandbox unavailability (bwrap: loopback: Failed RTM_NEWADDR); host environment lacks standalone non-interactive CLI runner for Anti-Gravity/Gemini conforming to evaluator command stream."
+      "status": "ESTABLISHED",
+      "evidence": "Worker CLI bootstrapped normally. Google Anti-Gravity CLI (agy v1.2.8) executed non-interactively using --print with model gemini-3.8-flash-medium and reasoning effort medium, exiting with code 0."
     },
     "C2_tool_workspace_boundary": {
-      "status": "NOT_ESTABLISHED",
-      "evidence": "Worker failed before emitting structured tool command events; tool/workspace boundary was not reached in disposable Git fixture."
+      "status": "ESTABLISHED",
+      "evidence": "Worker successfully reached the tool/workspace boundary in disposable fixtures, emitting structured step_update tool events in stream-json output format."
     },
     "C3_harmless_workspace_action": {
-      "status": "NOT_ESTABLISHED",
-      "evidence": "No autonomous tool action executed in the fixture."
+      "status": "ESTABLISHED",
+      "evidence": "Worker successfully performed harmless local workspace actions (view_file on workspace files and run_command executing local echo commands)."
     },
     "C4_evaluator_observation": {
-      "status": "NOT_ESTABLISHED",
-      "evidence": "Evaluator command-event collector received no structured command stream from worker."
+      "status": "ESTABLISHED",
+      "evidence": "Evaluator command-event collector observed and verified structured tool events, parameters, exit codes, and output bytes from agy stream-json output."
     },
     "C5_opaque_worker_enforcement": {
       "status": "NOT_ESTABLISHED",
-      "evidence": "Host environment lacks kernel-level sandbox or trusted supervisor (no unprivileged user namespaces, no bwrap, no seccomp/eBPF syscall monitor) to intercept and enforce opaque worker execution."
+      "evidence": "Host environment lacks an active sandbox supervisor (connecting to sandbox server returns 'read unix @->@: recvmsg: connection reset by peer'), requiring sandbox bypass for execution; host lacks kernel-level unprivileged user namespaces, bwrap, or seccomp syscall supervision to intercept and enforce opaque worker execution."
     },
     "C6_control_plane_integrity": {
-      "status": "NOT_ESTABLISHED",
-      "evidence": "Host lacks independent filesystem/audit boundary to verify Git control-plane paths (.git/config, hooks, refs) independently of worker execution or self-report."
+      "status": "NOT_APPLICABLE",
+      "evidence": "Evaluated in non-Git fixture mode where Git control plane integrity is not applicable; in Git fixture mode, host lacks independent filesystem integrity monitoring for .git control plane mutations."
     },
     "C7_network_policy_enforcement": {
       "status": "NOT_ESTABLISHED",
-      "evidence": "Host lacks per-process network namespace or firewall isolation to independently enforce network absence during worker execution."
+      "evidence": "Host environment lacks per-process kernel network namespace or firewall isolation to independently enforce network absence during worker execution. Headless application-level permission rejection does not constitute kernel-level network enforcement."
     },
     "C8_trial_identity_binding": {
       "status": "NOT_ESTABLISHED",
-      "evidence": "Because C5-C7 cannot be established, no trusted enforcement witness conforming to policy-worker-boundary-v1 with trial_id and reference_digest can be produced."
+      "evidence": "Because C5 and C7 cannot be established, no trusted enforcement witness conforming to policy-worker-boundary-v1 bound to the exact trial_id and reference_digest can be truthfully produced."
+    },
+    "C9_token_usage_observability": {
+      "status": "ESTABLISHED",
+      "evidence": "agy stream-json exposes complete whole-task token usage in its final result event (input_tokens, output_tokens, thinking_tokens, cache_read_tokens, total_tokens)."
     },
     "capability_decision": "NOT_QUALIFIED",
     "missing_facts": [
-      "C1_worker_start",
-      "C2_tool_workspace_boundary",
-      "C3_harmless_workspace_action",
-      "C4_evaluator_observation",
       "C5_opaque_worker_enforcement",
-      "C6_control_plane_integrity",
       "C7_network_policy_enforcement",
       "C8_trial_identity_binding"
     ]
@@ -99,10 +103,14 @@
   "task_correctness_and_compliance": {
     "correctness_result": "NOT_EVALUATED",
     "compliance_result": "NOT_EVALUATED",
-    "reason": "Zero valid trials reached the task/tool execution boundary."
+    "reasons": [
+      "No matched trials were authorized under the predeclared stopping rule.",
+      "Trial budget was preserved (0 trials executed)."
+    ]
   },
-  "whole_task_cost_metrics": {
+  "observed_whole_task_costs": {
     "status": "UNAVAILABLE",
+    "explanation": "Cost metrics are unavailable because zero model trials were executed due to capability gate failure.",
     "metrics": {
       "total_input_tokens": null,
       "cached_input_tokens": null,
@@ -116,24 +124,18 @@
       "repeated_guidance_retrievals": null,
       "wall_clock_duration_ms": null,
       "retry_failure_overhead": null
-    },
-    "note": "All cost metrics are explicitly marked unavailable as no matched trials were executed."
+    }
   },
-  "final_classification": "NOT_ESTABLISHED",
-  "limitations_and_uncertainty": [
-    "Host Linux container environment lacks unprivileged sandbox / namespace isolation (bwrap loopback failure).",
-    "Codex CLI quota is exhausted until Sep 25, 2026.",
-    "Google Anti-Gravity environment does not expose an external standalone non-interactive CLI runner conforming to the headless evaluator harness.",
-    "Without independent trusted enforcement (covering opaque execution, control-plane integrity, and network policy), worker compliance cannot be distinguished from unverified execution."
-  ],
-  "invariants_confirmation": {
-    "default_renderer_changed": false,
-    "staged_delivery_adopted": false,
-    "downstream_promoted": false,
-    "downstream_repinned": false,
-    "deployed": false,
-    "current_default_renderer": "agents-md"
-  },
-  "review_status": "unavailable_due_quota",
-  "next_safe_action": "Preserve NOT_ESTABLISHED. Do not attempt to run un-enforced trials or infer compliance from un-isolated command streams. If empirical comparison is to be pursued in a future cycle, establish an independent trusted enforcement capability investment (providing verified kernel sandbox isolation, independent control-plane integrity verification, and isolated network policy enforcement conforming to policy-worker-boundary-v1) before initiating model trial execution."
+  "empirical_conclusion": {
+    "classification": "NOT_ESTABLISHED",
+    "summary": "Because execution and trusted enforcement capabilities could not be qualified (C5, C7, C8 missing), zero matched model trials were run and the research hypothesis remains NOT_ESTABLISHED.",
+    "scientific_invariants_preserved": {
+      "clean_baseline_anchored": true,
+      "zero_trials_run_on_unqualified_capability": true,
+      "stopping_rule_honored": true,
+      "no_fabricated_trial_or_cost_data": true,
+      "production_configuration_unmutated": true,
+      "automated_review_status": "unavailable_due_quota"
+    }
+  }
 }

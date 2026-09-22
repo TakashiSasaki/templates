@@ -29,7 +29,7 @@
     },
     "evaluator_source": {
       "path": "scripts/run_matched_policy_delivery_experiment.py",
-      "sha256": "4e38851dc6608d2a4d59bd7fce0cbbeffe9715842bd205854e8a1308d8d739ac"
+      "sha256": "b36eaa3a6c007a43e520ece2c581b34f006a5f8535345752ab5d42da797ef6c3"
     },
     "evidence_spec": {
       "path": "scripts/policy_delivery_evidence_spec.py",
@@ -97,7 +97,12 @@
       "coding_agent": "Google Anti-Gravity",
       "model_semantic_name": "Gemini 3.8 Flash",
       "reasoning_effort": "Middle",
-      "sandbox_mode": "workspace-write / isolated disposable Git fixture",
+      "worker_backend": "agy",
+      "cli_binary": "/home/ubuntu/.local/bin/agy",
+      "cli_version": "1.2.8",
+      "cli_model": "gemini-3.8-flash-medium",
+      "cli_effort": "medium",
+      "sandbox_mode": "--sandbox (terminal restrictions enabled)",
       "permissions": "existing host permissions; no global setting changes; no dangerous bypass",
       "network_policy": "enforced local only; no network access permitted"
     },

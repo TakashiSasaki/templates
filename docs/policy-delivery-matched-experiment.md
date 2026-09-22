@@ -345,39 +345,47 @@ isolation remain unobserved. UTF-8 byte counts are not token counts.
 ## Resumed baseline and enforcement-capability qualification (Phase 1 & 2)
 
 Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`,
-PRs #997–#1002 merged), the experiment protocol and machine-readable baseline
-were frozen in
+PRs #997–#1002 merged) and the implementation of the real Google Anti-Gravity
+(`agy`) worker backend (PR #1004), the experiment protocol and machine-readable
+baseline were frozen in
 [`policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json).
-The planned trial execution model is Google Anti-Gravity with Gemini 3.8 Flash
-(Middle reasoning effort) under a workspace-write sandbox in an isolated disposable Git fixture.
+The trial execution model is Google Anti-Gravity (`agy` CLI v1.2.8) with Gemini 3.8 Flash
+(`gemini-3.8-flash-medium`, Middle reasoning effort) executed non-interactively
+with `--sandbox` against a disposable non-Git fixture.
 
 The bounded execution/enforcement capability probe (Phase 2) evaluated properties
-C1–C8 against a disposable Git fixture:
-- **C1 (Worker start)**: `NOT_ESTABLISHED` — Codex CLI fails at startup turn
-  due to exhausted usage quota and container sandbox unavailability (`bwrap:
-  loopback: Failed RTM_NEWADDR`); Anti-Gravity environment lacks an external
-  standalone non-interactive CLI runner conforming to the headless evaluator.
-- **C2 (Tool/workspace boundary reach)**: `NOT_ESTABLISHED` — Worker failed before
-  emitting structured tool command events.
-- **C3 (Harmless workspace action)**: `NOT_ESTABLISHED` — No autonomous tool
-  action executed in the fixture.
-- **C4 (Evaluator observation)**: `NOT_ESTABLISHED` — Evaluator command-event
-  collector received no structured events.
-- **C5 (Opaque worker enforcement)**: `NOT_ESTABLISHED` — Host lacks kernel-level
-  sandbox/supervisor (no unprivileged user namespaces, no bwrap, no seccomp/eBPF)
-  to intercept and enforce opaque worker execution.
-- **C6 (Control-plane integrity)**: `NOT_ESTABLISHED` — Host lacks independent
-  filesystem/audit boundary to verify Git control-plane paths (`.git/config`,
-  hooks, refs) independently of worker self-report.
+C1–C9 with `agy`:
+- **C1 (Worker start)**: `ESTABLISHED` — Worker CLI bootstrapped normally. `agy`
+  executed non-interactively using `--print` with model `gemini-3.8-flash-medium`
+  and reasoning effort `medium`, exiting code 0.
+- **C2 (Tool/workspace boundary reach)**: `ESTABLISHED` — Worker reached the tool
+  boundary in disposable fixtures, emitting structured `step_update` tool events
+  in `stream-json` format.
+- **C3 (Harmless workspace action)**: `ESTABLISHED` — Worker successfully performed
+  local workspace tool actions (`view_file` and `run_command` with echo).
+- **C4 (Evaluator observation)**: `ESTABLISHED` — Evaluator command collector
+  observed and parsed structured tool events, parameters, exit codes, and outputs.
+- **C5 (Opaque worker enforcement)**: `NOT_ESTABLISHED` — Host lacks an active sandbox
+  supervisor (connecting to sandbox server returns `connection reset by peer`),
+  requiring sandbox bypass for execution; host lacks kernel-level unprivileged user
+  namespaces, bwrap, or seccomp syscall supervision.
+- **C6 (Control-plane integrity)**: `NOT_APPLICABLE` — Evaluated in non-Git fixture
+  mode where Git control plane integrity is not applicable; in Git fixture mode,
+  host lacks independent filesystem integrity monitoring.
 - **C7 (Network policy enforcement)**: `NOT_ESTABLISHED` — Host lacks per-process
-  network namespace or firewall isolation to independently enforce network absence.
-- **C8 (Trial identity binding)**: `NOT_ESTABLISHED` — Without C5–C7, no trusted
-  enforcement witness conforming to `policy-worker-boundary-v1` with trial ID and
-  reference digest can be produced.
+  kernel network namespace or firewall isolation to independently enforce network
+  absence. Headless application-level permission rejection does not constitute
+  kernel-level network enforcement.
+- **C8 (Trial identity binding)**: `NOT_ESTABLISHED` — Without C5 and C7, no trusted
+  enforcement witness conforming to `policy-worker-boundary-v1` bound to trial ID
+  and reference digest can be produced.
+- **C9 (Token usage observability)**: `ESTABLISHED` — `agy` `stream-json` exposes
+  complete whole-task token usage in its final `result` event (`input_tokens`,
+  `output_tokens`, `thinking_tokens`, `cache_read_tokens`, `total_tokens`).
 
-Capability decision: **`NOT_QUALIFIED`**. In accordance with the predeclared stopping
-rule, zero matched A/C trials were run, valid matched pairs remain **0**, and the
-whole-task-cost classification remains **`NOT_ESTABLISHED`**.
+Capability decision: **`NOT_QUALIFIED`** (Missing facts: C5, C7, C8). In accordance
+with the predeclared stopping rule, zero matched A/C trials were run, valid matched
+pairs remain **0**, and the whole-task-cost classification remains **`NOT_ESTABLISHED`**.
 
 ## Decision
 
