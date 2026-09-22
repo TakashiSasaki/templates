@@ -651,6 +651,8 @@ def command_cases() -> tuple[CommandCase, ...]:
     add("remote_absolute_git", "/usr/bin/git fetch origin", "forbidden")
     add("remote_executable", "curl https://example.invalid/", "forbidden")
     add("remote_find_exec", "find . -exec curl https://example.invalid/ \\;", "forbidden")
+    add("remote_find_ok", "find . -ok curl https://example.invalid/ '{}' \\;", "forbidden")
+    add("opaque_find_okdir", "find . -okdir echo '{}' \\;", "unknown")
     add("remote_substitution", "echo $(git fetch origin)", "forbidden")
     add("remote_backtick", "echo `git fetch origin`", "forbidden")
     add("mixed_remote_separator", "echo ok;git fetch origin", "forbidden")
