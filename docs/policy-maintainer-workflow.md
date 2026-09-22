@@ -283,6 +283,18 @@ Before final qualification/review, inspect the changed validation path through t
 
 Current-head source/projection checks test the proposed provider implementation; their generated outputs are review data and do not make proposed semantics the instructions authorizing the session. Retain trusted starting instructions for execution. A source stack does not advance self-host or consumer pins, promote a stable runtime, or substitute for later independent exact-head acceptance review. Record these distinctions and any intentionally deferred evidence in the operational Work ledger.
 
+### Machine-readable qualification sequencing
+
+To prevent churn cycles (upstream change → downstream repin → rerun qualification → upstream fix → repin again), maintainers invoke `scripts/sequence_qualification.py`.
+
+The sequencer operates strictly read-only and distinguishes four core frontiers:
+1. **Construction (`construction`)**: Upstream is actively mutating or has planned mutations. Independent construction and focused unit tests are allowed; downstream repins and expensive full qualifications are deferred.
+2. **Qualification (`qualification`)**: Upstream is frozen, undergoing qualification. Upstream acceptance is awaited before downstream repin.
+3. **Adoption (`adoption`)**: Upstream is accepted. Downstream repin is eligible or no-op, followed by final qualification.
+4. **Blocked (`blocked`)**: Open material findings or conflicting state halts progression (fails closed).
+
+Planning and mutation remain separate: repin operations require explicit authorization (`authorized=True`) and exact expected-old-pin guards, failing closed on unexpected concurrent pin values.
+
 ## When not to delay
 
 Delayed qualification is not a reason to leave a harmful or invalid state in place. Apply an urgent security, operational, data-integrity, publication-integrity, or equivalent material repair as soon as its remediation is justified. Likewise, when an authority boundary has already been reached—such as merge authorization, final independent review, stable release promotion, installer publication, or another immutable consumer binding—use the exact identity and full qualification that boundary requires.
