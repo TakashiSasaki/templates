@@ -338,6 +338,8 @@ def orchestrate_preflights(
         "schema_version": 1,
         "kind": "preflight-orchestration-result",
         "overall_status": overall_status,
+        "is_validation_evidence_only": True,
+        "may_establish_acceptance": False,
         "total_wall_clock_seconds": total_wall,
         "concurrency": concurrent_jobs,
         "summary_table": summary_table,
