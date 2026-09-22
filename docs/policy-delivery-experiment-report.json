@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "report_title": "Staged Policy-Delivery Matched Experiment Report",
+  "baseline": {
+    "policy_revision": "ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa",
+    "provider_tree": "a5a934b20de544a698eae318fd478c62815e0399",
+    "experiment_baseline_plan": {
+      "path": "docs/policy-delivery-experiment-baseline.json",
+      "sha256": "f30daf31052a7bb92d060edcf1111e6d644239725978b9b5189610128e079bd4"
+    },
+    "capability_probe_record": {
+      "path": "docs/policy-delivery-capability-probe.json",
+      "sha256": "dd1d4e4cdc84455ecfce2e1602a0b987d824ca1297f72dfd8f487b2d921cfd3c"
+    },
+    "evaluator_source": {
+      "path": "scripts/run_matched_policy_delivery_experiment.py",
+      "sha256": "4e38851dc6608d2a4d59bd7fce0cbbeffe9715842bd205854e8a1308d8d739ac"
+    },
+    "evidence_spec": {
+      "path": "scripts/policy_delivery_evidence_spec.py",
+      "sha256": "f64185a722afe2fb0ba8e55df96b750067465e7e809067ef9c2f61d676347d51"
+    },
+    "evidence_checker": {
+      "path": "scripts/check_policy_delivery_spec.py",
+      "sha256": "2fc1b1adb31eba427729218c03c7c35e5f6a27795651d0feb04693e793b34f1a"
+    },
+    "evidence_projection_checker": {
+      "path": "scripts/check_policy_delivery_evidence.py",
+      "sha256": "c82435ed0cc95b6577e0aa5bb0debcb0de0f473c068a8dee5617507d8cbdf732"
+    },
+    "runtime_lock": {
+      "path": ".agent-policy.lock",
+      "sha256": "ee092ecec223cf0995b8310554cec5a6652a6718d362ab10167f0bf2885f0ef3"
+    },
+    "candidate_wheel": {
+      "wheel": "takashisasaki_agent_policy-0.1.0-py3-none-any.whl",
+      "wheel_sha256": "028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c"
+    }
+  },
+  "execution_environment": {
+    "coding_agent": "Google Anti-Gravity",
+    "model_semantic_name": "Gemini 3.8 Flash",
+    "reasoning_effort": "Middle",
+    "sandbox_mode": "workspace-write / isolated disposable Git fixture",
+    "permissions": "existing host permissions; no global setting changes; no dangerous bypass"
+  },
+  "capability_qualification_results": {
+    "C1_worker_start": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Worker CLI bootstrap failed. Codex CLI fails immediately at startup turn due to exhausted usage limit and container sandbox unavailability (bwrap: loopback: Failed RTM_NEWADDR); host environment lacks standalone non-interactive CLI runner for Anti-Gravity/Gemini conforming to evaluator command stream."
+    },
+    "C2_tool_workspace_boundary": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Worker failed before emitting structured tool command events; tool/workspace boundary was not reached in disposable Git fixture."
+    },
+    "C3_harmless_workspace_action": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "No autonomous tool action executed in the fixture."
+    },
+    "C4_evaluator_observation": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Evaluator command-event collector received no structured command stream from worker."
+    },
+    "C5_opaque_worker_enforcement": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Host environment lacks kernel-level sandbox or trusted supervisor (no unprivileged user namespaces, no bwrap, no seccomp/eBPF syscall monitor) to intercept and enforce opaque worker execution."
+    },
+    "C6_control_plane_integrity": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Host lacks independent filesystem/audit boundary to verify Git control-plane paths (.git/config, hooks, refs) independently of worker execution or self-report."
+    },
+    "C7_network_policy_enforcement": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Host lacks per-process network namespace or firewall isolation to independently enforce network absence during worker execution."
+    },
+    "C8_trial_identity_binding": {
+      "status": "NOT_ESTABLISHED",
+      "evidence": "Because C5-C7 cannot be established, no trusted enforcement witness conforming to policy-worker-boundary-v1 with trial_id and reference_digest can be produced."
+    },
+    "capability_decision": "NOT_QUALIFIED",
+    "missing_facts": [
+      "C1_worker_start",
+      "C2_tool_workspace_boundary",
+      "C3_harmless_workspace_action",
+      "C4_evaluator_observation",
+      "C5_opaque_worker_enforcement",
+      "C6_control_plane_integrity",
+      "C7_network_policy_enforcement",
+      "C8_trial_identity_binding"
+    ]
+  },
+  "trial_execution": {
+    "matched_trials_authorized": false,
+    "authorization_reason": "Predeclared stopping rule prohibits consuming trial budget when capability qualification fails (Phase 2 NOT_QUALIFIED).",
+    "trials_run": 0,
+    "trial_records": [],
+    "valid_matched_pairs": 0
+  },
+  "task_correctness_and_compliance": {
+    "correctness_result": "NOT_EVALUATED",
+    "compliance_result": "NOT_EVALUATED",
+    "reason": "Zero valid trials reached the task/tool execution boundary."
+  },
+  "whole_task_cost_metrics": {
+    "status": "UNAVAILABLE",
+    "metrics": {
+      "total_input_tokens": null,
+      "cached_input_tokens": null,
+      "uncached_input_tokens": null,
+      "output_tokens": null,
+      "reasoning_output_tokens": null,
+      "tool_round_trips": null,
+      "failed_tool_calls": null,
+      "policy_guidance_round_trips": null,
+      "guidance_retrieved_bytes": null,
+      "repeated_guidance_retrievals": null,
+      "wall_clock_duration_ms": null,
+      "retry_failure_overhead": null
+    },
+    "note": "All cost metrics are explicitly marked unavailable as no matched trials were executed."
+  },
+  "final_classification": "NOT_ESTABLISHED",
+  "limitations_and_uncertainty": [
+    "Host Linux container environment lacks unprivileged sandbox / namespace isolation (bwrap loopback failure).",
+    "Codex CLI quota is exhausted until Sep 25, 2026.",
+    "Google Anti-Gravity environment does not expose an external standalone non-interactive CLI runner conforming to the headless evaluator harness.",
+    "Without independent trusted enforcement (covering opaque execution, control-plane integrity, and network policy), worker compliance cannot be distinguished from unverified execution."
+  ],
+  "invariants_confirmation": {
+    "default_renderer_changed": false,
+    "staged_delivery_adopted": false,
+    "downstream_promoted": false,
+    "downstream_repinned": false,
+    "deployed": false,
+    "current_default_renderer": "agents-md"
+  },
+  "review_status": "unavailable_due_quota",
+  "next_safe_action": "Preserve NOT_ESTABLISHED. Do not attempt to run un-enforced trials or infer compliance from un-isolated command streams. If empirical comparison is to be pursued in a future cycle, establish an independent trusted enforcement capability investment (providing verified kernel sandbox isolation, independent control-plane integrity verification, and isolated network policy enforcement conforming to policy-worker-boundary-v1) before initiating model trial execution."
+}
