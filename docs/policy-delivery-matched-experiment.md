@@ -342,23 +342,58 @@ cached input is a subset of input, and reasoning output is not added again.
 Prompt assembly, the model tokenizer, and complete host-level context
 isolation remain unobserved. UTF-8 byte counts are not token counts.
 
+## Resumed baseline and enforcement-capability qualification (Phase 1 & 2)
+
+Following the landed Policy baseline (`ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa`,
+PRs #997–#1002 merged), the experiment protocol and machine-readable baseline
+were frozen in
+[`policy-delivery-experiment-baseline.json`](policy-delivery-experiment-baseline.json).
+The planned trial execution model is Google Anti-Gravity with Gemini 3.8 Flash
+(Middle reasoning effort) under a workspace-write sandbox in an isolated disposable Git fixture.
+
+The bounded execution/enforcement capability probe (Phase 2) evaluated properties
+C1–C8 against a disposable Git fixture:
+- **C1 (Worker start)**: `NOT_ESTABLISHED` — Codex CLI fails at startup turn
+  due to exhausted usage quota and container sandbox unavailability (`bwrap:
+  loopback: Failed RTM_NEWADDR`); Anti-Gravity environment lacks an external
+  standalone non-interactive CLI runner conforming to the headless evaluator.
+- **C2 (Tool/workspace boundary reach)**: `NOT_ESTABLISHED` — Worker failed before
+  emitting structured tool command events.
+- **C3 (Harmless workspace action)**: `NOT_ESTABLISHED` — No autonomous tool
+  action executed in the fixture.
+- **C4 (Evaluator observation)**: `NOT_ESTABLISHED` — Evaluator command-event
+  collector received no structured events.
+- **C5 (Opaque worker enforcement)**: `NOT_ESTABLISHED` — Host lacks kernel-level
+  sandbox/supervisor (no unprivileged user namespaces, no bwrap, no seccomp/eBPF)
+  to intercept and enforce opaque worker execution.
+- **C6 (Control-plane integrity)**: `NOT_ESTABLISHED` — Host lacks independent
+  filesystem/audit boundary to verify Git control-plane paths (`.git/config`,
+  hooks, refs) independently of worker self-report.
+- **C7 (Network policy enforcement)**: `NOT_ESTABLISHED` — Host lacks per-process
+  network namespace or firewall isolation to independently enforce network absence.
+- **C8 (Trial identity binding)**: `NOT_ESTABLISHED` — Without C5–C7, no trusted
+  enforcement witness conforming to `policy-worker-boundary-v1` with trial ID and
+  reference digest can be produced.
+
+Capability decision: **`NOT_QUALIFIED`**. In accordance with the predeclared stopping
+rule, zero matched A/C trials were run, valid matched pairs remain **0**, and the
+whole-task-cost classification remains **`NOT_ESTABLISHED`**.
+
 ## Decision
 
-The original whole-task-cost gate is **`NOT_ESTABLISHED`**. The six attempts
-cannot support a causal performance, compliance, or autonomy claim because no
-task reached the agent/tool boundary and the historical rows were not a valid
-matched A/C outcome comparison.
+The whole-task-cost gate remains **`NOT_ESTABLISHED`**. The required trusted
+enforcement and execution capability cannot be qualified in the current host
+environment, and valid matched A/C pairs cannot be executed.
 
 The full-text renderer remains the default. Staged delivery remains opt-in,
-unadopted, and an unqualified diagnostic prototype. PR #997 remains useful as
-measurement/provenance infrastructure subject to its independent review and
-merge gate. PR #998 should not be self-adopted or presented as a demonstrated
-cost improvement.
+unadopted, and an unqualified diagnostic prototype. No adoption, default cutover,
+promotion, downstream repin, or deployment occurred.
 
 ## Next safe action
 
-After an explicit new experiment budget and a sandbox configuration that permits
-the child process to start, rebuild one exact wheel from the then-qualified
-candidate and run a fresh matched A/C study with the current runner. Do not
-reuse these blocked attempts as task-success evidence or rerun them merely to
-obtain a favourable result.
+Preserve **`NOT_ESTABLISHED`**. If causal empirical comparison is to be pursued in
+a future iteration, establish a separate trusted enforcement-capability
+investment (providing verified kernel sandbox isolation, independent control-plane
+integrity verification, and isolated network policy enforcement conforming to
+`policy-worker-boundary-v1`) before initiating model trial execution.
+
