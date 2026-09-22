@@ -613,6 +613,11 @@ def ensure_runtime(pin: RuntimePin, *, root: Path | None = None) -> Path:
 
 
 def runtime_command(repository_root: Path) -> list[str]:
-    pin = select_pin(repository_root)
-    runtime = ensure_runtime(pin)
+    _pin, runtime = runtime_selection(repository_root)
     return cli_command(runtime)
+
+
+def runtime_selection(repository_root: Path) -> tuple[RuntimePin, Path]:
+    """Select and materialize the runtime while retaining its binding."""
+    pin = select_pin(repository_root)
+    return pin, ensure_runtime(pin)

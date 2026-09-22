@@ -108,7 +108,7 @@ def test_managed_runner_normalizes_runtime_setup_failure(
     (repository / ".git").mkdir(parents=True)
     monkeypatch.setattr(
         runner,
-        "runtime_command",
+        "runtime_selection",
         lambda _repository: (_ for _ in ()).throw(
             RuntimeError(
                 "agent-policy runtime cache is unusable; "

@@ -11,8 +11,9 @@ sys.dont_write_bytecode = True
 
 from runtime import (  # noqa: E402
     CLI_MODULE,
+    cli_command,
     find_repository_root,
-    runtime_command,
+    runtime_selection,
     sanitized_environment,
     venv_python,
 )
@@ -116,11 +117,23 @@ def main() -> int:
             environment = trusted_environment()
         else:
             repository = find_repository_root(args.repository)
+            pin, runtime = runtime_selection(repository)
+            runtime_arguments = list(args.arguments)
+            if runtime_arguments and runtime_arguments[0] == "guidance":
+                if any(
+                    value == "--runtime-revision"
+                    or value.startswith("--runtime-revision=")
+                    for value in runtime_arguments[1:]
+                ):
+                    raise ValueError(
+                        "guidance runtime revision is selected by the installed Skill"
+                    )
+                runtime_arguments.extend(["--runtime-revision", pin.revision])
             command = [
-                *runtime_command(repository),
+                *cli_command(runtime),
                 "--repository",
                 str(repository),
-                *args.arguments,
+                *runtime_arguments,
             ]
             environment = sanitized_environment()
         result = subprocess.run(
