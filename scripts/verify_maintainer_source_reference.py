@@ -46,6 +46,28 @@ CANONICAL_LIVE_ADAPTER_PATH = (
 CANONICAL_MAINTAINER_ENTRYPOINT_PATH = (
     "repository-skills/land-templates-stack/scripts/maintain_review_stack.py"
 )
+CANONICAL_REFERENCE_SOURCE_TRUST = (
+    "repository-skills/land-templates-stack/references/source-trust.md"
+)
+CANONICAL_REFERENCE_FINDING_FAMILY = (
+    "repository-skills/land-templates-stack/references/finding-family-closure.md"
+)
+CANONICAL_REFERENCE_QUALIFICATION = (
+    "repository-skills/land-templates-stack/references/qualification-and-evidence.md"
+)
+CANONICAL_REFERENCE_LANDING = (
+    "repository-skills/land-templates-stack/references/landing-and-resume.md"
+)
+CANONICAL_REFERENCE_MAINTAINER_ENTRYPOINT = (
+    "repository-skills/land-templates-stack/references/maintainer-entrypoint.md"
+)
+CANONICAL_REFERENCE_PATHS = (
+    CANONICAL_REFERENCE_SOURCE_TRUST,
+    CANONICAL_REFERENCE_FINDING_FAMILY,
+    CANONICAL_REFERENCE_QUALIFICATION,
+    CANONICAL_REFERENCE_LANDING,
+    CANONICAL_REFERENCE_MAINTAINER_ENTRYPOINT,
+)
 BASE_SOURCE_CLOSURE_PATHS = (CANONICAL_RULE_PATH, CANONICAL_PLANNER_PATH)
 OBSERVER_SOURCE_CLOSURE_PATHS = (
     CANONICAL_OBSERVER_PATH,
@@ -60,7 +82,9 @@ WORKFLOW_SOURCE_CLOSURE_PATHS = (
 OPTIONAL_SOURCE_CLOSURE_PATHS = (
     OBSERVER_SOURCE_CLOSURE_PATHS + WORKFLOW_SOURCE_CLOSURE_PATHS
 )
-SOURCE_CLOSURE_PATHS = BASE_SOURCE_CLOSURE_PATHS + OPTIONAL_SOURCE_CLOSURE_PATHS
+SOURCE_CLOSURE_PATHS = (
+    BASE_SOURCE_CLOSURE_PATHS + OPTIONAL_SOURCE_CLOSURE_PATHS + CANONICAL_REFERENCE_PATHS
+)
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 CLOSURE_MODULE_NAMES: dict[str, str] = {
@@ -213,26 +237,39 @@ def required_source_closure_paths(skill: bytes) -> tuple[str, ...]:
     """Require only the support files referenced by the candidate Skill."""
 
     required = list(BASE_SOURCE_CLOSURE_PATHS)
-    if CANONICAL_OBSERVER_PATH.encode("utf-8") in skill:
+    for ref_path in CANONICAL_REFERENCE_PATHS:
+        ref_name = Path(ref_path).name.encode("utf-8")
+        if ref_name in skill or ref_path.encode("utf-8") in skill:
+            if ref_path not in required:
+                required.append(ref_path)
+    if (
+        CANONICAL_OBSERVER_PATH.encode("utf-8") in skill
+        or b"observe_pr_state.py" in skill
+        or b"qualification-and-evidence.md" in skill
+    ):
         required.extend(OBSERVER_SOURCE_CLOSURE_PATHS)
     if (
         CANONICAL_RENDERER_PATH.encode("utf-8") in skill
         or b"render_review_artifacts.py" in skill
+        or b"maintainer-entrypoint.md" in skill
     ):
         required.append(CANONICAL_RENDERER_PATH)
     if (
         CANONICAL_PUBLISHER_PATH.encode("utf-8") in skill
         or b"publish_review_artifacts.py" in skill
+        or b"maintainer-entrypoint.md" in skill
     ):
         required.append(CANONICAL_PUBLISHER_PATH)
     if (
         CANONICAL_LIVE_ADAPTER_PATH.encode("utf-8") in skill
         or b"live_review_adapter.py" in skill
+        or b"maintainer-entrypoint.md" in skill
     ):
         required.append(CANONICAL_LIVE_ADAPTER_PATH)
     if (
         CANONICAL_MAINTAINER_ENTRYPOINT_PATH.encode("utf-8") in skill
         or b"maintain_review_stack.py" in skill
+        or b"maintainer-entrypoint.md" in skill
     ):
         required.append(CANONICAL_MAINTAINER_ENTRYPOINT_PATH)
     return tuple(required)
@@ -462,6 +499,31 @@ class IsolatedClosureEnvironment:
                 f"entrypoint module '{path_or_name}' does not define callable main()"
             )
         return int(main_fn(argv))
+
+    def read_closure_bytes(self, rel_path: str) -> bytes:
+        """Read bytes from a materialized closure file, ensuring it exists in verified closure."""
+        if self._closed:
+            raise SourceReferenceError("cannot read closure file in closed environment")
+        if rel_path == CANONICAL_SKILL_PATH:
+            expected = self.verified.skill
+        elif rel_path == CANONICAL_RULE_PATH:
+            expected = self.verified.rule
+        elif rel_path in self.verified.closure:
+            expected = self.verified.closure[rel_path]
+        else:
+            raise SourceReferenceError(f"file not in verified closure: {rel_path}")
+
+        full_path = self.root / rel_path
+        if not full_path.is_file():
+            raise SourceReferenceError(f"closure file missing: {rel_path}")
+        content = full_path.read_bytes()
+        if content != expected:
+            raise SourceReferenceError(f"closure bytes altered: {rel_path}")
+        return content
+
+    def read_closure_file(self, rel_path: str, encoding: str = "utf-8") -> str:
+        """Read text from a materialized closure file, ensuring it exists in verified closure."""
+        return self.read_closure_bytes(rel_path).decode(encoding)
 
     def __enter__(self) -> IsolatedClosureEnvironment:
         return self

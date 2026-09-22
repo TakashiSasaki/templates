@@ -252,6 +252,26 @@ def test_clean_consumer_closure_paths_include_all_workflow_modules() -> None:
     assert CANONICAL_MAINTAINER_ENTRYPOINT_PATH in required
 
 
+def test_clean_consumer_closure_paths_include_references() -> None:
+    # Test that skill referencing progressive disclosure references requires them
+    skill_with_refs = b"See references/source-trust.md and references/landing-and-resume.md."
+    required = required_source_closure_paths(skill_with_refs)
+    assert CANONICAL_RULE_PATH in required
+    assert CANONICAL_PLANNER_PATH in required
+    assert (
+        "repository-skills/land-templates-stack/references/source-trust.md"
+        in required
+    )
+    assert (
+        "repository-skills/land-templates-stack/references/landing-and-resume.md"
+        in required
+    )
+    assert (
+        "repository-skills/land-templates-stack/references/maintainer-entrypoint.md"
+        not in required
+    )
+
+
 def test_closure_environment_isolates_preloaded_sibling_in_sys_modules(
     current_head_verified_source,
 ) -> None:
