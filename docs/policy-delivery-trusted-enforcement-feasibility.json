@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "feasibility_study": "policy-delivery-trusted-enforcement-c5-c7-c8",
+  "baseline_revision": "ed423a07c87929388dedee9b4cdff5a59b64bfb2",
+  "policy_baseline": "ac95d6ee681ef422c0a8e1f714e94fbc78ff83aa",
+  "infrastructure_candidate": "3d05429778d091412a754e58e4773687e29116f7",
+  "evaluation_context": {
+    "agent_environment": "Google Anti-Gravity / Gemini 3.8 Flash (Middle reasoning effort)",
+    "worker_backend": "agy v1.2.8",
+    "qualification_gate": "Phase 2 Capability Qualification (C1-C9)"
+  },
+  "current_capability_qualification": {
+    "C1_worker_bootstrap": "ESTABLISHED",
+    "C2_workspace_boundary": "ESTABLISHED",
+    "C3_harmless_action": "ESTABLISHED",
+    "C4_evaluator_observation": "ESTABLISHED",
+    "C5_opaque_worker_enforcement": "NOT_ESTABLISHED",
+    "C6_control_plane_integrity": "NOT_APPLICABLE",
+    "C7_network_policy_enforcement": "NOT_ESTABLISHED",
+    "C8_trial_identity_binding": "NOT_ESTABLISHED",
+    "C9_token_usage_observability": "ESTABLISHED",
+    "capability_decision": "NOT_QUALIFIED",
+    "matched_trials_authorized": false,
+    "trials_run": 0,
+    "valid_matched_pairs": 0,
+    "empirical_classification": "NOT_ESTABLISHED"
+  },
+  "technical_feasibility_analysis": {
+    "c5_opaque_worker_enforcement": {
+      "status": "NOT_ESTABLISHED",
+      "minimal_boundary_definition": "Process tree containment with chroot/bind-mount filesystem namespace isolating scratch fixtures, read-only system mounts, and seccomp-bpf syscall filtering.",
+      "host_capabilities_required": [
+        "Unprivileged Linux user namespaces (kernel.unprivileged_userns_clone = 1)",
+        "Bubblewrap (bwrap) or rootless container runtime (Podman/Docker)",
+        "Active sandbox daemon socket or seccomp syscall filtering"
+      ],
+      "antigravity_sandbox_mode": {
+        "command_flag": "--sandbox",
+        "observed_status": "FAILED_OR_UNAVAILABLE",
+        "error": "connecting to sandbox server: read unix @->@: recvmsg: connection reset by peer",
+        "root_cause": "Current execution environment is an unprivileged container lacking the nested daemon or kernel namespace permissions required by the Antigravity sandbox daemon."
+      },
+      "external_supervisor_feasibility": "Infeasible on current host without elevated host privileges (CAP_SYS_ADMIN) or container socket access."
+    },
+    "c7_network_policy_enforcement": {
+      "status": "NOT_ESTABLISHED",
+      "minimal_boundary_definition": "Kernel-level network namespace isolation (CLONE_NEWNET) with loopback only, or iptables/nftables egress packet drop anchored to worker cgroup/UID.",
+      "application_vs_kernel_distinction": "Application-level tool rejection or prompt-based instructions ('do not use network') are non-enforcing against opaque worker shell execution. C7 strictly requires kernel-level packet isolation.",
+      "host_capabilities_required": [
+        "CAP_NET_ADMIN or unprivileged user network namespace (CLONE_NEWUSER | CLONE_NEWNET)",
+        "Kernel packet filtering (iptables / nftables / eBPF)"
+      ],
+      "host_reality": "Current container environment lacks CAP_NET_ADMIN and unprivileged network namespace creation."
+    },
+    "c8_trial_identity_binding": {
+      "status": "NOT_ESTABLISHED",
+      "witness_schema": "policy-worker-boundary-v1",
+      "required_fields": [
+        "schema",
+        "trial_id",
+        "reference_digest",
+        "infrastructure_revision",
+        "agy_identity",
+        "model_runtime_identity",
+        "sandbox_enforcement_identity",
+        "network_enforcement_identity",
+        "run_log_identity",
+        "opaque_worker_code",
+        "control_plane_integrity",
+        "network_policy"
+      ],
+      "evaluator_ownership_requirement": "Witness must be produced and cryptographically bound by an independent evaluator supervisor outside worker process control.",
+      "blocker": "Cannot truthfully assert 'opaque_worker_code: enforced' or 'network_policy: enforced' while C5 and C7 are NOT_ESTABLISHED."
+    }
+  },
+  "architectural_placement_analysis": {
+    "policy_template_scope": "Application-neutral policy definition, validation rules, and instruction delivery formats (ADR 0003, ADR 0005).",
+    "enforcement_subsystem_scope": "OS-level virtualization, container isolation, kernel network filtering, and cryptographic supervisor attestation.",
+    "boundary_finding": "Low-level OS virtualization and kernel sandboxing do not belong in the policy template. Embedding them would violate ADR 0003, create untenable Linux-specific maintenance overhead, and couple policy specifications to host infrastructure."
+  },
+  "strategic_options_evaluation": {
+    "options": [
+      {
+        "id": "A",
+        "name": "DEFER_ENFORCEMENT_INVESTMENT",
+        "scope": "Preserve current NOT_ESTABLISHED classification; maintain zero trial execution under stopping rule; defer enforcement tooling.",
+        "maintenance_cost": "Zero ongoing maintenance.",
+        "operational_complexity": "Zero operational overhead.",
+        "security_posture": "Sound. No un-isolated code executed; no false compliance claims.",
+        "time_to_first_valid_trial": "Indefinite (no trials run until execution platform provides certified boundary).",
+        "architectural_cleanliness": "High. Policy repository remains clean and focused on policy logic."
+      },
+      {
+        "id": "B",
+        "name": "INVEST_MINIMAL_BOUNDARY",
+        "scope": "Attempt to construct a minimal custom sandbox and netns supervisor within the policy repository.",
+        "maintenance_cost": "High. Requires maintaining fragile Linux namespace, seccomp, and netns wrapper scripts.",
+        "operational_complexity": "High. Blocked by current container environment; requires root/privileged host reconfiguration.",
+        "security_posture": "Moderate to Low. Custom minimal boundaries frequently suffer sandbox escape vectors.",
+        "time_to_first_valid_trial": "2 to 4 weeks (requires environment migration and sandbox debugging).",
+        "architectural_cleanliness": "Poor. Pollutes policy template with OS-level virtualization infrastructure."
+      },
+      {
+        "id": "C",
+        "name": "SEPARATE_GENERAL_PLATFORM_PROJECT",
+        "scope": "Design and build a reusable, general-purpose agent execution sandbox and supervisor in a dedicated infrastructure project.",
+        "maintenance_cost": "Moderate (amortized across multiple agent projects and templates).",
+        "operational_complexity": "Moderate (isolated to platform/runner deployment).",
+        "security_posture": "High. Dedicated testbed architecture with VM/microVM (e.g. Firecracker/gVisor) isolation.",
+        "time_to_first_valid_trial": "4 to 8 weeks (full platform engineering lifecycle).",
+        "architectural_cleanliness": "High. Complete separation of policy authoring from runtime execution infrastructure."
+      }
+    ]
+  },
+  "authoritative_recommendation": {
+    "decision": "DEFER_ENFORCEMENT_INVESTMENT",
+    "platform_direction": "SEPARATE_GENERAL_PLATFORM_PROJECT",
+    "rationale": [
+      "1. Host Infeasibility: The current container execution environment cannot support kernel namespaces, bwrap, or Antigravity sandbox daemon without privileged host changes.",
+      "2. Architectural Integrity: Embedding OS sandboxing inside the policy template violates ADR 0003 and ADR 0005. Sandboxing belongs in a separate infrastructure layer.",
+      "3. Scientific Integrity: Preserving NOT_ESTABLISHED maintains 100% empirical rigor. No trials are run under un-isolated conditions.",
+      "4. Operational Economy: Avoids spending significant engineering resources on a one-off experiment when delivery adoption is not required."
+    ],
+    "invariants_maintained": {
+      "default_renderer": "agents-md",
+      "staged_delivery_adopted": false,
+      "stopping_rule_honored": true,
+      "unisolated_trials_run": 0
+    },
+    "revisit_conditions": [
+      "Provisioning of a certified execution platform with kernel-level container/VM sandboxing and network isolation.",
+      "Establishment of an independent runner/testbed platform project providing policy-worker-boundary-v1 attestation."
+    ],
+    "next_safe_action": "Preserve NOT_ESTABLISHED. Keep full-text agents-md as the default renderer. Close active delivery experiment phase."
+  }
+}
