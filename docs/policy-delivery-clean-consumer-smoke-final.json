@@ -5,11 +5,11 @@
     "provider_tree": "dca9a1c1bf21fd0136b75806699e4b1d450c4082",
     "evaluator_source": {
       "path": "scripts/run_matched_policy_delivery_experiment.py",
-      "sha256": "bee09e1a4b3ffc16408ab7db15464427687f28976580dd0d6c34107154544642"
+      "sha256": "4e38851dc6608d2a4d59bd7fce0cbbeffe9715842bd205854e8a1308d8d739ac"
     },
     "evidence_spec": {
       "path": "scripts/policy_delivery_evidence_spec.py",
-      "sha256": "0d2941817b2ff7745b7721be45e7d0dfb0ba380e0b4abc70aea6405b4bb073da"
+      "sha256": "f64185a722afe2fb0ba8e55df96b750067465e7e809067ef9c2f61d676347d51"
     },
     "evidence_checker": {
       "path": "scripts/check_policy_delivery_spec.py",
@@ -31,7 +31,7 @@
     }
   },
   "qualification": {
-    "command_domain_case_count": 76,
+    "command_domain_case_count": 78,
     "evidence_state_count": 944784,
     "reachable_evidence_state_count": 82944,
     "reachable_evidence_transition_count": 2039040,
@@ -47,11 +47,24 @@
       "selected_rule_count": 47,
       "startup_rule_count": 47,
       "nested_validate_render_check": true,
-      "operations": ["validate", "render", "check"],
+      "operations": [
+        "validate",
+        "render",
+        "check"
+      ],
       "files": {
-        ".agent-policy.lock": {"bytes": 1291, "sha256": "f84041cb2b0d3f513330862e2659ffc039720cb0aa760c54727db01c224e73a5"},
-        ".agent-policy.yml": {"bytes": 808, "sha256": "e27366869a3a2c2d862e29ebb0a9e101d583a74bf121d44c771f9d560b498cd5"},
-        "AGENTS.md": {"bytes": 98190, "sha256": "a9952b58c5dd29fa21ac2a34fd30b557e1359f4e763625f3034af75f25ab3bb3"}
+        ".agent-policy.lock": {
+          "bytes": 1291,
+          "sha256": "f84041cb2b0d3f513330862e2659ffc039720cb0aa760c54727db01c224e73a5"
+        },
+        ".agent-policy.yml": {
+          "bytes": 808,
+          "sha256": "e27366869a3a2c2d862e29ebb0a9e101d583a74bf121d44c771f9d560b498cd5"
+        },
+        "AGENTS.md": {
+          "bytes": 98190,
+          "sha256": "a9952b58c5dd29fa21ac2a34fd30b557e1359f4e763625f3034af75f25ab3bb3"
+        }
       }
     },
     "C": {
@@ -60,19 +73,45 @@
       "selected_rule_count": 47,
       "startup_rule_count": 24,
       "nested_validate_render_check": true,
-      "nested_guidance": {"operation": "inspect", "succeeded": true},
-      "operations": ["validate", "render", "check", "guidance"],
+      "nested_guidance": {
+        "operation": "inspect",
+        "succeeded": true
+      },
+      "operations": [
+        "validate",
+        "render",
+        "check",
+        "guidance"
+      ],
       "installed_skill_tree_sha256": "4d6994c6f41291bbf60b05238c9e3afdd3a3a1f70b0a5a45e94be4830525ed0a",
       "files": {
-        ".agent-policy.lock": {"bytes": 1671, "sha256": "7a94bef8cc625943c51f82caf251f4673f70884ec92891d064843a6ceb1016a8"},
-        ".agent-policy.yml": {"bytes": 895, "sha256": "853daf604f73ab5c2ca9f8318516684fe9f2019646728480bbd51d9d0a778770"},
-        ".agent-policy/preview/policy-details.json": {"bytes": 148342, "sha256": "e4c5234908a15bdea5f26f166a11701d671a5ebb191a0c413832e5b40b4ad3a9"},
-        ".agents/skills/policy-guidance/SKILL.md": {"bytes": 2374, "sha256": "7d4516ec3bd2dd2f5ee73bc7ee713dd35ca6d339f7bdb75ca888928a0e5dfe77"},
-        ".agents/skills/policy-guidance/scripts/policy_guidance.py": {"bytes": 22601, "sha256": "866c75f9b4701d50d44181aad803443d7d8e8ee129e4f91a5840314189f2f239"},
-        "AGENTS.md": {"bytes": 30840, "sha256": "ca225a3aa258557dc9e082470f2e3a50b197c6e2749186e10f159b1905bbd125"}
+        ".agent-policy.lock": {
+          "bytes": 1671,
+          "sha256": "7a94bef8cc625943c51f82caf251f4673f70884ec92891d064843a6ceb1016a8"
+        },
+        ".agent-policy.yml": {
+          "bytes": 895,
+          "sha256": "853daf604f73ab5c2ca9f8318516684fe9f2019646728480bbd51d9d0a778770"
+        },
+        ".agent-policy/preview/policy-details.json": {
+          "bytes": 148342,
+          "sha256": "e4c5234908a15bdea5f26f166a11701d671a5ebb191a0c413832e5b40b4ad3a9"
+        },
+        ".agents/skills/policy-guidance/SKILL.md": {
+          "bytes": 2374,
+          "sha256": "7d4516ec3bd2dd2f5ee73bc7ee713dd35ca6d339f7bdb75ca888928a0e5dfe77"
+        },
+        ".agents/skills/policy-guidance/scripts/policy_guidance.py": {
+          "bytes": 22601,
+          "sha256": "866c75f9b4701d50d44181aad803443d7d8e8ee129e4f91a5840314189f2f239"
+        },
+        "AGENTS.md": {
+          "bytes": 30840,
+          "sha256": "ca225a3aa258557dc9e082470f2e3a50b197c6e2749186e10f159b1905bbd125"
+        }
       }
     }
   },
-  "smoke_result_identity": "6dfa7b01bc2422784a958f4c56817486232a7c5cacefa1c42b6baa04e2a4b810",
+  "smoke_result_identity": "323a6bc76fcb9ab1b81efcdcf41ad0769a63b20c910cf8aa6e27ea92fd97b2cf",
   "interpretation": "Distribution-boundary smoke only; the retained exact wheel and installed A/C consumers were rerun after the current evaluator/spec/checker identity update; no fresh agent trial or performance claim."
 }
