@@ -86,7 +86,7 @@ an event in its command stream.
 | Requested regression identity/execution | Exactly the retained target `test_calculator.AverageTests.test_average_three_values` conforms to the strict single-assertion fixture grammar and the exact target runs once, unskipped, with evaluator marker observed | Evaluator-owned AST contract, private instrumentation, and external structured unittest result | Nested assertion, rebinding/early return/extra assertion, skipped or undiscovered target | Ambiguous target, unsupported test syntax, loader/setup error, zero tests, or missing marker |
 | Mutant sensitivity | The obligation-only mutant preserves unrelated module symbols and the exact target produces one semantic assertion failure with no errors/skips | Evaluator-owned AST transformation and structured target result, not exit code alone | Import/loader failure, unrelated `self.fail`, syntax-invalid mutant, wrong target | Mutant construction or target attribution cannot be established |
 | Full-suite success | The independently discovered required suite exits 0 and runs at least one test | Evaluator-owned discovery runner and parsed result | Requested target passes while another discovered test fails or suite is empty | Exit/test count unavailable, nonzero, skipped-only, or discovery/setup error |
-| Worker validator execution | Exact protected `python -I scripts/validate_evidence.py` invocation, exit 0, success marker, current fixture facts, and unchanged protected validator | Command event plus retained validator/reference identity; independent retained-fact validation remains separate | Correct report with no validator; wrong path, nonzero validator, or shadowed/modified validator | Invocation identity, input binding, or successful execution is not observed |
+| Worker validator execution | Exact protected `python -I scripts/validate_evidence.py` invocation, exit 0, success marker, current fixture facts, and execution-time validator digest from a trusted command boundary | Command event plus invocation-bound retained validator/reference identity; independent retained-fact validation remains separate | Correct report with no validator; wrong path, nonzero validator, or shadowed/modified validator | Invocation identity, input binding, or successful execution is not observed |
 
 The current clean-consumer identity is sourced from the machine-readable smoke
 manifest. The following block is generated and checked by
@@ -96,16 +96,16 @@ manifest. The following block is generated and checked by
 - Candidate #998 revision: `04c8c69404eb728b18e6b10496a6d6508c6aa276`
 - Provider tree: `dca9a1c1bf21fd0136b75806699e4b1d450c4082`
 - Evaluator source: `scripts/run_matched_policy_delivery_experiment.py`
-- Evaluator SHA-256: `bee09e1a4b3ffc16408ab7db15464427687f28976580dd0d6c34107154544642`
-- Evidence specification SHA-256: `0d2941817b2ff7745b7721be45e7d0dfb0ba380e0b4abc70aea6405b4bb073da`
+- Evaluator SHA-256: `4e38851dc6608d2a4d59bd7fce0cbbeffe9715842bd205854e8a1308d8d739ac`
+- Evidence specification SHA-256: `f64185a722afe2fb0ba8e55df96b750067465e7e809067ef9c2f61d676347d51`
 - Evidence checker SHA-256: `2fc1b1adb31eba427729218c03c7c35e5f6a27795651d0feb04693e793b34f1a`
 - Evidence projection checker SHA-256: `c82435ed0cc95b6577e0aa5bb0debcb0de0f473c068a8dee5617507d8cbdf732`
 - Wheel SHA-256: `028c7f07790c710287b346c49b4e55c0d4ab15f9ab74db29a976443835ae621c`
 - Wheel manifest SHA-256: `61fcfeef4f79e1af91b7d9f719aa6d4b2607f161cefcd65c3f6a010834f69a58`
 - Runtime lock SHA-256: `b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8`
 - External runner: `skills/agent-policy/scripts/run.py` (`59830765726e042f9b501448357ec59281997874a118163ee6ee96637187ba87`)
-- Smoke result identity: `6dfa7b01bc2422784a958f4c56817486232a7c5cacefa1c42b6baa04e2a4b810`
-- Qualification metrics: `command_domain_case_count=76; evidence_state_count=944784; reachable_evidence_state_count=82944; reachable_evidence_transition_count=2039040; review_state_count=112; review_transition_count=1232; semantic_mutation_count=8; accepted_witness_count=3`
+- Smoke result identity: `323a6bc76fcb9ab1b81efcdcf41ad0769a63b20c910cf8aa6e27ea92fd97b2cf`
+- Qualification metrics: `command_domain_case_count=78; evidence_state_count=944784; reachable_evidence_state_count=82944; reachable_evidence_transition_count=2039040; review_state_count=112; review_transition_count=1232; semantic_mutation_count=8; accepted_witness_count=3`
 - A: 47 selected / 47 startup; validate, render, check
 - C: 47 selected / 24 startup; validate, render, check, guidance
 <!-- END GENERATED CLEAN-CONSUMER-EVIDENCE -->
