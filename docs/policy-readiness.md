@@ -111,8 +111,19 @@ Completion work must not introduce application-category profiles, Web surface or
 ## Local readiness commands
 
 Run `python3 scripts/run_policy_preflight.py fast --expected-head "$(git rev-parse HEAD)"`
-while editing for the cheap changed-area checks. Before starting expensive CI, use
-the exact-head gate from a clean checkout:
+while editing for the cheap changed-area checks. The `fast` profile executes with safe
+internal staging:
+
+```
+fast:
+  compile
+  → lint/self-check in parallel (at most 2 workers)
+  → focused-tests
+```
+
+Focused tests may exercise mutable-worktree adversarial cases, so worktree-reading validation
+is not overlapped with them. Before starting expensive CI, use the exact-head gate from a clean
+checkout:
 
 ```sh
 HEAD_SHA=$(git rev-parse HEAD)
