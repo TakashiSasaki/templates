@@ -300,3 +300,75 @@ The review context similarly combines shared review policy with the same reposit
 At handoff or completion, report the exact source candidate, validation evidence, review state, release/promotion state, and self-host adoption state separately. A change can be source-complete and CI-green while stable promotion or self-host adoption is intentionally still pending. Do not describe those later trust transitions as complete until their own reviewed operations have occurred.
 
 For stacked work, also distinguish provisional descendants from frozen qualification heads in the handoff record. This makes it clear which SHAs merely represented construction history and which exact revisions are intended to carry current revision-bound evidence.
+
+## Standard maintainer CLI and live adapter entry point
+
+Maintainers of the Policy authority use the integrated CLI entry point and standard live review adapter instead of hand-writing transient scripts or bespoke revalidation code:
+
+- **Candidate Bootstrap Runner**: `scripts/run_maintainer_workflow.py`
+  - Before B1 adoption, this runner is a candidate bootstrap implementation undergoing prospective qualification. Once adopted, the trust root is anchored to the accepted Policy authority revision.
+  - Verifies the complete finite trust root chain:
+    $$\text{accepted Policy authority revision} \longrightarrow \text{adopted bootstrap / verifier} \longrightarrow \text{immutable source manifest} \longrightarrow \text{verified maintainer Skill closure} \longrightarrow \text{isolated workflow execution}$$
+  - Authenticates the source reference against an immutable base Git commit or an explicit prospective manifest.
+  - Verifies all declared closure blobs against the local Git object store.
+  - Materializes the verified closure in an `IsolatedClosureEnvironment` and connects Git object storage.
+  - Executes the verified entrypoint module inside the active isolation lifetime, guaranteeing immunity from mutable worktree alterations or local module shadowing.
+- **Maintainer entrypoint**: `repository-skills/land-templates-stack/scripts/maintain_review_stack.py`
+  - Assembles valid version 1 `repository-change-review-artifacts` input data with all 5 mandatory role-labelled revision bindings.
+  - Resolves toolchain revision from `.agent-policy.yml` at the candidate head.
+  - Authenticates the planner source and closure against the immutable manifest in `.agents/skills/land-templates-stack/source.json` at the independently trusted base SHA.
+  - Executes `render_review_artifacts.py` to normalize and render the complete artifact suite (`review-packet.json`, `review-request.md`, `pr-generated-region.md`, `work-ledger-checkpoint.md`, `manifest.json`).
+  - Supports offline `--preview` without writes and safe live `--apply` when authorized.
+- **Live adapter**: `repository-skills/land-templates-stack/scripts/live_review_adapter.py`
+  - Implements `resolve(context, payload, provider)` complying with `publish_review_artifacts.py` contracts.
+  - Encapsulates `GitHubLiveRevalidationAdapter` with default planner packet builder, gate resolver, and effective base resolver.
+  - Verifies exact PR head and base bindings against live remote metadata before allowing publication.
+- **Fail-closed publication safety**:
+  - Remote apply strictly requires `--apply`, `--authorize`, and `--serialized-writer`.
+  - Without all three flags, execution aborts with `MaintainerWorkflowError` before performing any external or state-changing writes.
+
+### Operational CLI Examples
+
+```bash
+# 1. Prospective qualification / preview execution from candidate Git objects (isolated, no writes):
+python scripts/run_maintainer_workflow.py \
+  --trusted-base-sha <POLICY_BASE_SHA> \
+  --source-manifest <PROSPECTIVE_MANIFEST_PATH> \
+  --pr 123 \
+  --head-sha <CANDIDATE_HEAD_SHA> \
+  --base-sha <BASE_SHA> \
+  --output-dir ./artifacts_preview
+
+# 2. Preview artifacts locally via adopted bootstrap runner post-adoption (isolated execution, no writes):
+python scripts/run_maintainer_workflow.py \
+  --trusted-base-sha <TRUSTED_BASE_SHA> \
+  --pr 123 \
+  --head-sha <CANDIDATE_HEAD_SHA> \
+  --base-sha <BASE_SHA> \
+  --output-dir ./artifacts_preview
+
+# 3. Revalidate and publish when explicitly authorized by maintainer:
+python scripts/run_maintainer_workflow.py \
+  --trusted-base-sha <TRUSTED_BASE_SHA> \
+  --pr 123 \
+  --head-sha <CANDIDATE_HEAD_SHA> \
+  --base-sha <BASE_SHA> \
+  --apply --authorize --serialized-writer \
+  --output-dir ./artifacts_applied
+```
+
+## Adoption and handoff boundaries
+
+This implementation establishes the maintainer entry point and verified source closure within the Policy authority candidate stack. For maintainer clarity, the following boundaries remain strictly defined:
+
+1. **Policy authority self-host adoption**:
+   - The new maintainer entrypoint and live adapter are implemented in candidate branches (`feat/policy-maintainer-*`).
+   - Self-host pins in `.agent-policy.yml` and `.agents/skills/**` on `policy` main remain unchanged until this stack is independently reviewed, accepted, and deliberately adopted.
+   - During prospective qualification, candidate source verification is exercised end-to-end using prospective manifests constructed directly from immutable Git objects, without mutating the current adopted baseline pins.
+2. **Other authorities**:
+   - The other 4 authorities (`composition`, `site`, `integration`, `modeling`) maintain their own adoption lifecycles. No files or pins in those authorities are modified by this change.
+3. **Efficiency measurement**:
+   - Measured mechanically using `scripts/measure_maintainer_efficiency.py` over validated transition fixtures.
+   - Demonstrates a 75% reduction in model execution interruptions (from 4 to 1) and unchanged poll suppression.
+   - Token savings are explicitly accounted for as `proxy_unobserved` and are not asserted as unmetered live savings.
+

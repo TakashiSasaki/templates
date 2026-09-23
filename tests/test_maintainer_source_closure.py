@@ -46,8 +46,10 @@ def current_head_verified_source():
     rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
     planner_blob = _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}")
 
-    # Skill in policy HEAD references observer
-    skill_bytes = (ROOT / CANONICAL_SKILL_PATH).read_bytes()
+    # Skill at commit revision
+    skill_bytes = subprocess.check_output(
+        ["git", "show", f"{revision}:{CANONICAL_SKILL_PATH}"], cwd=ROOT
+    )
     required_paths = required_source_closure_paths(skill_bytes)
 
     source = {
