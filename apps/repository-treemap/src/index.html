@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Repository Treemap</title>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <p class="eyebrow">Repository visualization</p>
+      <h1>Repository Treemap</h1>
+      <p class="lead">ディレクトリの面積を、配下のファイル数またはファイルサイズ合計で比較します。</p>
+    </header>
+
+    <section class="controls" aria-label="Treemap controls">
+      <label>Branch
+        <select id="branch-select"></select>
+      </label>
+      <fieldset>
+        <legend>Area metric</legend>
+        <label><input type="radio" name="metric" value="fileCount" checked> Files</label>
+        <label><input type="radio" name="metric" value="totalSize"> Bytes</label>
+      </fieldset>
+      <button id="up-button" type="button" disabled>Up</button>
+      <button id="root-button" type="button" disabled>Root</button>
+    </section>
+
+    <p id="breadcrumb" class="breadcrumb" aria-live="polite"></p>
+    <p id="status" class="status" aria-live="polite">Loading configuration…</p>
+    <div id="treemap" class="treemap" role="img" aria-label="Repository directory treemap"></div>
+    <p id="details" class="details"></p>
+  </main>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
