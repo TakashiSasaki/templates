@@ -295,6 +295,22 @@ The sequencer operates strictly read-only and distinguishes four core frontiers:
 
 Planning and mutation remain separate: repin operations require explicit authorization (`authorized=True`) and exact expected-old-pin guards, failing closed on unexpected concurrent pin values.
 
+### Canonical preflight orchestration
+
+To avoid manual command discovery and uncoordinated multi-authority validation loops, maintainers use `scripts/orchestrate_preflights.py`.
+
+The orchestrator:
+- Binds to canonical per-authority entrypoints:
+  - `policy`: `scripts/run_policy_preflight.py fast`
+  - `composition`: `scripts/run_composition_preflight.py fast`
+  - `modeling`: `tools/qualify.py`
+  - `integration`: `scripts/run_integration_preflight.py fast`
+  - `site`: `scripts/run_site_preflight.py fast`
+- Binds to exact worktree heads via `git rev-parse HEAD` and verifies against `--expected-heads-json` when supplied.
+- Executes validations with finite timeouts (`--timeout`) and bounded concurrency (default: 2, configurable via `-j / --jobs`; explicit `--jobs 1` selects serial execution).
+- Captures full logs (`--log-dir`) while returning a concise, bounded summary table (`<= 8 KiB`).
+- Preserves authority boundaries: does NOT re-implement or reinterpret authority validation semantics.
+
 ## When not to delay
 
 Delayed qualification is not a reason to leave a harmful or invalid state in place. Apply an urgent security, operational, data-integrity, publication-integrity, or equivalent material repair as soon as its remediation is justified. Likewise, when an authority boundary has already been reached—such as merge authorization, final independent review, stable release promotion, installer publication, or another immutable consumer binding—use the exact identity and full qualification that boundary requires.
