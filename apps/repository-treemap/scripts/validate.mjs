@@ -5,7 +5,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const required = [
   "src/index.html", "src/css/app.css", "src/sw.js", "src/js/main.js", "src/js/github-api.js",
   "src/js/github-api-urls.js", "src/js/cache-policy.js", "src/js/service-worker-client.js",
-  "src/js/repository-tree.js", "src/js/metrics.js", "src/js/visible-tree.js", "src/js/treemap-view.js", "src/config/defaults.json"
+  "src/js/repository-tree.js", "src/js/metrics.js", "src/js/visible-tree.js", "src/js/label-layout.js",
+  "src/js/treemap-view.js", "src/config/defaults.json"
 ];
 await Promise.all(required.map((relativePath) => access(path.join(root, relativePath))));
 const index = await readFile(path.join(root, "src/index.html"), "utf8");

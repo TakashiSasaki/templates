@@ -1,5 +1,6 @@
 import { formatBytes, metricValue } from "./metrics.js";
 import { projectDirectoryToDepth } from "./visible-tree.js";
+import { cellLabelPresentation } from "./label-layout.js";
 
 const COLORS = ["#315f8c", "#3f7652", "#8a6431", "#6d4c8a", "#8a3d4e", "#3f6e77"];
 const HEADER_HEIGHT = 26;
@@ -21,6 +22,27 @@ function positionElement(element, node, inset = 0) {
 function colorForNode(node, topColor) {
   const top = node.ancestors().find((ancestor) => ancestor.depth === 1);
   return topColor.get(top?.data.path) ?? COLORS[0];
+}
+
+function appendCellLabel(cell, source, width, height) {
+  const presentation = cellLabelPresentation(width, height);
+  const label = document.createElement("span");
+  label.className = `node-label node-label--${presentation.density}`;
+  label.style.setProperty("--node-label-font-size", `${presentation.fontSize}px`);
+
+  const name = document.createElement("span");
+  name.className = "node-name";
+  name.textContent = source.name;
+  label.append(name);
+
+  if (presentation.showMeta) {
+    const meta = document.createElement("span");
+    meta.className = "node-meta";
+    meta.textContent = `${source.fileCount} files · ${formatBytes(source.totalSize)}`;
+    label.append(meta);
+  }
+
+  cell.append(label);
 }
 
 export function renderTreemap({ d3, container, directory, metricName, relativeDepth, onZoom }) {
@@ -64,15 +86,9 @@ export function renderTreemap({ d3, container, directory, metricName, relativeDe
     cell.dataset.zoomable = String(zoomable);
     positionElement(cell, node);
 
-    const area = (node.x1 - node.x0) * (node.y1 - node.y0);
-    if (area > 2800) {
-      const label = document.createElement("span");
-      label.className = "node-label";
-      label.innerHTML = `<span class="node-name"></span><span class="node-meta"></span>`;
-      label.querySelector(".node-name").textContent = source.name;
-      label.querySelector(".node-meta").textContent = `${source.fileCount} files · ${formatBytes(source.totalSize)}`;
-      cell.append(label);
-    }
+    const cellWidth = Math.max(0, node.x1 - node.x0);
+    const cellHeight = Math.max(0, node.y1 - node.y0);
+    appendCellLabel(cell, source, cellWidth, cellHeight);
 
     cell.title = `${source.path || "/"}\n${source.fileCount} files\n${formatBytes(source.totalSize)}`;
     if (zoomable) cell.addEventListener("click", () => onZoom(source));

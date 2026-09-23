@@ -12,13 +12,16 @@ The app is intentionally framework-light: HTML, CSS, ES modules, and D3 loaded f
 - choose a relative display depth from the current focused directory;
 - zoom into a directory and navigate back up or to the branch root;
 - keep visible parent-directory names in a dedicated top header strip;
+- render a directory name in every leaf or collapsed-boundary cell, adapting font size and wrapping for small rectangles;
 - prefetch GitHub branch commit/tree data with a Service Worker and cache it for 30 minutes.
 
 A relative depth of `1` renders only direct child directories. Deeper descendants are collapsed into their boundary directory while aggregate file-count and byte-size metrics are preserved.
 
+Cell labels use three density levels. Large cells show name plus metrics, medium cells show the name only, and tiny cells retain the name with a minimum 6px font and character-level wrapping rather than becoming blank.
+
 ## Cache policy
 
-GitHub API responses are cached by the Service Worker for exactly 30 minutes. Fresh entries are served from Cache Storage. At the TTL boundary an entry is expired and the next read fetches GitHub again. The Service Worker also prefetches the configured branches so branch switching can reuse fresh cached commit and recursive-tree responses.
+GitHub API responses are cached by the Service Worker for exactly 30 minutes. Fresh entries are served from Cache Storage. At the TTL boundary an entry is expired and the next read fetches GitHub again. The in-page parsed branch-tree cache uses the same TTL.
 
 ## Commands
 
