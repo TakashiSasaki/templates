@@ -35,14 +35,17 @@ button:disabled, select:disabled { opacity: .45; cursor: default; }
 .breadcrumb { min-height: 1.4em; overflow-wrap: anywhere; }
 .treemap { position: relative; width: 100%; min-height: 560px; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
 .node { position: absolute; overflow: hidden; border: 1px solid rgba(255,255,255,.88); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
-.node[data-zoomable="true"] { cursor: pointer; }
-.node[data-zoomable="true"]:hover { filter: brightness(1.07); }
-.node:focus-visible { outline: 3px solid var(--accent); outline-offset: -4px; }
-.node-label { display: flex; flex-direction: column; gap: 2px; padding: 6px; pointer-events: none; }
+.node-parent-frame { pointer-events: none; }
+.node-cell[data-zoomable="true"] { cursor: pointer; }
+.node-cell[data-zoomable="true"]:hover, .node-header:hover { filter: brightness(1.07); }
+.node-cell:focus-visible, .node-header:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.node-cell .node-label { display: flex; height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px; text-align: center; pointer-events: none; }
 .node-name { font-weight: 700; line-height: 1.08; overflow-wrap: anywhere; }
 .node-meta { font-size: .72rem; opacity: .94; }
+.node-header { position: absolute; min-height: 0; margin: 0; padding: 1px 6px; overflow: hidden; border: 0; border-radius: 3px; color: #fff; font-size: .78rem; font-weight: 700; line-height: 1.1; text-align: left; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,.65); white-space: nowrap; }
 .status[data-kind="error"] { color: #b91c1c; }
 @media (max-width: 640px) {
   body { padding: 12px; }
   .treemap { min-height: 680px; aspect-ratio: auto; }
+  .node-header { font-size: .72rem; }
 }
