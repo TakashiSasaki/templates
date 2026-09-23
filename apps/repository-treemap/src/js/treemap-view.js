@@ -87,7 +87,7 @@ export function renderTreemap({ d3, container, directory, metricName, relativeDe
     header.style.left = `${node.x0 + 3}px`;
     header.style.top = `${node.y0 + 3}px`;
     header.style.width = `${Math.max(0, node.x1 - node.x0 - 6)}px`;
-    header.style.height = `${HEADER_HEIGHT - 5}px`;
+    header.style.height = `${Math.max(0, Math.min(HEADER_HEIGHT - 5, node.y1 - node.y0 - 6))}px`;
     header.style.zIndex = String(node.depth * 2 + 1);
     header.style.background = colorForNode(node, topColor);
     header.textContent = source.name;

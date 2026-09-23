@@ -23,3 +23,8 @@ test("GitHub API URL helpers create and recognize repository URLs", () => {
   assert.equal(isGitHubRepositoryApiUrl(commit), true);
   assert.equal(isGitHubRepositoryApiUrl("https://example.com/repos/a/b"), false);
 });
+test("the same TTL helper can expire in-memory branch data", () => {
+  const fetchedAt = 10_000;
+  assert.equal(isCacheTimestampFresh(fetchedAt, fetchedAt + GITHUB_CACHE_TTL_MS - 1), true);
+  assert.equal(isCacheTimestampFresh(fetchedAt, fetchedAt + GITHUB_CACHE_TTL_MS), false);
+});

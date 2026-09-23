@@ -5,6 +5,7 @@ import { formatBytes } from "./metrics.js";
 import { maxDescendantDepth } from "./visible-tree.js";
 import { renderTreemap } from "./treemap-view.js";
 import { registerRepositoryTreemapServiceWorker, requestGitHubPrefetch } from "./service-worker-client.js";
+import { isCacheTimestampFresh } from "./cache-policy.js";
 
 const controls = {
   branch: document.querySelector("#branch-select"),
@@ -52,11 +53,12 @@ async function selectBranch(branch) {
   controls.branch.value = branch;
   setStatus(`Loading ${branch}…`);
   try {
-    if (!state.trees.has(branch)) {
+    const cached = state.trees.get(branch);
+    if (!cached || !isCacheTimestampFresh(cached.fetchedAt)) {
       const entries = await fetchBranchTree(state.config.owner, state.config.repository, branch);
-      state.trees.set(branch, buildDirectoryTree(branch, entries));
+      state.trees.set(branch, { tree: buildDirectoryTree(branch, entries), fetchedAt: Date.now() });
     }
-    state.path = [state.trees.get(branch)];
+    state.path = [state.trees.get(branch).tree];
     setStatus(`Loaded ${state.config.owner}/${state.config.repository}@${branch}`);
     render();
   } catch (error) { setStatus(error.message, "error"); treemap.replaceChildren(); }
@@ -76,6 +78,6 @@ controls.branch.addEventListener("change", () => selectBranch(controls.branch.va
 controls.depth.addEventListener("change", () => { state.relativeDepth = controls.depth.value === "all" ? Infinity : Number.parseInt(controls.depth.value, 10); render(); });
 controls.metric.forEach((input) => input.addEventListener("change", () => { state.metric = input.value; render(); }));
 controls.up.addEventListener("click", () => { if (state.path.length > 1) state.path.pop(); render(); });
-controls.root.addEventListener("click", () => { state.path = [state.trees.get(state.branch)]; render(); });
+controls.root.addEventListener("click", () => { state.path = [state.trees.get(state.branch).tree]; render(); });
 window.addEventListener("resize", () => render());
 start().catch((error) => setStatus(error.message, "error"));
