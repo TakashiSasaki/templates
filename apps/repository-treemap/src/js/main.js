@@ -6,6 +6,7 @@ import { maxDescendantDepth } from "./visible-tree.js";
 import { renderTreemap } from "./treemap-view.js";
 import { registerRepositoryTreemapServiceWorker, requestGitHubPrefetch } from "./service-worker-client.js";
 import { isCacheTimestampFresh } from "./cache-policy.js";
+import { isPointOutsideRect } from "./dialog-dismiss.js";
 
 const controls = {
   branch: document.querySelector("#branch-select"),
@@ -107,6 +108,10 @@ nodeDetails.zoom.addEventListener("click", () => {
   nodeDetails.dialog.close();
   state.path.push(target);
   render();
+});
+nodeDetails.dialog.addEventListener("click", (event) => {
+  const rect = nodeDetails.dialog.getBoundingClientRect();
+  if (isPointOutsideRect(event.clientX, event.clientY, rect)) nodeDetails.dialog.close();
 });
 nodeDetails.dialog.addEventListener("close", () => { detailedDirectory = null; });
 controls.branch.addEventListener("change", () => selectBranch(controls.branch.value));

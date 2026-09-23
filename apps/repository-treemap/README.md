@@ -10,15 +10,15 @@ The app favors readable hierarchy exploration over mathematically exact rectangl
 
 ### Readable layout
 
-- visible child directories are re-normalized to fill 100% of their parent's available treemap area, so direct files that are not themselves rendered do not leave large visual gaps;
-- metric values use a monotonic `w^0.8` transform, preserving order while compressing extreme size ratios;
-- very small siblings receive a bounded soft floor (up to roughly 2% before final re-normalization);
-- D3 squarify uses ratio `1.2` to prefer more compact rectangles;
-- these adjustments affect layout only; displayed Files/Bytes values remain the actual repository aggregates.
+- visible child directories are re-normalized to fill 100% of their parent's available treemap area;
+- metric values use a monotonic `w^0.8` transform;
+- very small siblings receive a bounded soft floor;
+- D3 squarify uses ratio `1.2` to prefer compact rectangles;
+- displayed Files/Bytes values remain the actual repository aggregates.
 
-The app also supports relative display depth, persistent parent header labels, adaptive labels down to 6px, touch/pen long-press details, and a 30-minute Service Worker cache for GitHub branch/tree data.
+### Touch details
 
-Touch long-press uses a 500 ms hold and is cancelled after more than 12 px of pointer movement so normal page scrolling remains available. A successful long-press suppresses the following click, preventing accidental zoom.
+Touch/pen long-press uses a 500 ms hold and is cancelled after more than 12 px of pointer movement. The detail sheet shows path, descendant file count, aggregate size, and direct child-directory count. Tapping the backdrop outside the dialog closes it; tapping inside the detail sheet does not.
 
 ## Cache policy
 
@@ -31,7 +31,7 @@ npm ci
 npm run check
 ```
 
-`npm run build` copies `src/` to `dist/`. No bundler is required.
+`npm run build` copies `src/` to `dist/`.
 
 ## Render
 

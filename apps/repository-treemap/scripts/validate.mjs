@@ -6,7 +6,8 @@ const required = [
   "src/index.html", "src/css/app.css", "src/sw.js", "src/js/main.js", "src/js/github-api.js",
   "src/js/github-api-urls.js", "src/js/cache-policy.js", "src/js/service-worker-client.js",
   "src/js/repository-tree.js", "src/js/metrics.js", "src/js/visible-tree.js", "src/js/label-layout.js",
-  "src/js/layout-weights.js", "src/js/touch-long-press.js", "src/js/treemap-view.js", "src/config/defaults.json"
+  "src/js/layout-weights.js", "src/js/touch-long-press.js", "src/js/dialog-dismiss.js",
+  "src/js/treemap-view.js", "src/config/defaults.json"
 ];
 await Promise.all(required.map((relativePath) => access(path.join(root, relativePath))));
 const index = await readFile(path.join(root, "src/index.html"), "utf8");
@@ -15,6 +16,7 @@ if (!index.includes('id="node-details-dialog"')) throw new Error("index.html mus
 const main = await readFile(path.join(root, "src/js/main.js"), "utf8");
 if (!main.includes("https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm")) throw new Error("D3 dependency must remain exact-version pinned");
 if (!main.includes("registerRepositoryTreemapServiceWorker")) throw new Error("main.js must register the service worker");
+if (!main.includes("isPointOutsideRect")) throw new Error("main.js must close details on backdrop clicks");
 const cachePolicy = await readFile(path.join(root, "src/js/cache-policy.js"), "utf8");
 if (!cachePolicy.includes("30 * 60 * 1000")) throw new Error("GitHub cache TTL must remain 30 minutes");
 const touchLongPress = await readFile(path.join(root, "src/js/touch-long-press.js"), "utf8");
