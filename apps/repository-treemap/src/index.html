@@ -8,14 +8,19 @@
   <link rel="stylesheet" href="./css/app.css">
 </head>
 <body>
-  <main class="shell">
+  <main id="app-shell" class="shell">
     <header>
       <p class="eyebrow">Repository visualization</p>
       <h1>Repository Treemap</h1>
       <p class="lead">ディレクトリの面積を、配下のファイル数またはファイルサイズ合計を目安に比較します。</p>
     </header>
+
+    <section class="branch-nav" aria-label="Branch selection">
+      <span class="control-label">Branch</span>
+      <div id="branch-tabs" class="branch-tabs" role="tablist" aria-label="Repository branch"></div>
+    </section>
+
     <section class="controls" aria-label="Treemap controls">
-      <label>Branch <select id="branch-select"></select></label>
       <label>Relative depth <select id="depth-select" aria-label="Relative display depth"></select></label>
       <fieldset>
         <legend>Area metric</legend>
@@ -24,8 +29,9 @@
       </fieldset>
       <button id="up-button" type="button" disabled>Up</button>
       <button id="root-button" type="button" disabled>Root</button>
+      <button id="fullscreen-button" type="button" aria-pressed="false">Fullscreen</button>
     </section>
-    <p class="hint">面積は可読性とタップしやすさを優先した近似です。各親の子ディレクトリは利用可能領域を使い切り、小さいセルを少し拡大します。長押しで実値の詳細を表示できます。</p>
+    <p class="hint">ブランチは上のタブで切り替えます。面積は可読性とタップしやすさを優先した近似です。長押しで実値の詳細を表示できます。</p>
     <p id="breadcrumb" class="breadcrumb" aria-live="polite"></p>
     <p id="status" class="status" aria-live="polite">Loading configuration…</p>
     <div id="treemap" class="treemap" role="img" aria-label="Repository directory treemap"></div>

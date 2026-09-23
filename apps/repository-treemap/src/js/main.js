@@ -7,12 +7,21 @@ import { renderTreemap } from "./treemap-view.js";
 import { registerRepositoryTreemapServiceWorker, requestGitHubPrefetch } from "./service-worker-client.js";
 import { isCacheTimestampFresh } from "./cache-policy.js";
 import { isPointOutsideRect } from "./dialog-dismiss.js";
+import {
+  currentFullscreenElement,
+  exitNativeFullscreen,
+  fullscreenButtonLabel,
+  requestNativeFullscreen,
+  supportsNativeFullscreen
+} from "./fullscreen.js";
 
+const appShell = document.querySelector("#app-shell");
+const branchTabs = document.querySelector("#branch-tabs");
 const controls = {
-  branch: document.querySelector("#branch-select"),
   depth: document.querySelector("#depth-select"),
   up: document.querySelector("#up-button"),
   root: document.querySelector("#root-button"),
+  fullscreen: document.querySelector("#fullscreen-button"),
   metric: [...document.querySelectorAll('input[name="metric"]')]
 };
 const status = document.querySelector("#status");
@@ -31,13 +40,44 @@ const nodeDetails = {
 };
 const state = { config: null, metric: "fileCount", relativeDepth: 2, branch: null, trees: new Map(), path: [] };
 let detailedDirectory = null;
+let fallbackFullscreen = false;
 
 function setStatus(message, kind = "info") { status.textContent = message; status.dataset.kind = kind; }
 function focusDirectory() { return state.path.at(-1); }
+
+function branchTabButtons() {
+  return [...branchTabs.querySelectorAll('[role="tab"]')];
+}
+
+function updateBranchTabs(selectedBranch) {
+  for (const tab of branchTabButtons()) {
+    const selected = tab.dataset.branch === selectedBranch;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+}
+
+function initializeBranchTabs(branches) {
+  branchTabs.replaceChildren();
+  for (const branch of branches) {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "branch-tab";
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", "false");
+    tab.tabIndex = -1;
+    tab.dataset.branch = branch;
+    tab.textContent = branch;
+    tab.addEventListener("click", () => selectBranch(branch));
+    branchTabs.append(tab);
+  }
+}
+
 function effectiveDepth(focus) {
   const maximum = maxDescendantDepth(focus);
   return state.relativeDepth === Infinity ? Infinity : Math.min(state.relativeDepth, maximum);
 }
+
 function refreshDepthControl(focus) {
   const maximum = maxDescendantDepth(focus);
   controls.depth.replaceChildren();
@@ -48,6 +88,7 @@ function refreshDepthControl(focus) {
   if (state.relativeDepth !== Infinity) state.relativeDepth = Math.min(Math.max(1, state.relativeDepth), maximum);
   controls.depth.value = state.relativeDepth === Infinity ? "all" : String(state.relativeDepth);
 }
+
 function showDirectoryDetails(directory) {
   detailedDirectory = directory;
   nodeDetails.title.textContent = directory.name;
@@ -58,6 +99,7 @@ function showDirectoryDetails(directory) {
   nodeDetails.zoom.hidden = directory.children.length === 0;
   if (!nodeDetails.dialog.open) nodeDetails.dialog.showModal();
 }
+
 function render() {
   const focus = focusDirectory();
   if (!focus) return;
@@ -74,9 +116,10 @@ function render() {
     onDetails: showDirectoryDetails
   });
 }
+
 async function selectBranch(branch) {
   state.branch = branch;
-  controls.branch.value = branch;
+  updateBranchTabs(branch);
   setStatus(`Loading ${branch}…`);
   try {
     const cached = state.trees.get(branch);
@@ -89,17 +132,75 @@ async function selectBranch(branch) {
     render();
   } catch (error) { setStatus(error.message, "error"); treemap.replaceChildren(); }
 }
+
+function fullscreenActive() {
+  return Boolean(currentFullscreenElement(document)) || fallbackFullscreen;
+}
+
+function syncFullscreenUi() {
+  const active = fullscreenActive();
+  controls.fullscreen.textContent = fullscreenButtonLabel(active);
+  controls.fullscreen.setAttribute("aria-pressed", String(active));
+}
+
+function setFallbackFullscreen(active) {
+  fallbackFullscreen = active;
+  appShell.classList.toggle("is-fallback-fullscreen", active);
+  document.body.classList.toggle("app-fallback-fullscreen", active);
+  syncFullscreenUi();
+  requestAnimationFrame(() => render());
+}
+
+async function toggleFullscreen() {
+  if (currentFullscreenElement(document)) {
+    await exitNativeFullscreen(document);
+    return;
+  }
+  if (fallbackFullscreen) {
+    setFallbackFullscreen(false);
+    return;
+  }
+  if (supportsNativeFullscreen(appShell, document)) {
+    try {
+      if (await requestNativeFullscreen(appShell)) {
+        syncFullscreenUi();
+        return;
+      }
+    } catch (error) {
+      console.warn("Native fullscreen failed; using app fullscreen fallback", error);
+    }
+  }
+  setFallbackFullscreen(true);
+}
+
 async function start() {
   const response = await fetch("./config/defaults.json");
   if (!response.ok) throw new Error("Unable to load defaults.json");
   state.config = await response.json();
   state.metric = state.config.defaultMetric;
   state.relativeDepth = state.config.defaultRelativeDepth;
-  for (const branch of state.config.branches) controls.branch.add(new Option(branch, branch));
+  initializeBranchTabs(state.config.branches);
   controls.metric.find((input) => input.value === state.metric).checked = true;
   registerRepositoryTreemapServiceWorker().then((registration) => requestGitHubPrefetch(registration, state.config));
   await selectBranch(state.config.branches[0]);
+  syncFullscreenUi();
 }
+
+branchTabs.addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const tabs = branchTabButtons();
+  const currentIndex = tabs.indexOf(document.activeElement);
+  if (currentIndex < 0) return;
+  event.preventDefault();
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+  if (event.key === "Home") nextIndex = 0;
+  if (event.key === "End") nextIndex = tabs.length - 1;
+  const next = tabs[nextIndex];
+  next.focus();
+  selectBranch(next.dataset.branch);
+});
 
 nodeDetails.close.addEventListener("click", () => nodeDetails.dialog.close());
 nodeDetails.zoom.addEventListener("click", () => {
@@ -114,7 +215,21 @@ nodeDetails.dialog.addEventListener("click", (event) => {
   if (isPointOutsideRect(event.clientX, event.clientY, rect)) nodeDetails.dialog.close();
 });
 nodeDetails.dialog.addEventListener("close", () => { detailedDirectory = null; });
-controls.branch.addEventListener("change", () => selectBranch(controls.branch.value));
+
+controls.fullscreen.addEventListener("click", () => {
+  toggleFullscreen().catch((error) => {
+    console.warn("Fullscreen toggle failed", error);
+    setFallbackFullscreen(!fallbackFullscreen);
+  });
+});
+for (const eventName of ["fullscreenchange", "webkitfullscreenchange"]) {
+  document.addEventListener(eventName, () => {
+    if (currentFullscreenElement(document)) fallbackFullscreen = false;
+    syncFullscreenUi();
+    requestAnimationFrame(() => render());
+  });
+}
+
 controls.depth.addEventListener("change", () => { state.relativeDepth = controls.depth.value === "all" ? Infinity : Number.parseInt(controls.depth.value, 10); render(); });
 controls.metric.forEach((input) => input.addEventListener("change", () => { state.metric = input.value; render(); }));
 controls.up.addEventListener("click", () => { if (state.path.length > 1) state.path.pop(); render(); });
