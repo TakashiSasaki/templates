@@ -13,7 +13,10 @@ The app is intentionally framework-light: HTML, CSS, ES modules, and D3 loaded f
 - zoom into a directory and navigate back up or to the branch root;
 - keep visible parent-directory names in a dedicated top header strip;
 - render a directory name in every leaf or collapsed-boundary cell, adapting font size and wrapping for small rectangles;
+- long-press a directory on touch/pen devices to open a detail sheet;
 - prefetch GitHub branch commit/tree data with a Service Worker and cache it for 30 minutes.
+
+Touch long-press uses a 500 ms hold and is cancelled after more than 12 px of pointer movement so normal page scrolling remains available. A successful long-press suppresses the following click, preventing accidental zoom. The detail sheet shows path, descendant file count, aggregate size, and direct child-directory count, with an optional Zoom here action.
 
 A relative depth of `1` renders only direct child directories. Deeper descendants are collapsed into their boundary directory while aggregate file-count and byte-size metrics are preserved.
 

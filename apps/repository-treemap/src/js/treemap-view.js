@@ -1,6 +1,7 @@
 import { formatBytes, metricValue } from "./metrics.js";
 import { projectDirectoryToDepth } from "./visible-tree.js";
 import { cellLabelPresentation } from "./label-layout.js";
+import { bindTouchLongPress } from "./touch-long-press.js";
 
 const COLORS = ["#315f8c", "#3f7652", "#8a6431", "#6d4c8a", "#8a3d4e", "#3f6e77"];
 const HEADER_HEIGHT = 26;
@@ -29,23 +30,20 @@ function appendCellLabel(cell, source, width, height) {
   const label = document.createElement("span");
   label.className = `node-label node-label--${presentation.density}`;
   label.style.setProperty("--node-label-font-size", `${presentation.fontSize}px`);
-
   const name = document.createElement("span");
   name.className = "node-name";
   name.textContent = source.name;
   label.append(name);
-
   if (presentation.showMeta) {
     const meta = document.createElement("span");
     meta.className = "node-meta";
     meta.textContent = `${source.fileCount} files · ${formatBytes(source.totalSize)}`;
     label.append(meta);
   }
-
   cell.append(label);
 }
 
-export function renderTreemap({ d3, container, directory, metricName, relativeDepth, onZoom }) {
+export function renderTreemap({ d3, container, directory, metricName, relativeDepth, onZoom, onDetails = () => {} }) {
   container.replaceChildren();
   const width = Math.max(container.clientWidth, 320);
   const height = Math.max(container.clientHeight, 420);
@@ -89,8 +87,8 @@ export function renderTreemap({ d3, container, directory, metricName, relativeDe
     const cellWidth = Math.max(0, node.x1 - node.x0);
     const cellHeight = Math.max(0, node.y1 - node.y0);
     appendCellLabel(cell, source, cellWidth, cellHeight);
-
     cell.title = `${source.path || "/"}\n${source.fileCount} files\n${formatBytes(source.totalSize)}`;
+    bindTouchLongPress(cell, () => onDetails(source));
     if (zoomable) cell.addEventListener("click", () => onZoom(source));
     container.append(cell);
   }
@@ -108,6 +106,7 @@ export function renderTreemap({ d3, container, directory, metricName, relativeDe
     header.style.background = colorForNode(node, topColor);
     header.textContent = source.name;
     header.title = `${source.path || "/"}\n${source.fileCount} files\n${formatBytes(source.totalSize)}`;
+    bindTouchLongPress(header, () => onDetails(source));
     header.addEventListener("click", () => onZoom(source));
     container.append(header);
   }

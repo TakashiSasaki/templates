@@ -18,7 +18,18 @@ const status = document.querySelector("#status");
 const breadcrumb = document.querySelector("#breadcrumb");
 const details = document.querySelector("#details");
 const treemap = document.querySelector("#treemap");
+const nodeDetails = {
+  dialog: document.querySelector("#node-details-dialog"),
+  title: document.querySelector("#node-details-title"),
+  path: document.querySelector("#node-details-path"),
+  files: document.querySelector("#node-details-files"),
+  size: document.querySelector("#node-details-size"),
+  children: document.querySelector("#node-details-children"),
+  close: document.querySelector("#node-details-close"),
+  zoom: document.querySelector("#node-details-zoom")
+};
 const state = { config: null, metric: "fileCount", relativeDepth: 2, branch: null, trees: new Map(), path: [] };
+let detailedDirectory = null;
 
 function setStatus(message, kind = "info") { status.textContent = message; status.dataset.kind = kind; }
 function focusDirectory() { return state.path.at(-1); }
@@ -36,6 +47,16 @@ function refreshDepthControl(focus) {
   if (state.relativeDepth !== Infinity) state.relativeDepth = Math.min(Math.max(1, state.relativeDepth), maximum);
   controls.depth.value = state.relativeDepth === Infinity ? "all" : String(state.relativeDepth);
 }
+function showDirectoryDetails(directory) {
+  detailedDirectory = directory;
+  nodeDetails.title.textContent = directory.name;
+  nodeDetails.path.textContent = directory.path ? `${state.branch}/${directory.path}` : state.branch;
+  nodeDetails.files.textContent = directory.fileCount.toLocaleString();
+  nodeDetails.size.textContent = formatBytes(directory.totalSize);
+  nodeDetails.children.textContent = directory.children.length.toLocaleString();
+  nodeDetails.zoom.hidden = directory.children.length === 0;
+  if (!nodeDetails.dialog.open) nodeDetails.dialog.showModal();
+}
 function render() {
   const focus = focusDirectory();
   if (!focus) return;
@@ -46,7 +67,11 @@ function render() {
   controls.root.disabled = state.path.length <= 1;
   const depthLabel = depth === Infinity ? "all levels" : `${depth} relative level${depth === 1 ? "" : "s"}`;
   details.textContent = `${focus.fileCount.toLocaleString()} files · ${formatBytes(focus.totalSize)} · showing ${depthLabel}`;
-  renderTreemap({ d3, container: treemap, directory: focus, metricName: state.metric, relativeDepth: depth, onZoom(directory) { state.path.push(directory); render(); } });
+  renderTreemap({
+    d3, container: treemap, directory: focus, metricName: state.metric, relativeDepth: depth,
+    onZoom(directory) { state.path.push(directory); render(); },
+    onDetails: showDirectoryDetails
+  });
 }
 async function selectBranch(branch) {
   state.branch = branch;
@@ -74,6 +99,16 @@ async function start() {
   registerRepositoryTreemapServiceWorker().then((registration) => requestGitHubPrefetch(registration, state.config));
   await selectBranch(state.config.branches[0]);
 }
+
+nodeDetails.close.addEventListener("click", () => nodeDetails.dialog.close());
+nodeDetails.zoom.addEventListener("click", () => {
+  if (!detailedDirectory?.children.length) return;
+  const target = detailedDirectory;
+  nodeDetails.dialog.close();
+  state.path.push(target);
+  render();
+});
+nodeDetails.dialog.addEventListener("close", () => { detailedDirectory = null; });
 controls.branch.addEventListener("change", () => selectBranch(controls.branch.value));
 controls.depth.addEventListener("change", () => { state.relativeDepth = controls.depth.value === "all" ? Infinity : Number.parseInt(controls.depth.value, 10); render(); });
 controls.metric.forEach((input) => input.addEventListener("change", () => { state.metric = input.value; render(); }));
