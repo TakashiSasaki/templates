@@ -6,7 +6,13 @@ Static web-app skeleton for visualizing repository directory trees.
 
 `src/` is the canonical application source. `dist/` is generated and is not tracked.
 
-The app is intentionally framework-light: HTML, CSS, ES modules, and D3 loaded from an exact-version CDN URL. The current skeleton reads public GitHub repository trees with the GitHub REST API and lets the viewer switch treemap area between descendant file count and descendant byte size.
+The app is intentionally framework-light: HTML, CSS, ES modules, and D3 loaded from an exact-version CDN URL. The current skeleton reads public GitHub repository trees with the GitHub REST API and lets the viewer:
+
+- switch treemap area between descendant file count and descendant byte size;
+- choose a relative display depth from the current focused directory;
+- zoom into a directory and navigate back up or to the branch root.
+
+A relative depth of `1` renders only direct child directories. Deeper descendants are collapsed into their boundary directory, which keeps its aggregate file-count and byte-size metrics. This reduces visual border density without losing aggregate magnitude.
 
 ## Layout
 

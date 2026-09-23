@@ -2,5 +2,6 @@
   "owner": "TakashiSasaki",
   "repository": "templates",
   "branches": ["site", "integration", "composition", "policy", "modeling"],
-  "defaultMetric": "fileCount"
+  "defaultMetric": "fileCount",
+  "defaultRelativeDepth": 2
 }

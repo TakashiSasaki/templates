@@ -19,6 +19,9 @@
       <label>Branch
         <select id="branch-select"></select>
       </label>
+      <label>Relative depth
+        <select id="depth-select" aria-label="Relative display depth"></select>
+      </label>
       <fieldset>
         <legend>Area metric</legend>
         <label><input type="radio" name="metric" value="fileCount" checked> Files</label>
@@ -28,6 +31,7 @@
       <button id="root-button" type="button" disabled>Root</button>
     </section>
 
+    <p class="hint">Relative depth 1 は現在位置の直下だけを表示します。境界のディレクトリは配下全体の集計値を保持したまま、それより深い罫線を省略します。</p>
     <p id="breadcrumb" class="breadcrumb" aria-live="polite"></p>
     <p id="status" class="status" aria-live="polite">Loading configuration…</p>
     <div id="treemap" class="treemap" role="img" aria-label="Repository directory treemap"></div>

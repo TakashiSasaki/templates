@@ -10,6 +10,7 @@ const required = [
   "src/js/github-api.js",
   "src/js/repository-tree.js",
   "src/js/metrics.js",
+  "src/js/visible-tree.js",
   "src/js/treemap-view.js",
   "src/config/defaults.json"
 ];
@@ -23,4 +24,5 @@ if (!main.includes("https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm")) throw new Erro
 
 const defaults = JSON.parse(await readFile(path.join(root, "src/config/defaults.json"), "utf8"));
 if (!Array.isArray(defaults.branches) || defaults.branches.length === 0) throw new Error("defaults.branches must be a non-empty array");
+if (!Number.isInteger(defaults.defaultRelativeDepth) || defaults.defaultRelativeDepth < 1) throw new Error("defaults.defaultRelativeDepth must be a positive integer");
 console.log("Validation passed");
