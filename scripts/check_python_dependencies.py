@@ -24,6 +24,7 @@ IMPORT_DISTRIBUTIONS = {
     "pathspec": "pathspec",
     "pygments": "Pygments",
     "pytest": "pytest",
+    "xdist": "pytest-xdist",
     "yaml": "PyYAML",
 }
 

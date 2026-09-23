@@ -18,12 +18,14 @@ EXPECTED_DIRECT_REQUIREMENTS = (
     "Markdown===3.10.3",
     "Pygments===2.20.0",
     "pytest===8.4.2",
+    "pytest-xdist===3.8.0",
     "PyYAML===6.0.3",
     "ruff===0.15.22",
 )
 EXPECTED_LOCKED_REQUIREMENTS = (
     "attrs===26.1.0",
     "editables===0.6",
+    "execnet===2.1.2",
     "hatchling===1.31.0",
     "iniconfig===2.3.0",
     "Jinja2===3.1.6",
@@ -36,6 +38,7 @@ EXPECTED_LOCKED_REQUIREMENTS = (
     "pluggy===1.6.0",
     "Pygments===2.20.0",
     "pytest===8.4.2",
+    "pytest-xdist===3.8.0",
     "PyYAML===6.0.3",
     "referencing===0.37.0",
     "rpds-py===2026.6.3",
