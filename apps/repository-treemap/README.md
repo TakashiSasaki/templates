@@ -6,25 +6,23 @@ Static web app for visualizing repository directory trees.
 
 `src/` is the canonical application source. `dist/` is generated and is not tracked.
 
-The app is intentionally framework-light: HTML, CSS, ES modules, and D3 loaded from an exact-version CDN URL. It reads public GitHub repository trees with the GitHub REST API and lets the viewer:
+The app favors readable hierarchy exploration over mathematically exact rectangle areas. Actual file counts and byte sizes remain available in labels and long-press details, while layout weights are deliberately adjusted for mobile usability.
 
-- switch treemap area between descendant file count and descendant byte size;
-- choose a relative display depth from the current focused directory;
-- zoom into a directory and navigate back up or to the branch root;
-- keep visible parent-directory names in a dedicated top header strip;
-- render a directory name in every leaf or collapsed-boundary cell, adapting font size and wrapping for small rectangles;
-- long-press a directory on touch/pen devices to open a detail sheet;
-- prefetch GitHub branch commit/tree data with a Service Worker and cache it for 30 minutes.
+### Readable layout
 
-Touch long-press uses a 500 ms hold and is cancelled after more than 12 px of pointer movement so normal page scrolling remains available. A successful long-press suppresses the following click, preventing accidental zoom. The detail sheet shows path, descendant file count, aggregate size, and direct child-directory count, with an optional Zoom here action.
+- visible child directories are re-normalized to fill 100% of their parent's available treemap area, so direct files that are not themselves rendered do not leave large visual gaps;
+- metric values use a monotonic `w^0.8` transform, preserving order while compressing extreme size ratios;
+- very small siblings receive a bounded soft floor (up to roughly 2% before final re-normalization);
+- D3 squarify uses ratio `1.2` to prefer more compact rectangles;
+- these adjustments affect layout only; displayed Files/Bytes values remain the actual repository aggregates.
 
-A relative depth of `1` renders only direct child directories. Deeper descendants are collapsed into their boundary directory while aggregate file-count and byte-size metrics are preserved.
+The app also supports relative display depth, persistent parent header labels, adaptive labels down to 6px, touch/pen long-press details, and a 30-minute Service Worker cache for GitHub branch/tree data.
 
-Cell labels use three density levels. Large cells show name plus metrics, medium cells show the name only, and tiny cells retain the name with a minimum 6px font and character-level wrapping rather than becoming blank.
+Touch long-press uses a 500 ms hold and is cancelled after more than 12 px of pointer movement so normal page scrolling remains available. A successful long-press suppresses the following click, preventing accidental zoom.
 
 ## Cache policy
 
-GitHub API responses are cached by the Service Worker for exactly 30 minutes. Fresh entries are served from Cache Storage. At the TTL boundary an entry is expired and the next read fetches GitHub again. The in-page parsed branch-tree cache uses the same TTL.
+GitHub API responses are cached by the Service Worker for exactly 30 minutes. At the TTL boundary an entry expires and the next read fetches GitHub again. The in-page parsed branch-tree cache uses the same TTL.
 
 ## Commands
 

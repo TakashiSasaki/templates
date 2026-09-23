@@ -2,6 +2,7 @@ import { formatBytes, metricValue } from "./metrics.js";
 import { projectDirectoryToDepth } from "./visible-tree.js";
 import { cellLabelPresentation } from "./label-layout.js";
 import { bindTouchLongPress } from "./touch-long-press.js";
+import { assignReadableHierarchyValues, TREEMAP_SQUARIFY_RATIO } from "./layout-weights.js";
 
 const COLORS = ["#315f8c", "#3f7652", "#8a6431", "#6d4c8a", "#8a3d4e", "#3f6e77"];
 const HEADER_HEIGHT = 26;
@@ -9,7 +10,7 @@ const HEADER_HEIGHT = 26;
 function hierarchyFromDirectory(d3, directory, metricName, relativeDepth) {
   const projected = projectDirectoryToDepth(directory, relativeDepth);
   const hierarchy = d3.hierarchy(projected, (node) => node.children);
-  hierarchy.each((node) => { node.value = metricValue(node.data.source, metricName); });
+  assignReadableHierarchyValues(hierarchy, (data) => metricValue(data.source, metricName));
   return hierarchy.sort((a, b) => b.value - a.value);
 }
 
@@ -50,6 +51,7 @@ export function renderTreemap({ d3, container, directory, metricName, relativeDe
   const hierarchy = hierarchyFromDirectory(d3, directory, metricName, relativeDepth);
 
   d3.treemap()
+    .tile(d3.treemapSquarify.ratio(TREEMAP_SQUARIFY_RATIO))
     .size([width, height])
     .paddingOuter(2)
     .paddingTop((node) => node.depth > 0 && node.children ? HEADER_HEIGHT : 2)
