@@ -311,6 +311,14 @@ The orchestrator:
 - Captures full logs (`--log-dir`) while returning a concise, bounded summary table (`<= 8 KiB`).
 - Preserves authority boundaries: does NOT re-implement or reinterpret authority validation semantics.
 
+### Automation boundaries and operation taxonomy
+
+To prevent orchestration helpers from accidentally assuming semantic authority, maintainer tooling adheres to an explicit operation taxonomy (`scripts/automation_boundaries.py`):
+1. **Mechanical / Read-Only**: Fact acquisition, local preflights, deterministic routing calculations (`observe_pr_state`, `orchestrate_preflights`, `sequence_qualification`, `plan_review_scope`). These produce validation evidence only and cannot establish review acceptance or merge authorization.
+2. **Guarded Mutation**: Reversible mutations requiring explicit authorization and concurrency guards (`execute_guarded_repin`, `publish_review_artifacts`).
+3. **Semantic Judgment**: Qualitative determinations (finding validity, architecture correctness, acceptance contract evaluation). These cannot be synthesized by mechanical tools.
+4. **Authority-Controlled Decisions**: Irreversible trust transitions (merge authorization, Policy self-host adoption, publication cutover). These strictly require separate, authenticated human authorization.
+
 ## When not to delay
 
 Delayed qualification is not a reason to leave a harmful or invalid state in place. Apply an urgent security, operational, data-integrity, publication-integrity, or equivalent material repair as soon as its remediation is justified. Likewise, when an authority boundary has already been reached—such as merge authorization, final independent review, stable release promotion, installer publication, or another immutable consumer binding—use the exact identity and full qualification that boundary requires.
