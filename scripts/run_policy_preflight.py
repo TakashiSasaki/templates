@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import os
 import subprocess
 import sys
-from collections.abc import Callable, Sequence
+import threading
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +42,7 @@ FOCUSED_TESTS = (
     "tests/test_preflight_orchestration.py",
     "tests/test_maintainer_progressive_disclosure.py",
     "tests/test_automation_boundaries.py",
+    "tests/test_policy_fast_preflight_parallelism.py",
     "tests/test_matched_policy_delivery.py",
     "tests/test_policy_delivery_evidence_spec.py",
     "tests/test_policy_delivery_evidence_consistency.py",
@@ -350,6 +353,60 @@ PROFILES = {
 PROFILES["ready"] = PROFILES["full"]
 
 
+def run_fast(
+    head: str,
+    checks: Mapping[str, Callable[[], None]] | None = None,
+) -> tuple[str, ...]:
+    registry = CHECKS if checks is None else checks
+    selected = PROFILES["fast"]
+
+    # Stage 1: compile
+    print(f"POLICY_PREFLIGHT_CHECK_START name=compile head={head}", flush=True)
+    registry["compile"]()
+    print(f"POLICY_PREFLIGHT_CHECK_PASS name=compile head={head}", flush=True)
+
+    # Stage 2: parallel lint and self-check
+    parallel_checks = ("lint", "self-check")
+    for name in parallel_checks:
+        print(f"POLICY_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
+
+    errors: list[tuple[str, BaseException]] = []
+    errors_lock = threading.Lock()
+
+    def _execute(check_name: str) -> None:
+        try:
+            registry[check_name]()
+            print(f"POLICY_PREFLIGHT_CHECK_PASS name={check_name} head={head}", flush=True)
+        except BaseException as exc:
+            with errors_lock:
+                errors.append((check_name, exc))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(_execute, name) for name in parallel_checks]
+        concurrent.futures.wait(futures)
+
+    if errors:
+        if len(errors) == 1:
+            first_name, first_exc = errors[0]
+            if isinstance(
+                first_exc,
+                (OSError, RuntimeError, ValueError, subprocess.CalledProcessError),
+            ):
+                raise first_exc
+            raise RuntimeError(f"{first_name} failed: {first_exc}") from first_exc
+        descriptions = "; ".join(
+            f"{name} ({exc})" for name, exc in sorted(errors, key=lambda item: item[0])
+        )
+        raise RuntimeError(f"parallel preflight checks failed: {descriptions}")
+
+    # Stage 3: exclusive focused-tests
+    print(f"POLICY_PREFLIGHT_CHECK_START name=focused-tests head={head}", flush=True)
+    registry["focused-tests"]()
+    print(f"POLICY_PREFLIGHT_CHECK_PASS name=focused-tests head={head}", flush=True)
+
+    return selected
+
+
 def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run canonical Policy validation.")
     parser.add_argument("profile", nargs="?", choices=sorted(PROFILES), default="fast")
@@ -380,6 +437,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             if not args.base_ref:
                 raise RuntimeError("ready requires --base-ref")
             selected = run_ready(args.base_ref, head)
+        elif args.profile == "fast" and not args.checks:
+            selected = run_fast(head)
         else:
             selected = tuple(args.checks or PROFILES[args.profile])
             for name in selected:
