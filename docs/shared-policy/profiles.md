@@ -104,12 +104,13 @@ The files in `profiles/` are the executable source of truth for the available pr
 <!-- PROFILE: core -->
 ### `core`
 
-Use for the baseline semantics expected in ordinary repository changes: independent repository and local-checkout topology discovery, change scope and contract reasoning, acceptance evidence, regression safety, testing, generated artifacts, compatibility, destructive actions, binding validated state to the effective operation, transaction ownership, truthful reporting, repository-change completion, and anti-stall diagnostic control.
+Use for the baseline semantics expected in ordinary repository changes: independent repository and local-checkout topology discovery, policy and instruction applicability to the governed target, change scope and contract reasoning, acceptance evidence, regression safety, testing, generated artifacts, compatibility, destructive actions, binding validated state to the effective operation, transaction ownership, truthful reporting, repository-change completion, and anti-stall diagnostic control.
 
 Included modules:
 
 - `policy/core/repository-topology-discovery.md`
 - `policy/core/local-checkout-topology-discovery.md`
+- `policy/core/policy-applicability.md`
 - `policy/core/change-contract.md`
 - `policy/core/acceptance-baseline.md`
 - `policy/core/change-scope.md`
