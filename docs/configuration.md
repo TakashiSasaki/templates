@@ -81,11 +81,19 @@ skills:
 ```
 
 The staged output is a presentation projection. It does not change rule
-selection, severity, overrides, or enforcement. Before a dependent operation,
-use the generated `policy-guidance` script to validate the bundle and retrieve
-the exact applicable rule text. Missing, stale, corrupt, or unmapped detail is
-a blocking condition for that dependent operation. Existing configurations
-continue to use `agents-md` unless this output is explicitly enabled.
+selection, severity, overrides, or enforcement. Full (`agents-md`) and staged
+(`agents-md-staged`) forms carry identical selected normative semantics for the
+same configuration and context. Staged output is strictly opt-in, and its
+startup document presents only a compact presentation subset of cross-cutting
+boundaries; the complete selected rule set with exact bodies, ordering, and
+metadata is preserved in the authenticated detail bundle. Before a dependent
+operation, use the generated `policy-guidance` script to validate the bundle and
+retrieve the exact applicable rule text. Missing, stale, corrupt, or unmapped
+detail is a blocking condition for that dependent operation; presentation
+metadata cannot select rules, alter severity, or decide applicability, and
+incomplete operation routes fail closed, requiring validated complete retrieval
+(`--all`). Existing configurations continue to use `agents-md` unless this
+output is explicitly enabled.
 
 Set `AGENT_POLICY_SKILL_ROOT` to the actual installed `agent-policy` Skill
 directory before using the generated command. The command invokes that

@@ -15,6 +15,8 @@ Before changing a product repository, inspect it in this order:
 
 Do not edit generated `AGENTS.md` directly. Rule sources originating from shared profiles are shown as `repository@revision:path` using the pinned toolchain revision. Repository-local policy is shown as a path in the current product repository.
 
+If the repository enables the opt-in `agents-md-staged` projection, the startup `AGENTS.md` presents essential startup boundaries while the authenticated detail bundle retains the complete selected rule set. Before dependent operations, retrieve validated rule details using the generated `policy-guidance` Skill. Full and staged forms present identical selected normative semantics; presentation metadata does not select or alter rules, and incomplete operation routes fail closed.
+
 ## Verifying policy-related changes
 
 Use `.agents/skills/validate-agent-policy/SKILL.md` for changes involving `.agent-policy.yml`, project policy, generated instructions, generated skills, or the lock file.

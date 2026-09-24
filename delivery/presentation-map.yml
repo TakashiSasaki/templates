@@ -6,6 +6,9 @@ fallback:
     - all
   reason: This rule is selected but has no curated operation route; retrieve its full detail before a dependent action.
 rules:
+  core.scope-applicability-to-target:
+    startup: true
+    operations: [inspect, plan, edit, generate, validate, review, merge, publish]
   core.discover-repository-topology-fail-closed:
     startup: true
     operations: [inspect, plan, edit]

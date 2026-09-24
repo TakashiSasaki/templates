@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -16,7 +19,7 @@ import pytest
 from agent_policy import delivery, generated_mutation
 from agent_policy.commands import check, render, validate
 from agent_policy.commands import guidance as guidance_command
-from agent_policy.config import load_config
+from agent_policy.config import load_config, package_root
 from agent_policy.delivery import load_presentation_map
 from agent_policy.policy_loader import load_rules
 from agent_policy.renderer import render_agents
@@ -71,17 +74,44 @@ skills:
 
 def _run_guidance(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     skill = root / ".agents/skills/policy-guidance/scripts/policy_guidance.py"
-    environment = dict(os.environ)
-    source_root = str(Path(__file__).parents[1] / "src")
-    environment["PYTHONPATH"] = ":".join(
-        item for item in (source_root, environment.get("PYTHONPATH", "")) if item
-    )
-    return subprocess.run(
-        [sys.executable, str(skill), "--root", str(root), *arguments],
-        check=False,
-        capture_output=True,
-        text=True,
-        env=environment,
+    if not skill.is_file():
+        return subprocess.CompletedProcess(
+            args=[sys.executable, str(skill), "--root", str(root), *arguments],
+            returncode=1,
+            stdout="",
+            stderr=f"No such file: {skill}\n",
+        )
+    spec = importlib.util.spec_from_file_location("dynamic_guidance_execution", skill)
+    if spec is None or spec.loader is None:
+        return subprocess.CompletedProcess(
+            args=[sys.executable, str(skill), "--root", str(root), *arguments],
+            returncode=1,
+            stdout="",
+            stderr="Could not load guidance module\n",
+        )
+    module = importlib.util.module_from_spec(spec)
+    stdout_buf = io.StringIO()
+    stderr_buf = io.StringIO()
+    saved_argv = sys.argv
+    sys.argv = [str(skill), "--root", str(root), *arguments]
+    returncode = 0
+    try:
+        with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+            try:
+                spec.loader.exec_module(module)
+                returncode = module.main()
+            except SystemExit as exc:
+                if isinstance(exc.code, int):
+                    returncode = exc.code
+                else:
+                    returncode = 0 if exc.code is None else 1
+    finally:
+        sys.argv = saved_argv
+    return subprocess.CompletedProcess(
+        args=[sys.executable, str(skill), "--root", str(root), *arguments],
+        returncode=returncode,
+        stdout=stdout_buf.getvalue(),
+        stderr=stderr_buf.getvalue(),
     )
 
 
@@ -1146,3 +1176,672 @@ def test_disabled_staged_output_with_guidance_is_rejected_before_render(
     assert any(item.code == "STAGED_GUIDANCE_OUTPUT" for item in diagnostics)
     assert any(item.code == "STAGED_GUIDANCE_OUTPUT" for item in rendered)
     assert not (tmp_path / ".agent-policy.lock").exists()
+
+
+def _write_dual_output_repository(
+    root: Path,
+    *,
+    profiles: list[str] | None = None,
+    project_policy_files: list[str] | None = None,
+    overrides: list[dict[str, str]] | None = None,
+) -> None:
+    (root / ".git").mkdir(exist_ok=True)
+    if project_policy_files is None:
+        project_policy_files = ["policy/project.md"]
+        (root / "policy").mkdir(parents=True, exist_ok=True)
+        (root / "policy/project.md").write_text(
+            """---
+id: project.generated-delivery
+severity: mandatory
+overridable: true
+order: 1000
+---
+# Generated delivery rule
+
+Retrieve this rule before changing generated files.
+""",
+            encoding="utf-8",
+        )
+    profile_items = profiles if profiles is not None else ["core"]
+    profiles_yaml = "\n".join(f"      - {p}" for p in profile_items)
+    files_yaml = (
+        "\n".join(f"        - {f}" for f in project_policy_files)
+        if project_policy_files
+        else "        []"
+    )
+    overrides_block = ""
+    if overrides:
+        overrides_yaml = "\n".join(
+            f"      - id: {item['id']}\n        reason: {json.dumps(item['reason'])}"
+            for item in overrides
+        )
+        overrides_block = f"    overrides:\n{overrides_yaml}\n"
+    (root / ".agent-policy.yml").write_text(
+        f"""schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: {TEST_REVISION}
+contexts:
+  coding:
+    profiles:
+{profiles_yaml}
+    project_policy:
+      files:
+{files_yaml}
+{overrides_block}outputs:
+  agents:
+    enabled: true
+    path: AGENTS.md
+    context: coding
+    renderer: agents-md
+  agents-staged:
+    enabled: true
+    path: .agent-policy/preview/AGENTS.md
+    detail_bundle: .agent-policy/preview/policy-details.json
+    context: coding
+    renderer: agents-md-staged
+skills:
+  enabled:
+    - policy-guidance
+""",
+        encoding="utf-8",
+    )
+
+
+def test_full_and_staged_renderer_semantic_parity_for_identical_context(
+    tmp_path: Path,
+) -> None:
+    _write_dual_output_repository(tmp_path)
+
+    assert validate.run(tmp_path, ".agent-policy.yml") == []
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert check.run(tmp_path, ".agent-policy.yml") == []
+
+    config = load_config(tmp_path, ".agent-policy.yml")
+    context = config.contexts["coding"]
+    canonical_rules = load_rules(
+        tmp_path,
+        list(context.profiles),
+        list(context.project_policy_files),
+        declared_overrides=context.override_reasons,
+        require_explicit_overrides=True,
+    )
+    bundle = json.loads(
+        (tmp_path / ".agent-policy/preview/policy-details.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    full_text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    startup_text = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+
+    bundled_rules = bundle["rules"]
+    assert len(bundled_rules) == len(canonical_rules)
+    canonical_selected_ids = [rule.id for rule in canonical_rules]
+    staged_detail_ids = [item["id"] for item in bundled_rules]
+    full_rendered_ids = re.findall(r"rule ID: `([^`]+)`", full_text)
+
+    # Prove canonical selected rule IDs == staged detail-bundle rule IDs
+    # == full AGENTS.md rule IDs in rendered order
+    assert canonical_selected_ids == staged_detail_ids == full_rendered_ids
+
+    # Verify field-by-field parity across real loaded rules, bundle rules, and full projection
+    for bundled, canonical in zip(bundled_rules, canonical_rules, strict=True):
+        assert bundled["id"] == canonical.id
+        assert bundled["title"] == canonical.title
+        assert bundled["severity"] == canonical.severity
+        assert bundled["overridable"] == canonical.overridable
+        assert bundled["order"] == canonical.order
+        assert bundled["origin"] == canonical.origin
+        assert bundled["source"] == canonical.source
+        assert bundled["body"] == canonical.body
+        assert bundled["body_sha256"] == hashlib.sha256(canonical.body.encode("utf-8")).hexdigest()
+
+        # Full AGENTS.md represents the same final selected rule
+        assert f"## {canonical.title}" in full_text
+        body_snippet = (
+            canonical.body.split("\n", 1)[1].strip()
+            if "\n" in canonical.body
+            else canonical.body
+        )
+        assert body_snippet in full_text
+
+        if canonical.origin == "toolchain":
+            expected_provenance = (
+                f"_Source: `TakashiSasaki/templates@{TEST_REVISION}:{canonical.source}`; "
+                f"rule ID: `{canonical.id}`; severity: `{canonical.severity}`._"
+            )
+            assert expected_provenance in full_text
+        else:
+            expected_provenance = (
+                f"_Source: `{canonical.source}` in this repository; "
+                f"rule ID: `{canonical.id}`; severity: `{canonical.severity}`._"
+            )
+            assert expected_provenance in full_text
+
+    # Bindings match the configuration context
+    assert bundle["bindings"]["context"]["name"] == "coding"
+    assert bundle["bindings"]["context"]["profiles"] == ["core"]
+    assert bundle["bindings"]["context"]["project_policy_files"] == ["policy/project.md"]
+    assert bundle["bindings"]["context"]["overrides"] == {}
+
+    # Startup file presents a subset of already-selected rules
+    startup_rules = [
+        r for r in bundled_rules if any(
+            route["id"] == r["id"] and route["startup"]
+            for route in bundle["presentation"]["routes"]
+        )
+    ]
+    assert len(startup_rules) < len(bundled_rules)
+    for s_rule in startup_rules:
+        assert s_rule["title"] in startup_text
+
+
+def test_full_and_staged_renderer_override_parity(tmp_path: Path) -> None:
+    (tmp_path / "policy").mkdir(parents=True, exist_ok=True)
+    override_path = tmp_path / "policy/override.md"
+    override_path.write_text(
+        """---
+id: testing.require-adversarial-invariant-coverage
+severity: mandatory
+overridable: false
+order: 33
+---
+# Local specialized requirement for adversarial coverage
+
+Repository-local specialized adversarial test coverage is mandatory.
+""",
+        encoding="utf-8",
+    )
+    _write_dual_output_repository(
+        tmp_path,
+        profiles=["core"],
+        project_policy_files=["policy/override.md"],
+        overrides=[
+            {
+                "id": "testing.require-adversarial-invariant-coverage",
+                "reason": "Specialized repository-local invariant coverage rules",
+            }
+        ],
+    )
+
+    assert validate.run(tmp_path, ".agent-policy.yml") == []
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert check.run(tmp_path, ".agent-policy.yml") == []
+
+    bundle = json.loads(
+        (tmp_path / ".agent-policy/preview/policy-details.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    full_text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+
+    # Prove ordering parity under overrides across all representations
+    config = load_config(tmp_path, ".agent-policy.yml")
+    context = config.contexts["coding"]
+    canonical_rules = load_rules(
+        tmp_path,
+        list(context.profiles),
+        list(context.project_policy_files),
+        declared_overrides=context.override_reasons,
+        require_explicit_overrides=True,
+    )
+    canonical_selected_ids = [rule.id for rule in canonical_rules]
+    staged_detail_ids = [item["id"] for item in bundle["rules"]]
+    full_rendered_ids = re.findall(r"rule ID: `([^`]+)`", full_text)
+    assert canonical_selected_ids == staged_detail_ids == full_rendered_ids
+
+    # In bundle: exactly one rule with the overridden ID, with project origin
+    matching_bundle_rules = [
+        r for r in bundle["rules"]
+        if r["id"] == "testing.require-adversarial-invariant-coverage"
+    ]
+    assert len(matching_bundle_rules) == 1
+    overridden_rule = matching_bundle_rules[0]
+    assert overridden_rule["origin"] == "repository"
+    assert overridden_rule["source"] == "policy/override.md"
+    assert overridden_rule["title"] == "Local specialized requirement for adversarial coverage"
+    assert overridden_rule["body"] == (
+        "# Local specialized requirement for adversarial coverage\n\n"
+        "Repository-local specialized adversarial test coverage is mandatory."
+    )
+    assert bundle["bindings"]["context"]["overrides"] == {
+        "testing.require-adversarial-invariant-coverage": (
+            "Specialized repository-local invariant coverage rules"
+        )
+    }
+
+    # In full AGENTS.md: replacement appears, original does not; rule appears exactly once
+    assert "Local specialized requirement for adversarial coverage" in full_text
+    assert "Repository-local specialized adversarial test coverage is mandatory." in full_text
+    expected_override_source = (
+        "_Source: `policy/override.md` in this repository; "
+        "rule ID: `testing.require-adversarial-invariant-coverage`"
+    )
+    assert expected_override_source in full_text
+    # Original toolchain rule content must NOT be present
+    original_toolchain_fragment = (
+        "Adversarial and boundary test coverage is required for policy and security invariants."
+    )
+    assert original_toolchain_fragment not in full_text
+    assert full_text.count("rule ID: `testing.require-adversarial-invariant-coverage`") == 1
+
+    # Guidance retrieval serves the overridden replacement rule
+    result = _run_guidance(
+        tmp_path, "--rule-id", "testing.require-adversarial-invariant-coverage"
+    )
+    assert result.returncode == 0
+    assert "Local specialized requirement for adversarial coverage" in result.stdout
+    assert "Repository-local specialized adversarial test coverage is mandatory." in result.stdout
+    assert "Source: policy/override.md" in result.stdout
+
+
+def test_scenario_a_ordinary_full_consumer(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".agent-policy.yml").write_text(
+        f"""schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: {TEST_REVISION}
+contexts:
+  coding:
+    profiles:
+      - core
+    project_policy:
+      files: []
+outputs:
+  agents:
+    enabled: true
+    path: AGENTS.md
+    context: coding
+    renderer: agents-md
+skills:
+  enabled: []
+""",
+        encoding="utf-8",
+    )
+
+    assert validate.run(tmp_path, ".agent-policy.yml") == []
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert check.run(tmp_path, ".agent-policy.yml") == []
+
+    agents_path = tmp_path / "AGENTS.md"
+    assert agents_path.is_file()
+    agents_text = agents_path.read_text(encoding="utf-8")
+    assert "core.discover-repository-topology-fail-closed" in agents_text
+    assert "policy-repo." not in agents_text
+
+    # No staged artifacts exist or are required
+    assert not (tmp_path / ".agent-policy/preview/policy-details.json").exists()
+    assert not (tmp_path / ".agents/skills/policy-guidance").exists()
+
+
+def test_scenario_b_equivalent_staged_consumer(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".agent-policy.yml").write_text(
+        f"""schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: {TEST_REVISION}
+contexts:
+  coding:
+    profiles:
+      - core
+    project_policy:
+      files: []
+outputs:
+  agents-staged:
+    enabled: true
+    path: .agent-policy/preview/AGENTS.md
+    detail_bundle: .agent-policy/preview/policy-details.json
+    context: coding
+    renderer: agents-md-staged
+skills:
+  enabled:
+    - policy-guidance
+""",
+        encoding="utf-8",
+    )
+
+    assert validate.run(tmp_path, ".agent-policy.yml") == []
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert check.run(tmp_path, ".agent-policy.yml") == []
+
+    bundle = json.loads(
+        (tmp_path / ".agent-policy/preview/policy-details.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    startup_text = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+
+    # Identical normative selected rules as Scenario A
+    canonical_rules = load_rules(tmp_path, ["core"], [])
+    assert [r["id"] for r in bundle["rules"]] == [r.id for r in canonical_rules]
+
+    # No provider-maintainer rules leak
+    assert not any(r["id"].startswith("policy-repo.") for r in bundle["rules"])
+    assert "policy-repo." not in startup_text
+
+    # Operation-specific guidance retrieves from authenticated bundle
+    result = _run_guidance(tmp_path, "--operation", "edit")
+    assert result.returncode == 0
+    assert "core.discover-repository-topology-fail-closed" in result.stdout
+
+
+def _isolate_package_root(
+    destination: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Path:
+    canonical = package_root()
+    destination.mkdir(parents=True, exist_ok=True)
+    for name in ("schemas", "templates", "delivery", "policy", "profiles", "skills"):
+        shutil.copytree(canonical / name, destination / name)
+
+    import agent_policy.adoption
+    import agent_policy.commands.adopt
+    import agent_policy.commands.init
+    import agent_policy.config
+    import agent_policy.delivery
+    import agent_policy.policy_loader
+    import agent_policy.renderer
+
+    for module in (
+        agent_policy.adoption,
+        agent_policy.commands.adopt,
+        agent_policy.commands.init,
+        agent_policy.config,
+        agent_policy.delivery,
+        agent_policy.policy_loader,
+        agent_policy.renderer,
+    ):
+        monkeypatch.setattr(module, "package_root", lambda: destination)
+
+    monkeypatch.setattr(
+        agent_policy.delivery,
+        "DELIVERY_MAP_PATH",
+        destination / agent_policy.delivery.DELIVERY_MAP_RELATIVE,
+    )
+    return destination
+
+
+def test_scenario_c_applicability_rule_selected_as_startup_boundary_and_in_every_operation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    canonical_root = package_root()
+    # Guard: canonical worktree profile must NOT exist before, during, or after test
+    assert not (canonical_root / "profiles/fixture-applicability-p2.yml").exists()
+
+    isolated_pkg = _isolate_package_root(tmp_path / "pkg", monkeypatch)
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(parents=True, exist_ok=True)
+
+    fixture_profile_path = isolated_pkg / "profiles/fixture-applicability-p2.yml"
+    fixture_profile_path.write_text(
+        """policy_files:
+  - policy/core/repository-topology-discovery.md
+  - policy/core/local-checkout-topology-discovery.md
+  - policy/core/change-contract.md
+  - policy/core/acceptance-baseline.md
+  - policy/core/change-scope.md
+  - policy/core/semantic-decision-gates.md
+  - policy/core/regression-safety.md
+  - policy/core/testing.md
+  - policy/core/adversarial-invariant-testing.md
+  - policy/core/evidence-layers.md
+  - policy/core/generated-artifacts.md
+  - policy/core/compatibility.md
+  - policy/core/destructive-actions.md
+  - policy/core/validation-operation-binding.md
+  - policy/core/transaction-ownership.md
+  - policy/core/truthful-reporting.md
+  - policy/core/repository-change-completion.md
+  - policy/core/repository-change-anti-stall.md
+  - policy/core/policy-applicability.md
+""",
+        encoding="utf-8",
+    )
+    # Regression guard: writing to isolated package root does not touch canonical root
+    assert not (canonical_root / "profiles/fixture-applicability-p2.yml").exists()
+
+    _write_dual_output_repository(
+        repo_root,
+        profiles=["fixture-applicability-p2"],
+        project_policy_files=[],
+    )
+
+    assert validate.run(repo_root, ".agent-policy.yml") == []
+    assert render.run(repo_root, ".agent-policy.yml") == []
+    assert check.run(repo_root, ".agent-policy.yml") == []
+
+    bundle = json.loads(
+        (repo_root / ".agent-policy/preview/policy-details.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    full_text = (repo_root / "AGENTS.md").read_text(encoding="utf-8")
+    startup_text = (repo_root / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+
+    # 1. Applicability rule is selected
+    assert "core.scope-applicability-to-target" in [r["id"] for r in bundle["rules"]]
+
+    # 1b. Ordering parity: canonical selected rule IDs == staged detail rule IDs
+    # == full AGENTS.md rendered order
+    config = load_config(repo_root, ".agent-policy.yml")
+    context = config.contexts["coding"]
+    canonical_rules = load_rules(
+        repo_root,
+        list(context.profiles),
+        list(context.project_policy_files),
+        declared_overrides=context.override_reasons,
+        require_explicit_overrides=True,
+    )
+    canonical_selected_ids = [rule.id for rule in canonical_rules]
+    staged_detail_ids = [r["id"] for r in bundle["rules"]]
+    full_rendered_ids = re.findall(r"rule ID: `([^`]+)`", full_text)
+    assert canonical_selected_ids == staged_detail_ids == full_rendered_ids
+
+    # 2. Present in full AGENTS.md with toolchain origin
+    expected_title = "Scope policy and instruction applicability to the governed target"
+    assert expected_title in full_text
+    provenance = (
+        f"TakashiSasaki/templates@{TEST_REVISION}:policy/core/policy-applicability.md"
+    )
+    assert provenance in full_text
+    assert "rule ID: `core.scope-applicability-to-target`" in full_text
+
+    # 3. Startup presentation: included in startup_rules as an essential startup boundary
+    assert f"### {expected_title}" in startup_text
+    assert "rule ID: `core.scope-applicability-to-target`" in startup_text
+
+    # 4. Detail bundle carries full text and metadata
+    p1_rule = next(
+        r for r in bundle["rules"] if r["id"] == "core.scope-applicability-to-target"
+    )
+    assert p1_rule["title"] == expected_title
+    assert p1_rule["severity"] == "mandatory"
+    assert p1_rule["overridable"] is False
+    assert p1_rule["order"] == 48
+    assert p1_rule["origin"] == "toolchain"
+    assert p1_rule["source"] == "policy/core/policy-applicability.md"
+    assert "Distinguish four operational relationships:" in p1_rule["body"]
+
+    # 5. Every single supported operation route includes the applicability rule
+    supported_operations = [
+        "inspect",
+        "plan",
+        "edit",
+        "generate",
+        "validate",
+        "review",
+        "merge",
+        "publish",
+    ]
+    for operation in supported_operations:
+        result = _run_guidance(repo_root, "--operation", operation)
+        assert result.returncode == 0, f"--operation {operation} failed: {result.stderr}"
+        assert "core.scope-applicability-to-target" in result.stdout
+        assert expected_title in result.stdout
+
+    # 6. Fallback and single-rule retrieval also include it
+    result_all = _run_guidance(repo_root, "--all")
+    assert result_all.returncode == 0
+    assert "core.scope-applicability-to-target" in result_all.stdout
+
+    result_single = _run_guidance(repo_root, "--rule-id", "core.scope-applicability-to-target")
+    assert result_single.returncode == 0
+    assert expected_title in result_single.stdout
+
+    # 7. Regression check: canonical package root remained completely clean
+    assert not (canonical_root / "profiles/fixture-applicability-p2.yml").exists()
+
+
+def test_scenario_c_preserves_canonical_package_root_isolation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    canonical_root = package_root()
+    fixture_in_canonical = canonical_root / "profiles/fixture-applicability-p2.yml"
+    assert not fixture_in_canonical.exists()
+
+    core_profile_bytes = (canonical_root / "profiles/core.yml").read_bytes()
+    presentation_map_bytes = (canonical_root / "delivery/presentation-map.yml").read_bytes()
+
+    test_scenario_c_applicability_rule_selected_as_startup_boundary_and_in_every_operation(
+        tmp_path, monkeypatch
+    )
+
+    assert not fixture_in_canonical.exists()
+    assert (canonical_root / "profiles/core.yml").read_bytes() == core_profile_bytes
+    assert (canonical_root / "delivery/presentation-map.yml").read_bytes() == presentation_map_bytes
+
+
+def test_scenario_d_presentation_map_entry_alone_does_not_select_applicability_rule(
+    tmp_path: Path,
+) -> None:
+    _write_dual_output_repository(tmp_path, profiles=["core"], project_policy_files=[])
+
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    full_text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    startup_text = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+    bundle = json.loads(
+        (tmp_path / ".agent-policy/preview/policy-details.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    # Negative assertion: P1 is not in full output
+    assert "core.scope-applicability-to-target" not in full_text
+    assert "Scope policy and instruction applicability to the governed target" not in full_text
+
+    # Negative assertion: P1 is not in staged startup
+    assert "core.scope-applicability-to-target" not in startup_text
+    assert "Scope policy and instruction applicability to the governed target" not in startup_text
+
+    # Negative assertion: P1 is not in bundle rules or operation routes
+    assert "core.scope-applicability-to-target" not in [r["id"] for r in bundle["rules"]]
+    for _op, ids in bundle["presentation"]["operation_routes"].items():
+        assert "core.scope-applicability-to-target" not in ids
+
+    # Negative assertion: Guidance retrieval rejects unselected rule
+    result = _run_guidance(tmp_path, "--rule-id", "core.scope-applicability-to-target")
+    assert result.returncode == 2
+    assert "unknown selected rule: core.scope-applicability-to-target" in result.stderr
+
+
+def test_scenario_f_unmapped_selected_rule_fails_closed_for_operation_retrieval(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "policy").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "policy/unmapped.md").write_text(
+        """---
+id: project.unmapped-custom-rule
+severity: mandatory
+overridable: false
+order: 9999
+---
+# Unmapped custom rule
+
+This local rule is selected but intentionally unmapped in presentation-map.yml.
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / ".agent-policy.yml").write_text(
+        f"""schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: {TEST_REVISION}
+contexts:
+  coding:
+    profiles:
+      - core
+    project_policy:
+      files:
+        - policy/unmapped.md
+outputs:
+  agents-staged:
+    enabled: true
+    path: .agent-policy/preview/AGENTS.md
+    detail_bundle: .agent-policy/preview/policy-details.json
+    context: coding
+    renderer: agents-md-staged
+skills:
+  enabled:
+    - policy-guidance
+""",
+        encoding="utf-8",
+    )
+
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    bundle = json.loads(
+        (tmp_path / ".agent-policy/preview/policy-details.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert bundle["presentation"]["unmapped_rule_ids"] == ["project.unmapped-custom-rule"]
+
+    # Operation-specific guidance fails closed
+    blocked = _run_guidance(tmp_path, "--operation", "edit")
+    assert blocked.returncode == 2
+    assert "operation route is incomplete for selected rules; rerun with --all" in blocked.stderr
+
+    # Fallback complete retrieval remains available
+    allowed = _run_guidance(tmp_path, "--all")
+    assert allowed.returncode == 0
+    assert "project.unmapped-custom-rule" in allowed.stdout
+    assert "Unmapped custom rule" in allowed.stdout
+
+    # Single-rule retrieval remains available
+    single = _run_guidance(tmp_path, "--rule-id", "project.unmapped-custom-rule")
+    assert single.returncode == 0
+    assert "Unmapped custom rule" in single.stdout
+
+
+def test_staged_startup_framing_identifies_presentation_boundaries(
+    tmp_path: Path,
+) -> None:
+    _write_staged_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    startup = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "- Semantic configuration: `.agent-policy.yml`" in startup
+    assert "- Selected context: `coding`" in startup
+    assert "- Presentation mode: staged (`agents-md-staged`)" in startup
+    assert f"- Pinned shared toolchain: `TakashiSasaki/templates@{TEST_REVISION}`" in startup
+    assert "- Detail bundle: `.agent-policy/preview/policy-details.json`" in startup
+    assert "This file presents rules already selected by the configured Policy context" in startup
+    assert "Presentation metadata cannot select, add, or change rule applicability" in startup
+
