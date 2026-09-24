@@ -68,8 +68,21 @@ button:disabled, select:disabled { opacity: .45; cursor: default; }
 .node-label--tiny .node-name { line-height: .9; word-break: break-all; }
 .node-header { position: absolute; min-height: 0; margin: 0; padding: 1px 6px; overflow: hidden; border: 0; border-radius: 3px; color: #fff; font-size: .78rem; font-weight: 700; line-height: 1.1; text-align: left; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,.65); white-space: nowrap; }
 
-.view-panel--about { max-width: 760px; margin: 0 auto; }
-.about-content { padding: 8px 4px 28px; line-height: 1.6; }
+.view-panel--about, .view-panel--readme { max-width: 860px; margin: 0 auto; }
+.about-content, .markdown-content { padding: 8px 4px 28px; line-height: 1.6; }
+.readme-status { margin: 8px 4px; color: var(--muted); }
+.readme-status[data-kind="error"] { color: #b91c1c; }
+.markdown-content { overflow-wrap: anywhere; }
+.markdown-content h1, .markdown-content h2, .markdown-content h3, .markdown-content h4 { line-height: 1.25; }
+.markdown-content h1 { padding-bottom: .3em; border-bottom: 1px solid var(--border); font-size: clamp(1.6rem, 5vw, 2.2rem); }
+.markdown-content h2 { margin-top: 1.5em; padding-bottom: .25em; border-bottom: 1px solid var(--border); }
+.markdown-content pre { max-width: 100%; overflow-x: auto; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.markdown-content code { padding: .08em .3em; border-radius: 4px; background: var(--panel); }
+.markdown-content pre code { padding: 0; background: transparent; }
+.markdown-content table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.markdown-content th, .markdown-content td { padding: 6px 9px; border: 1px solid var(--border); }
+.markdown-content img { max-width: 100%; height: auto; }
+.markdown-content a { color: var(--accent); }
 .about-content h2 { margin: 8px 0 6px; font-size: clamp(1.5rem, 4vw, 2rem); }
 .about-content h3 { margin: 22px 0 6px; }
 .about-content p, .about-content ul { margin: 8px 0; }
@@ -121,7 +134,8 @@ body.app-fallback-fullscreen { overflow: hidden; }
   .treemap { min-height: 0; height: auto; flex: 1 1 auto; aspect-ratio: auto; border-radius: 6px; }
   .node-header { font-size: .72rem; }
   .node-details-dialog { width: 100%; }
-  .view-panel--about:not([hidden]) { display: block; min-height: 0; flex: 1 1 auto; overflow-y: auto; }
-  .about-content { padding: 4px 8px 28px; font-size: .92rem; }
+  .view-panel--about:not([hidden]), .view-panel--readme:not([hidden]) { display: block; min-height: 0; flex: 1 1 auto; overflow-y: auto; }
+  .about-content, .markdown-content { padding: 4px 8px 28px; font-size: .92rem; }
   .about-content h2 { margin-top: 4px; }
+  .readme-status { margin: 6px 8px; font-size: .82rem; }
 }

@@ -8,7 +8,7 @@ const required = [
   "src/js/github-api-urls.js", "src/js/cache-policy.js", "src/js/service-worker-client.js",
   "src/js/repository-tree.js", "src/js/metrics.js", "src/js/visible-tree.js", "src/js/label-layout.js",
   "src/js/layout-weights.js", "src/js/touch-long-press.js", "src/js/dialog-dismiss.js",
-  "src/js/fullscreen.js", "src/js/preferences.js", "src/js/selection-guard.js", "src/js/treemap-view.js", "src/config/defaults.json"
+  "src/js/fullscreen.js", "src/js/preferences.js", "src/js/selection-guard.js", "src/js/readme-renderer.js", "src/js/treemap-view.js", "src/config/defaults.json"
 ];
 await Promise.all(required.map((relativePath) => access(path.join(root, relativePath))));
 const index = await readFile(path.join(root, "src/index.html"), "utf8");
@@ -16,12 +16,14 @@ if (!index.includes('type="module" src="./js/main.js"')) throw new Error("index.
 if (!index.includes('id="node-details-dialog"')) throw new Error("index.html must define the long-press details dialog");
 if (!index.includes('id="branch-tabs"') || !index.includes('role="tablist"')) throw new Error("index.html must define accessible branch tabs");
 if (!index.includes('id="view-tab-about"') || !index.includes('id="view-panel-about"')) throw new Error("index.html must move explanatory content into an About tab");
+if (!index.includes('id="view-tab-readme"') || !index.includes('id="view-panel-readme"')) throw new Error("index.html must define the README tab and panel");
 if (!index.includes('id="fullscreen-button"')) throw new Error("index.html must define the fullscreen button");
 const main = await readFile(path.join(root, "src/js/main.js"), "utf8");
 if (!main.includes("https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm")) throw new Error("D3 dependency must remain exact-version pinned");
 if (!main.includes("registerRepositoryTreemapServiceWorker")) throw new Error("main.js must register the service worker");
 if (!main.includes("loadPreferences") || !main.includes("withBranchRelativeDepth")) throw new Error("main.js must persist branch/depth preferences");
 if (!main.includes("createLatestSelectionGuard")) throw new Error("main.js must reject stale branch-load completions");
+if (!main.includes("renderReadmeMarkdown") || !main.includes("ensureReadmeLoaded")) throw new Error("main.js must lazily render the app README");
 if (!main.includes("initializeBranchTabs")) throw new Error("main.js must initialize branch tabs");
 if (!main.includes("toggleFullscreen")) throw new Error("main.js must implement fullscreen toggle");
 if (!main.includes("isPointOutsideRect")) throw new Error("main.js must close details on backdrop clicks");
@@ -29,6 +31,10 @@ const cachePolicy = await readFile(path.join(root, "src/js/cache-policy.js"), "u
 if (!cachePolicy.includes("30 * 60 * 1000")) throw new Error("GitHub cache TTL must remain 30 minutes");
 const preferences = await readFile(path.join(root, "src/js/preferences.js"), "utf8");
 if (!preferences.includes("repository-treemap.preferences.v1")) throw new Error("localStorage preference key must remain versioned");
+const readmeRenderer = await readFile(path.join(root, "src/js/readme-renderer.js"), "utf8");
+if (!readmeRenderer.includes("marked@18.0.13") || !readmeRenderer.includes("dompurify@3.4.15")) throw new Error("README renderer CDN dependencies must remain exact-version pinned");
+const build = await readFile(path.join(root, "scripts/build.mjs"), "utf8");
+if (!build.includes('copyFile(path.join(root, "README.md"), path.join(output, "README.md"))')) throw new Error("build must publish the app-root README.md");
 const touchLongPress = await readFile(path.join(root, "src/js/touch-long-press.js"), "utf8");
 if (!touchLongPress.includes("LONG_PRESS_DELAY_MS = 500")) throw new Error("touch long press must remain 500 ms");
 const layoutWeights = await readFile(path.join(root, "src/js/layout-weights.js"), "utf8");

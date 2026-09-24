@@ -22,6 +22,7 @@ import {
   withLastBranch
 } from "./preferences.js";
 import { createLatestSelectionGuard } from "./selection-guard.js";
+import { README_ASSET_URL, renderReadmeMarkdown } from "./readme-renderer.js";
 
 const appShell = document.querySelector("#app-shell");
 const viewTabList = document.querySelector("#view-tabs");
@@ -37,6 +38,10 @@ const status = document.querySelector("#status");
 const breadcrumb = document.querySelector("#breadcrumb");
 const details = document.querySelector("#details");
 const treemap = document.querySelector("#treemap");
+const readmeView = {
+  status: document.querySelector("#readme-status"),
+  content: document.querySelector("#readme-content")
+};
 const nodeDetails = {
   dialog: document.querySelector("#node-details-dialog"),
   title: document.querySelector("#node-details-title"),
@@ -59,6 +64,8 @@ const state = {
 let detailedDirectory = null;
 let fallbackFullscreen = false;
 let preferenceStorage = null;
+let readmeLoaded = false;
+let readmeLoadPromise = null;
 const branchSelectionGuard = createLatestSelectionGuard();
 
 try {
@@ -74,6 +81,33 @@ function viewTabButtons() {
   return [...viewTabList.querySelectorAll('[role="tab"]')];
 }
 
+async function ensureReadmeLoaded() {
+  if (readmeLoaded) return;
+  if (readmeLoadPromise) return readmeLoadPromise;
+
+  readmeView.status.textContent = "Loading README…";
+  readmeView.status.dataset.kind = "info";
+
+  readmeLoadPromise = (async () => {
+    const response = await fetch(README_ASSET_URL, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`README load failed: ${response.status} ${response.statusText}`);
+    const markdown = await response.text();
+    const sanitizedHtml = await renderReadmeMarkdown(markdown);
+    readmeView.content.innerHTML = sanitizedHtml;
+    readmeView.status.textContent = "";
+    readmeLoaded = true;
+  })();
+
+  try {
+    await readmeLoadPromise;
+  } catch (error) {
+    readmeView.status.textContent = error.message;
+    readmeView.status.dataset.kind = "error";
+  } finally {
+    readmeLoadPromise = null;
+  }
+}
+
 function selectView(view) {
   for (const tab of viewTabButtons()) {
     const selected = tab.dataset.view === view;
@@ -83,6 +117,7 @@ function selectView(view) {
     if (panel) panel.hidden = !selected;
   }
   if (view === "treemap") requestAnimationFrame(() => render());
+  if (view === "readme") void ensureReadmeLoaded();
 }
 
 function branchTabButtons() {

@@ -12,6 +12,7 @@
     <nav id="view-tabs" class="view-tabs" role="tablist" aria-label="Application view">
       <button id="view-tab-treemap" class="view-tab" type="button" role="tab" aria-selected="true" aria-controls="view-panel-treemap" data-view="treemap">Treemap</button>
       <button id="view-tab-about" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="view-panel-about" data-view="about" tabindex="-1">About</button>
+      <button id="view-tab-readme" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="view-panel-readme" data-view="readme" tabindex="-1">README</button>
     </nav>
 
     <section id="view-panel-treemap" class="view-panel view-panel--treemap" role="tabpanel" aria-labelledby="view-tab-treemap">
@@ -56,6 +57,11 @@
         <p>最後に選択したbranchとbranchごとのDepthは、このブラウザの<code>localStorage</code>に保存されます。サーバーへ同期はされません。</p>
         <p>GitHub APIのbranch/tree情報はService Workerが先読みし、30分間キャッシュします。</p>
       </article>
+    </section>
+
+    <section id="view-panel-readme" class="view-panel view-panel--readme" role="tabpanel" aria-labelledby="view-tab-readme" hidden>
+      <p id="readme-status" class="readme-status" aria-live="polite"></p>
+      <article id="readme-content" class="markdown-content"></article>
     </section>
   </main>
 
