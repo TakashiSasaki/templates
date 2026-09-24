@@ -2,11 +2,11 @@
   "schema_version": 2,
   "projection_id": "composition-playground-v1",
   "intent_projection_id": "composition-playground-intent-v1",
-  "semantic_revision": "1874310aa6a54cd4d97d012948e4bf6d2559ecb0",
+  "semantic_revision": "9b338552d6b0f7c1af59ad6602e981681dce7189",
   "semantic_objects": {
     "catalog": "d7e3e69c6540ce6e7fb94300a57699443a6bb28b",
     "recipes": "798db9452d8f6e09e7ecc7060903ab2187fcaa76",
-    "components": "9e1a4c338c3ba370907a24879596f65df76f206a",
+    "components": "834766825710ae75737ef9a291726f9e976299ee",
     "schemas/catalog.schema.json": "52e58df87f2920953bf3e28ad83e4baf3f451972",
     "schemas/component.schema.json": "e673d1b0ea1d3df9d49faf67b2404dc9d58d6d10",
     "schemas/recipe.schema.json": "65a6c247a4b435f3edadaa2cdad68f875d80bc8f",
