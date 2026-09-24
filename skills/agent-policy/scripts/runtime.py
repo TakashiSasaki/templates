@@ -227,18 +227,6 @@ def select_pin(
     lock_path = repository_root / ".agent-policy.lock"
     config_path = repository_root / ".agent-policy.yml"
     if not lock_path.exists():
-        if config_path.exists():
-            config_repo, config_rev = config_toolchain(config_path)
-            is_default = config_rev == default.revision
-            return RuntimePin(
-                repository=config_repo,
-                revision=config_rev,
-                lock_path=default.lock_path,
-                expected_lock_sha256=(default.expected_lock_sha256 if is_default else None),
-                project_distribution=default.project_distribution,
-                project_version=(default.project_version if is_default else None),
-                executable=default.executable,
-            )
         return default
     repository, revision = lock_toolchain(lock_path)
     if config_path.exists():

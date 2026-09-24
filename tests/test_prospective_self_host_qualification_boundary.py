@@ -179,3 +179,62 @@ def test_toolchain_payload_supports_json_and_yaml(tmp_path: Path) -> None:
     assert config_toolchain(json_file) == (repo, rev)
     assert lock_toolchain(json_file) == (repo, rev)
 
+
+def test_runtime_selection_trust_boundary_distinction(tmp_path: Path) -> None:
+    """Exact runtime selection trust boundaries:
+
+    1. No lock, no config -> stable manifest default.
+    2. No lock, config present -> does NOT silently make config the managed executable authority;
+       still returns stable manifest default.
+    3. Lock present -> lock authority.
+    4. Lock + config present and agree -> lock authority.
+    5. Lock + config present but disagree -> fails closed.
+    """
+    from scripts.verify_policy_self_host import runtime
+
+    manifest = runtime.load_manifest()
+    default_pin = runtime.pin_from_manifest(manifest)
+    repo = "TakashiSasaki/templates"
+    pinned_rev = "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5"
+    custom_rev = "1111111111111111111111111111111111111111"
+
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+
+    # 1. No lock, no config -> stable manifest default
+    pin1 = runtime.select_pin(repo_dir, manifest)
+    assert pin1.revision == default_pin.revision
+
+    # 2. No lock, config present -> does NOT make config the managed executable authority
+    config_file = repo_dir / ".agent-policy.yml"
+    config_file.write_text(
+        f"schema_version: 2\ntoolchain:\n  repository: {repo}\n  revision: {custom_rev}\n",
+        encoding="utf-8",
+    )
+    pin2 = runtime.select_pin(repo_dir, manifest)
+    assert pin2.revision == default_pin.revision
+    assert pin2.revision != custom_rev
+
+    # 3. Both lock and config present, but disagree -> fail closed
+    lock_file = repo_dir / ".agent-policy.lock"
+    lock_file.write_text(
+        f"lock_version: 1\ntoolchain:\n  repository: {repo}\n  revision: {pinned_rev}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="does not match .agent-policy.lock"):
+        runtime.select_pin(repo_dir, manifest)
+
+    # 4. Lock present without config -> lock authority
+    config_file.unlink()
+    pin4 = runtime.select_pin(repo_dir, manifest)
+    assert pin4.revision == pinned_rev
+
+    # 5. Lock + config present and agree -> lock authority
+    config_file.write_text(
+        f"schema_version: 2\ntoolchain:\n  repository: {repo}\n  revision: {pinned_rev}\n",
+        encoding="utf-8",
+    )
+    pin5 = runtime.select_pin(repo_dir, manifest)
+    assert pin5.revision == pinned_rev
+
+
