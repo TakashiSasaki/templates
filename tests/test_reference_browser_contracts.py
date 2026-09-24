@@ -184,6 +184,13 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         self.assertNotIn('<!-- ## 自己ホスティングの参照 consumer -->', generated)
         self.assertEqual(generated, checked_in)
 
+    def test_landing_pages_link_to_repository_treemap(self):
+        target = 'https://templates-repository-treemap-pr1016.onrender.com/'
+        english = (ROOT / "docs/landing.md").read_text()
+        japanese = (ROOT / "translations/ja/docs/landing.md").read_text()
+        self.assertEqual(english.count('href="' + target + '"'), 1)
+        self.assertEqual(japanese.count('href="' + target + '"'), 1)
+
     def test_english_entry_links_to_generated_anchor(self):
         landing = (ROOT / "docs/landing.md").read_text()
         target = 'coexistence/#self-hosting-reference-consumer'

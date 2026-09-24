@@ -96,6 +96,7 @@ your separate product repository
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="composition/">Explore Composition</a>
     <a class="portal-doc-link" href="playground/">Composition Playground</a>
+    <a class="portal-doc-link" href="https://templates-repository-treemap-pr1016.onrender.com/">Repository Treemap</a>
     <a class="portal-doc-link" href="composition/concepts/">Composition concepts</a>
     <a class="portal-doc-link" href="web/">Website or Web application?</a>
     <a class="portal-doc-link" href="website/">Explore Website</a>
