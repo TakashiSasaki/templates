@@ -11,9 +11,14 @@ This is an opt-in staged presentation of the selected Policy context. The
 canonical rules remain in the pinned Policy toolchain and the complete text is
 in the authenticated detail bundle.
 
+This file presents rules already selected by the configured Policy context.
+Presentation metadata cannot select, add, or change rule applicability.
+
 ## Policy system
 
 - Semantic configuration: `{{ config.relative_path }}`
+- Selected context: `{{ context_name }}`
+- Presentation mode: staged (`agents-md-staged`)
 - Pinned shared toolchain: `{{ config.data.toolchain.repository }}@{{ config.data.toolchain.revision }}`
 - Detail bundle: `{{ bundle_path }}`
 - Selected rules: `{{ selected_rule_count }}`
