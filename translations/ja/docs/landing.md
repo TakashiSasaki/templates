@@ -98,6 +98,7 @@ TakashiSasaki/templates
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="/composition/">Composition を見る</a>
     <a class="portal-doc-link" href="/playground/">Composition Playground を試す</a>
+    <a class="portal-doc-link" href="https://templates-repository-treemap-pr1016.onrender.com/">Repository Treemap</a>
     <a class="portal-doc-link" href="/composition/concepts/">Composition の概念と用語</a>
     <a class="portal-doc-link" href="/web/">Website か Web application か</a>
     <a class="portal-doc-link" href="/website/">Website を見る</a>
