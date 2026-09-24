@@ -1,20 +1,78 @@
 from __future__ import annotations
 
+import inspect
 import shutil
 from pathlib import Path
 
 import pytest
 import yaml
 
-from scripts.verify_candidate_qualification import qualify_candidate
+import scripts.verify_candidate_qualification as candidate_mod
+from scripts.verify_candidate_qualification import (
+    ROOT,
+    _verify_source_and_resources_bound,
+    qualify_candidate,
+    resolve_checkout_revision,
+)
+from scripts.verify_candidate_qualification import (
+    main as candidate_main,
+)
 from scripts.verify_policy_self_host import verify_self_host
-
-ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_candidate_qualification_passes_on_current_head() -> None:
     """Candidate qualification proves current head is a valid reusable toolchain."""
-    qualify_candidate(ROOT)
+    rev = qualify_candidate()
+    assert rev == resolve_checkout_revision(ROOT)
+
+
+def test_candidate_verifier_rejects_arbitrary_source_root_interface() -> None:
+    """Test 1: wrong external source cannot masquerade via arbitrary source-root interface."""
+    # 1. qualify_candidate takes no arbitrary source-root positional argument
+    sig = inspect.signature(qualify_candidate)
+    assert len(sig.parameters) == 0, (
+        "qualify_candidate must not accept arbitrary source-root parameters"
+    )
+
+    # 2. CLI reject --source-root option
+    with pytest.raises(SystemExit):
+        candidate_main(["--source-root", "/tmp"])
+
+
+def test_candidate_qualification_provenance_contains_exact_checkout_sha() -> None:
+    """Test 2: candidate rendered output provenance contains exact evaluated checkout SHA."""
+    rev = qualify_candidate()
+    expected_rev = resolve_checkout_revision(ROOT)
+    assert rev == expected_rev
+    assert len(rev) == 40
+
+    # If checkout revision cannot be resolved from git, fail closed
+    with pytest.raises((RuntimeError, ValueError)):
+        resolve_checkout_revision(Path("/tmp"))
+
+
+def test_candidate_qualification_binds_source_and_resources_strictly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test 3: package/resource identity; synthetic differences or external packages fail closed."""
+    import agent_policy
+    import agent_policy.config
+
+    # Normal state passes
+    _verify_source_and_resources_bound(ROOT)
+
+    # If package_root() resolves to an external or mismatched directory, fail closed
+    other_root = tmp_path / "other_pkg_root"
+    other_root.mkdir()
+    monkeypatch.setattr(agent_policy.config, "package_root", lambda: other_root)
+    with pytest.raises(RuntimeError, match="package_root\\(\\) resolved to"):
+        _verify_source_and_resources_bound(ROOT)
+
+    # If agent_policy.__file__ resolves outside ROOT/src, fail closed
+    fake_module_file = str(tmp_path / "external_pkg" / "agent_policy" / "__init__.py")
+    monkeypatch.setattr(agent_policy, "__file__", fake_module_file)
+    with pytest.raises(RuntimeError, match="agent_policy imported from"):
+        _verify_source_and_resources_bound(ROOT)
 
 
 def test_adopted_self_host_consistency_passes_on_current_head() -> None:
@@ -25,7 +83,7 @@ def test_adopted_self_host_consistency_passes_on_current_head() -> None:
 def test_prospective_profile_change_separated_from_adopted_self_host(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A synthetic prospective profile change is visible to candidate qualification
+    """Test 4: Prospective profile change is qualified in candidate toolchain
 
     while adopted self-host consistency continues to evaluate the old pinned toolchain.
     """
@@ -58,11 +116,14 @@ Must not leak into adopted self-host maintainer instructions.
     profile_data["policy_files"].append("policy/core/synthetic-prospective-rule.md")
     core_profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
 
+    # When package_root points to synthetic_root, candidate rendering and checking sees it
     monkeypatch.setattr(config, "package_root", lambda: synthetic_root)
     monkeypatch.setattr(policy_loader, "package_root", lambda: synthetic_root)
+    # Allow source binding check in this test context
+    monkeypatch.setattr(candidate_mod, "_verify_source_and_resources_bound", lambda repo: None)
 
     # 1. Candidate qualification sees the prospective change and qualifies cleanly
-    qualify_candidate(synthetic_root)
+    qualify_candidate()
 
     # 2. Adopted self-host consistency continues evaluating the adopted runtime (5ad8b0d...)
     verify_self_host(ROOT)
@@ -236,5 +297,3 @@ def test_runtime_selection_trust_boundary_distinction(tmp_path: Path) -> None:
     )
     pin5 = runtime.select_pin(repo_dir, manifest)
     assert pin5.revision == pinned_rev
-
-
