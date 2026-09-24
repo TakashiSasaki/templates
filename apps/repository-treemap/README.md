@@ -32,6 +32,7 @@ The default mobile view is deliberately **Treemap-first**: explanatory prose liv
 - **Treemap** contains visualization controls and the treemap. Branch selection remains in the shared top bar.
 - **About** contains the application explanation, interaction notes, persistence behavior, and cache description.
 - **README** renders this app-root `README.md` directly inside the web app.
+- The top-bar home pictogram links back to the Site landing page at https://templates.moukaeritai.work/
 - The top-right **×** pictogram closes the application when the browser permits it; otherwise it leaves the app by returning to browser history or a blank document.
 
 ### README rendering

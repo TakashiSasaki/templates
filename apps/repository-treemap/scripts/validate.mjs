@@ -18,6 +18,7 @@ if (!index.includes('id="branch-select"') || !index.includes('aria-label="Reposi
 if (index.includes('id="branch-tabs"')) throw new Error("legacy branch tabs must not remain");
 if (!index.includes('id="view-tab-about"') || !index.includes('id="view-panel-about"')) throw new Error("index.html must move explanatory content into an About tab");
 if (!index.includes('id="view-tab-readme"') || !index.includes('id="view-panel-readme"')) throw new Error("index.html must define the README tab and panel");
+if (!index.includes('id="site-home-link"') || !index.includes('href="https://templates.moukaeritai.work/"') || !index.includes('aria-label="Templates documentation portal"')) throw new Error("index.html must link back to the Site landing page");
 if (!index.includes('id="fullscreen-button"') || !index.includes('fullscreen-icon--enter') || !index.includes('fullscreen-icon--exit')) throw new Error("index.html must define fullscreen pictogram states");
 if (!index.includes('class="controls floating-controls"')) throw new Error("treemap controls must support the mobile floating toolbar");
 if (!index.includes('aria-label="Up one directory"') || !index.includes('aria-label="Repository root"')) throw new Error("pictogram navigation controls must retain accessible names");
