@@ -64,9 +64,13 @@ The top-bar fullscreen pictogram requests native browser fullscreen for the appl
 
 ### Treemap navigation
 
-- **Depth** controls how many levels below the current focus are drawn.
-- **Files / Bytes** selects the metric used as the basis for approximate layout.
-- **Up / Root** navigates the focused directory.
+On mobile, **Depth**, **Files / Bytes**, **Up**, and **Root** are grouped into one floating toolbar over the treemap. The toolbar uses pictograms instead of visible text labels; accessible names and tooltips remain available.
+
+- the hierarchy pictogram + value controls **Depth**;
+- the document pictogram selects **Files**;
+- the storage pictogram selects **Bytes**;
+- the upward arrow navigates **Up**;
+- the home pictogram navigates to **Root**.
 - Tap/click zooms into a directory.
 - Touch/pen long-press opens directory details.
 - Tapping outside the details dialog closes it.

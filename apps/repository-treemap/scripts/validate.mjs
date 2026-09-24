@@ -19,6 +19,9 @@ if (index.includes('id="branch-tabs"')) throw new Error("legacy branch tabs must
 if (!index.includes('id="view-tab-about"') || !index.includes('id="view-panel-about"')) throw new Error("index.html must move explanatory content into an About tab");
 if (!index.includes('id="view-tab-readme"') || !index.includes('id="view-panel-readme"')) throw new Error("index.html must define the README tab and panel");
 if (!index.includes('id="fullscreen-button"') || !index.includes('fullscreen-icon--enter') || !index.includes('fullscreen-icon--exit')) throw new Error("index.html must define fullscreen pictogram states");
+if (!index.includes('class="controls floating-controls"')) throw new Error("treemap controls must support the mobile floating toolbar");
+if (!index.includes('aria-label="Up one directory"') || !index.includes('aria-label="Repository root"')) throw new Error("pictogram navigation controls must retain accessible names");
+if (!index.includes('aria-label="Area by files"') || !index.includes('aria-label="Area by bytes"')) throw new Error("metric pictograms must retain accessible names");
 if (!index.includes('id="app-close-button"') || !index.includes('aria-label="Close application"')) throw new Error("index.html must define an accessible close-app pictogram button");
 const main = await readFile(path.join(root, "src/js/main.js"), "utf8");
 if (!main.includes("https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm")) throw new Error("D3 dependency must remain exact-version pinned");

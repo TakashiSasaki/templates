@@ -29,3 +29,5 @@ These instructions apply to `apps/repository-treemap/` and all descendants, in a
 - Preserve the compact top-bar control cluster: view tabs on the left, branch dropdown followed by fullscreen pictogram and close pictogram on the right. Keep the fullscreen control accessible via dynamic aria-label/title and preserve the close-button fallback behavior.
 
 - Preserve branch persistence and latest-selection-wins semantics when changing the branch selector presentation; the dropdown is presentation only, not a change to branch-loading state rules.
+
+- On mobile, keep Depth, Files/Bytes, Up, and Root grouped as one floating treemap toolbar so they do not consume normal-flow vertical space. Visible labels should be pictograms; retain accessible names/tooltips and the current numeric Depth value.

@@ -63,6 +63,9 @@ body { padding: 20px; background: var(--bg); color: var(--text); }
 
 .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 8px 0 6px; }
 .controls label, fieldset { font-size: .9rem; }
+.control-icon { display: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon-control { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.metric-option { display: inline-flex; align-items: center; gap: 5px; }
 select, button { min-height: 42px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); color: var(--text); font: inherit; }
 fieldset { display: flex; gap: 12px; align-items: center; min-height: 42px; margin: 0; padding: 5px 10px; border: 1px solid var(--border); border-radius: 9px; }
 legend { padding: 0 4px; color: var(--muted); font-size: .75rem; }
@@ -143,17 +146,98 @@ body.app-fallback-fullscreen { overflow: hidden; }
   .topbar-icon-button { width: 30px; height: 30px; }
   .fullscreen-icon, .app-close-icon { width: 16px; height: 16px; }
   .view-panel--treemap:not([hidden]) { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; }
-  .controls { flex: 0 0 auto; gap: 4px; margin: 2px 0; }
-  .controls label, .controls fieldset { font-size: .72rem; }
-  .depth-control { display: flex; align-items: center; gap: 3px; }
-  .controls select, .controls button { min-height: 32px; padding: 4px 7px; font-size: .76rem; }
-  .controls fieldset { min-height: 32px; gap: 6px; padding: 2px 6px; }
-  .controls legend { display: none; }
+  .controls.floating-controls {
+    position: fixed;
+    left: 50%;
+    bottom: max(10px, calc(env(safe-area-inset-bottom) + 6px));
+    z-index: 1200;
+    display: flex;
+    width: max-content;
+    max-width: calc(100vw - 16px);
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 3px;
+    margin: 0;
+    padding: 5px;
+    transform: translateX(-50%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--panel) 90%, transparent);
+    box-shadow: 0 5px 18px rgba(0, 0, 0, .18);
+    backdrop-filter: blur(10px);
+  }
+  .floating-controls .control-text,
+  .floating-controls legend { display: none; }
+  .floating-controls .control-icon { display: block; width: 18px; height: 18px; flex: 0 0 auto; }
+  .floating-control,
+  .metric-option {
+    min-width: 36px;
+    min-height: 36px;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 4px 7px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+  }
+  .depth-control {
+    display: flex;
+    gap: 3px;
+    padding-left: 8px;
+  }
+  .depth-control select {
+    width: 44px;
+    min-height: 30px;
+    padding: 2px 16px 2px 4px;
+    border: 0;
+    background: transparent;
+    font-size: .78rem;
+    font-weight: 700;
+  }
+  .metric-controls {
+    display: flex;
+    min-height: 36px;
+    gap: 2px;
+    margin: 0;
+    padding: 0 2px;
+    border: 0;
+  }
+  .metric-option {
+    position: relative;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  .metric-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .metric-option:has(input:checked) {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
+  }
+  .icon-control {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    min-height: 0;
+    place-items: center;
+    padding: 0;
+  }
+  .floating-controls button:disabled { opacity: .35; }
+  .floating-controls :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .breadcrumb { flex: 0 0 auto; min-height: 0; margin: 1px 0; overflow: hidden; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
   .status { flex: 0 0 auto; margin: 0; font-size: .68rem; }
   .status:not([data-kind="error"]) { display: none; }
   .details { flex: 0 0 auto; margin: 2px 0 0; overflow: hidden; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
   .treemap { min-height: 0; height: auto; flex: 1 1 auto; aspect-ratio: auto; border-radius: 6px; }
+  .view-panel--treemap:not([hidden]) { padding-bottom: 0; }
   .node-header { font-size: .72rem; }
   .node-details-dialog { width: 100%; }
   .view-panel--about:not([hidden]), .view-panel--readme:not([hidden]) { display: block; min-height: 0; flex: 1 1 auto; overflow-y: auto; }
