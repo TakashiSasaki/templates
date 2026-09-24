@@ -71,6 +71,7 @@ On mobile, **Depth**, **Files / Bytes**, **Up**, and **Root** are grouped into o
 - the storage pictogram selects **Bytes**;
 - the upward arrow navigates **Up**;
 - the home pictogram navigates to **Root**.
+- The selected branch is shown only in the top-bar dropdown; the breadcrumb does not repeat the branch name. At repository root the breadcrumb is hidden, and after zooming it shows only the directory path.
 - Tap/click zooms into a directory.
 - Touch/pen long-press opens directory details.
 - Tapping outside the details dialog closes it.

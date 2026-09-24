@@ -31,3 +31,5 @@ These instructions apply to `apps/repository-treemap/` and all descendants, in a
 - Preserve branch persistence and latest-selection-wins semantics when changing the branch selector presentation; the dropdown is presentation only, not a change to branch-loading state rules.
 
 - On mobile, keep Depth, Files/Bytes, Up, and Root grouped as one floating treemap toolbar so they do not consume normal-flow vertical space. Visible labels should be pictograms; retain accessible names/tooltips and the current numeric Depth value.
+
+- Do not duplicate the selected branch name in the treemap breadcrumb. The branch dropdown is the branch identity surface; the breadcrumb is hidden at root and, below root, contains directory path segments only.
