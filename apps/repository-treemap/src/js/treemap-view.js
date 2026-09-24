@@ -47,7 +47,7 @@ function appendCellLabel(cell, source, width, height) {
 export function renderTreemap({ d3, container, directory, metricName, relativeDepth, onZoom, onDetails = () => {} }) {
   container.replaceChildren();
   const width = Math.max(container.clientWidth, 320);
-  const height = Math.max(container.clientHeight, 420);
+  const height = Math.max(container.clientHeight, 260);
   const hierarchy = hierarchyFromDirectory(d3, directory, metricName, relativeDepth);
 
   d3.treemap()

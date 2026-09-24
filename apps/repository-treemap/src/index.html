@@ -9,33 +9,54 @@
 </head>
 <body>
   <main id="app-shell" class="shell">
-    <header>
-      <p class="eyebrow">Repository visualization</p>
-      <h1>Repository Treemap</h1>
-      <p class="lead">ディレクトリの面積を、配下のファイル数またはファイルサイズ合計を目安に比較します。</p>
-    </header>
+    <nav id="view-tabs" class="view-tabs" role="tablist" aria-label="Application view">
+      <button id="view-tab-treemap" class="view-tab" type="button" role="tab" aria-selected="true" aria-controls="view-panel-treemap" data-view="treemap">Treemap</button>
+      <button id="view-tab-about" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="view-panel-about" data-view="about" tabindex="-1">About</button>
+    </nav>
 
-    <section class="branch-nav" aria-label="Branch selection">
-      <span class="control-label">Branch</span>
-      <div id="branch-tabs" class="branch-tabs" role="tablist" aria-label="Repository branch"></div>
+    <section id="view-panel-treemap" class="view-panel view-panel--treemap" role="tabpanel" aria-labelledby="view-tab-treemap">
+      <h1 class="sr-only">Repository Treemap</h1>
+      <section class="branch-nav" aria-label="Branch selection">
+        <span class="control-label">Branch</span>
+        <div id="branch-tabs" class="branch-tabs" role="tablist" aria-label="Repository branch"></div>
+      </section>
+
+      <section class="controls" aria-label="Treemap controls">
+        <label class="depth-control">Depth <select id="depth-select" aria-label="Relative display depth"></select></label>
+        <fieldset>
+          <legend>Area metric</legend>
+          <label><input type="radio" name="metric" value="fileCount" checked> Files</label>
+          <label><input type="radio" name="metric" value="totalSize"> Bytes</label>
+        </fieldset>
+        <button id="up-button" type="button" disabled>Up</button>
+        <button id="root-button" type="button" disabled>Root</button>
+        <button id="fullscreen-button" type="button" aria-pressed="false">Fullscreen</button>
+      </section>
+      <p id="breadcrumb" class="breadcrumb" aria-live="polite"></p>
+      <p id="status" class="status" aria-live="polite">Loading configuration…</p>
+      <div id="treemap" class="treemap" role="img" aria-label="Repository directory treemap"></div>
+      <p id="details" class="details"></p>
     </section>
 
-    <section class="controls" aria-label="Treemap controls">
-      <label>Relative depth <select id="depth-select" aria-label="Relative display depth"></select></label>
-      <fieldset>
-        <legend>Area metric</legend>
-        <label><input type="radio" name="metric" value="fileCount" checked> Files</label>
-        <label><input type="radio" name="metric" value="totalSize"> Bytes</label>
-      </fieldset>
-      <button id="up-button" type="button" disabled>Up</button>
-      <button id="root-button" type="button" disabled>Root</button>
-      <button id="fullscreen-button" type="button" aria-pressed="false">Fullscreen</button>
+    <section id="view-panel-about" class="view-panel view-panel--about" role="tabpanel" aria-labelledby="view-tab-about" hidden>
+      <article class="about-content">
+        <h2>Repository Treemap</h2>
+        <p>GitHubリポジトリの各branchについて、ディレクトリ階層をTreemapとして探索するためのビューです。</p>
+
+        <h3>表示と操作</h3>
+        <ul>
+          <li>branchはTreemap画面上部のタブで切り替えます。</li>
+          <li><strong>Depth</strong>は現在位置から何階層下まで描画するかを指定します。値はbranchごとに保存されます。</li>
+          <li><strong>Files / Bytes</strong>は矩形面積の基準を切り替えます。面積は読みやすさとタップしやすさを優先した近似です。</li>
+          <li>矩形をタップするとそのディレクトリへズームし、タッチ端末では長押しすると実際のファイル数・サイズなどの詳細を表示します。</li>
+          <li><strong>Fullscreen</strong>はアプリを全画面表示します。</li>
+        </ul>
+
+        <h3>保存と更新</h3>
+        <p>最後に選択したbranchとbranchごとのDepthは、このブラウザの<code>localStorage</code>に保存されます。サーバーへ同期はされません。</p>
+        <p>GitHub APIのbranch/tree情報はService Workerが先読みし、30分間キャッシュします。</p>
+      </article>
     </section>
-    <p class="hint">ブランチは上のタブで切り替えます。面積は可読性とタップしやすさを優先した近似です。長押しで実値の詳細を表示できます。</p>
-    <p id="breadcrumb" class="breadcrumb" aria-live="polite"></p>
-    <p id="status" class="status" aria-live="polite">Loading configuration…</p>
-    <div id="treemap" class="treemap" role="img" aria-label="Repository directory treemap"></div>
-    <p id="details" class="details"></p>
   </main>
 
   <dialog id="node-details-dialog" class="node-details-dialog" aria-labelledby="node-details-title">

@@ -8,7 +8,7 @@ This file is the app-level README. The canonical application source is under `sr
 
 ```text
 apps/repository-treemap/
-├── AGENTS.md             # app-local agent/deployment instructions
+├── AGENTS.md
 ├── README.md
 ├── package.json
 ├── package-lock.json
@@ -18,29 +18,45 @@ apps/repository-treemap/
 │   ├── js/
 │   ├── config/
 │   └── sw.js
-├── scripts/              # build and validation
-├── tests/                # Node built-in tests
+├── scripts/
+├── tests/
 └── dist/                 # generated; gitignored
 ```
 
 ## User interface
 
-### Branch tabs
+The default mobile view is deliberately **Treemap-first**: explanatory prose lives under the separate **About** tab so the visualization can occupy most of the initial viewport without page scrolling.
 
-Configured branches are shown as a horizontally scrollable tab list. Selecting a tab loads that branch while preserving the same metric and relative-depth settings. The tab list supports mouse/touch plus keyboard Left/Right/Home/End navigation.
+### View tabs
+
+- **Treemap** contains branch selection, visualization controls, and the treemap.
+- **About** contains the application explanation, interaction notes, persistence behavior, and cache description.
+
+### Branch tabs and persisted state
+
+Configured branches are shown as horizontally scrollable tabs.
+
+The app stores UI preferences in browser `localStorage` using a versioned app key. Storage is origin/browser-profile local and is not synchronized to a server.
+
+Persisted values:
+
+- the last selected branch, which becomes the next initial branch;
+- the selected **Depth** independently for each branch, including `All`.
+
+If localStorage is unavailable, malformed, or contains preferences for branches that no longer exist, the app falls back to `src/config/defaults.json`.
 
 ### Fullscreen
 
-The **Fullscreen** button requests native browser fullscreen for the application shell. If native Fullscreen API support is unavailable or the request fails, the app falls back to a viewport-filling application mode. The same button exits either mode.
+The **Fullscreen** button requests native browser fullscreen for the application shell. If native Fullscreen API support is unavailable or fails, the app uses a viewport-filling fallback. The same button exits either mode.
 
 ### Treemap navigation
 
-- **Relative depth** controls how many levels below the current focus are drawn.
+- **Depth** controls how many levels below the current focus are drawn.
 - **Files / Bytes** selects the metric used as the basis for approximate layout.
 - **Up / Root** navigates the focused directory.
-- A normal tap/click zooms into a directory.
-- A touch/pen long-press (500 ms, cancelled after more than 12 px movement) opens directory details.
-- Tapping outside the detail dialog closes it.
+- Tap/click zooms into a directory.
+- Touch/pen long-press opens directory details.
+- Tapping outside the details dialog closes it.
 
 ## Readable layout
 
@@ -52,13 +68,13 @@ The treemap prioritizes hierarchy readability and mobile touch usability over ma
 - D3 squarify uses ratio `1.2` to reduce extreme aspect ratios;
 - displayed Files/Bytes numbers remain the actual repository aggregates.
 
-Parent directory names use a dedicated top header strip. Leaf or collapsed-boundary cells always attempt to render a name, reducing font size and wrapping for small rectangles.
+Parent directory names use a dedicated top header strip. Leaf or collapsed-boundary cells attempt to render a name even in small rectangles.
 
 ## GitHub data and cache
 
-The browser reads public GitHub commit/tree APIs. A module Service Worker prefetches the configured branch commit and recursive-tree responses.
+The browser reads public GitHub commit/tree APIs. A module Service Worker prefetches configured branch commit and recursive-tree responses.
 
-GitHub API responses have an exact **30-minute TTL**. The in-page parsed branch-tree cache uses the same TTL, so a page left open for a long time does not retain branch data indefinitely.
+GitHub API responses have an exact **30-minute TTL**. The in-page parsed branch-tree cache uses the same TTL.
 
 Default repository/branches are configured in `src/config/defaults.json`.
 
@@ -92,4 +108,4 @@ Publish directory:
   apps/repository-treemap/dist
 ```
 
-The Git repository remains the source of truth. Render serves the generated `dist/` output. Before changing or triggering deployment, inspect the live Render service configuration rather than assuming its current source branch or auto-deploy state from this document.
+The Git repository remains the source of truth. Before changing or triggering deployment, inspect the live Render service configuration.

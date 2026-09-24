@@ -14,8 +14,17 @@ import {
   requestNativeFullscreen,
   supportsNativeFullscreen
 } from "./fullscreen.js";
+import {
+  loadPreferences,
+  relativeDepthForBranch,
+  savePreferences,
+  withBranchRelativeDepth,
+  withLastBranch
+} from "./preferences.js";
+import { createLatestSelectionGuard } from "./selection-guard.js";
 
 const appShell = document.querySelector("#app-shell");
+const viewTabList = document.querySelector("#view-tabs");
 const branchTabs = document.querySelector("#branch-tabs");
 const controls = {
   depth: document.querySelector("#depth-select"),
@@ -38,23 +47,57 @@ const nodeDetails = {
   close: document.querySelector("#node-details-close"),
   zoom: document.querySelector("#node-details-zoom")
 };
-const state = { config: null, metric: "fileCount", relativeDepth: 2, branch: null, trees: new Map(), path: [] };
+const state = {
+  config: null,
+  metric: "fileCount",
+  relativeDepth: 2,
+  branch: null,
+  trees: new Map(),
+  path: [],
+  preferences: { lastBranch: null, relativeDepthByBranch: {} }
+};
 let detailedDirectory = null;
 let fallbackFullscreen = false;
+let preferenceStorage = null;
+const branchSelectionGuard = createLatestSelectionGuard();
+
+try {
+  preferenceStorage = window.localStorage;
+} catch {
+  preferenceStorage = null;
+}
 
 function setStatus(message, kind = "info") { status.textContent = message; status.dataset.kind = kind; }
 function focusDirectory() { return state.path.at(-1); }
+
+function viewTabButtons() {
+  return [...viewTabList.querySelectorAll('[role="tab"]')];
+}
+
+function selectView(view) {
+  for (const tab of viewTabButtons()) {
+    const selected = tab.dataset.view === view;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    const panel = document.querySelector(`#${tab.getAttribute("aria-controls")}`);
+    if (panel) panel.hidden = !selected;
+  }
+  if (view === "treemap") requestAnimationFrame(() => render());
+}
 
 function branchTabButtons() {
   return [...branchTabs.querySelectorAll('[role="tab"]')];
 }
 
 function updateBranchTabs(selectedBranch) {
+  let selectedTab = null;
   for (const tab of branchTabButtons()) {
     const selected = tab.dataset.branch === selectedBranch;
     tab.setAttribute("aria-selected", String(selected));
     tab.tabIndex = selected ? 0 : -1;
+    if (selected) selectedTab = tab;
   }
+  selectedTab?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function initializeBranchTabs(branches) {
@@ -81,12 +124,17 @@ function effectiveDepth(focus) {
 function refreshDepthControl(focus) {
   const maximum = maxDescendantDepth(focus);
   controls.depth.replaceChildren();
-  if (maximum === 0) { controls.depth.add(new Option("0", "0")); controls.depth.disabled = true; return; }
+  if (maximum === 0) {
+    controls.depth.add(new Option("0", "0"));
+    controls.depth.disabled = true;
+    return;
+  }
   controls.depth.disabled = false;
   for (let depth = 1; depth <= maximum; depth += 1) controls.depth.add(new Option(String(depth), String(depth)));
   controls.depth.add(new Option("All", "all"));
-  if (state.relativeDepth !== Infinity) state.relativeDepth = Math.min(Math.max(1, state.relativeDepth), maximum);
-  controls.depth.value = state.relativeDepth === Infinity ? "all" : String(state.relativeDepth);
+  controls.depth.value = state.relativeDepth === Infinity
+    ? "all"
+    : String(Math.min(Math.max(1, state.relativeDepth), maximum));
 }
 
 function showDirectoryDetails(directory) {
@@ -102,7 +150,7 @@ function showDirectoryDetails(directory) {
 
 function render() {
   const focus = focusDirectory();
-  if (!focus) return;
+  if (!focus || document.querySelector("#view-panel-treemap")?.hidden) return;
   refreshDepthControl(focus);
   const depth = effectiveDepth(focus);
   breadcrumb.textContent = [state.branch, ...state.path.slice(1).map((item) => item.name)].join(" › ");
@@ -118,19 +166,35 @@ function render() {
 }
 
 async function selectBranch(branch) {
-  state.branch = branch;
+  const selectionToken = branchSelectionGuard.begin();
+  const previousBranch = state.branch;
+  const preferredDepth = relativeDepthForBranch(state.preferences, branch, state.config.defaultRelativeDepth);
   updateBranchTabs(branch);
   setStatus(`Loading ${branch}…`);
+
   try {
     const cached = state.trees.get(branch);
     if (!cached || !isCacheTimestampFresh(cached.fetchedAt)) {
       const entries = await fetchBranchTree(state.config.owner, state.config.repository, branch);
+      if (!branchSelectionGuard.isCurrent(selectionToken)) return;
       state.trees.set(branch, { tree: buildDirectoryTree(branch, entries), fetchedAt: Date.now() });
     }
+
+    if (!branchSelectionGuard.isCurrent(selectionToken)) return;
+
+    state.branch = branch;
+    state.relativeDepth = preferredDepth;
     state.path = [state.trees.get(branch).tree];
+    state.preferences = withLastBranch(state.preferences, branch);
+    savePreferences(preferenceStorage, state.preferences);
     setStatus(`Loaded ${state.config.owner}/${state.config.repository}@${branch}`);
     render();
-  } catch (error) { setStatus(error.message, "error"); treemap.replaceChildren(); }
+  } catch (error) {
+    if (!branchSelectionGuard.isCurrent(selectionToken)) return;
+    if (previousBranch) updateBranchTabs(previousBranch);
+    else treemap.replaceChildren();
+    setStatus(error.message, "error");
+  }
 }
 
 function fullscreenActive() {
@@ -178,13 +242,35 @@ async function start() {
   if (!response.ok) throw new Error("Unable to load defaults.json");
   state.config = await response.json();
   state.metric = state.config.defaultMetric;
-  state.relativeDepth = state.config.defaultRelativeDepth;
+  state.preferences = loadPreferences(preferenceStorage, state.config.branches);
   initializeBranchTabs(state.config.branches);
   controls.metric.find((input) => input.value === state.metric).checked = true;
   registerRepositoryTreemapServiceWorker().then((registration) => requestGitHubPrefetch(registration, state.config));
-  await selectBranch(state.config.branches[0]);
+  const initialBranch = state.preferences.lastBranch ?? state.config.branches[0];
+  await selectBranch(initialBranch);
   syncFullscreenUi();
 }
+
+viewTabList.addEventListener("click", (event) => {
+  const tab = event.target.closest('[role="tab"][data-view]');
+  if (tab) selectView(tab.dataset.view);
+});
+
+viewTabList.addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const tabs = viewTabButtons();
+  const currentIndex = tabs.indexOf(document.activeElement);
+  if (currentIndex < 0) return;
+  event.preventDefault();
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+  if (event.key === "Home") nextIndex = 0;
+  if (event.key === "End") nextIndex = tabs.length - 1;
+  const next = tabs[nextIndex];
+  next.focus();
+  selectView(next.dataset.view);
+});
 
 branchTabs.addEventListener("keydown", (event) => {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -230,7 +316,12 @@ for (const eventName of ["fullscreenchange", "webkitfullscreenchange"]) {
   });
 }
 
-controls.depth.addEventListener("change", () => { state.relativeDepth = controls.depth.value === "all" ? Infinity : Number.parseInt(controls.depth.value, 10); render(); });
+controls.depth.addEventListener("change", () => {
+  state.relativeDepth = controls.depth.value === "all" ? Infinity : Number.parseInt(controls.depth.value, 10);
+  state.preferences = withBranchRelativeDepth(state.preferences, state.branch, state.relativeDepth);
+  savePreferences(preferenceStorage, state.preferences);
+  render();
+});
 controls.metric.forEach((input) => input.addEventListener("change", () => { state.metric = input.value; render(); }));
 controls.up.addEventListener("click", () => { if (state.path.length > 1) state.path.pop(); render(); });
 controls.root.addEventListener("click", () => { state.path = [state.trees.get(state.branch).tree]; render(); });
