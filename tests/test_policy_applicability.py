@@ -202,6 +202,7 @@ def test_existing_adopted_core_rules_remain_effective() -> None:
     expected_baseline_ids = [
         "core.discover-repository-topology-fail-closed",
         "core.discover-local-checkout-topology-fail-closed",
+        "core.scope-applicability-to-target",
         "changes.define-contract",
         "changes.preserve-acceptance-baseline",
         "changes.minimize-scope",
@@ -220,6 +221,8 @@ def test_existing_adopted_core_rules_remain_effective() -> None:
         "changes.prevent-diagnostic-stall",
     ]
     assert rule_ids == expected_baseline_ids
+    assert len(rule_ids) == 19
+
 
 
 # =============================================================================
