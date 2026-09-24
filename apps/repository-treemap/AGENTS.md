@@ -33,3 +33,5 @@ These instructions apply to `apps/repository-treemap/` and all descendants, in a
 - On mobile, keep Depth, Files/Bytes, Up, and Root grouped as one floating treemap toolbar so they do not consume normal-flow vertical space. Visible labels should be pictograms; retain accessible names/tooltips and the current numeric Depth value.
 
 - Do not duplicate the selected branch name in the treemap breadcrumb. The branch dropdown is the branch identity surface; the breadcrumb is hidden at root and, below root, contains directory path segments only.
+
+- Preserve reciprocal navigation to the Site landing page through the top-bar home pictogram. The canonical return URL is `https://templates.moukaeritai.work/`; keep an accessible label/title when changing its presentation.
