@@ -26,3 +26,4 @@ These instructions apply to `apps/repository-treemap/` and all descendants, in a
 
 - Preserve the README view as a rendering of this directory's canonical `README.md`, not a separately authored HTML copy. The build must copy that root README into `dist/`.
 - Keep Markdown rendering dependencies exact-version pinned from CDN and sanitize parser output before assigning it to `innerHTML`.
+- Preserve the top-right close pictogram as an accessible button. Attempt `window.close()` first; retain a deterministic fallback for ordinary tabs that browsers do not allow scripts to close.

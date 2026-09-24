@@ -23,8 +23,10 @@ import {
 } from "./preferences.js";
 import { createLatestSelectionGuard } from "./selection-guard.js";
 import { README_ASSET_URL, renderReadmeMarkdown } from "./readme-renderer.js";
+import { closeApplication } from "./app-close.js";
 
 const appShell = document.querySelector("#app-shell");
+const appCloseButton = document.querySelector("#app-close-button");
 const viewTabList = document.querySelector("#view-tabs");
 const branchTabs = document.querySelector("#branch-tabs");
 const controls = {
@@ -322,6 +324,8 @@ branchTabs.addEventListener("keydown", (event) => {
   next.focus();
   selectBranch(next.dataset.branch);
 });
+
+appCloseButton.addEventListener("click", () => closeApplication(window));
 
 nodeDetails.close.addEventListener("click", () => nodeDetails.dialog.close());
 nodeDetails.zoom.addEventListener("click", () => {

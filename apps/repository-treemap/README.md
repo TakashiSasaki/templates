@@ -32,6 +32,7 @@ The default mobile view is deliberately **Treemap-first**: explanatory prose liv
 - **Treemap** contains branch selection, visualization controls, and the treemap.
 - **About** contains the application explanation, interaction notes, persistence behavior, and cache description.
 - **README** renders this app-root `README.md` directly inside the web app.
+- The top-right **×** pictogram closes the application when the browser permits it; otherwise it leaves the app by returning to browser history or a blank document.
 
 ### README rendering
 
