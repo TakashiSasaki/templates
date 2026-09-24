@@ -8,18 +8,19 @@ This file is the app-level README. The canonical application source is under `sr
 
 ```text
 apps/repository-treemap/
+├── AGENTS.md             # app-local agent/deployment instructions
 ├── README.md
 ├── package.json
 ├── package-lock.json
-├── src/                 # canonical browser source
+├── src/                  # canonical browser source
 │   ├── index.html
 │   ├── css/
 │   ├── js/
 │   ├── config/
 │   └── sw.js
-├── scripts/             # build and validation
-├── tests/               # Node built-in tests
-└── dist/                # generated; gitignored
+├── scripts/              # build and validation
+├── tests/                # Node built-in tests
+└── dist/                 # generated; gitignored
 ```
 
 ## User interface
@@ -75,6 +76,12 @@ npm run check
 
 ## Render deployment
 
+The current deployment platform is **Render Static Site**.
+
+**Current public URL:** https://templates-repository-treemap-pr1016.onrender.com
+
+Current Render service name: `templates-repository-treemap-pr1016`
+
 Current static-site contract:
 
 ```text
@@ -85,4 +92,4 @@ Publish directory:
   apps/repository-treemap/dist
 ```
 
-The Git repository remains the source of truth. Render serves the generated `dist/` output.
+The Git repository remains the source of truth. Render serves the generated `dist/` output. Before changing or triggering deployment, inspect the live Render service configuration rather than assuming its current source branch or auto-deploy state from this document.
