@@ -23,6 +23,7 @@
 ## Repository topology and completion
 
 - [Local checkout topology discovery](local-checkout-topology-discovery.md) - Discover checkout and worktree topology before mutation.
+- [Policy applicability](policy-applicability.md) - Scope instruction and policy applicability to the governed target.
 - [Repository topology discovery](repository-topology-discovery.md) - Discover repository authority and projection topology.
 - [Repository change anti-stall](repository-change-anti-stall.md) - Keep long-running work moving with bounded next actions.
 - [Repository change completion](repository-change-completion.md) - Close work only after required evidence and handoff.

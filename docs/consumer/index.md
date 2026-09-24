@@ -10,6 +10,7 @@
 
 ## Effective policy and managed operation
 
+* [Policy applicability and scope](../policy-concepts.md#policy-applicability-reference-adoption-editing-and-execution) - Explains how instructions are scoped to governed targets without leaking provider-maintenance rules.
 * [Local policy authoring](../policy-authoring.md#repository-local-extension-and-override) - Explains local extensions and permitted overrides without restating shared rules.
 
 * [Configuration](../configuration.md) - Defines how a consumer repository selects shared profiles, adds repository-local policy, and declares generated outputs.
