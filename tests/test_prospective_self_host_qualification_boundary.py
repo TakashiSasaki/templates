@@ -74,6 +74,12 @@ def test_candidate_qualification_binds_source_and_resources_strictly(
     with pytest.raises(RuntimeError, match="agent_policy imported from"):
         _verify_source_and_resources_bound(ROOT)
 
+    # Sibling directory starting with same string prefix (e.g. ROOT/src-evil/...) must fail closed
+    sibling_evil_file = str(ROOT / "src-evil" / "agent_policy" / "__init__.py")
+    monkeypatch.setattr(agent_policy, "__file__", sibling_evil_file)
+    with pytest.raises(RuntimeError, match="agent_policy imported from"):
+        _verify_source_and_resources_bound(ROOT)
+
 
 def test_adopted_self_host_consistency_passes_on_current_head() -> None:
     """Adopted self-host consistency proves committed outputs match pinned runtime."""

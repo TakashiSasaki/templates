@@ -37,7 +37,7 @@ def _verify_source_and_resources_bound(repo_root: Path) -> None:
     import agent_policy.config
 
     agent_policy_path = Path(agent_policy.__file__).resolve()
-    if not str(agent_policy_path).startswith(str(src_dir)):
+    if not agent_policy_path.is_relative_to(src_dir):
         raise RuntimeError(
             f"agent_policy imported from {agent_policy_path}, expected under {src_dir}"
         )
