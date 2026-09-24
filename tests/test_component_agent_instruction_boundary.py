@@ -9,14 +9,26 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPONENT = ROOT / "components" / "artifact.skill-core"
+COMPONENTS = ROOT / "components"
+COMPONENT = COMPONENTS / "artifact.skill-core"
 COMPOSER = ROOT / "scripts" / "compose.py"
 
 
 class ComponentAgentInstructionBoundaryTests(unittest.TestCase):
+    def test_components_scope_instructions_define_distribution_boundary(self) -> None:
+        guidance = (COMPONENTS / "AGENTS.md").read_text(encoding="utf-8")
+        for required in (
+            "files/**",
+            "AGENTS.md.template",
+            '"destination": "AGENTS.md"',
+            "not as repository-maintainer instructions",
+            "component version",
+        ):
+            self.assertIn(required, guidance)
+
     def test_distributable_agents_material_has_non_discoverable_source_name(self) -> None:
         discoverable_materials = []
-        for files_root in (ROOT / "components").glob("*/files"):
+        for files_root in COMPONENTS.glob("*/files"):
             discoverable_materials.extend(files_root.rglob("AGENTS.md"))
         self.assertEqual(discoverable_materials, [])
 
