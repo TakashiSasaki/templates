@@ -168,7 +168,9 @@ function render() {
   if (!focus || document.querySelector("#view-panel-treemap")?.hidden) return;
   refreshDepthControl(focus);
   const depth = effectiveDepth(focus);
-  breadcrumb.textContent = [state.branch, ...state.path.slice(1).map((item) => item.name)].join(" › ");
+  const breadcrumbItems = state.path.slice(1).map((item) => item.name);
+  breadcrumb.textContent = breadcrumbItems.join(" › ");
+  breadcrumb.hidden = breadcrumbItems.length === 0;
   controls.up.disabled = state.path.length <= 1;
   controls.root.disabled = state.path.length <= 1;
   const depthLabel = depth === Infinity ? "all levels" : `${depth} relative level${depth === 1 ? "" : "s"}`;

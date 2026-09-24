@@ -30,6 +30,8 @@ if (!main.includes("loadPreferences") || !main.includes("withBranchRelativeDepth
 if (!main.includes("createLatestSelectionGuard")) throw new Error("main.js must reject stale branch-load completions");
 if (!main.includes("renderReadmeMarkdown") || !main.includes("ensureReadmeLoaded")) throw new Error("main.js must lazily render the app README");
 if (!main.includes("initializeBranchSelect")) throw new Error("main.js must initialize the branch dropdown");
+if (!main.includes("breadcrumb.hidden = breadcrumbItems.length === 0")) throw new Error("root breadcrumb must be hidden");
+if (main.includes('breadcrumb.textContent = [state.branch')) throw new Error("breadcrumb must not repeat the selected branch");
 if (!main.includes("toggleFullscreen")) throw new Error("main.js must implement fullscreen toggle");
 if (!main.includes("closeApplication")) throw new Error("main.js must wire the close-app control");
 if (!main.includes("isPointOutsideRect")) throw new Error("main.js must close details on backdrop clicks");
