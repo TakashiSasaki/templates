@@ -14,10 +14,11 @@ await Promise.all(required.map((relativePath) => access(path.join(root, relative
 const index = await readFile(path.join(root, "src/index.html"), "utf8");
 if (!index.includes('type="module" src="./js/main.js"')) throw new Error("index.html must load main.js as an ES module");
 if (!index.includes('id="node-details-dialog"')) throw new Error("index.html must define the long-press details dialog");
-if (!index.includes('id="branch-tabs"') || !index.includes('role="tablist"')) throw new Error("index.html must define accessible branch tabs");
+if (!index.includes('id="branch-select"') || !index.includes('aria-label="Repository branch"')) throw new Error("index.html must define an accessible branch dropdown");
+if (index.includes('id="branch-tabs"')) throw new Error("legacy branch tabs must not remain");
 if (!index.includes('id="view-tab-about"') || !index.includes('id="view-panel-about"')) throw new Error("index.html must move explanatory content into an About tab");
 if (!index.includes('id="view-tab-readme"') || !index.includes('id="view-panel-readme"')) throw new Error("index.html must define the README tab and panel");
-if (!index.includes('id="fullscreen-button"')) throw new Error("index.html must define the fullscreen button");
+if (!index.includes('id="fullscreen-button"') || !index.includes('fullscreen-icon--enter') || !index.includes('fullscreen-icon--exit')) throw new Error("index.html must define fullscreen pictogram states");
 if (!index.includes('id="app-close-button"') || !index.includes('aria-label="Close application"')) throw new Error("index.html must define an accessible close-app pictogram button");
 const main = await readFile(path.join(root, "src/js/main.js"), "utf8");
 if (!main.includes("https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm")) throw new Error("D3 dependency must remain exact-version pinned");
@@ -25,7 +26,7 @@ if (!main.includes("registerRepositoryTreemapServiceWorker")) throw new Error("m
 if (!main.includes("loadPreferences") || !main.includes("withBranchRelativeDepth")) throw new Error("main.js must persist branch/depth preferences");
 if (!main.includes("createLatestSelectionGuard")) throw new Error("main.js must reject stale branch-load completions");
 if (!main.includes("renderReadmeMarkdown") || !main.includes("ensureReadmeLoaded")) throw new Error("main.js must lazily render the app README");
-if (!main.includes("initializeBranchTabs")) throw new Error("main.js must initialize branch tabs");
+if (!main.includes("initializeBranchSelect")) throw new Error("main.js must initialize the branch dropdown");
 if (!main.includes("toggleFullscreen")) throw new Error("main.js must implement fullscreen toggle");
 if (!main.includes("closeApplication")) throw new Error("main.js must wire the close-app control");
 if (!main.includes("isPointOutsideRect")) throw new Error("main.js must close details on backdrop clicks");

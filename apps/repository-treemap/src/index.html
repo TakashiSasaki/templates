@@ -9,24 +9,35 @@
 </head>
 <body>
   <main id="app-shell" class="shell">
-    <button id="app-close-button" class="app-close-button" type="button" aria-label="Close application" title="Close application">
-      <svg class="app-close-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M6 6l12 12M18 6L6 18"></path>
-      </svg>
-    </button>
-    <nav id="view-tabs" class="view-tabs" role="tablist" aria-label="Application view">
-      <button id="view-tab-treemap" class="view-tab" type="button" role="tab" aria-selected="true" aria-controls="view-panel-treemap" data-view="treemap">Treemap</button>
-      <button id="view-tab-about" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="view-panel-about" data-view="about" tabindex="-1">About</button>
-      <button id="view-tab-readme" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="view-panel-readme" data-view="readme" tabindex="-1">README</button>
-    </nav>
+    <header class="topbar">
+      <nav id="view-tabs" class="view-tabs" role="tablist" aria-label="Application view">
+        <button id="view-tab-treemap" class="view-tab" type="button" role="tab" aria-selected="true" aria-controls="view-panel-treemap" data-view="treemap">Treemap</button>
+        <button id="view-tab-about" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="view-panel-about" data-view="about" tabindex="-1">About</button>
+        <button id="view-tab-readme" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="view-panel-readme" data-view="readme" tabindex="-1">README</button>
+      </nav>
+      <div class="topbar-actions">
+        <label class="branch-select-label">
+          <span class="sr-only">Branch</span>
+          <select id="branch-select" class="branch-select" aria-label="Repository branch"></select>
+        </label>
+        <button id="fullscreen-button" class="topbar-icon-button fullscreen-button" type="button" aria-pressed="false" aria-label="Fullscreen" title="Fullscreen">
+          <svg class="fullscreen-icon fullscreen-icon--enter" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"></path>
+          </svg>
+          <svg class="fullscreen-icon fullscreen-icon--exit" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"></path>
+          </svg>
+        </button>
+        <button id="app-close-button" class="topbar-icon-button app-close-button" type="button" aria-label="Close application" title="Close application">
+          <svg class="app-close-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
 
     <section id="view-panel-treemap" class="view-panel view-panel--treemap" role="tabpanel" aria-labelledby="view-tab-treemap">
       <h1 class="sr-only">Repository Treemap</h1>
-      <section class="branch-nav" aria-label="Branch selection">
-        <span class="control-label">Branch</span>
-        <div id="branch-tabs" class="branch-tabs" role="tablist" aria-label="Repository branch"></div>
-      </section>
-
       <section class="controls" aria-label="Treemap controls">
         <label class="depth-control">Depth <select id="depth-select" aria-label="Relative display depth"></select></label>
         <fieldset>
@@ -36,7 +47,6 @@
         </fieldset>
         <button id="up-button" type="button" disabled>Up</button>
         <button id="root-button" type="button" disabled>Root</button>
-        <button id="fullscreen-button" type="button" aria-pressed="false">Fullscreen</button>
       </section>
       <p id="breadcrumb" class="breadcrumb" aria-live="polite"></p>
       <p id="status" class="status" aria-live="polite">Loading configuration…</p>
@@ -51,11 +61,11 @@
 
         <h3>表示と操作</h3>
         <ul>
-          <li>branchはTreemap画面上部のタブで切り替えます。</li>
+          <li>branchは画面上部、ビュータブ右側のドロップダウンで切り替えます。</li>
           <li><strong>Depth</strong>は現在位置から何階層下まで描画するかを指定します。値はbranchごとに保存されます。</li>
           <li><strong>Files / Bytes</strong>は矩形面積の基準を切り替えます。面積は読みやすさとタップしやすさを優先した近似です。</li>
           <li>矩形をタップするとそのディレクトリへズームし、タッチ端末では長押しすると実際のファイル数・サイズなどの詳細を表示します。</li>
-          <li><strong>Fullscreen</strong>はアプリを全画面表示します。</li>
+          <li>画面上部の四隅ピクトグラムでFullscreenをオン／オフします。</li>
         </ul>
 
         <h3>保存と更新</h3>

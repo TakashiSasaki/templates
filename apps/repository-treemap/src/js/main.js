@@ -28,7 +28,7 @@ import { closeApplication } from "./app-close.js";
 const appShell = document.querySelector("#app-shell");
 const appCloseButton = document.querySelector("#app-close-button");
 const viewTabList = document.querySelector("#view-tabs");
-const branchTabs = document.querySelector("#branch-tabs");
+const branchSelect = document.querySelector("#branch-select");
 const controls = {
   depth: document.querySelector("#depth-select"),
   up: document.querySelector("#up-button"),
@@ -122,35 +122,13 @@ function selectView(view) {
   if (view === "readme") void ensureReadmeLoaded();
 }
 
-function branchTabButtons() {
-  return [...branchTabs.querySelectorAll('[role="tab"]')];
+function updateBranchSelect(selectedBranch) {
+  branchSelect.value = selectedBranch;
 }
 
-function updateBranchTabs(selectedBranch) {
-  let selectedTab = null;
-  for (const tab of branchTabButtons()) {
-    const selected = tab.dataset.branch === selectedBranch;
-    tab.setAttribute("aria-selected", String(selected));
-    tab.tabIndex = selected ? 0 : -1;
-    if (selected) selectedTab = tab;
-  }
-  selectedTab?.scrollIntoView({ block: "nearest", inline: "nearest" });
-}
-
-function initializeBranchTabs(branches) {
-  branchTabs.replaceChildren();
-  for (const branch of branches) {
-    const tab = document.createElement("button");
-    tab.type = "button";
-    tab.className = "branch-tab";
-    tab.setAttribute("role", "tab");
-    tab.setAttribute("aria-selected", "false");
-    tab.tabIndex = -1;
-    tab.dataset.branch = branch;
-    tab.textContent = branch;
-    tab.addEventListener("click", () => selectBranch(branch));
-    branchTabs.append(tab);
-  }
+function initializeBranchSelect(branches) {
+  branchSelect.replaceChildren();
+  for (const branch of branches) branchSelect.add(new Option(branch, branch));
 }
 
 function effectiveDepth(focus) {
@@ -206,7 +184,7 @@ async function selectBranch(branch) {
   const selectionToken = branchSelectionGuard.begin();
   const previousBranch = state.branch;
   const preferredDepth = relativeDepthForBranch(state.preferences, branch, state.config.defaultRelativeDepth);
-  updateBranchTabs(branch);
+  updateBranchSelect(branch);
   setStatus(`Loading ${branch}…`);
 
   try {
@@ -228,7 +206,7 @@ async function selectBranch(branch) {
     render();
   } catch (error) {
     if (!branchSelectionGuard.isCurrent(selectionToken)) return;
-    if (previousBranch) updateBranchTabs(previousBranch);
+    if (previousBranch) updateBranchSelect(previousBranch);
     else treemap.replaceChildren();
     setStatus(error.message, "error");
   }
@@ -240,8 +218,10 @@ function fullscreenActive() {
 
 function syncFullscreenUi() {
   const active = fullscreenActive();
-  controls.fullscreen.textContent = fullscreenButtonLabel(active);
+  const label = fullscreenButtonLabel(active);
   controls.fullscreen.setAttribute("aria-pressed", String(active));
+  controls.fullscreen.setAttribute("aria-label", label);
+  controls.fullscreen.title = label;
 }
 
 function setFallbackFullscreen(active) {
@@ -280,7 +260,7 @@ async function start() {
   state.config = await response.json();
   state.metric = state.config.defaultMetric;
   state.preferences = loadPreferences(preferenceStorage, state.config.branches);
-  initializeBranchTabs(state.config.branches);
+  initializeBranchSelect(state.config.branches);
   controls.metric.find((input) => input.value === state.metric).checked = true;
   registerRepositoryTreemapServiceWorker().then((registration) => requestGitHubPrefetch(registration, state.config));
   const initialBranch = state.preferences.lastBranch ?? state.config.branches[0];
@@ -309,21 +289,7 @@ viewTabList.addEventListener("keydown", (event) => {
   selectView(next.dataset.view);
 });
 
-branchTabs.addEventListener("keydown", (event) => {
-  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-  const tabs = branchTabButtons();
-  const currentIndex = tabs.indexOf(document.activeElement);
-  if (currentIndex < 0) return;
-  event.preventDefault();
-  let nextIndex = currentIndex;
-  if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
-  if (event.key === "Home") nextIndex = 0;
-  if (event.key === "End") nextIndex = tabs.length - 1;
-  const next = tabs[nextIndex];
-  next.focus();
-  selectBranch(next.dataset.branch);
-});
+branchSelect.addEventListener("change", () => selectBranch(branchSelect.value));
 
 appCloseButton.addEventListener("click", () => closeApplication(window));
 
