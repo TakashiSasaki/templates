@@ -31,6 +31,19 @@ The default mobile view is deliberately **Treemap-first**: explanatory prose liv
 
 - **Treemap** contains branch selection, visualization controls, and the treemap.
 - **About** contains the application explanation, interaction notes, persistence behavior, and cache description.
+- **README** renders this app-root `README.md` directly inside the web app.
+- The top-right **×** pictogram closes the application when the browser permits it; otherwise it leaves the app by returning to browser history or a blank document.
+
+### README rendering
+
+The README tab renders this canonical file rather than maintaining a separate copy of its prose.
+
+During `npm run build`, the app-root `README.md` is copied into `dist/README.md`. The browser fetches that deployed file only when the README tab is first opened.
+
+Markdown rendering uses exact-version CDN modules:
+
+- Marked `18.0.13` for Markdown parsing;
+- DOMPurify `3.4.15` to sanitize the generated HTML before insertion.
 
 ### Branch tabs and persisted state
 
