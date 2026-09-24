@@ -17,7 +17,7 @@ class MaintainerEntrypointTests(unittest.TestCase):
             "AGENTS.md",
             ".review-authority/review-policy.md",
             ".agent-policy.lock",
-            "a53966ab02142795654fbda41d2c470c70db3422",
+            "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5",
             "python -m pytest",
             "Work-ledger",
             "does not own Composition, Integration, Site, or Pages",
