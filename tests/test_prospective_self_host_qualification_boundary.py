@@ -151,3 +151,31 @@ def test_adopted_self_host_fails_closed_when_runtime_identity_unestablished(tmp_
 
     with pytest.raises((RuntimeError, OSError, ValueError)):
         verify_self_host(repo)
+
+
+def test_toolchain_payload_supports_json_and_yaml(tmp_path: Path) -> None:
+    """_parse_toolchain_payload transparently supports both YAML and JSON format."""
+    from scripts.verify_policy_self_host import runtime
+    config_toolchain = runtime.config_toolchain
+    lock_toolchain = runtime.lock_toolchain
+
+    rev = "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5"
+    repo = "TakashiSasaki/templates"
+
+    # YAML format
+    yaml_file = tmp_path / ".agent-policy.yml"
+    yaml_file.write_text(
+        f"schema_version: 2\ntoolchain:\n  repository: {repo}\n  revision: {rev}\n",
+        encoding="utf-8",
+    )
+    assert config_toolchain(yaml_file) == (repo, rev)
+
+    # JSON format
+    json_file = tmp_path / ".agent-policy.json"
+    json_file.write_text(
+        f'{{"schema_version": 2, "toolchain": {{"repository": "{repo}", "revision": "{rev}"}}}}',
+        encoding="utf-8",
+    )
+    assert config_toolchain(json_file) == (repo, rev)
+    assert lock_toolchain(json_file) == (repo, rev)
+
