@@ -29,7 +29,7 @@ The default mobile view is deliberately **Treemap-first**: explanatory prose liv
 
 ### View tabs
 
-- **Treemap** contains branch selection, visualization controls, and the treemap.
+- **Treemap** contains visualization controls and the treemap. Branch selection remains in the shared top bar.
 - **About** contains the application explanation, interaction notes, persistence behavior, and cache description.
 - **README** renders this app-root `README.md` directly inside the web app.
 - The top-right **×** pictogram closes the application when the browser permits it; otherwise it leaves the app by returning to browser history or a blank document.
@@ -45,9 +45,9 @@ Markdown rendering uses exact-version CDN modules:
 - Marked `18.0.13` for Markdown parsing;
 - DOMPurify `3.4.15` to sanitize the generated HTML before insertion.
 
-### Branch tabs and persisted state
+### Branch selection and persisted state
 
-Configured branches are shown as horizontally scrollable tabs.
+Configured branches are selected from the dropdown placed to the right of the top-level view tabs.
 
 The app stores UI preferences in browser `localStorage` using a versioned app key. Storage is origin/browser-profile local and is not synchronized to a server.
 
@@ -60,13 +60,17 @@ If localStorage is unavailable, malformed, or contains preferences for branches 
 
 ### Fullscreen
 
-The **Fullscreen** button requests native browser fullscreen for the application shell. If native Fullscreen API support is unavailable or fails, the app uses a viewport-filling fallback. The same button exits either mode.
+The top-bar fullscreen pictogram requests native browser fullscreen for the application shell. Its icon changes to the exit-fullscreen state while active. If native Fullscreen API support is unavailable or fails, the app uses a viewport-filling fallback; the same pictogram exits either mode.
 
 ### Treemap navigation
 
-- **Depth** controls how many levels below the current focus are drawn.
-- **Files / Bytes** selects the metric used as the basis for approximate layout.
-- **Up / Root** navigates the focused directory.
+On mobile, **Depth**, **Files / Bytes**, **Up**, and **Root** are grouped into one floating toolbar over the treemap. The toolbar uses pictograms instead of visible text labels; accessible names and tooltips remain available.
+
+- the hierarchy pictogram + value controls **Depth**;
+- the document pictogram selects **Files**;
+- the storage pictogram selects **Bytes**;
+- the upward arrow navigates **Up**;
+- the home pictogram navigates to **Root**.
 - Tap/click zooms into a directory.
 - Touch/pen long-press opens directory details.
 - Tapping outside the details dialog closes it.
