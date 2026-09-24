@@ -1,0 +1,153 @@
+from __future__ import annotations
+
+import shutil
+from pathlib import Path
+
+import pytest
+import yaml
+
+from scripts.verify_candidate_qualification import qualify_candidate
+from scripts.verify_policy_self_host import verify_self_host
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_candidate_qualification_passes_on_current_head() -> None:
+    """Candidate qualification proves current head is a valid reusable toolchain."""
+    qualify_candidate(ROOT)
+
+
+def test_adopted_self_host_consistency_passes_on_current_head() -> None:
+    """Adopted self-host consistency proves committed outputs match pinned runtime."""
+    verify_self_host(ROOT)
+
+
+def test_prospective_profile_change_separated_from_adopted_self_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A synthetic prospective profile change is visible to candidate qualification
+
+    while adopted self-host consistency continues to evaluate the old pinned toolchain.
+    """
+    from agent_policy import config, policy_loader
+
+    # Create a synthetic prospective rule and profile in an isolated package root
+    synthetic_root = tmp_path / "synthetic_package_root"
+    shutil.copytree(ROOT / "schemas", synthetic_root / "schemas")
+    shutil.copytree(ROOT / "templates", synthetic_root / "templates")
+    shutil.copytree(ROOT / "profiles", synthetic_root / "profiles")
+    shutil.copytree(ROOT / "policy", synthetic_root / "policy")
+
+    synthetic_rule_path = synthetic_root / "policy" / "core" / "synthetic-prospective-rule.md"
+    synthetic_rule_path.write_text(
+        """---
+id: core.synthetic-prospective-rule
+severity: mandatory
+overridable: false
+order: 49
+---
+# Synthetic Prospective Rule
+
+Must not leak into adopted self-host maintainer instructions.
+""",
+        encoding="utf-8",
+    )
+
+    core_profile_path = synthetic_root / "profiles" / "core.yml"
+    profile_data = yaml.safe_load(core_profile_path.read_text(encoding="utf-8"))
+    profile_data["policy_files"].append("policy/core/synthetic-prospective-rule.md")
+    core_profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
+
+    monkeypatch.setattr(config, "package_root", lambda: synthetic_root)
+    monkeypatch.setattr(policy_loader, "package_root", lambda: synthetic_root)
+
+    # 1. Candidate qualification sees the prospective change and qualifies cleanly
+    qualify_candidate(synthetic_root)
+
+    # 2. Adopted self-host consistency continues evaluating the adopted runtime (5ad8b0d...)
+    verify_self_host(ROOT)
+
+    # 3. Committed self-host outputs remain untouched and do not contain the prospective rule
+    agents_content = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "core.synthetic-prospective-rule" not in agents_content
+    review_content = (ROOT / ".review-authority" / "review-policy.md").read_text(encoding="utf-8")
+    assert "core.synthetic-prospective-rule" not in review_content
+
+    # 4. No false source provenance is emitted under the pinned toolchain
+    assert "TakashiSasaki/templates@5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5" in agents_content
+
+
+def test_adopted_self_host_fails_when_outputs_are_stale(tmp_path: Path) -> None:
+    """Tampered or stale maintainer outputs in an adopted repository fail closed."""
+    repo = tmp_path / "repo"
+    shutil.copytree(ROOT, repo, ignore=shutil.ignore_patterns(".git", ".venv", "__pycache__"))
+    (repo / ".git").mkdir()
+
+    # Modify committed AGENTS.md to simulate stale output
+    agents_file = repo / "AGENTS.md"
+    agents_file.write_text(agents_file.read_text(encoding="utf-8") + "\n# Stale line\n")
+
+    with pytest.raises(RuntimeError, match="Self-host check failed against adopted toolchain"):
+        verify_self_host(repo)
+
+
+def test_adopted_self_host_fails_closed_when_lock_and_config_disagree(tmp_path: Path) -> None:
+    """Mismatched toolchain revisions between config and lock fail closed."""
+    repo = tmp_path / "repo"
+    shutil.copytree(ROOT, repo, ignore=shutil.ignore_patterns(".git", ".venv", "__pycache__"))
+    (repo / ".git").mkdir()
+
+    config_path = repo / ".agent-policy.yml"
+    config_text = config_path.read_text(encoding="utf-8")
+    tampered_config = config_text.replace(
+        "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5",
+        "1111111111111111111111111111111111111111",
+    )
+    config_path.write_text(tampered_config, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="does not match lock toolchain"):
+        verify_self_host(repo)
+
+
+def test_adopted_self_host_fails_closed_when_pin_is_malformed(tmp_path: Path) -> None:
+    """Malformed toolchain revisions fail closed."""
+    repo = tmp_path / "repo"
+    shutil.copytree(ROOT, repo, ignore=shutil.ignore_patterns(".git", ".venv", "__pycache__"))
+    (repo / ".git").mkdir()
+
+    lock_path = repo / ".agent-policy.lock"
+    lock_text = lock_path.read_text(encoding="utf-8")
+    tampered_lock = lock_text.replace(
+        "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5",
+        "not-a-valid-sha",
+    )
+    lock_path.write_text(tampered_lock, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must be a full lowercase commit SHA"):
+        verify_self_host(repo)
+
+
+def test_adopted_self_host_fails_closed_when_runtime_identity_unestablished(tmp_path: Path) -> None:
+    """Unresolvable runtime revision fails closed."""
+    repo = tmp_path / "repo"
+    shutil.copytree(ROOT, repo, ignore=shutil.ignore_patterns(".git", ".venv", "__pycache__"))
+    (repo / ".git").mkdir()
+
+    nonexistent_sha = "0" * 40
+    config_path = repo / ".agent-policy.yml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5", nonexistent_sha
+        ),
+        encoding="utf-8",
+    )
+    lock_path = repo / ".agent-policy.lock"
+    lock_path.write_text(
+        lock_path.read_text(encoding="utf-8").replace(
+            "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5", nonexistent_sha
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises((RuntimeError, OSError, ValueError)):
+        verify_self_host(repo)

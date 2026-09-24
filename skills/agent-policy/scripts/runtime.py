@@ -185,6 +185,66 @@ def lock_toolchain(path: Path) -> tuple[str, str]:
     return repository, revision
 
 
+def config_toolchain(path: Path) -> tuple[str, str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    in_toolchain = False
+    found_toolchain = False
+    fields: dict[str, str] = {}
+    allowed = {"repository", "revision"}
+
+    for raw in lines:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip(" "))
+        if indent == 0:
+            if stripped == "toolchain:":
+                if found_toolchain:
+                    raise ValueError(
+                        ".agent-policy.yml must contain exactly one toolchain mapping"
+                    )
+                found_toolchain = True
+                in_toolchain = True
+            else:
+                in_toolchain = False
+            continue
+        if not in_toolchain:
+            continue
+        if indent != 2 or ":" not in stripped:
+            raise ValueError(
+                ".agent-policy.yml toolchain must be a flat two-space mapping"
+            )
+        key, raw_value = stripped.split(":", 1)
+        if key not in allowed:
+            raise ValueError(f".agent-policy.yml toolchain has unsupported key: {key}")
+        if key in fields:
+            raise ValueError(f".agent-policy.yml toolchain key is duplicated: {key}")
+        value = raw_value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        elif not value or value[0] in {'"', "'"} or value[-1:] in {'"', "'"}:
+            raise ValueError(
+                f".agent-policy.yml toolchain {key} must be a plain scalar"
+            )
+        fields[key] = value
+
+    if not found_toolchain:
+        raise ValueError(".agent-policy.yml is missing the toolchain mapping")
+    if set(fields) != allowed:
+        missing = ", ".join(sorted(allowed - set(fields)))
+        raise ValueError(f".agent-policy.yml toolchain is missing keys: {missing}")
+
+    repository = fields["repository"]
+    revision = fields["revision"]
+    if repository != "TakashiSasaki/templates":
+        raise ValueError(".agent-policy.yml has an unsupported toolchain repository")
+    if FULL_SHA.fullmatch(revision) is None:
+        raise ValueError(
+            ".agent-policy.yml toolchain revision must be a full lowercase commit SHA"
+        )
+    return repository, revision
+
+
 def select_pin(
     repository_root: Path,
     manifest: Mapping[str, Any] | None = None,
@@ -192,9 +252,29 @@ def select_pin(
     manifest_value = load_manifest() if manifest is None else dict(manifest)
     default = pin_from_manifest(manifest_value)
     lock_path = repository_root / ".agent-policy.lock"
+    config_path = repository_root / ".agent-policy.yml"
     if not lock_path.exists():
+        if config_path.exists():
+            config_repo, config_rev = config_toolchain(config_path)
+            is_default = config_rev == default.revision
+            return RuntimePin(
+                repository=config_repo,
+                revision=config_rev,
+                lock_path=default.lock_path,
+                expected_lock_sha256=(default.expected_lock_sha256 if is_default else None),
+                project_distribution=default.project_distribution,
+                project_version=(default.project_version if is_default else None),
+                executable=default.executable,
+            )
         return default
     repository, revision = lock_toolchain(lock_path)
+    if config_path.exists():
+        config_repo, config_rev = config_toolchain(config_path)
+        if (config_repo, config_rev) != (repository, revision):
+            raise ValueError(
+                f".agent-policy.yml toolchain ({config_repo}@{config_rev}) "
+                f"does not match .agent-policy.lock ({repository}@{revision})"
+            )
     is_default = revision == default.revision
     return RuntimePin(
         repository=repository,
