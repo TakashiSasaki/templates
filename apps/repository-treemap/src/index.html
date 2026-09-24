@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Repository Treemap</title>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <main id="app-shell" class="shell">
+    <header>
+      <p class="eyebrow">Repository visualization</p>
+      <h1>Repository Treemap</h1>
+      <p class="lead">ディレクトリの面積を、配下のファイル数またはファイルサイズ合計を目安に比較します。</p>
+    </header>
+
+    <section class="branch-nav" aria-label="Branch selection">
+      <span class="control-label">Branch</span>
+      <div id="branch-tabs" class="branch-tabs" role="tablist" aria-label="Repository branch"></div>
+    </section>
+
+    <section class="controls" aria-label="Treemap controls">
+      <label>Relative depth <select id="depth-select" aria-label="Relative display depth"></select></label>
+      <fieldset>
+        <legend>Area metric</legend>
+        <label><input type="radio" name="metric" value="fileCount" checked> Files</label>
+        <label><input type="radio" name="metric" value="totalSize"> Bytes</label>
+      </fieldset>
+      <button id="up-button" type="button" disabled>Up</button>
+      <button id="root-button" type="button" disabled>Root</button>
+      <button id="fullscreen-button" type="button" aria-pressed="false">Fullscreen</button>
+    </section>
+    <p class="hint">ブランチは上のタブで切り替えます。面積は可読性とタップしやすさを優先した近似です。長押しで実値の詳細を表示できます。</p>
+    <p id="breadcrumb" class="breadcrumb" aria-live="polite"></p>
+    <p id="status" class="status" aria-live="polite">Loading configuration…</p>
+    <div id="treemap" class="treemap" role="img" aria-label="Repository directory treemap"></div>
+    <p id="details" class="details"></p>
+  </main>
+
+  <dialog id="node-details-dialog" class="node-details-dialog" aria-labelledby="node-details-title">
+    <div class="node-details-sheet">
+      <div class="node-details-handle" aria-hidden="true"></div>
+      <p class="eyebrow">Directory details</p>
+      <h2 id="node-details-title"></h2>
+      <dl class="node-details-list">
+        <div><dt>Path</dt><dd id="node-details-path"></dd></div>
+        <div><dt>Files</dt><dd id="node-details-files"></dd></div>
+        <div><dt>Size</dt><dd id="node-details-size"></dd></div>
+        <div><dt>Child directories</dt><dd id="node-details-children"></dd></div>
+      </dl>
+      <div class="node-details-actions">
+        <button id="node-details-close" type="button">Close</button>
+        <button id="node-details-zoom" type="button">Zoom here</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
