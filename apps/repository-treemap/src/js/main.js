@@ -21,6 +21,7 @@ import {
   withBranchRelativeDepth,
   withLastBranch
 } from "./preferences.js";
+import { createLatestSelectionGuard } from "./selection-guard.js";
 
 const appShell = document.querySelector("#app-shell");
 const viewTabList = document.querySelector("#view-tabs");
@@ -58,6 +59,7 @@ const state = {
 let detailedDirectory = null;
 let fallbackFullscreen = false;
 let preferenceStorage = null;
+const branchSelectionGuard = createLatestSelectionGuard();
 
 try {
   preferenceStorage = window.localStorage;
@@ -164,24 +166,34 @@ function render() {
 }
 
 async function selectBranch(branch) {
-  state.branch = branch;
-  state.relativeDepth = relativeDepthForBranch(state.preferences, branch, state.config.defaultRelativeDepth);
-  state.preferences = withLastBranch(state.preferences, branch);
-  savePreferences(preferenceStorage, state.preferences);
+  const selectionToken = branchSelectionGuard.begin();
+  const previousBranch = state.branch;
+  const preferredDepth = relativeDepthForBranch(state.preferences, branch, state.config.defaultRelativeDepth);
   updateBranchTabs(branch);
   setStatus(`Loading ${branch}…`);
+
   try {
     const cached = state.trees.get(branch);
     if (!cached || !isCacheTimestampFresh(cached.fetchedAt)) {
       const entries = await fetchBranchTree(state.config.owner, state.config.repository, branch);
+      if (!branchSelectionGuard.isCurrent(selectionToken)) return;
       state.trees.set(branch, { tree: buildDirectoryTree(branch, entries), fetchedAt: Date.now() });
     }
+
+    if (!branchSelectionGuard.isCurrent(selectionToken)) return;
+
+    state.branch = branch;
+    state.relativeDepth = preferredDepth;
     state.path = [state.trees.get(branch).tree];
+    state.preferences = withLastBranch(state.preferences, branch);
+    savePreferences(preferenceStorage, state.preferences);
     setStatus(`Loaded ${state.config.owner}/${state.config.repository}@${branch}`);
     render();
   } catch (error) {
+    if (!branchSelectionGuard.isCurrent(selectionToken)) return;
+    if (previousBranch) updateBranchTabs(previousBranch);
+    else treemap.replaceChildren();
     setStatus(error.message, "error");
-    treemap.replaceChildren();
   }
 }
 

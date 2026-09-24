@@ -22,3 +22,4 @@ These instructions apply to `apps/repository-treemap/` and all descendants, in a
 - Preserve touch behavior: tap/click for zoom, long-press for details, and backdrop tap to dismiss the detail dialog.
 - Preserve browser-local preference behavior unless explicitly changed: remember the last selected branch and a separate Relative depth value per branch using the versioned localStorage preference contract.
 - Keep explanatory prose in the About view rather than above the treemap so the default mobile Treemap view remains visualization-first and can fit within the initial viewport with minimal page scrolling.
+- Preserve latest-selection-wins behavior for asynchronous branch loads; stale GitHub responses must never replace the currently selected branch, and a failed branch load must not become the persisted initial branch.

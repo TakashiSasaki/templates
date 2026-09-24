@@ -8,7 +8,7 @@ const required = [
   "src/js/github-api-urls.js", "src/js/cache-policy.js", "src/js/service-worker-client.js",
   "src/js/repository-tree.js", "src/js/metrics.js", "src/js/visible-tree.js", "src/js/label-layout.js",
   "src/js/layout-weights.js", "src/js/touch-long-press.js", "src/js/dialog-dismiss.js",
-  "src/js/fullscreen.js", "src/js/preferences.js", "src/js/treemap-view.js", "src/config/defaults.json"
+  "src/js/fullscreen.js", "src/js/preferences.js", "src/js/selection-guard.js", "src/js/treemap-view.js", "src/config/defaults.json"
 ];
 await Promise.all(required.map((relativePath) => access(path.join(root, relativePath))));
 const index = await readFile(path.join(root, "src/index.html"), "utf8");
@@ -21,6 +21,7 @@ const main = await readFile(path.join(root, "src/js/main.js"), "utf8");
 if (!main.includes("https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm")) throw new Error("D3 dependency must remain exact-version pinned");
 if (!main.includes("registerRepositoryTreemapServiceWorker")) throw new Error("main.js must register the service worker");
 if (!main.includes("loadPreferences") || !main.includes("withBranchRelativeDepth")) throw new Error("main.js must persist branch/depth preferences");
+if (!main.includes("createLatestSelectionGuard")) throw new Error("main.js must reject stale branch-load completions");
 if (!main.includes("initializeBranchTabs")) throw new Error("main.js must initialize branch tabs");
 if (!main.includes("toggleFullscreen")) throw new Error("main.js must implement fullscreen toggle");
 if (!main.includes("isPointOutsideRect")) throw new Error("main.js must close details on backdrop clicks");
