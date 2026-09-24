@@ -16,7 +16,7 @@ COMPOSER = ROOT / "scripts" / "compose.py"
 
 class ComponentAgentInstructionBoundaryTests(unittest.TestCase):
     def test_components_scope_instructions_define_distribution_boundary(self) -> None:
-        guidance = (COMPONENTS / "AGENTS.md").read_text(encoding="utf-8")
+        guidance = " ".join((COMPONENTS / "AGENTS.md").read_text(encoding="utf-8").split())
         for required in (
             "files/**",
             "AGENTS.md.template",

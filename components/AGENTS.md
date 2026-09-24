@@ -8,8 +8,8 @@ remain the semantic sources for the artifacts that Composition produces.
 ## Distribution material boundary
 
 - Treat `components/<component-id>/files/**` as distribution/materialization
-  source data for consumer repositories, not as repository-maintainer
-  instructions for `TakashiSasaki/templates`.
+  source data for consumer repositories,
+  not as repository-maintainer instructions for `TakashiSasaki/templates`.
 - Do not add an exact file named `AGENTS.md` anywhere below a component
   `files/**` tree. An exact instruction filename there can be discovered as
   active instructions while an agent is editing Composition source.
