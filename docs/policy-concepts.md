@@ -65,6 +65,41 @@ The mutable `policy` branch is the development source. The **Stable release** is
 
 Likewise, installer-script revision, installed skill-source revision, and stable runtime revision are distinct immutable identities. Avoid collapsing them into an unqualified phrase such as “the current version” when exact identity matters.
 
+## Policy applicability: reference, adoption, editing, and execution
+
+Coding agents and developers encounter Policy across multiple relationships involving provider and consumer repositories. Under canonical rule [`core.scope-applicability-to-target`](shared-policy/index.md), instructions and policies govern an operation only within their declared target and operational scope—never merely because an agent reads, traverses, or references a file.
+
+### Reference versus adoption
+
+- **Reference**: A document, contract, schema, or rule is read or inspected as information. Reference-only inspection never adopts policy, creates pull requests, triggers generation, or authorizes repository mutation.
+- **Adoption**: A consumer repository explicitly selects, installs, or configures reviewed reusable policy through supported adoption workflows (`.agent-policy.yml` and `.agent-policy.lock`). Adoption establishes applicability strictly within the adopting repository's declared scope.
+
+### Provider maintenance versus consumer application
+
+- **Provider maintenance**: Work that modifies the provider itself (such as shared policy definitions, compiler logic, or repository-maintainer procedures). Provider-local maintenance rules (such as [`policy-repo.preserve-authority-boundary`](provider/index.md), CI topologies, and maintainer merge routing) apply strictly to maintainer tasks within the provider authority.
+- **Consumer application**: Development in an application repository that uses or adopts reusable materials. Provider-local maintenance rules never propagate to consumer repositories merely because provider files are traversed or referenced. Conversely, adopted shared rules remain fully effective within the consumer's declared scope.
+
+### Editing a normative source versus being governed by it
+
+When an agent edits a policy rule, contract, or instruction template, the text being drafted is an **object of work** (payload/data). Proposed changes do not self-activate or govern the editing task; the agent continues to operate under the currently effective authority until the changes are formally reviewed, merged, and adopted.
+
+### Target repository versus provider source identity
+
+Every operation must distinguish between:
+1. the **mutation target repository** being modified;
+2. the **provider or reference source revision** being inspected or executed; and
+3. the **effective adopted policy and configuration**.
+
+Changing the current working directory (CWD) into a provider checkout during a consumer task does not retarget mutations to the provider. Retargeting requires an explicit task and target transition.
+
+### Mixed and self-hosted relationships
+
+Repositories may have mixed relationships: for example, `site` is maintained as a provider authority within `TakashiSasaki/templates` while simultaneously consuming selected Composition and Policy contracts. Applicability is evaluated per target, authority, and operation; it must not be collapsed into a global boolean role label (such as "maintainer" versus "consumer"). Advisory role claims have no independent authority.
+
+### Ambiguity handling
+
+When the applicability of an instruction is materially ambiguous, agents may continue safe, bounded read-only investigation, but must fail closed before executing any dependent mutation.
+
 ## Words that should usually be qualified
 
 Repository-wide prose is easier to read when broad words name their scope explicitly:

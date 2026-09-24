@@ -156,6 +156,11 @@ FOCUSED_TEST_SPECS: tuple[FocusedTest, ...] = (
         parallel_safe=True,
         reason="read-only smoke result verification and tmp_path tamper tests",
     ),
+    FocusedTest(
+        "tests/test_policy_applicability.py",
+        parallel_safe=True,
+        reason="isolated policy applicability model and scenario verification",
+    ),
 )
 
 FOCUSED_TESTS: tuple[str, ...] = tuple(spec.path for spec in FOCUSED_TEST_SPECS)

@@ -14,9 +14,11 @@ for the authorship boundary. A local requirement does not need a shared-corpus
 change unless it is intended to become generally applicable Policy semantics.
 
 This guide explains authorship and links to the existing authority; it does not
-create a second copy of the selected rules. For the provider's own maintenance
-requirements, the canonical inputs remain `repository-policy/`, separate from
-shared modules under `policy/`.
+create a second copy of the selected rules. Under [`core.scope-applicability-to-target`](policy-concepts.md#policy-applicability-reference-adoption-editing-and-execution),
+applicability follows the governed target and declared operation rather than mere visibility
+or reference. For the provider's own maintenance requirements, the canonical inputs remain
+`repository-policy/`, separate from shared modules under `policy/`. Provider-local maintenance
+rules never propagate to consumer repositories merely because provider files are referenced.
 
 Each shared policy file contains YAML front matter with a stable rule ID, severity, override permission, and deterministic order. Mandatory non-overridable rules cannot be replaced by project-local policy. Long rationale and examples may follow the normative paragraph, but generated agent instructions should remain concise and executable.
 
