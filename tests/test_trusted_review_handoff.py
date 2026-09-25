@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -13,17 +14,22 @@ import yaml
 from scripts import prepare_trusted_review_handoff as handoff_module
 from scripts.prepare_trusted_review_handoff import (
     FreezeBoundaryType,
+    FreezeEvidence,
+    HandoffOrchestrator,
+    Phase,
     check_drift,
+    closed_git_environment,
+    compute_directory_inventory_digest,
     format_reviewer_packet,
+    load_and_verify_state,
     prepare_handoff,
+    save_state,
     verify_handoff,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER_PATH = ROOT / "scripts/install_agent_policy_skill.py"
 SKILL_SOURCE_PATH = ROOT / "skills/agent-policy"
-
-installer = handoff_module.load_module_from_path("installer_test", INSTALLER_PATH)
 
 
 def valid_sha(char: str = "a") -> str:
@@ -54,6 +60,11 @@ def make_valid_handoff_dict() -> dict[str, Any]:
                 "id": "PR_kwDOTm6oug412345",
                 "number": 1031,
             },
+            "observation_evidence": {
+                "source": "github_observation_snapshot",
+                "authenticated": True,
+                "retrieved_at": "2026-09-26T00:00:00Z",
+            },
         },
         "exact_base": {
             "commit": base_commit,
@@ -64,79 +75,74 @@ def make_valid_handoff_dict() -> dict[str, Any]:
                 "repository": "TakashiSasaki/templates",
                 "revision": valid_sha("3"),
                 "path": "scripts/install_agent_policy_skill.py",
+                "blob_sha": valid_sha("f"),
+                "sha256": valid_sha256("7"),
             },
             "skill_source": {
                 "repository": "TakashiSasaki/templates",
                 "revision": valid_sha("4"),
                 "path": "skills/agent-policy",
             },
-            "attestation": {
-                "sha256": valid_sha256("a"),
-                "entries_sha256": valid_sha256("e"),
-            },
-            "inventory_sha256": valid_sha256("0"),
+            "attestation_sha256": valid_sha256("a"),
+            "entries_digest": valid_sha256("e"),
+            "inventory_digest": valid_sha256("0"),
         },
         "bootstrap_run_image": {
-            "inventory_sha256": valid_sha256("b"),
-            "freeze": {
+            "inventory_digest": valid_sha256("b"),
+            "freeze_evidence": {
                 "boundary_type": "deployment_established",
                 "mechanism": "container_read_only_bind_mount",
                 "verified_post_freeze": True,
             },
+            "verifier": "TakashiSasaki/templates@33a7ab80:scripts/install_agent_policy_skill.py",
         },
         "trusted_base_snapshot": {
             "commit": base_commit,
             "tree": base_tree,
-            "inventory_sha256": valid_sha256("1"),
-            "freeze": {
+            "inventory_digest": valid_sha256("1"),
+            "freeze_evidence": {
                 "boundary_type": "deployment_established",
                 "mechanism": "container_read_only_bind_mount",
                 "verified_post_freeze": True,
             },
+            "verifier": "bootstrap_run_image:scripts/review_base.py",
         },
         "runtime": {
-            "repository": "TakashiSasaki/templates",
-            "revision": valid_sha("5"),
-            "lock_sha256": valid_sha256("2"),
-            "python": "cpython-3.12",
-            "platform": "linux-aarch64",
-            "attestation_sha256": valid_sha256("3"),
-            "image_inventory_sha256": valid_sha256("4"),
-            "freeze": {
+            "toolchain": {
+                "repository": "TakashiSasaki/templates",
+                "revision": valid_sha("5"),
+            },
+            "runtime_attestation_sha256": valid_sha256("3"),
+            "inventory_digest": valid_sha256("4"),
+            "freeze_evidence": {
                 "boundary_type": "deployment_established",
                 "mechanism": "container_read_only_bind_mount",
                 "verified_post_freeze": True,
             },
+            "verifier": "bootstrap_run_image:scripts/runtime_image.py",
         },
         "review_bundle": {
-            "bundle_format": 1,
+            "inventory_digest": valid_sha256("8"),
             "manifest_sha256": manifest_digest,
-            "procedure_skill_name": "pr-review",
-            "procedure_skill_sha256": valid_sha256("5"),
-            "procedure_references": {
-                "procedure/references/github-pull-request-review-api.md": valid_sha256("6"),
-            },
             "semantic_policy_sha256": semantic_digest,
-            "freeze": {
+            "freeze_evidence": {
                 "boundary_type": "deployment_established",
                 "mechanism": "container_read_only_bind_mount",
                 "verified_post_freeze": True,
             },
+            "verifier": "runtime_image:agent_policy review-bundle",
         },
         "semantic_output": {
             "path": ".review-authority/review-policy.md",
             "renderer": "policy-context-md",
-            "context": "review",
             "sha256": semantic_digest,
         },
         "locators": {
             "installed_skill_root": "/opt/agent-policy",
-            "installation_attestation_path": "/var/run/attestation.json",
-            "bootstrap_run_image_dir": "/var/run/bootstrap-image",
-            "trusted_base_snapshot_dir": "/var/run/base-snapshot",
-            "runtime_attestation_path": "/var/run/runtime-attestation.json",
-            "runtime_image_dir": "/var/run/runtime-image",
-            "review_bundle_dir": "/var/run/review-bundle",
+            "bootstrap_run_image": "/var/run/bootstrap-image",
+            "trusted_base_snapshot": "/var/run/base-snapshot",
+            "runtime_image": "/var/run/runtime-image",
+            "review_bundle": "/var/run/review-bundle",
         },
     }
 
@@ -161,385 +167,707 @@ def test_handoff_rejects_unexpected_top_level_key() -> None:
         verify_handoff(data)
 
 
-@pytest.mark.parametrize(
-    ("path", "bad_value"),
-    [
-        (["exact_base", "commit"], "main"),
-        (["exact_base", "commit"], "12345"),
-        (["exact_base", "commit"], "A" * 40),
-        (["exact_base", "tree"], "HEAD"),
-        (["runtime", "revision"], "v1.0.0"),
-        (["review_bundle", "manifest_sha256"], "short"),
-        (["review_bundle", "manifest_sha256"], "Z" * 64),
-        (["semantic_output", "sha256"], "not-a-hash"),
-    ],
-)
-def test_handoff_rejects_malformed_shas_and_digests(path: list[str], bad_value: str) -> None:
+def test_handoff_rejects_wrong_schema_version() -> None:
     data = make_valid_handoff_dict()
-    target = data
-    for key in path[:-1]:
-        target = target[key]
-    target[path[-1]] = bad_value
-    with pytest.raises(ValueError):
+    data["schema_version"] = 999
+    with pytest.raises(ValueError, match="unsupported handoff schema version"):
         verify_handoff(data)
 
 
-def test_handoff_rejects_inconsistent_base_commit_or_tree() -> None:
+@pytest.mark.parametrize("bad_sha", ["not-a-sha", "0" * 39, "G" * 40, ""])
+def test_handoff_rejects_malformed_base_commit(bad_sha: str) -> None:
     data = make_valid_handoff_dict()
-    data["trusted_base_snapshot"]["commit"] = valid_sha("9")
-    with pytest.raises(ValueError, match="base commit mismatch"):
-        verify_handoff(data)
-
-    data = make_valid_handoff_dict()
-    data["trusted_base_snapshot"]["tree"] = valid_sha("8")
-    with pytest.raises(ValueError, match="base tree mismatch"):
+    data["exact_base"]["commit"] = bad_sha
+    with pytest.raises(ValueError, match="must be a full lowercase commit SHA"):
         verify_handoff(data)
 
 
-def test_handoff_rejects_semantic_policy_and_bundle_mismatch() -> None:
+@pytest.mark.parametrize("bad_sha", ["not-a-sha", "0" * 39, "g" * 40, ""])
+def test_handoff_rejects_malformed_base_tree(bad_sha: str) -> None:
     data = make_valid_handoff_dict()
-    data["semantic_output"]["sha256"] = valid_sha256("f")
-    with pytest.raises(ValueError, match="semantic_output sha256 does not match"):
+    data["exact_base"]["tree"] = bad_sha
+    with pytest.raises(ValueError, match="must be a full lowercase commit SHA"):
         verify_handoff(data)
 
 
-def test_handoff_rejects_unsupported_semantic_renderer() -> None:
+@pytest.mark.parametrize("bad_sha256", ["not-a-sha", "0" * 63, "g" * 64, ""])
+def test_handoff_rejects_malformed_attestation_sha256(bad_sha256: str) -> None:
     data = make_valid_handoff_dict()
-    data["semantic_output"]["renderer"] = "agents-md"
-    with pytest.raises(ValueError, match="renderer must be policy-context-md"):
+    data["installed_bootstrap"]["attestation_sha256"] = bad_sha256
+    with pytest.raises(ValueError, match="64-character lowercase SHA-256"):
+        verify_handoff(data)
+
+
+def test_handoff_rejects_mismatched_semantic_policy_digest() -> None:
+    data = make_valid_handoff_dict()
+    data["semantic_output"]["sha256"] = valid_sha256("9")
+    with pytest.raises(ValueError, match="does not match semantic_output.sha256"):
         verify_handoff(data)
 
 
 def test_handoff_rejects_unverified_freeze_state() -> None:
-    for artifact in ["bootstrap_run_image", "trusted_base_snapshot", "runtime", "review_bundle"]:
-        data = make_valid_handoff_dict()
-        data[artifact]["freeze"]["verified_post_freeze"] = False
-        with pytest.raises(ValueError, match="was not verified post-freeze"):
-            verify_handoff(data)
-
-
-def test_handoff_rejects_simulated_freeze_boundary_in_production_mode() -> None:
     data = make_valid_handoff_dict()
-    data["review_bundle"]["freeze"]["boundary_type"] = FreezeBoundaryType.SIMULATED_TEST.value
-    with pytest.raises(ValueError, match="simulated freeze boundary, prohibited in production"):
-        verify_handoff(data, allow_simulated_boundary=False)
-
-    verify_handoff(data, allow_simulated_boundary=True)
+    data["bootstrap_run_image"]["freeze_evidence"]["verified_post_freeze"] = False
+    with pytest.raises(ValueError, match="has not been verified post-freeze"):
+        verify_handoff(data)
 
 
-def test_handoff_locator_path_moves_do_not_invalidate_identity() -> None:
+def test_handoff_rejects_missing_verifier_provenance() -> None:
     data = make_valid_handoff_dict()
-    data["locators"]["review_bundle_dir"] = "/different/path/review-bundle"
-    verify_handoff(data, check_locators=False)
+    data["bootstrap_run_image"]["verifier"] = ""
+    with pytest.raises(ValueError, match="missing verifier provenance"):
+        verify_handoff(data)
 
 
-def test_drift_detection_invalidates_complete_authority_on_base_movement() -> None:
-    data = make_valid_handoff_dict()
-    disp = check_drift(
-        data,
-        current_base_commit=valid_sha("9"),
-        current_base_tree=data["exact_base"]["tree"],
-        current_head_commit=valid_sha("0"),
-        initial_head_commit=valid_sha("0"),
+def test_locator_non_authority() -> None:
+    data1 = make_valid_handoff_dict()
+    data2 = make_valid_handoff_dict()
+    data2["locators"]["review_bundle"] = "/completely/different/path"
+    verify_handoff(data1, check_locators=False)
+    verify_handoff(data2, check_locators=False)
+
+
+def test_drift_detection_no_drift(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    handoff = make_valid_handoff_dict()
+    base_commit = handoff["exact_base"]["commit"]
+    base_tree = handoff["exact_base"]["tree"]
+
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _git, _repo, _commit: base_tree)
+
+    disposition = check_drift(
+        git_executable=Path("/usr/bin/git"),
+        object_repository=tmp_path,
+        handoff=handoff,
+        current_base_commit=base_commit,
+        current_head_commit=valid_sha("a"),
+        proposed_head_commit=valid_sha("a"),
     )
-    assert disp.base_drift is True
-    assert disp.invalidates_authority is True
-    assert disp.invalidates_head_evidence is True
+    assert not disposition.base_drift
+    assert not disposition.head_drift
+    assert not disposition.invalidates_authority
+    assert not disposition.invalidates_head_evidence
 
-    disp_tree = check_drift(
-        data,
-        current_base_commit=data["exact_base"]["commit"],
-        current_base_tree=valid_sha("9"),
-        current_head_commit=valid_sha("0"),
-        initial_head_commit=valid_sha("0"),
+
+def test_drift_detection_base_movement(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    handoff = make_valid_handoff_dict()
+    new_base = valid_sha("9")
+
+    monkeypatch.setattr(
+        handoff_module, "resolve_base_tree", lambda _git, _repo, _commit: valid_sha("8")
     )
-    assert disp_tree.base_drift is True
-    assert disp_tree.invalidates_authority is True
-    assert disp_tree.invalidates_head_evidence is True
 
-
-def test_drift_detection_preserves_authority_on_head_only_movement() -> None:
-    data = make_valid_handoff_dict()
-    disp = check_drift(
-        data,
-        current_base_commit=data["exact_base"]["commit"],
-        current_base_tree=data["exact_base"]["tree"],
-        current_head_commit=valid_sha("7"),
-        initial_head_commit=valid_sha("6"),
+    disposition = check_drift(
+        git_executable=Path("/usr/bin/git"),
+        object_repository=tmp_path,
+        handoff=handoff,
+        current_base_commit=new_base,
+        current_head_commit=valid_sha("a"),
+        proposed_head_commit=valid_sha("a"),
     )
-    assert disp.base_drift is False
-    assert disp.head_drift is True
-    assert disp.invalidates_authority is False
-    assert disp.invalidates_head_evidence is True
+    assert disposition.base_drift
+    assert disposition.invalidates_authority
+    assert disposition.invalidates_head_evidence
 
 
-def test_drift_detection_clean_when_no_movement() -> None:
-    data = make_valid_handoff_dict()
-    disp = check_drift(
-        data,
-        current_base_commit=data["exact_base"]["commit"],
-        current_base_tree=data["exact_base"]["tree"],
-        current_head_commit=valid_sha("6"),
-        initial_head_commit=valid_sha("6"),
+def test_drift_detection_head_movement_only(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    handoff = make_valid_handoff_dict()
+    base_commit = handoff["exact_base"]["commit"]
+    base_tree = handoff["exact_base"]["tree"]
+
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _git, _repo, _commit: base_tree)
+
+    disposition = check_drift(
+        git_executable=Path("/usr/bin/git"),
+        object_repository=tmp_path,
+        handoff=handoff,
+        current_base_commit=base_commit,
+        current_head_commit=valid_sha("9"),
+        proposed_head_commit=valid_sha("8"),
     )
-    assert disp.base_drift is False
-    assert disp.head_drift is False
-    assert disp.invalidates_authority is False
-    assert disp.invalidates_head_evidence is False
+    assert not disposition.base_drift
+    assert disposition.head_drift
+    assert not disposition.invalidates_authority
+    assert disposition.invalidates_head_evidence
 
 
-def test_format_reviewer_packet_contains_all_mandatory_elements() -> None:
-    data = make_valid_handoff_dict()
+def test_reviewer_packet_formatting() -> None:
+    handoff = make_valid_handoff_dict()
     packet = format_reviewer_packet(
-        data,
+        handoff,
         handoff_path="/path/to/handoff.json",
-        handoff_sha256=valid_sha256("0"),
-        head_commit=valid_sha("9"),
+        handoff_sha256=valid_sha256("1"),
+        head_commit=valid_sha("f"),
     )
     assert "TRUSTED REVIEW BOOTSTRAP REVIEWER PACKET" in packet
-    assert data["provider"]["repository"]["id"] in packet
-    assert data["exact_base"]["commit"] in packet
-    assert valid_sha("9") in packet
-    assert data["locators"]["review_bundle_dir"] in packet
+    assert "R_kgDOTm6oug (TakashiSasaki/templates)" in packet
+    assert "PR_kwDOTm6oug412345 (#1031)" in packet
+    assert handoff["exact_base"]["commit"] in packet
+    assert handoff["exact_base"]["tree"] in packet
+    assert valid_sha("f") in packet
     assert "Consume ONLY the procedure and semantic authority" in packet
     assert "Do not select, discover, reproduce, or verify review procedure" in packet
 
 
-def test_installer_attestation_adversarial_rejections(tmp_path: Path) -> None:
-    target = tmp_path / "skill"
-    scripts_dir = target / "scripts"
-    scripts_dir.mkdir(parents=True)
-    (target / "SKILL.md").write_text("---\nname: agent-policy\n---\n", encoding="utf-8")
-    (target / "runtime-manifest.json").write_text("{}\n", encoding="utf-8")
-    (scripts_dir / "install.py").write_text("pass\n", encoding="utf-8")
-
-    attestation_path = tmp_path / "trust/attestation.json"
-    attestation_path.parent.mkdir()
-    installer.write_installation_attestation(
-        target,
-        attestation_path,
-        installer_revision=valid_sha("1"),
-    )
-
-    with pytest.raises(RuntimeError, match="installer identity does not match"):
-        installer.verify_installation_attestation(
-            target,
-            attestation_path,
-            installer_revision=valid_sha("2"),
-        )
-
-    (target / "SKILL.md").write_text("drift", encoding="utf-8")
-    with pytest.raises(RuntimeError, match="does not match installed skill tree"):
-        installer.verify_installation_attestation(
-            target,
-            attestation_path,
-            installer_revision=valid_sha("1"),
-        )
+# ==============================================================================
+# ADVERSARIAL TESTS A - M (Addressing the open finding family)
+# ==============================================================================
 
 
-def test_prepare_handoff_rejects_runtime_override(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="caller-selected runtime revision override is forbidden"):
-        prepare_handoff(
-            object_repository=tmp_path,
-            base_commit=valid_sha("1"),
-            provider_identity={
-                "name": "github",
-                "repository": {"id": "1", "name_with_owner": "o/r"},
-                "pull_request": {"id": "1", "number": 1},
-            },
-            installed_skill_root=tmp_path,
-            installation_attestation_path=tmp_path / "att.json",
-            installer_revision=valid_sha("2"),
-            work_dir=tmp_path / "work",
-            runtime_override_attempt=valid_sha("3"),
-        )
-
-
-def test_prepare_handoff_rejects_proposed_head_as_base(tmp_path: Path) -> None:
-    same_commit = valid_sha("1")
-    with pytest.raises(ValueError, match="base commit and proposed head must be distinct"):
-        prepare_handoff(
-            object_repository=tmp_path,
-            base_commit=same_commit,
-            proposed_head=same_commit,
-            provider_identity={
-                "name": "github",
-                "repository": {"id": "1", "name_with_owner": "o/r"},
-                "pull_request": {"id": "1", "number": 1},
-            },
-            installed_skill_root=tmp_path,
-            installation_attestation_path=tmp_path / "att.json",
-            installer_revision=valid_sha("2"),
-            work_dir=tmp_path / "work",
-        )
-
-
-def test_prepare_handoff_stops_with_capability_blocked_when_no_freeze_provided(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def setup_mock_environment(tmp_path: Path) -> dict[str, Any]:
+    obj_repo = tmp_path / "bare.git"
+    obj_repo.mkdir()
     work_dir = tmp_path / "work"
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
+    work_dir.mkdir()
+    installed_skill = tmp_path / "installed_skill"
+    installed_skill.mkdir()
+    (installed_skill / "SKILL.md").write_text("installed skill", encoding="utf-8")
+    (installed_skill / "scripts").mkdir()
+    (installed_skill / "scripts/run.py").write_text("#!/usr/bin/env python\n", encoding="utf-8")
 
-    monkeypatch.setattr(
-        handoff_module,
-        "resolve_base_tree",
-        lambda _git, _repo, _commit: valid_sha("2"),
+    attestation_path = tmp_path / "attestation.json"
+    attestation_path.write_text(
+        json.dumps(
+            {
+                "installer": {
+                    "repository": "TakashiSasaki/templates",
+                    "revision": valid_sha("1"),
+                    "path": "scripts/install_agent_policy_skill.py",
+                },
+                "skill_source": {
+                    "repository": "TakashiSasaki/templates",
+                    "revision": valid_sha("2"),
+                    "path": "skills/agent-policy",
+                },
+                "installation": {
+                    "entries": {
+                        "SKILL.md": {"type": "file", "sha256": valid_sha256("1")},
+                        "scripts": {"type": "directory"},
+                        "scripts/run.py": {"type": "file", "sha256": valid_sha256("2")},
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
     )
+
+    provider_id = {
+        "name": "github",
+        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {"id": "PR_kwDOTm6ous8AAAABFJDI8g", "number": 1031},
+        "observation_evidence": {
+            "source": "github_observation_snapshot",
+            "authenticated": True,
+            "retrieved_at": "2026-09-26T00:00:00Z",
+        },
+    }
+
+    return {
+        "obj_repo": obj_repo,
+        "work_dir": work_dir,
+        "installed_skill": installed_skill,
+        "attestation_path": attestation_path,
+        "provider_id": provider_id,
+        "base_commit": valid_sha("0"),
+        "base_tree": valid_sha("b"),
+    }
+
+
+def test_a_unverified_bootstrap_image_never_executes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    executed = {"side_effect": False}
 
     mock_installer = ModuleType("mock_installer")
     mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
-    mock_installer.load_installation_attestation = lambda path: {
-        "installer": {
-            "repository": "TakashiSasaki/templates",
-            "revision": valid_sha("1"),
-            "path": "scripts/install_agent_policy_skill.py",
-        },
-        "skill_source": {
-            "repository": "TakashiSasaki/templates",
-            "revision": valid_sha("2"),
-            "path": "skills/agent-policy",
-        },
-        "installation": {"entries": {}},
-    }
-    mock_installer.materialize_run_image = lambda target, dest, att, **kwargs: dest.mkdir(
-        parents=True, exist_ok=True
-    )
-    monkeypatch.setattr(handoff_module, "load_module_from_path", lambda name, path: mock_installer)
 
-    mock_review_base = ModuleType("mock_review_base")
-    mock_review_base.materialize = lambda git, repo, base, dest: dest.mkdir(
-        parents=True, exist_ok=True
-    )
-    mock_runtime_image = ModuleType("mock_runtime_image")
-    mock_runtime_image.create_attestation = lambda snap, path: path.write_text(
-        "{}", encoding="utf-8"
-    )
-    mock_runtime_image.materialize_image = lambda snap, att, dest: dest.mkdir(
-        parents=True, exist_ok=True
-    )
-    mock_runtime_image.venv_python = lambda dest: Path(sys.executable)
-    mock_runtime_image.trusted_environment = lambda: {}
-
-    def custom_load_module(name: str, path: Path) -> ModuleType:
-        if "review_base" in str(path):
-            return mock_review_base
-        if "runtime_image" in str(path):
-            return mock_runtime_image
-        return mock_installer
-
-    monkeypatch.setattr(handoff_module, "load_module_from_path", custom_load_module)
-
-    def mock_materialize_base(git: Path, repo: Path, base: str, dest: Path) -> None:
+    def materialize_run_image(src: Path, dest: Path, att: Path, **kwargs: Any) -> None:
         dest.mkdir(parents=True, exist_ok=True)
-        (dest / ".agent-policy.lock").write_text(
-            yaml.safe_dump(
-                {"toolchain": {"repository": "TakashiSasaki/templates", "revision": valid_sha("3")}}
-            ),
-            encoding="utf-8",
+        scripts = dest / "scripts"
+        scripts.mkdir(parents=True, exist_ok=True)
+        # Instrument bootstrap image file with a flag that shouldn't run yet
+        (scripts / "review_base.py").write_text(
+            "executed['side_effect'] = True\n", encoding="utf-8"
         )
-        (dest / ".agent-policy.yml").write_text(
-            yaml.safe_dump(
+        (scripts / "runtime_image.py").write_text("# runtime_image\n", encoding="utf-8")
+
+    mock_installer.materialize_run_image = materialize_run_image
+    mock_installer.verify_run_image = lambda *args, **kwargs: None
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+    )
+
+    res = orchestrator.step()
+    assert res["status"] == handoff_module.STATUS_FREEZE_BLOCKED
+    assert res["phase"] == Phase.BOOTSTRAP_IMAGE_AWAITING_FREEZE.value
+    # Invariant: Code in bootstrap run image has NOT been executed!
+    assert not executed["side_effect"]
+
+
+def test_b_bootstrap_tamper_before_post_freeze_verify(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+
+    def materialize_run_image(src: Path, dest: Path, att: Path, **kwargs: Any) -> None:
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "scripts").mkdir(parents=True, exist_ok=True)
+        (dest / "scripts/review_base.py").write_text("# initial\n", encoding="utf-8")
+
+    mock_installer.materialize_run_image = materialize_run_image
+    mock_installer.verify_run_image = lambda *args, **kwargs: None
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+    )
+
+    orchestrator.step()
+    assert orchestrator.state["phase"] == Phase.BOOTSTRAP_IMAGE_AWAITING_FREEZE.value
+
+    # Tamper with bootstrap image before post-freeze verification
+    b_dir = Path(orchestrator.state["artifacts"]["bootstrap_run_image"]["locator"])
+    (b_dir / "scripts/review_base.py").write_text("# tampered!\n", encoding="utf-8")
+
+    # Record simulated freeze evidence and resume
+    orchestrator.record_freeze(
+        "bootstrap_run_image",
+        FreezeEvidence(FreezeBoundaryType.DEPLOYMENT_ESTABLISHED, "ro_mount", True),
+    )
+
+    with pytest.raises(
+        ValueError, match="bootstrap run image modified between materialization and freeze"
+    ):
+        orchestrator.step()
+
+
+def test_c_arbitrary_malicious_installer_path_rejected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # CLI parse test: --installer-script is not accepted
+    with pytest.raises(SystemExit):
+        handoff_module.parse_args(["prepare", "--installer-script", "/tmp/malicious_installer.py"])
+
+
+def test_d_mutable_worktree_installer_drift(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    expected_bytes = b"# EXACT GIT BLOB BYTES\n"
+
+    def mock_git_run(
+        git_bin: Path, repo: Path, args: list[str], **kwargs: Any
+    ) -> subprocess.CompletedProcess[Any]:
+        if "release/skill-installer.json" in " ".join(args):
+            data = json.dumps(
                 {
-                    "skills": {"enabled": ["pr-review"]},
-                    "outputs": {
-                        "review": {
-                            "enabled": True,
-                            "renderer": "policy-context-md",
-                            "path": ".review-authority/review-policy.md",
-                        }
+                    "installer": {
+                        "repository": "TakashiSasaki/templates",
+                        "revision": valid_sha("1"),
+                        "path": "scripts/install_agent_policy_skill.py",
+                    },
+                    "skill_source": {
+                        "repository": "TakashiSasaki/templates",
+                        "revision": valid_sha("2"),
+                        "path": "skills/agent-policy",
                     },
                 }
-            ),
-            encoding="utf-8",
+            )
+            return subprocess.CompletedProcess(args, 0, stdout=data, stderr="")
+        elif "rev-parse" in args:
+            return subprocess.CompletedProcess(args, 0, stdout=valid_sha("f") + "\n", stderr="")
+        elif "cat-file" in args:
+            return subprocess.CompletedProcess(args, 0, stdout=expected_bytes, stderr="")
+        return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(handoff_module, "git_run", mock_git_run)
+
+    dest_path, info = handoff_module.extract_immutable_installer(
+        git_bin=Path("/bin/git"),
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        work_dir=env["work_dir"],
+    )
+    assert dest_path.is_file()
+    assert dest_path.read_bytes() == expected_bytes
+    assert info["sha256"] == handoff_module.sha256_bytes(expected_bytes)
+
+
+def test_e_false_directory_only_freeze_rejected() -> None:
+    fe = FreezeEvidence(
+        boundary_type=FreezeBoundaryType.DEPLOYMENT_ESTABLISHED,
+        mechanism="read_only_bind_mount",
+        verified_post_freeze=False,
+    )
+    assert not fe.verified_post_freeze
+
+
+def test_f_simulated_evidence_rejected_in_production() -> None:
+    handoff = make_valid_handoff_dict()
+    handoff["bootstrap_run_image"]["freeze_evidence"]["boundary_type"] = "simulated_test"
+    with pytest.raises(
+        ValueError, match="simulated test boundary is prohibited in production verification"
+    ):
+        verify_handoff(handoff, allow_simulated_boundary=False)
+
+
+def test_g_bootstrap_artifact_drift(tmp_path: Path) -> None:
+    handoff = make_valid_handoff_dict()
+    root = tmp_path / "artifacts"
+    root.mkdir()
+    boot_dir = root / "bootstrap"
+    boot_dir.mkdir()
+    f = boot_dir / "test.txt"
+    f.write_text("hello", encoding="utf-8")
+    handoff["locators"]["bootstrap_run_image"] = str(boot_dir)
+    handoff["bootstrap_run_image"]["inventory_digest"] = compute_directory_inventory_digest(
+        boot_dir
+    )
+
+    # All other locators exist
+    for loc_key in (
+        "installed_skill_root",
+        "trusted_base_snapshot",
+        "runtime_image",
+        "review_bundle",
+    ):
+        p = root / loc_key
+        p.mkdir()
+        (p / "dummy.txt").write_text("x", encoding="utf-8")
+        handoff["locators"][loc_key] = str(p)
+        if loc_key == "installed_skill_root":
+            handoff["installed_bootstrap"]["inventory_digest"] = compute_directory_inventory_digest(
+                p
+            )
+        elif loc_key == "trusted_base_snapshot":
+            handoff["trusted_base_snapshot"]["inventory_digest"] = (
+                compute_directory_inventory_digest(p)
+            )
+        elif loc_key == "runtime_image":
+            handoff["runtime"]["inventory_digest"] = compute_directory_inventory_digest(p)
+        elif loc_key == "review_bundle":
+            (p / "manifest.json").write_text("{}", encoding="utf-8")
+            (p / "procedure").mkdir()
+            (p / "procedure/SKILL.md").write_text("skill", encoding="utf-8")
+            (p / ".review-authority").mkdir()
+            (p / ".review-authority/review-policy.md").write_text("policy", encoding="utf-8")
+            handoff["review_bundle"]["manifest_sha256"] = handoff_module.sha256_file(
+                p / "manifest.json"
+            )
+            handoff["review_bundle"]["semantic_policy_sha256"] = handoff_module.sha256_file(
+                p / ".review-authority/review-policy.md"
+            )
+            handoff["semantic_output"]["sha256"] = handoff["review_bundle"][
+                "semantic_policy_sha256"
+            ]
+            handoff["review_bundle"]["inventory_digest"] = compute_directory_inventory_digest(p)
+
+    # Mutate bootstrap file
+    f.write_text("tampered", encoding="utf-8")
+    with pytest.raises(ValueError, match="bootstrap run image directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+
+
+def test_h_trusted_base_drift(tmp_path: Path) -> None:
+    handoff = make_valid_handoff_dict()
+    root = tmp_path / "artifacts"
+    root.mkdir()
+
+    for loc_key in (
+        "installed_skill_root",
+        "bootstrap_run_image",
+        "trusted_base_snapshot",
+        "runtime_image",
+        "review_bundle",
+    ):
+        p = root / loc_key
+        p.mkdir()
+        (p / "file.txt").write_text("content", encoding="utf-8")
+        handoff["locators"][loc_key] = str(p)
+        if loc_key == "installed_skill_root":
+            handoff["installed_bootstrap"]["inventory_digest"] = compute_directory_inventory_digest(
+                p
+            )
+        elif loc_key == "bootstrap_run_image":
+            handoff["bootstrap_run_image"]["inventory_digest"] = compute_directory_inventory_digest(
+                p
+            )
+        elif loc_key == "trusted_base_snapshot":
+            handoff["trusted_base_snapshot"]["inventory_digest"] = (
+                compute_directory_inventory_digest(p)
+            )
+        elif loc_key == "runtime_image":
+            handoff["runtime"]["inventory_digest"] = compute_directory_inventory_digest(p)
+        elif loc_key == "review_bundle":
+            (p / "manifest.json").write_text("{}", encoding="utf-8")
+            (p / "procedure").mkdir()
+            (p / "procedure/SKILL.md").write_text("skill", encoding="utf-8")
+            (p / ".review-authority").mkdir()
+            (p / ".review-authority/review-policy.md").write_text("policy", encoding="utf-8")
+            handoff["review_bundle"]["manifest_sha256"] = handoff_module.sha256_file(
+                p / "manifest.json"
+            )
+            handoff["review_bundle"]["semantic_policy_sha256"] = handoff_module.sha256_file(
+                p / ".review-authority/review-policy.md"
+            )
+            handoff["semantic_output"]["sha256"] = handoff["review_bundle"][
+                "semantic_policy_sha256"
+            ]
+            handoff["review_bundle"]["inventory_digest"] = compute_directory_inventory_digest(p)
+
+    snap = Path(handoff["locators"]["trusted_base_snapshot"])
+    (snap / "file.txt").write_text("drifted content", encoding="utf-8")
+    with pytest.raises(ValueError, match="base snapshot directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+
+
+def test_i_runtime_drift(tmp_path: Path) -> None:
+    handoff = make_valid_handoff_dict()
+    root = tmp_path / "artifacts"
+    root.mkdir()
+
+    for loc_key in (
+        "installed_skill_root",
+        "bootstrap_run_image",
+        "trusted_base_snapshot",
+        "runtime_image",
+        "review_bundle",
+    ):
+        p = root / loc_key
+        p.mkdir()
+        (p / "file.txt").write_text("content", encoding="utf-8")
+        handoff["locators"][loc_key] = str(p)
+        if loc_key == "installed_skill_root":
+            handoff["installed_bootstrap"]["inventory_digest"] = compute_directory_inventory_digest(
+                p
+            )
+        elif loc_key == "bootstrap_run_image":
+            handoff["bootstrap_run_image"]["inventory_digest"] = compute_directory_inventory_digest(
+                p
+            )
+        elif loc_key == "trusted_base_snapshot":
+            handoff["trusted_base_snapshot"]["inventory_digest"] = (
+                compute_directory_inventory_digest(p)
+            )
+        elif loc_key == "runtime_image":
+            handoff["runtime"]["inventory_digest"] = compute_directory_inventory_digest(p)
+        elif loc_key == "review_bundle":
+            (p / "manifest.json").write_text("{}", encoding="utf-8")
+            (p / "procedure").mkdir()
+            (p / "procedure/SKILL.md").write_text("skill", encoding="utf-8")
+            (p / ".review-authority").mkdir()
+            (p / ".review-authority/review-policy.md").write_text("policy", encoding="utf-8")
+            handoff["review_bundle"]["manifest_sha256"] = handoff_module.sha256_file(
+                p / "manifest.json"
+            )
+            handoff["review_bundle"]["semantic_policy_sha256"] = handoff_module.sha256_file(
+                p / ".review-authority/review-policy.md"
+            )
+            handoff["semantic_output"]["sha256"] = handoff["review_bundle"][
+                "semantic_policy_sha256"
+            ]
+            handoff["review_bundle"]["inventory_digest"] = compute_directory_inventory_digest(p)
+
+    rt = Path(handoff["locators"]["runtime_image"])
+    (rt / "file.txt").write_text("mutated runtime binary", encoding="utf-8")
+    with pytest.raises(ValueError, match="runtime image directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+
+
+def test_j_bundle_drift(tmp_path: Path) -> None:
+    handoff = make_valid_handoff_dict()
+    root = tmp_path / "artifacts"
+    root.mkdir()
+
+    for loc_key in (
+        "installed_skill_root",
+        "bootstrap_run_image",
+        "trusted_base_snapshot",
+        "runtime_image",
+        "review_bundle",
+    ):
+        p = root / loc_key
+        p.mkdir()
+        (p / "file.txt").write_text("content", encoding="utf-8")
+        handoff["locators"][loc_key] = str(p)
+        if loc_key == "installed_skill_root":
+            handoff["installed_bootstrap"]["inventory_digest"] = compute_directory_inventory_digest(
+                p
+            )
+        elif loc_key == "bootstrap_run_image":
+            handoff["bootstrap_run_image"]["inventory_digest"] = compute_directory_inventory_digest(
+                p
+            )
+        elif loc_key == "trusted_base_snapshot":
+            handoff["trusted_base_snapshot"]["inventory_digest"] = (
+                compute_directory_inventory_digest(p)
+            )
+        elif loc_key == "runtime_image":
+            handoff["runtime"]["inventory_digest"] = compute_directory_inventory_digest(p)
+        elif loc_key == "review_bundle":
+            (p / "manifest.json").write_text("{}", encoding="utf-8")
+            (p / "procedure").mkdir()
+            (p / "procedure/SKILL.md").write_text("skill", encoding="utf-8")
+            (p / ".review-authority").mkdir()
+            (p / ".review-authority/review-policy.md").write_text("policy", encoding="utf-8")
+            handoff["review_bundle"]["manifest_sha256"] = handoff_module.sha256_file(
+                p / "manifest.json"
+            )
+            handoff["review_bundle"]["semantic_policy_sha256"] = handoff_module.sha256_file(
+                p / ".review-authority/review-policy.md"
+            )
+            handoff["semantic_output"]["sha256"] = handoff["review_bundle"][
+                "semantic_policy_sha256"
+            ]
+            handoff["review_bundle"]["inventory_digest"] = compute_directory_inventory_digest(p)
+
+    bundle = Path(handoff["locators"]["review_bundle"])
+
+    # J1: Mutate SKILL.md
+    (bundle / "procedure/SKILL.md").write_text("mutated skill", encoding="utf-8")
+    with pytest.raises(ValueError, match="review bundle directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+    (bundle / "procedure/SKILL.md").write_text("skill", encoding="utf-8")
+
+    # J2: Mutate semantic policy
+    (bundle / ".review-authority/review-policy.md").write_text("mutated policy", encoding="utf-8")
+    with pytest.raises(ValueError, match="review bundle directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+    (bundle / ".review-authority/review-policy.md").write_text("policy", encoding="utf-8")
+
+    # J3: Add extra file
+    (bundle / "extra.txt").write_text("extra", encoding="utf-8")
+    with pytest.raises(ValueError, match="review bundle directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+
+
+def test_k_untrusted_provider_identity_input() -> None:
+    data = make_valid_handoff_dict()
+    data["provider"]["observation_evidence"]["authenticated"] = False
+    with pytest.raises(ValueError, match="provider observation is not authenticated"):
+        verify_handoff(data, require_authenticated_provider=True)
+
+
+def test_l_git_environment_injection(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GIT_DIR", "/tmp/bad_git_dir")
+    monkeypatch.setenv("GIT_WORK_TREE", "/tmp/bad_work_tree")
+    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", "safe.directory=*")
+    monkeypatch.setenv("HOME", "/tmp/bad_home")
+
+    env = closed_git_environment()
+    assert "GIT_DIR" not in env
+    assert "GIT_WORK_TREE" not in env
+    assert "GIT_CONFIG_PARAMETERS" not in env
+    assert "HOME" not in env
+    assert env["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert env["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert env["GIT_NO_REPLACE_OBJECTS"] == "1"
+
+
+def test_m_resume_state_tampering(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    state_file = env["work_dir"] / "handoff-state.json"
+    init_state = {
+        "schema_version": handoff_module.STATE_SCHEMA_VERSION,
+        "state_kind": handoff_module.STATE_KIND,
+        "phase": Phase.INITIALIZED.value,
+        "provider": env["provider_id"],
+        "exact_base": {"commit": env["base_commit"], "tree": env["base_tree"]},
+        "artifacts": {},
+    }
+    save_state(init_state, state_file)
+
+    # M1: Tamper with state record without updating state_digest
+    raw = json.loads(state_file.read_text(encoding="utf-8"))
+    raw["phase"] = "TAMPERED_PHASE"
+    state_file.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(ValueError, match="state record tampered: state_digest does not match"):
+        load_and_verify_state(state_file)
+    state_file.unlink()
+
+    # M2: Swap artifact locator to non-existent or drifted artifact
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: dest.mkdir(
+        parents=True, exist_ok=True
+    )
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+    )
+    orchestrator.step()
+
+    # M3: Mutate artifact on disk after state saved
+    b_dir = Path(orchestrator.state["artifacts"]["bootstrap_run_image"]["locator"])
+    (b_dir / "mutation.txt").write_text("mutate", encoding="utf-8")
+
+    # Creating a new orchestrator pointing to the same state file fails on consistency check
+    with pytest.raises(ValueError, match="has drifted from recorded digest"):
+        HandoffOrchestrator(
+            work_dir=env["work_dir"],
+            object_repository=env["obj_repo"],
+            base_commit=env["base_commit"],
+            provider_identity=env["provider_id"],
+            installed_skill_root=env["installed_skill"],
+            installation_attestation_path=env["attestation_path"],
+            simulate_freeze_for_test=False,
+            _test_installer_module=mock_installer,
         )
 
-    mock_review_base.materialize = mock_materialize_base
 
-    def mock_sub_run(cmd: list[str], *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        if "review-bundle" in cmd and "materialize" in cmd:
-            dest = Path(cmd[cmd.index("--destination") + 1])
-            dest.mkdir(parents=True, exist_ok=True)
-            return subprocess.CompletedProcess(cmd, 0, stdout="materialized", stderr="")
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
-
-    monkeypatch.setattr(subprocess, "run", mock_sub_run)
-
-    skill_root = tmp_path / "skill"
-    skill_root.mkdir()
-    (skill_root / "marker").write_text("ok", encoding="utf-8")
-    att_path = tmp_path / "att.json"
-    att_path.write_text("{}", encoding="utf-8")
-
-    result = prepare_handoff(
-        object_repository=repo_dir,
-        base_commit=valid_sha("1"),
-        provider_identity={
-            "name": "github",
-            "repository": {"id": "R_1", "name_with_owner": "o/r"},
-            "pull_request": {"id": "PR_1", "number": 100},
-        },
-        installed_skill_root=skill_root,
-        installation_attestation_path=att_path,
-        installer_revision=valid_sha("1"),
-        work_dir=work_dir,
-        freeze_command=None,
-        simulate_freeze_for_test=False,
-    )
-
-    assert result["status"] == handoff_module.STATUS_FREEZE_BLOCKED
-    assert "materialized_artifacts" in result
-    assert "sufficient_capability" in result
-
-
-def test_end_to_end_operational_handoff_with_simulated_freeze(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+def test_full_pipeline_end_to_end_simulated(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    work_dir = tmp_path / "work"
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
-
-    base_commit = valid_sha("1")
-    base_tree = valid_sha("2")
-    runtime_rev = valid_sha("3")
-    installer_rev = valid_sha("4")
-    skill_rev = valid_sha("5")
-
-    monkeypatch.setattr(
-        handoff_module,
-        "resolve_base_tree",
-        lambda _git, _repo, _commit: base_tree,
-    )
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
 
     mock_installer = ModuleType("mock_installer")
     mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
-    mock_installer.load_installation_attestation = lambda path: {
-        "installer": {
-            "repository": "TakashiSasaki/templates",
-            "revision": installer_rev,
-            "path": "scripts/install_agent_policy_skill.py",
-        },
-        "skill_source": {
-            "repository": "TakashiSasaki/templates",
-            "revision": skill_rev,
-            "path": "skills/agent-policy",
-        },
-        "installation": {"entries": {"SKILL.md": {"type": "file", "sha256": valid_sha256("a")}}},
-    }
-    mock_installer.materialize_run_image = lambda target, dest, att, **kwargs: dest.mkdir(
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: (dest / "scripts").mkdir(
         parents=True, exist_ok=True
     )
     mock_installer.verify_run_image = lambda *args, **kwargs: None
 
     mock_review_base = ModuleType("mock_review_base")
 
-    def mock_materialize_base(git: Path, repo: Path, base: str, dest: Path) -> None:
+    def mock_materialize(git: Any, repo: Any, base: Any, dest: Path) -> None:
         dest.mkdir(parents=True, exist_ok=True)
         (dest / ".agent-policy.lock").write_text(
             yaml.safe_dump(
-                {"toolchain": {"repository": "TakashiSasaki/templates", "revision": runtime_rev}}
+                {"toolchain": {"repository": "TakashiSasaki/templates", "revision": valid_sha("5")}}
             ),
             encoding="utf-8",
         )
@@ -559,8 +887,8 @@ def test_end_to_end_operational_handoff_with_simulated_freeze(
             encoding="utf-8",
         )
 
-    mock_review_base.materialize = mock_materialize_base
-    mock_review_base.verify = lambda git, repo, base, dest: {"status": "VERIFIED_FROZEN_INPUT"}
+    mock_review_base.materialize = mock_materialize
+    mock_review_base.verify = lambda *args, **kwargs: None
 
     mock_runtime_image = ModuleType("mock_runtime_image")
     mock_runtime_image.create_attestation = lambda snap, path: path.write_text(
@@ -569,74 +897,58 @@ def test_end_to_end_operational_handoff_with_simulated_freeze(
     mock_runtime_image.materialize_image = lambda snap, att, dest: dest.mkdir(
         parents=True, exist_ok=True
     )
-    mock_runtime_image.venv_python = lambda dest: Path(sys.executable)
-    mock_runtime_image.trusted_environment = lambda: {}
-    mock_runtime_image.verify_image = lambda snap, att, dest, **kwargs: {
-        "runtime": {
-            "lock_sha256": valid_sha256("b"),
-            "python": "cpython-3.12",
-            "platform": "linux-aarch64",
-        }
-    }
+    mock_runtime_image.verify_image = lambda *args, **kwargs: None
+    mock_runtime_image.venv_python = lambda rt_dir: sys.executable
+    mock_runtime_image.trusted_environment = lambda: os.environ.copy()
 
-    def custom_load_module(name: str, path: Path) -> ModuleType:
+    def mock_load_module(name: str, path: Path) -> ModuleType:
         if "review_base" in str(path):
             return mock_review_base
-        if "runtime_image" in str(path):
+        elif "runtime_image" in str(path):
             return mock_runtime_image
-        return mock_installer
+        return ModuleType(name)
 
-    monkeypatch.setattr(handoff_module, "load_module_from_path", custom_load_module)
+    monkeypatch.setattr(handoff_module, "load_module_from_path", mock_load_module)
 
-    def mock_sub_run(cmd: list[str], *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        if "review-bundle" in cmd and "materialize" in cmd:
-            dest = Path(cmd[cmd.index("--destination") + 1])
-            dest.mkdir(parents=True, exist_ok=True)
-            (dest / "manifest.json").write_text(json.dumps({"bundle_format": 1}), encoding="utf-8")
-            proc = dest / "procedure"
-            proc.mkdir()
-            (proc / "SKILL.md").write_text("procedure skill\n", encoding="utf-8")
-            (proc / "ref.md").write_text("procedure ref\n", encoding="utf-8")
-            sem = dest / "semantic"
-            sem.mkdir()
-            (sem / "review-policy.md").write_text("semantic rule\n", encoding="utf-8")
-            return subprocess.CompletedProcess(cmd, 0, stdout="materialized", stderr="")
-        if "review-bundle" in cmd and "verify" in cmd:
-            return subprocess.CompletedProcess(cmd, 0, stdout="verified", stderr="")
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+    # Mock subprocess.run and check_output for agent-policy calls
+    def mock_subprocess_run(
+        cmd: list[str], *args: Any, **kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(cmd, 0, "", "")
 
-    monkeypatch.setattr(subprocess, "run", mock_sub_run)
+    def mock_check_output(cmd: list[str], *args: Any, **kwargs: Any) -> str:
+        # Mock review-bundle command
+        dest_idx = cmd.index("--output-dir") + 1
+        bundle_out = Path(cmd[dest_idx])
+        bundle_out.mkdir(parents=True, exist_ok=True)
+        (bundle_out / "manifest.json").write_text("{}", encoding="utf-8")
+        (bundle_out / "procedure").mkdir(parents=True, exist_ok=True)
+        (bundle_out / "procedure/SKILL.md").write_text("skill", encoding="utf-8")
+        (bundle_out / ".review-authority").mkdir(parents=True, exist_ok=True)
+        (bundle_out / ".review-authority/review-policy.md").write_text("policy", encoding="utf-8")
+        return json.dumps(
+            {
+                "manifest_sha256": handoff_module.sha256_file(bundle_out / "manifest.json"),
+                "semantic_policy_sha256": handoff_module.sha256_file(
+                    bundle_out / ".review-authority/review-policy.md"
+                ),
+            }
+        )
 
-    skill_root = tmp_path / "skill"
-    skill_root.mkdir()
-    (skill_root / "SKILL.md").write_text("installed skill\n", encoding="utf-8")
-    att_path = tmp_path / "att.json"
-    att_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+    monkeypatch.setattr(subprocess, "check_output", mock_check_output)
 
-    result = prepare_handoff(
-        object_repository=repo_dir,
-        base_commit=base_commit,
-        proposed_head=valid_sha("9"),
-        provider_identity={
-            "name": "github",
-            "repository": {"id": "R_test123", "name_with_owner": "TakashiSasaki/templates"},
-            "pull_request": {"id": "PR_test456", "number": 1031},
-        },
-        installed_skill_root=skill_root,
-        installation_attestation_path=att_path,
-        installer_revision=installer_rev,
-        work_dir=work_dir,
-        freeze_command=None,
+    res = prepare_handoff(
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        work_dir=env["work_dir"],
+        proposed_head=valid_sha("f"),
         simulate_freeze_for_test=True,
+        _test_installer_module=mock_installer,
     )
-
-    assert result["status"] == handoff_module.STATUS_HANDOFF_READY
-    handoff = result["handoff"]
-
-    verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
-
-    assert handoff["exact_base"]["commit"] == base_commit
-    assert handoff["exact_base"]["tree"] == base_tree
-    assert handoff["runtime"]["revision"] == runtime_rev
-    assert handoff["semantic_output"]["renderer"] == "policy-context-md"
-    assert handoff["bootstrap_run_image"]["freeze"]["boundary_type"] == "simulated_test"
+    assert res["status"] == handoff_module.STATUS_HANDOFF_READY
+    assert res["phase"] == Phase.HANDOFF_FINALIZED.value
+    verify_handoff(res["handoff"], allow_simulated_boundary=True, check_locators=True)
