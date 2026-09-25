@@ -26,6 +26,8 @@ from typing import Any
 
 import yaml
 
+sys.dont_write_bytecode = True
+
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 HANDOFF_SCHEMA_VERSION = 1
@@ -114,6 +116,8 @@ def sha256_file(path: Path) -> str:
 
 
 def load_module_from_path(name: str, path: Path) -> ModuleType:
+    prev_dont_write = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     parent = str(path.parent)
     sys.path.insert(0, parent)
     try:
@@ -125,6 +129,7 @@ def load_module_from_path(name: str, path: Path) -> ModuleType:
         spec.loader.exec_module(module)
         return module
     finally:
+        sys.dont_write_bytecode = prev_dont_write
         if sys.path and sys.path[0] == parent:
             sys.path.pop(0)
 
@@ -540,9 +545,14 @@ def prepare_handoff(
     work_dir = work_dir.expanduser().resolve()
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    inst_script_path = installer_script or (
-        object_repository / "scripts/install_agent_policy_skill.py"
-    )
+    if installer_script:
+        inst_script_path = installer_script
+    elif (object_repository / "scripts/install_agent_policy_skill.py").is_file():
+        inst_script_path = object_repository / "scripts/install_agent_policy_skill.py"
+    elif (Path(__file__).resolve().parent / "install_agent_policy_skill.py").is_file():
+        inst_script_path = Path(__file__).resolve().parent / "install_agent_policy_skill.py"
+    else:
+        inst_script_path = object_repository / "scripts/install_agent_policy_skill.py"
     installer_mod = load_module_from_path("installer_mod", inst_script_path)
 
     installer_mod.verify_installation_attestation(
