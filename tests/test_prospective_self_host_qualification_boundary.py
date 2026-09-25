@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import inspect
 import shutil
+import subprocess
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -93,14 +95,9 @@ def test_prospective_profile_change_separated_from_adopted_self_host(
 
     while adopted self-host consistency continues to evaluate the old pinned toolchain.
     """
-    from agent_policy import config, policy_loader
-
-    # Create a synthetic prospective rule and profile in an isolated package root
     synthetic_root = tmp_path / "synthetic_package_root"
-    shutil.copytree(ROOT / "schemas", synthetic_root / "schemas")
-    shutil.copytree(ROOT / "templates", synthetic_root / "templates")
-    shutil.copytree(ROOT / "profiles", synthetic_root / "profiles")
-    shutil.copytree(ROOT / "policy", synthetic_root / "policy")
+    for d in ("src", "schemas", "templates", "profiles", "policy", "skills"):
+        shutil.copytree(ROOT / d, synthetic_root / d)
 
     synthetic_rule_path = synthetic_root / "policy" / "core" / "synthetic-prospective-rule.md"
     synthetic_rule_path.write_text(
@@ -122,14 +119,25 @@ Must not leak into adopted self-host maintainer instructions.
     profile_data["policy_files"].append("policy/core/synthetic-prospective-rule.md")
     core_profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
 
-    # When package_root points to synthetic_root, candidate rendering and checking sees it
-    monkeypatch.setattr(config, "package_root", lambda: synthetic_root)
-    monkeypatch.setattr(policy_loader, "package_root", lambda: synthetic_root)
-    # Allow source binding check in this test context
-    monkeypatch.setattr(candidate_mod, "_verify_source_and_resources_bound", lambda repo: None)
+    subprocess.run(["git", "init"], cwd=synthetic_root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test Runner"], cwd=synthetic_root, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=synthetic_root,
+        check=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=synthetic_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init prospective candidate"],
+        cwd=synthetic_root,
+        check=True,
+        capture_output=True,
+    )
+    monkeypatch.setattr(candidate_mod, "ROOT", synthetic_root)
 
     # 1. Candidate qualification sees the prospective change and qualifies cleanly
-    qualify_candidate()
+    candidate_rev = qualify_candidate()
+    assert candidate_rev == resolve_checkout_revision(synthetic_root)
 
     # 2. Adopted self-host consistency continues evaluating the adopted runtime (5ad8b0d...)
     verify_self_host(ROOT)
@@ -303,3 +311,186 @@ def test_runtime_selection_trust_boundary_distinction(tmp_path: Path) -> None:
     )
     pin5 = runtime.select_pin(repo_dir, manifest)
     assert pin5.revision == pinned_rev
+
+
+def _create_isolated_candidate_repo(tmp_path: Path, prefix: str = "repo") -> Path:
+    repo = tmp_path / prefix
+    for d in ("src", "schemas", "templates", "profiles", "policy", "skills"):
+        shutil.copytree(ROOT / d, repo / d)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test Runner"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init candidate"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    return repo
+
+
+def test_candidate_qualification_ignores_dirty_tracked_resource(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Adversarial regression 1: modified tracked resource without committing.
+
+    The candidate verifier must ignore the dirty bytes by evaluating the exact commit snapshot.
+    It must never evaluate dirty bytes while reporting HEAD provenance.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "dirty_tracked_repo")
+    head_rev = resolve_checkout_revision(repo)
+
+    # Break core.yml in the working tree with invalid YAML syntax
+    broken_profile = repo / "profiles" / "core.yml"
+    broken_profile.write_text("invalid: yaml: syntax: [broken", encoding="utf-8")
+
+    status = subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True)
+    assert "M profiles/core.yml" in status
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    # Qualify candidate must succeed by evaluating exact commit snapshot,
+    # ignoring dirty working tree
+    rev = qualify_candidate()
+    assert rev == head_rev
+
+
+def test_candidate_qualification_ignores_staged_modification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Adversarial regression 2: staged modification.
+
+    A modified and staged tracked file must not contaminate candidate qualification.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "staged_repo")
+    head_rev = resolve_checkout_revision(repo)
+
+    # Modify and stage a broken profile
+    broken_profile = repo / "profiles" / "core.yml"
+    broken_profile.write_text("invalid: yaml: syntax: [broken", encoding="utf-8")
+    subprocess.run(["git", "add", "profiles/core.yml"], cwd=repo, check=True)
+
+    status = subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True)
+    assert "M  profiles/core.yml" in status
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    rev = qualify_candidate()
+    assert rev == head_rev
+
+
+def test_candidate_qualification_ignores_untracked_import_influence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Adversarial regression 3: untracked import influence.
+
+    Untracked files/modules capable of influencing imports cannot alter exact-commit qualification.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "untracked_import_repo")
+    head_rev = resolve_checkout_revision(repo)
+
+    # Create an untracked poisonous module inside src/agent_policy
+    poison = repo / "src" / "agent_policy" / "untracked_poison_module.py"
+    poison.write_text("raise RuntimeError('Poison module executed!')\n", encoding="utf-8")
+
+    status = subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True)
+    assert "??" in status
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    rev = qualify_candidate()
+    assert rev == head_rev
+
+
+def test_candidate_qualification_ignores_untracked_resource_influence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Adversarial regression 4: untracked resource influence.
+
+    Untracked policy/profile/template/resource files cannot alter exact-commit qualification.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "untracked_resource_repo")
+    head_rev = resolve_checkout_revision(repo)
+
+    # Create an untracked profile file that would be invalid if discovered
+    untracked_profile = repo / "profiles" / "untracked_poison_profile.yml"
+    untracked_profile.write_text("invalid: yaml: [syntax", encoding="utf-8")
+
+    status = subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True)
+    assert "??" in status
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    rev = qualify_candidate()
+    assert rev == head_rev
+
+
+def test_candidate_qualification_rejects_symlink_escape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Adversarial regression 5: symlink escape.
+
+    Exercise an implementation/resource path through a symlink that resolves outside
+    the exact candidate source boundary. Must fail closed.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "symlink_escape_repo")
+
+    # Commit a symlink pointing outside the repository tree
+    outside_target = tmp_path / "outside_secret.txt"
+    outside_target.write_text("secret outside data", encoding="utf-8")
+
+    symlink_file = repo / "policy" / "core" / "escaped_symlink.md"
+    symlink_file.symlink_to(outside_target)
+
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "commit symlink escape"], cwd=repo, check=True)
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    # Extraction with filter='data' or path-containment verification must fail closed
+    with pytest.raises((RuntimeError, tarfile.FilterError, tarfile.TarError)):
+        qualify_candidate()
+
+
+def test_clean_exact_candidate_qualifies_matching_head() -> None:
+    """Adversarial regression 6: clean exact candidate.
+
+    A clean exact committed checkout must qualify successfully and emit provenance
+    matching its exact HEAD.
+    """
+    rev = qualify_candidate()
+    expected_rev = resolve_checkout_revision(ROOT)
+    assert rev == expected_rev
+
+
+def test_candidate_qualification_rejects_revision_and_effective_bytes_mismatch(
+    tmp_path: Path,
+) -> None:
+    """Adversarial regression 7: wrong revision / effective bytes mismatch.
+
+    The verifier cannot report revision A while evaluating effective source bytes
+    from revision/state B.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "mismatch_repo")
+    commit_a = resolve_checkout_revision(repo)
+
+    # Create a second commit B
+    (repo / "policy" / "core" / "new_rule.md").write_text("# New rule\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "commit B"], cwd=repo, check=True)
+    commit_b = resolve_checkout_revision(repo)
+    assert commit_a != commit_b
+
+    from scripts.verify_candidate_qualification import (
+        _run_snapshot_qualification,
+        materialize_snapshot,
+    )
+
+    # 1. Materialize snapshot of B, but attempt to qualify it claiming revision A
+    with materialize_snapshot(repo, commit_b) as snapshot_b:
+        with pytest.raises(RuntimeError, match="Snapshot revision mismatch"):
+            _run_snapshot_qualification(snapshot_b, commit_a)
+
+    # 2. Tampered snapshot marker file fails closed
+    with materialize_snapshot(repo, commit_a) as snapshot_a:
+        marker = snapshot_a / ".candidate_revision"
+        marker.write_text(commit_b, encoding="utf-8")
+        with pytest.raises(RuntimeError, match="Snapshot revision mismatch"):
+            _run_snapshot_qualification(snapshot_a, commit_a)
+
