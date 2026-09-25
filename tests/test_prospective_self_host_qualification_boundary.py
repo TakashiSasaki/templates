@@ -11,6 +11,7 @@ import yaml
 import scripts.verify_candidate_qualification as candidate_mod
 from scripts.verify_candidate_qualification import (
     ROOT,
+    CandidateSnapshot,
     _run_snapshot_qualification,
     _verify_source_and_resources_bound,
     materialize_snapshot,
@@ -478,17 +479,142 @@ def test_candidate_qualification_rejects_revision_and_effective_bytes_mismatch(
     commit_b = resolve_checkout_revision(repo)
     assert commit_a != commit_b
 
-    # 1. Materialize snapshot of B, but attempt to qualify it claiming revision A
     with materialize_snapshot(repo, commit_b) as snapshot_b:
-        with pytest.raises(RuntimeError, match="Snapshot revision mismatch"):
-            _run_snapshot_qualification(snapshot_b, commit_a)
+        assert snapshot_b.commit_oid == commit_b
+        with pytest.raises(TypeError):
+            _run_snapshot_qualification(snapshot_b.root, commit_a)  # type: ignore[arg-type]
 
-    # 2. Tampered snapshot marker file fails closed
     with materialize_snapshot(repo, commit_a) as snapshot_a:
-        marker = snapshot_a / ".candidate_revision"
-        marker.write_text(commit_b, encoding="utf-8")
-        with pytest.raises(RuntimeError, match="Snapshot revision mismatch"):
-            _run_snapshot_qualification(snapshot_a, commit_a)
+        assert snapshot_a.commit_oid == commit_a
+        assert snapshot_a.tree_oid == subprocess.check_output(
+            ["git", "rev-parse", f"{commit_a}^{{tree}}"], cwd=repo, text=True
+        ).strip()
+        assert CandidateSnapshot(
+            root=snapshot_a.root,
+            commit_oid=commit_b,
+            tree_oid=snapshot_a.tree_oid,
+        ) != snapshot_a
+
+
+def _install_candidate_marker_consumer(
+    repo: Path,
+    relative_path: str,
+    expected: bytes,
+    *,
+    secondary_path: str | None = None,
+    secondary_value: bytes | None = None,
+) -> None:
+    lines = [
+        "from pathlib import Path",
+        f"expected = {expected!r}",
+        f"relative_path = {relative_path!r}",
+        "root = Path(__file__).resolve().parents[2]",
+        "if (root / relative_path).read_bytes() != expected:",
+        "    raise RuntimeError('candidate marker bytes changed')",
+    ]
+    if secondary_path is not None and secondary_value is not None:
+        lines.extend(
+            [
+                f"secondary_expected = {secondary_value!r}",
+                f"secondary_path = {secondary_path!r}",
+                "if (root / secondary_path).read_bytes() != secondary_expected:",
+                "    raise RuntimeError('candidate tree marker bytes changed')",
+            ]
+        )
+    (repo / "src" / "agent_policy" / "__init__.py").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
+
+
+def test_materialized_snapshot_namespace_preserves_exact_git_tree(
+    tmp_path: Path,
+) -> None:
+    repo = _create_isolated_candidate_repo(tmp_path, "namespace_repo")
+    expected = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", "-z", "HEAD"], cwd=repo
+    ).decode("utf-8").split("\0")
+    expected_paths = {path for path in expected if path}
+
+    with materialize_snapshot(repo, resolve_checkout_revision(repo)) as snapshot:
+        actual_paths = {
+            str(path.relative_to(snapshot.root))
+            for path in snapshot.root.rglob("*")
+            if path.is_file() or path.is_symlink()
+        }
+        assert actual_paths == expected_paths
+        for relative_path in expected_paths:
+            expected_mode = subprocess.check_output(
+                ["git", "ls-tree", "HEAD", "--", relative_path], cwd=repo, text=True
+            ).split()[0]
+            actual_mode = (
+                "100755"
+                if (snapshot.root / relative_path).stat().st_mode & 0o111
+                else "100644"
+            )
+            assert actual_mode == expected_mode
+
+        _run_snapshot_qualification(snapshot)
+        paths_after_child = {
+            str(path.relative_to(snapshot.root))
+            for path in snapshot.root.rglob("*")
+            if path.is_file() or path.is_symlink()
+        }
+        assert paths_after_child == expected_paths
+
+
+def test_candidate_qualification_preserves_tracked_candidate_revision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _create_isolated_candidate_repo(tmp_path, "tracked_revision_collision")
+    committed = b"committed-candidate-revision\n"
+    (repo / ".candidate_revision").write_bytes(committed)
+    _install_candidate_marker_consumer(repo, ".candidate_revision", committed)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "track candidate revision"], cwd=repo, check=True)
+    head = resolve_checkout_revision(repo)
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    assert qualify_candidate() == head
+
+
+def test_candidate_qualification_preserves_tracked_candidate_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _create_isolated_candidate_repo(tmp_path, "tracked_tree_collision")
+    committed = b"committed-candidate-tree\n"
+    (repo / ".candidate_tree").write_bytes(committed)
+    _install_candidate_marker_consumer(repo, ".candidate_tree", committed)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "track candidate tree"], cwd=repo, check=True)
+    head = resolve_checkout_revision(repo)
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    assert qualify_candidate() == head
+
+
+def test_candidate_qualification_preserves_both_tracked_marker_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _create_isolated_candidate_repo(tmp_path, "tracked_both_collision")
+    expected = {
+        ".candidate_revision": b"committed-revision-value\n",
+        ".candidate_tree": b"committed-tree-value\n",
+    }
+    for relative_path, value in expected.items():
+        (repo / relative_path).write_bytes(value)
+    _install_candidate_marker_consumer(
+        repo,
+        ".candidate_revision",
+        expected[".candidate_revision"],
+        secondary_path=".candidate_tree",
+        secondary_value=expected[".candidate_tree"],
+    )
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "track both marker names"], cwd=repo, check=True)
+    head = resolve_checkout_revision(repo)
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    assert qualify_candidate() == head
 
 
 def test_candidate_qualification_immune_to_commit_replacement_ref(
@@ -593,8 +719,8 @@ def test_candidate_qualification_ignores_committed_export_subst(
 
     monkeypatch.setattr(candidate_mod, "ROOT", repo)
 
-    with materialize_snapshot(repo, commit_sha) as snapshot_root:
-        materialized_text = (snapshot_root / "policy" / "core" / "subst_rule.md").read_text(
+    with materialize_snapshot(repo, commit_sha) as snapshot:
+        materialized_text = (snapshot.root / "policy" / "core" / "subst_rule.md").read_text(
             encoding="utf-8"
         )
         # Direct object materializer preserves raw blob bytes exactly
@@ -629,8 +755,8 @@ def test_candidate_qualification_ignores_committed_export_ignore(
 
     # Direct object materializer must include profiles/core.yml from the Git tree
     monkeypatch.setattr(candidate_mod, "ROOT", repo)
-    with materialize_snapshot(repo, commit_sha) as snapshot_root:
-        assert (snapshot_root / "profiles" / "core.yml").is_file()
+    with materialize_snapshot(repo, commit_sha) as snapshot:
+        assert (snapshot.root / "profiles" / "core.yml").is_file()
 
     qualified_rev = qualify_candidate()
     assert qualified_rev == commit_sha
@@ -651,8 +777,8 @@ def test_candidate_qualification_ignores_local_info_attributes(
     info_attrs.write_text("profiles/core.yml export-ignore\n", encoding="utf-8")
 
     monkeypatch.setattr(candidate_mod, "ROOT", repo)
-    with materialize_snapshot(repo, commit_sha) as snapshot_root:
-        assert (snapshot_root / "profiles" / "core.yml").is_file()
+    with materialize_snapshot(repo, commit_sha) as snapshot:
+        assert (snapshot.root / "profiles" / "core.yml").is_file()
 
     qualified_rev = qualify_candidate()
     assert qualified_rev == commit_sha

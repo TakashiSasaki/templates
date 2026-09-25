@@ -8,6 +8,7 @@ import sys
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,15 @@ ROOT = Path(__file__).resolve().parents[1]
 SUPPORTED_FILE_MODES = {"100644", "100755"}
 SYMLINK_MODE = "120000"
 GITLINK_MODE = "160000"
+
+
+@dataclass(frozen=True)
+class CandidateSnapshot:
+    """Verified candidate tree and the immutable identities established for it."""
+
+    root: Path
+    commit_oid: str
+    tree_oid: str
 
 
 def _git_env() -> dict[str, str]:
@@ -324,7 +334,7 @@ def materialize_snapshot(
     repo_root: Path,
     revision: str,
     _post_write_hook: Callable[[Path], None] | None = None,
-) -> Iterator[Path]:
+) -> Iterator[CandidateSnapshot]:
     if not revision or not _is_valid_oid(revision):
         raise ValueError(f"Invalid candidate revision '{revision}'")
 
@@ -351,11 +361,13 @@ def materialize_snapshot(
         # 3. Re-verify all materialized files against expected blob OIDs
         _verify_materialized_files(repo_root, entries)
 
-        # 4. Record internal subprocess handoff metadata (not provenance authority)
-        (snapshot_root / ".candidate_revision").write_text(commit_oid, encoding="utf-8")
-        (snapshot_root / ".candidate_tree").write_text(tree_oid, encoding="utf-8")
-
-        yield snapshot_root
+        # Identity travels in the coherent out-of-tree record. The evaluated
+        # snapshot remains exactly the supported Git tree materialization.
+        yield CandidateSnapshot(
+            root=snapshot_root,
+            commit_oid=commit_oid,
+            tree_oid=tree_oid,
+        )
 
 
 def _evaluate_candidate(candidate_root: Path, candidate_revision: str) -> None:
@@ -416,21 +428,17 @@ def _evaluate_candidate(candidate_root: Path, candidate_revision: str) -> None:
 
 _PROBE_SCRIPT = r"""
 from __future__ import annotations
+import re
 import sys
 from pathlib import Path
 
 snapshot_root = Path(sys.argv[1]).resolve()
 candidate_revision = sys.argv[2]
-
-marker_file = snapshot_root / ".candidate_revision"
-if not marker_file.is_file():
-    raise RuntimeError(f"Snapshot missing .candidate_revision marker at {snapshot_root}")
-recorded_revision = marker_file.read_text(encoding="utf-8").strip()
-if recorded_revision != candidate_revision:
-    raise RuntimeError(
-        f"Snapshot revision mismatch: recorded '{recorded_revision}' "
-        f"!= candidate '{candidate_revision}'"
-    )
+candidate_tree = sys.argv[3]
+if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", candidate_revision):
+    raise RuntimeError("Invalid candidate revision argument")
+if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", candidate_tree):
+    raise RuntimeError("Invalid candidate tree argument")
 
 src_dir = snapshot_root / "src"
 if not src_dir.is_dir():
@@ -508,7 +516,7 @@ with tempfile.TemporaryDirectory(prefix="policy-candidate-eval-") as temporary:
 """
 
 
-def _run_snapshot_qualification(snapshot_root: Path, candidate_revision: str) -> None:
+def _run_snapshot_qualification(snapshot: CandidateSnapshot) -> None:
     env = {
         key: value
         for key, value in os.environ.items()
@@ -516,17 +524,20 @@ def _run_snapshot_qualification(snapshot_root: Path, candidate_revision: str) ->
     }
     env["PIP_CONFIG_FILE"] = os.devnull
     env["PYTHONNOUSERSITE"] = "1"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
 
     proc = subprocess.run(
         [
             sys.executable,
             "-I",
+            "-B",
             "-c",
             _PROBE_SCRIPT,
-            str(snapshot_root),
-            candidate_revision,
+            str(snapshot.root),
+            snapshot.commit_oid,
+            snapshot.tree_oid,
         ],
-        cwd=snapshot_root,
+        cwd=snapshot.root,
         env=env,
         capture_output=True,
         text=True,
@@ -534,15 +545,15 @@ def _run_snapshot_qualification(snapshot_root: Path, candidate_revision: str) ->
     if proc.returncode != 0:
         error_msg = proc.stderr.strip() or proc.stdout.strip()
         raise RuntimeError(
-            f"Candidate qualification failed in snapshot {snapshot_root}: {error_msg}"
+            f"Candidate qualification failed in snapshot {snapshot.root}: {error_msg}"
         )
 
 
 def qualify_candidate() -> str:
     candidate_revision = resolve_checkout_revision(ROOT)
-    with materialize_snapshot(ROOT, candidate_revision) as snapshot_root:
-        _run_snapshot_qualification(snapshot_root, candidate_revision)
-    return candidate_revision
+    with materialize_snapshot(ROOT, candidate_revision) as snapshot:
+        _run_snapshot_qualification(snapshot)
+    return snapshot.commit_oid
 
 
 def worktree_status(repo_root: Path) -> str:
