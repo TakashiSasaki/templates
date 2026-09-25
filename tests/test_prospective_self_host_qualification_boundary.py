@@ -3,7 +3,6 @@ from __future__ import annotations
 import inspect
 import shutil
 import subprocess
-import tarfile
 from pathlib import Path
 
 import pytest
@@ -12,7 +11,9 @@ import yaml
 import scripts.verify_candidate_qualification as candidate_mod
 from scripts.verify_candidate_qualification import (
     ROOT,
+    _run_snapshot_qualification,
     _verify_source_and_resources_bound,
+    materialize_snapshot,
     qualify_candidate,
     resolve_checkout_revision,
 )
@@ -231,6 +232,7 @@ def test_adopted_self_host_fails_closed_when_runtime_identity_unestablished(tmp_
 def test_toolchain_payload_supports_json_and_yaml(tmp_path: Path) -> None:
     """_parse_toolchain_payload transparently supports both YAML and JSON format."""
     from scripts.verify_policy_self_host import runtime
+
     config_toolchain = runtime.config_toolchain
     lock_toolchain = runtime.lock_toolchain
 
@@ -443,8 +445,7 @@ def test_candidate_qualification_rejects_symlink_escape(
     subprocess.run(["git", "commit", "-m", "commit symlink escape"], cwd=repo, check=True)
 
     monkeypatch.setattr(candidate_mod, "ROOT", repo)
-    # Extraction with filter='data' or path-containment verification must fail closed
-    with pytest.raises((RuntimeError, tarfile.FilterError, tarfile.TarError)):
+    with pytest.raises(RuntimeError, match="Candidate contains unsupported symlink"):
         qualify_candidate()
 
 
@@ -477,11 +478,6 @@ def test_candidate_qualification_rejects_revision_and_effective_bytes_mismatch(
     commit_b = resolve_checkout_revision(repo)
     assert commit_a != commit_b
 
-    from scripts.verify_candidate_qualification import (
-        _run_snapshot_qualification,
-        materialize_snapshot,
-    )
-
     # 1. Materialize snapshot of B, but attempt to qualify it claiming revision A
     with materialize_snapshot(repo, commit_b) as snapshot_b:
         with pytest.raises(RuntimeError, match="Snapshot revision mismatch"):
@@ -494,3 +490,245 @@ def test_candidate_qualification_rejects_revision_and_effective_bytes_mismatch(
         with pytest.raises(RuntimeError, match="Snapshot revision mismatch"):
             _run_snapshot_qualification(snapshot_a, commit_a)
 
+
+def test_candidate_qualification_immune_to_commit_replacement_ref(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test A: commit replacement ref.
+
+    Install git replace A B where commit B has broken candidate-relevant bytes.
+    The verifier must evaluate candidate A from A's original immutable tree/blob graph,
+    ignoring replacement ref B, and report exact provenance A.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "replace_ref_repo")
+    commit_a = resolve_checkout_revision(repo)
+
+    # Commit B introduces broken YAML in profiles/core.yml
+    broken_profile = repo / "profiles" / "core.yml"
+    broken_profile.write_text("invalid: yaml: syntax: [broken", encoding="utf-8")
+    subprocess.run(["git", "commit", "-am", "commit B with broken profile"], cwd=repo, check=True)
+    commit_b = resolve_checkout_revision(repo)
+    assert commit_a != commit_b
+
+    # Return worktree to commit A and install git replace A B
+    subprocess.run(["git", "checkout", commit_a], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "replace", commit_a, commit_b], cwd=repo, check=True)
+
+    # Verify that default git resolves replacement (proving adversarial precondition)
+    default_tree = subprocess.check_output(
+        ["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True
+    ).strip()
+    no_replace_tree = subprocess.check_output(
+        ["git", "--no-replace-objects", "rev-parse", "HEAD^{tree}"],
+        cwd=repo,
+        text=True,
+    ).strip()
+    assert default_tree != no_replace_tree, "Adversarial git replace was not active in test repo"
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    # Qualify candidate A must succeed by bypassing replacement ref and evaluating A's exact bytes
+    qualified_rev = qualify_candidate()
+    assert qualified_rev == commit_a
+
+
+def test_candidate_qualification_immune_to_nested_object_replacement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test B: replacement of relevant nested object (blob replacement ref).
+
+    Git allows replacing arbitrary object OIDs via git replace <blob_a> <blob_b>.
+    The verifier must read and verify raw blob bytes with replacement semantics disabled.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "nested_replace_repo")
+    commit_sha = resolve_checkout_revision(repo)
+
+    # Identify candidate-relevant blob for profiles/core.yml
+    blob_a = subprocess.check_output(
+        ["git", "rev-parse", "HEAD:profiles/core.yml"], cwd=repo, text=True
+    ).strip()
+
+    # Create a corrupted blob object directly in the git database
+    corrupt_bytes = b"corrupted: [invalid yaml"
+    blob_b = subprocess.check_output(
+        ["git", "hash-object", "-w", "--stdin"],
+        input=corrupt_bytes,
+        cwd=repo,
+    ).decode("ascii").strip()
+    assert blob_a != blob_b
+
+    # Install git replace on the blob object
+    subprocess.run(["git", "replace", blob_a, blob_b], cwd=repo, check=True)
+
+    # Verify default git reads corrupt blob
+    default_cat = subprocess.check_output(["git", "cat-file", "-p", blob_a], cwd=repo)
+    assert default_cat == corrupt_bytes, "Blob replacement was not active"
+
+    # Qualification must bypass blob replacement, evaluate original blob, and succeed
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    qualified_rev = qualify_candidate()
+    assert qualified_rev == commit_sha
+
+
+def test_candidate_qualification_ignores_committed_export_subst(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test C: committed export-subst.
+
+    A tracked regular file containing $Format:...$ and marked with export-subst
+    must be materialized with exact raw Git blob bytes, not archive-substituted text.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "export_subst_repo")
+
+    # Add a file with $Format:%H$ and export-subst attribute
+    subst_file = repo / "policy" / "core" / "subst_rule.md"
+    raw_content = "# Format Rule\nCommit: $Format:%H$\n"
+    subst_file.write_text(raw_content, encoding="utf-8")
+
+    gitattributes = repo / ".gitattributes"
+    gitattributes.write_text("policy/core/subst_rule.md export-subst\n", encoding="utf-8")
+
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "add export-subst file"], cwd=repo, check=True)
+    commit_sha = resolve_checkout_revision(repo)
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+
+    with materialize_snapshot(repo, commit_sha) as snapshot_root:
+        materialized_text = (snapshot_root / "policy" / "core" / "subst_rule.md").read_text(
+            encoding="utf-8"
+        )
+        # Direct object materializer preserves raw blob bytes exactly
+        assert materialized_text == raw_content
+        assert "$Format:%H$" in materialized_text
+        assert commit_sha not in materialized_text
+
+
+def test_candidate_qualification_ignores_committed_export_ignore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test D: committed export-ignore.
+
+    A tracked file marked export-ignore in .gitattributes must NOT be omitted
+    from the candidate snapshot because it exists in the Git tree object.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "export_ignore_repo")
+
+    # Mark profiles/core.yml as export-ignore in committed .gitattributes
+    gitattributes = repo / ".gitattributes"
+    gitattributes.write_text("profiles/core.yml export-ignore\n", encoding="utf-8")
+
+    subprocess.run(["git", "add", ".gitattributes"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "commit export-ignore"], cwd=repo, check=True)
+    commit_sha = resolve_checkout_revision(repo)
+
+    # Prove git archive would omit this file
+    arch_tar = tmp_path / "test.tar"
+    subprocess.run(["git", "archive", f"--output={arch_tar}", "HEAD"], cwd=repo, check=True)
+    arch_files = subprocess.check_output(["tar", "-tf", str(arch_tar)], text=True).splitlines()
+    assert "profiles/core.yml" not in arch_files, "git archive did not honor export-ignore"
+
+    # Direct object materializer must include profiles/core.yml from the Git tree
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    with materialize_snapshot(repo, commit_sha) as snapshot_root:
+        assert (snapshot_root / "profiles" / "core.yml").is_file()
+
+    qualified_rev = qualify_candidate()
+    assert qualified_rev == commit_sha
+
+
+def test_candidate_qualification_ignores_local_info_attributes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test E: local uncommitted .git/info/attributes.
+
+    Local repository export attributes must not affect immutable object materialization.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "info_attributes_repo")
+    commit_sha = resolve_checkout_revision(repo)
+
+    info_attrs = repo / ".git" / "info" / "attributes"
+    info_attrs.parent.mkdir(parents=True, exist_ok=True)
+    info_attrs.write_text("profiles/core.yml export-ignore\n", encoding="utf-8")
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    with materialize_snapshot(repo, commit_sha) as snapshot_root:
+        assert (snapshot_root / "profiles" / "core.yml").is_file()
+
+    qualified_rev = qualify_candidate()
+    assert qualified_rev == commit_sha
+
+
+def test_materialized_blob_tampering_fails_closed(tmp_path: Path) -> None:
+    """Test F: exact blob verification.
+
+    Tamper with a materialized file after writing; recomputed Git blob OID
+    must not match expected tree-entry blob OID and must fail closed.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "tamper_repo")
+    commit_sha = resolve_checkout_revision(repo)
+
+    def _tamper_payload(snapshot_root: Path) -> None:
+        target = snapshot_root / "profiles" / "core.yml"
+        target.write_text(
+            "# tampered byte\n" + target.read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+
+    with pytest.raises(RuntimeError, match="blob OID mismatch"):
+        with materialize_snapshot(repo, commit_sha, _post_write_hook=_tamper_payload):
+            pass
+
+
+def test_candidate_qualification_rejects_committed_symlink_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test G: symlink contract.
+
+    Candidate trees containing mode 120000 symlinks must fail closed explicitly.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "symlink_contract_repo")
+
+    # Add an internal relative symlink
+    symlink_file = repo / "policy" / "core" / "linked_rule.md"
+    symlink_file.symlink_to("synthetic-prospective-rule.md")
+
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "commit symlink"], cwd=repo, check=True)
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    with pytest.raises(RuntimeError, match="unsupported symlink at 'policy/core/linked_rule.md'"):
+        qualify_candidate()
+
+
+def test_candidate_qualification_rejects_committed_gitlink_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test H: gitlink/submodule contract.
+
+    Candidate trees containing mode 160000 gitlinks must fail closed explicitly.
+    """
+    repo = _create_isolated_candidate_repo(tmp_path, "gitlink_contract_repo")
+    commit_sha = resolve_checkout_revision(repo)
+
+    # Insert a mode 160000 gitlink into the index
+    subprocess.run(
+        [
+            "git",
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            "160000",
+            commit_sha,
+            "submodules/external_policy",
+        ],
+        cwd=repo,
+        check=True,
+    )
+    subprocess.run(["git", "commit", "-m", "commit gitlink entry"], cwd=repo, check=True)
+
+    monkeypatch.setattr(candidate_mod, "ROOT", repo)
+    with pytest.raises(
+        RuntimeError,
+        match="unsupported gitlink/submodule at 'submodules/external_policy'",
+    ):
+        qualify_candidate()
