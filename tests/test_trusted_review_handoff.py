@@ -13,6 +13,10 @@ import yaml
 
 from scripts import prepare_trusted_review_handoff as handoff_module
 from scripts.prepare_trusted_review_handoff import (
+    STATUS_CANONICAL_BLOCKED_PROVIDER,
+    STATUS_FREEZE_BLOCKED,
+    STATUS_REPO_IMPL_COMPLETE,
+    EvidenceStatus,
     FreezeBoundaryType,
     FreezeEvidence,
     HandoffOrchestrator,
@@ -24,6 +28,7 @@ from scripts.prepare_trusted_review_handoff import (
     load_and_verify_state,
     prepare_handoff,
     save_state,
+    validate_provider_identity,
     verify_handoff,
 )
 
@@ -61,9 +66,11 @@ def make_valid_handoff_dict() -> dict[str, Any]:
                 "number": 1031,
             },
             "observation_evidence": {
-                "source": "github_observation_snapshot",
+                "source": "github_authenticated_adapter",
+                "evidence_status": "authenticated",
                 "authenticated": True,
                 "retrieved_at": "2026-09-26T00:00:00Z",
+                "verifier": "github_authenticated_adapter",
             },
         },
         "exact_base": {
@@ -92,7 +99,9 @@ def make_valid_handoff_dict() -> dict[str, Any]:
             "freeze_evidence": {
                 "boundary_type": "deployment_established",
                 "mechanism": "container_read_only_bind_mount",
+                "evidence_status": "authenticated",
                 "verified_post_freeze": True,
+                "verifier": "production_deployment_verifier",
             },
             "verifier": "TakashiSasaki/templates@33a7ab80:scripts/install_agent_policy_skill.py",
         },
@@ -103,7 +112,9 @@ def make_valid_handoff_dict() -> dict[str, Any]:
             "freeze_evidence": {
                 "boundary_type": "deployment_established",
                 "mechanism": "container_read_only_bind_mount",
+                "evidence_status": "authenticated",
                 "verified_post_freeze": True,
+                "verifier": "production_deployment_verifier",
             },
             "verifier": "bootstrap_run_image:scripts/review_base.py",
         },
@@ -117,7 +128,9 @@ def make_valid_handoff_dict() -> dict[str, Any]:
             "freeze_evidence": {
                 "boundary_type": "deployment_established",
                 "mechanism": "container_read_only_bind_mount",
+                "evidence_status": "authenticated",
                 "verified_post_freeze": True,
+                "verifier": "production_deployment_verifier",
             },
             "verifier": "bootstrap_run_image:scripts/runtime_image.py",
         },
@@ -128,7 +141,9 @@ def make_valid_handoff_dict() -> dict[str, Any]:
             "freeze_evidence": {
                 "boundary_type": "deployment_established",
                 "mechanism": "container_read_only_bind_mount",
+                "evidence_status": "authenticated",
                 "verified_post_freeze": True,
+                "verifier": "production_deployment_verifier",
             },
             "verifier": "runtime_image:agent_policy review-bundle",
         },
@@ -315,18 +330,45 @@ def test_reviewer_packet_formatting() -> None:
 # ==============================================================================
 
 
-def setup_mock_environment(tmp_path: Path) -> dict[str, Any]:
-    obj_repo = tmp_path / "bare.git"
-    obj_repo.mkdir()
-    work_dir = tmp_path / "work"
-    work_dir.mkdir()
-    installed_skill = tmp_path / "installed_skill"
-    installed_skill.mkdir()
-    (installed_skill / "SKILL.md").write_text("installed skill", encoding="utf-8")
-    (installed_skill / "scripts").mkdir()
-    (installed_skill / "scripts/run.py").write_text("#!/usr/bin/env python\n", encoding="utf-8")
+class MockDeploymentFreezeVerifier:
+    name = "mock_deployment_freeze_verifier"
 
-    attestation_path = tmp_path / "attestation.json"
+    def __init__(self, allowed_mechanisms: set[str] | None = None) -> None:
+        self.allowed_mechanisms = allowed_mechanisms or {
+            "ro_mount",
+            "container_read_only_bind_mount",
+        }
+
+    def verify_freeze(
+        self,
+        target: str,
+        locator: Path,
+        evidence: FreezeEvidence,
+    ) -> bool:
+        if evidence.mechanism not in self.allowed_mechanisms:
+            raise ValueError(f"unrecognized freeze mechanism: {evidence.mechanism}")
+        if evidence.attestation_sha256 and not handoff_module.SHA256.fullmatch(
+            evidence.attestation_sha256
+        ):
+            raise ValueError(f"invalid attestation sha256: {evidence.attestation_sha256}")
+        return True
+
+
+def setup_mock_environment(
+    tmp_path: Path,
+    authenticated_provider: bool = False,
+) -> dict[str, Any]:
+    obj_repo = tmp_path / "bare.git"
+    obj_repo.mkdir(parents=True)
+    work_dir = tmp_path / "work"
+    work_dir.mkdir(parents=True)
+    installed_skill = tmp_path / "installed_skill"
+    installed_skill.mkdir(parents=True)
+    (installed_skill / "SKILL.md").write_text("# Skill\n", encoding="utf-8")
+    (installed_skill / "scripts").mkdir()
+    (installed_skill / "scripts/run.py").write_text("# run\n", encoding="utf-8")
+
+    attestation_path = tmp_path / "installation-attestation.json"
     attestation_path.write_text(
         json.dumps(
             {
@@ -352,16 +394,32 @@ def setup_mock_environment(tmp_path: Path) -> dict[str, Any]:
         encoding="utf-8",
     )
 
-    provider_id = {
-        "name": "github",
-        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
-        "pull_request": {"id": "PR_kwDOTm6ous8AAAABFJDI8g", "number": 1031},
-        "observation_evidence": {
-            "source": "github_observation_snapshot",
-            "authenticated": True,
-            "retrieved_at": "2026-09-26T00:00:00Z",
-        },
-    }
+    if authenticated_provider:
+        provider_id = {
+            "name": "github",
+            "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+            "pull_request": {"id": "PR_kwDOTm6ous8AAAABFJDI8g", "number": 1031},
+            "observation_evidence": {
+                "source": "simulated_test_adapter",
+                "evidence_status": "authenticated",
+                "authenticated": True,
+                "retrieved_at": "2026-09-26T00:00:00Z",
+                "verifier": "simulated_test_adapter",
+            },
+        }
+    else:
+        provider_id = {
+            "name": "github",
+            "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+            "pull_request": {"id": "PR_kwDOTm6ous8AAAABFJDI8g", "number": 1031},
+            "observation_evidence": {
+                "source": "caller_declared",
+                "evidence_status": "declared",
+                "authenticated": False,
+                "retrieved_at": "2026-09-26T00:00:00Z",
+                "verifier": None,
+            },
+        }
 
     return {
         "obj_repo": obj_repo,
@@ -442,6 +500,7 @@ def test_b_bootstrap_tamper_before_post_freeze_verify(
         installation_attestation_path=env["attestation_path"],
         simulate_freeze_for_test=False,
         _test_installer_module=mock_installer,
+        _test_freeze_adapter=MockDeploymentFreezeVerifier(),
     )
 
     orchestrator.step()
@@ -451,10 +510,10 @@ def test_b_bootstrap_tamper_before_post_freeze_verify(
     b_dir = Path(orchestrator.state["artifacts"]["bootstrap_run_image"]["locator"])
     (b_dir / "scripts/review_base.py").write_text("# tampered!\n", encoding="utf-8")
 
-    # Record simulated freeze evidence and resume
+    # Record freeze evidence and resume
     orchestrator.record_freeze(
         "bootstrap_run_image",
-        FreezeEvidence(FreezeBoundaryType.DEPLOYMENT_ESTABLISHED, "ro_mount", True),
+        FreezeEvidence(FreezeBoundaryType.DEPLOYMENT_ESTABLISHED, "ro_mount"),
     )
 
     with pytest.raises(
@@ -851,7 +910,7 @@ def test_m_resume_state_tampering(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
 def test_full_pipeline_end_to_end_simulated(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    env = setup_mock_environment(tmp_path)
+    env = setup_mock_environment(tmp_path, authenticated_provider=True)
     monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
 
     mock_installer = ModuleType("mock_installer")
@@ -952,3 +1011,521 @@ def test_full_pipeline_end_to_end_simulated(
     assert res["status"] == handoff_module.STATUS_HANDOFF_READY
     assert res["phase"] == Phase.HANDOFF_FINALIZED.value
     verify_handoff(res["handoff"], allow_simulated_boundary=True, check_locators=True)
+
+
+# ---------------------------------------------------------------------------
+# New Regressions: Freeze Evidence Provenance
+# ---------------------------------------------------------------------------
+
+
+def test_freeze_caller_cannot_self_assert_deployment_established(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: (dest / "scripts").mkdir(
+        parents=True, exist_ok=True
+    )
+    mock_installer.verify_run_image = lambda *args, **kwargs: None
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+        # No freeze verifier adapter configured!
+    )
+    orchestrator.step()
+    assert orchestrator.state["phase"] == Phase.BOOTSTRAP_IMAGE_AWAITING_FREEZE.value
+
+    # Attempting to self-assert deployment_established without a trusted freeze adapter fails
+    with pytest.raises(
+        ValueError,
+        match="cannot record deployment_established freeze: caller self-assertion is prohibited",
+    ):
+        orchestrator.record_freeze(
+            "bootstrap_run_image",
+            FreezeEvidence(FreezeBoundaryType.DEPLOYMENT_ESTABLISHED, "ro_mount"),
+        )
+
+    # CLI record-freeze without external adapter also fails closed
+    exit_code = handoff_module.main(
+        [
+            "record-freeze",
+            "--state-file",
+            str(orchestrator.state_file),
+            "--target",
+            "bootstrap_run_image",
+            "--mechanism",
+            "ro_mount",
+            "--boundary-type",
+            "deployment_established",
+        ]
+    )
+    assert exit_code == 1
+
+
+def test_freeze_fake_mechanism_string_rejected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: (dest / "scripts").mkdir(
+        parents=True, exist_ok=True
+    )
+
+    verifier = MockDeploymentFreezeVerifier(allowed_mechanisms={"container_read_only_bind_mount"})
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+        _test_freeze_adapter=verifier,
+    )
+    orchestrator.step()
+
+    # Fake mechanism string is rejected by verifier adapter
+    with pytest.raises(ValueError, match="unrecognized freeze mechanism: fake_mechanism"):
+        orchestrator.record_freeze(
+            "bootstrap_run_image",
+            FreezeEvidence(FreezeBoundaryType.DEPLOYMENT_ESTABLISHED, "fake_mechanism"),
+        )
+
+
+def test_freeze_fake_attestation_digest_rejected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: (dest / "scripts").mkdir(
+        parents=True, exist_ok=True
+    )
+
+    verifier = MockDeploymentFreezeVerifier()
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+        _test_freeze_adapter=verifier,
+    )
+    orchestrator.step()
+
+    # Fake or malformed attestation digest is rejected
+    with pytest.raises(ValueError, match="invalid attestation sha256"):
+        orchestrator.record_freeze(
+            "bootstrap_run_image",
+            FreezeEvidence(
+                FreezeBoundaryType.DEPLOYMENT_ESTABLISHED,
+                "ro_mount",
+                attestation_sha256="not-a-valid-sha256",
+            ),
+        )
+
+
+def test_freeze_test_simulation_remains_test_only(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: (dest / "scripts").mkdir(
+        parents=True, exist_ok=True
+    )
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+    )
+    orchestrator.step()
+
+    # 1. Attempting simulated freeze when simulate_freeze_for_test=False is rejected
+    with pytest.raises(
+        ValueError, match="simulated test freeze boundary cannot be recorded in production"
+    ):
+        orchestrator.record_freeze(
+            "bootstrap_run_image",
+            FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test"),
+        )
+
+    # 2. CLI record-freeze without --simulate-freeze-for-test is rejected
+    exit_code = handoff_module.main(
+        [
+            "record-freeze",
+            "--state-file",
+            str(orchestrator.state_file),
+            "--target",
+            "bootstrap_run_image",
+            "--mechanism",
+            "simulated_test",
+            "--boundary-type",
+            "simulated_test",
+        ]
+    )
+    assert exit_code == 1
+
+
+def test_freeze_caller_cannot_self_assert_verified_post_freeze(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: (dest / "scripts").mkdir(
+        parents=True, exist_ok=True
+    )
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+        _test_freeze_adapter=MockDeploymentFreezeVerifier(),
+    )
+    orchestrator.step()
+
+    # Caller claiming verified_post_freeze=True is rejected
+    with pytest.raises(ValueError, match="cannot self-assert verified_post_freeze=True"):
+        orchestrator.record_freeze(
+            "bootstrap_run_image",
+            FreezeEvidence(
+                FreezeBoundaryType.DEPLOYMENT_ESTABLISHED,
+                "ro_mount",
+                verified_post_freeze=True,
+            ),
+        )
+
+
+def test_freeze_unauthenticated_or_missing_verifier_rejected() -> None:
+    handoff = make_valid_handoff_dict()
+    # 1. Freeze evidence with evidence_status != authenticated
+    handoff["bootstrap_run_image"]["freeze_evidence"]["evidence_status"] = "declared"
+    with pytest.raises(ValueError, match="deployment freeze evidence is not authenticated"):
+        verify_handoff(handoff)
+
+    # 2. Missing verifier
+    handoff2 = make_valid_handoff_dict()
+    handoff2["bootstrap_run_image"]["freeze_evidence"]["verifier"] = None
+    with pytest.raises(ValueError, match="deployment freeze missing verifier provenance"):
+        verify_handoff(handoff2)
+
+
+# ---------------------------------------------------------------------------
+# New Regressions: Provider Evidence Provenance
+# ---------------------------------------------------------------------------
+
+
+def test_provider_caller_authored_authenticated_true_rejected() -> None:
+    # 1. caller_declared claiming authenticated=True
+    bad_declared = {
+        "name": "github",
+        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {"id": "PR_123", "number": 1031},
+        "observation_evidence": {
+            "source": "caller_declared",
+            "authenticated": True,
+        },
+    }
+    with pytest.raises(
+        ValueError, match="caller-declared provider evidence cannot be authenticated"
+    ):
+        validate_provider_identity(bad_declared)
+
+    # 2. unauthenticated_observation claiming authenticated=True
+    bad_obs = {
+        "name": "github",
+        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {"id": "PR_123", "number": 1031},
+        "observation_evidence": {
+            "source": "unauthenticated_observation",
+            "authenticated": True,
+        },
+    }
+    with pytest.raises(
+        ValueError, match="unauthenticated provider observation cannot claim authenticated status"
+    ):
+        validate_provider_identity(bad_obs)
+
+    # 3. github_authenticated_adapter claimed without a trusted provider adapter
+    bad_claimed_adapter = {
+        "name": "github",
+        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {"id": "PR_123", "number": 1031},
+        "observation_evidence": {
+            "source": "github_authenticated_adapter",
+            "authenticated": True,
+        },
+    }
+    with pytest.raises(
+        ValueError,
+        match="caller-authored provider observation cannot self-assert authenticated status",
+    ):
+        validate_provider_identity(bad_claimed_adapter, is_caller_input=True)
+
+
+def test_provider_caller_declared_ids_remain_untrusted() -> None:
+    declared = {
+        "name": "github",
+        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {"id": "PR_123", "number": 1031},
+        "observation_evidence": {
+            "source": "caller_declared",
+            "authenticated": False,
+        },
+    }
+    res = validate_provider_identity(declared)
+    assert res["observation_evidence"]["evidence_status"] == EvidenceStatus.DECLARED.value
+    assert not res["observation_evidence"]["authenticated"]
+
+    handoff = make_valid_handoff_dict()
+    handoff["provider"] = res
+    with pytest.raises(ValueError, match="provider observation is not authenticated"):
+        verify_handoff(handoff, require_authenticated_provider=True)
+
+
+def test_provider_unknown_source_rejected() -> None:
+    bad_source = {
+        "name": "github",
+        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {"id": "PR_123", "number": 1031},
+        "observation_evidence": {
+            "source": "untrusted_custom_service",
+            "authenticated": False,
+        },
+    }
+    with pytest.raises(ValueError, match="unknown provider observation evidence source"):
+        validate_provider_identity(bad_source)
+
+
+def test_provider_test_only_evidence_cannot_leak_into_production() -> None:
+    test_evidence = {
+        "name": "github",
+        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {"id": "PR_123", "number": 1031},
+        "observation_evidence": {
+            "source": "simulated_test_adapter",
+            "authenticated": True,
+        },
+    }
+    with pytest.raises(
+        ValueError, match="test-only provider evidence cannot be used in production"
+    ):
+        validate_provider_identity(test_evidence, allow_test_provider=False)
+
+
+def test_provider_recognized_adapter_accepted() -> None:
+    class MockGitHubProviderAdapter:
+        name = "github_oidc_adapter"
+
+        def verify(self, data: dict[str, Any]) -> str:
+            return self.name
+
+    prov_data = {
+        "name": "github",
+        "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {"id": "PR_123", "number": 1031},
+        "observation_evidence": {
+            "source": "github_authenticated_adapter",
+            "authenticated": True,
+        },
+    }
+    validated = validate_provider_identity(
+        prov_data,
+        provider_adapter=MockGitHubProviderAdapter(),
+        is_caller_input=True,
+    )
+    obs = validated["observation_evidence"]
+    assert obs["evidence_status"] == EvidenceStatus.AUTHENTICATED.value
+    assert obs["authenticated"] is True
+    assert obs["verifier"] == "github_oidc_adapter"
+
+
+# ---------------------------------------------------------------------------
+# New Regressions: Final Verifier Depth (Option B Disposition)
+# ---------------------------------------------------------------------------
+
+
+def test_final_verifier_phase_level_post_freeze_semantic_verification_precedes_freshness(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path, authenticated_provider=True)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    # 1. Test that BOOTSTRAP_IMAGE post-freeze semantic verification failure blocks advancement
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: (dest / "scripts").mkdir(
+        parents=True, exist_ok=True
+    )
+
+    def failing_verify_run_image(*args: Any, **kwargs: Any) -> None:
+        raise ValueError("semantic verification failed: installer run-image integrity compromised")
+
+    mock_installer.verify_run_image = failing_verify_run_image
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=True,
+        _test_installer_module=mock_installer,
+    )
+    with pytest.raises(ValueError, match="installer run-image integrity compromised"):
+        orchestrator.step()
+    # Invariant: Phase did NOT advance to BOOTSTRAP_IMAGE_VERIFIED
+    assert orchestrator.state["phase"] == Phase.BOOTSTRAP_IMAGE_AWAITING_FREEZE.value
+
+
+def test_final_verifier_mutation_of_each_frozen_artifact_fails_final_inventory_check(
+    tmp_path: Path,
+) -> None:
+    handoff = make_valid_handoff_dict()
+    root = tmp_path / "test_artifacts"
+    root.mkdir(parents=True)
+
+    # Materialize valid directories for all locators
+    for key in (
+        "installed_skill_root",
+        "bootstrap_run_image",
+        "trusted_base_snapshot",
+        "runtime_image",
+        "review_bundle",
+    ):
+        p = root / key
+        p.mkdir(parents=True, exist_ok=True)
+        (p / "file.txt").write_text(f"content_{key}\n", encoding="utf-8")
+        if key == "review_bundle":
+            (p / "manifest.json").write_text("{}", encoding="utf-8")
+            (p / "procedure").mkdir(parents=True, exist_ok=True)
+            (p / "procedure/SKILL.md").write_text("skill\n", encoding="utf-8")
+            (p / ".review-authority").mkdir(parents=True, exist_ok=True)
+            (p / ".review-authority/review-policy.md").write_text("policy\n", encoding="utf-8")
+        handoff["locators"][key] = str(p)
+
+    # Sync recorded digests to match the files on disk
+    handoff["installed_bootstrap"]["inventory_digest"] = compute_directory_inventory_digest(
+        Path(handoff["locators"]["installed_skill_root"])
+    )
+    handoff["bootstrap_run_image"]["inventory_digest"] = compute_directory_inventory_digest(
+        Path(handoff["locators"]["bootstrap_run_image"])
+    )
+    handoff["trusted_base_snapshot"]["inventory_digest"] = compute_directory_inventory_digest(
+        Path(handoff["locators"]["trusted_base_snapshot"])
+    )
+    handoff["runtime"]["inventory_digest"] = compute_directory_inventory_digest(
+        Path(handoff["locators"]["runtime_image"])
+    )
+    bundle_p = Path(handoff["locators"]["review_bundle"])
+    handoff["review_bundle"]["manifest_sha256"] = handoff_module.sha256_file(
+        bundle_p / "manifest.json"
+    )
+    handoff["review_bundle"]["semantic_policy_sha256"] = handoff_module.sha256_file(
+        bundle_p / ".review-authority/review-policy.md"
+    )
+    handoff["semantic_output"]["sha256"] = handoff["review_bundle"]["semantic_policy_sha256"]
+    handoff["review_bundle"]["inventory_digest"] = compute_directory_inventory_digest(bundle_p)
+
+    # Initially valid
+    verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+
+    # Mutate 1: bootstrap_run_image
+    b_p = Path(handoff["locators"]["bootstrap_run_image"])
+    (b_p / "tamper.txt").write_text("tamper", encoding="utf-8")
+    with pytest.raises(ValueError, match="bootstrap run image directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+    (b_p / "tamper.txt").unlink()
+
+    # Mutate 2: trusted_base_snapshot
+    s_p = Path(handoff["locators"]["trusted_base_snapshot"])
+    (s_p / "tamper.txt").write_text("tamper", encoding="utf-8")
+    with pytest.raises(ValueError, match="base snapshot directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+    (s_p / "tamper.txt").unlink()
+
+    # Mutate 3: runtime_image
+    r_p = Path(handoff["locators"]["runtime_image"])
+    (r_p / "tamper.txt").write_text("tamper", encoding="utf-8")
+    with pytest.raises(ValueError, match="runtime image directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+    (r_p / "tamper.txt").unlink()
+
+    # Mutate 4: review_bundle
+    (bundle_p / "tamper.txt").write_text("tamper", encoding="utf-8")
+    with pytest.raises(ValueError, match="review bundle directory contents do not match"):
+        verify_handoff(handoff, allow_simulated_boundary=True, check_locators=True)
+    (bundle_p / "tamper.txt").unlink()
+
+
+# ---------------------------------------------------------------------------
+# Canonical Dogfood Halts Truthfully
+# ---------------------------------------------------------------------------
+
+
+def test_canonical_dogfood_halts_truthfully_at_external_blockers(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = setup_mock_environment(tmp_path, authenticated_provider=False)
+    monkeypatch.setattr(handoff_module, "resolve_base_tree", lambda _g, _r, _c: env["base_tree"])
+
+    mock_installer = ModuleType("mock_installer")
+    mock_installer.verify_installation_attestation = lambda *args, **kwargs: None
+    mock_installer.materialize_run_image = lambda src, dest, att, **kw: (dest / "scripts").mkdir(
+        parents=True, exist_ok=True
+    )
+
+    orchestrator = HandoffOrchestrator(
+        work_dir=env["work_dir"],
+        object_repository=env["obj_repo"],
+        base_commit=env["base_commit"],
+        provider_identity=env["provider_id"],
+        installed_skill_root=env["installed_skill"],
+        installation_attestation_path=env["attestation_path"],
+        simulate_freeze_for_test=False,
+        _test_installer_module=mock_installer,
+    )
+    result = orchestrator.step()
+    assert result["status"] == STATUS_FREEZE_BLOCKED
+    assert result["repository_implementation_status"] == STATUS_REPO_IMPL_COMPLETE
+    assert result["canonical_disposition"] == STATUS_CANONICAL_BLOCKED_PROVIDER
+    assert "freeze provider missing" in result["external_blockers"]
+    assert "provider-identity authentication provider missing" in result["external_blockers"]

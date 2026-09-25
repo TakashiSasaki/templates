@@ -38,6 +38,8 @@ SEMANTIC_RENDERER = "policy-context-md"
 
 STATUS_HANDOFF_READY = "AUTHENTICATED_BOOTSTRAP_HANDOFF_READY"
 STATUS_FREEZE_BLOCKED = "BOOTSTRAP_FREEZE_CAPABILITY_BLOCKED"
+STATUS_REPO_IMPL_COMPLETE = "BOOTSTRAP_REPOSITORY_IMPLEMENTATION_COMPLETE"
+STATUS_CANONICAL_BLOCKED_PROVIDER = "CANONICAL_HANDOFF_BLOCKED_ON_EXTERNAL_TRUST_PROVIDER"
 STATUS_CANONICAL_BLOCKED = "CANONICAL_HANDOFF_BLOCKED_ON_DEPLOYMENT_FREEZE"
 STATUS_HANDOFF_VERIFIED = "AUTHENTICATED_BOOTSTRAP_HANDOFF_VERIFIED"
 STATUS_FUNCTIONAL_DOGFOOD = "FUNCTIONAL_DOGFOOD_ONLY"
@@ -57,6 +59,22 @@ REQUIRED_TOP_LEVEL_KEYS = frozenset(
         "review_bundle",
         "semantic_output",
         "locators",
+    }
+)
+
+
+class EvidenceStatus(StrEnum):
+    DECLARED = "declared"
+    OBSERVED = "observed"
+    AUTHENTICATED = "authenticated"
+
+
+RECOGNIZED_PROVIDER_SOURCES = frozenset(
+    {
+        "caller_declared",
+        "unauthenticated_observation",
+        "github_authenticated_adapter",
+        "simulated_test_adapter",
     }
 )
 
@@ -88,20 +106,25 @@ class FreezeBoundaryType(StrEnum):
 class FreezeEvidence:
     boundary_type: FreezeBoundaryType
     mechanism: str
-    verified_post_freeze: bool
+    verified_post_freeze: bool = False
+    evidence_status: str = EvidenceStatus.DECLARED.value
     attestation_sha256: str | None = None
     timestamp: str | None = None
+    verifier: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {
             "boundary_type": self.boundary_type.value,
             "mechanism": self.mechanism,
+            "evidence_status": self.evidence_status,
             "verified_post_freeze": self.verified_post_freeze,
         }
         if self.attestation_sha256:
             data["attestation_sha256"] = self.attestation_sha256
         if self.timestamp:
             data["timestamp"] = self.timestamp
+        if self.verifier:
+            data["verifier"] = self.verifier
         return data
 
     @classmethod
@@ -110,9 +133,11 @@ class FreezeEvidence:
         return cls(
             boundary_type=b_type,
             mechanism=data["mechanism"],
+            evidence_status=data.get("evidence_status", EvidenceStatus.DECLARED.value),
             verified_post_freeze=bool(data.get("verified_post_freeze", False)),
             attestation_sha256=data.get("attestation_sha256"),
             timestamp=data.get("timestamp"),
+            verifier=data.get("verifier"),
         )
 
 
@@ -292,7 +317,13 @@ def extract_immutable_installer(
     return dest_path, info
 
 
-def validate_provider_identity(data: Any) -> dict[str, Any]:
+def validate_provider_identity(
+    data: Any,
+    *,
+    allow_test_provider: bool = False,
+    provider_adapter: Any = None,
+    is_caller_input: bool = True,
+) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("provider identity must be a dict")
     allowed_keys = {"name", "repository", "pull_request", "observation_evidence"}
@@ -329,16 +360,80 @@ def validate_provider_identity(data: Any) -> dict[str, Any]:
             or "authenticated" not in evidence
         ):
             raise ValueError("provider.observation_evidence must define source and authenticated")
+        src = str(evidence["source"])
+        if src not in RECOGNIZED_PROVIDER_SOURCES:
+            raise ValueError(f"unknown provider observation evidence source: {src!r}")
+
+        claimed_auth = bool(evidence["authenticated"])
+        claimed_status = str(evidence.get("evidence_status", ""))
+
+        if src == "caller_declared":
+            if claimed_auth or claimed_status == EvidenceStatus.AUTHENTICATED.value:
+                raise ValueError("caller-declared provider evidence cannot be authenticated")
+            final_status = EvidenceStatus.DECLARED.value
+            final_auth = False
+            verifier = None
+        elif src == "unauthenticated_observation":
+            if claimed_auth or claimed_status == EvidenceStatus.AUTHENTICATED.value:
+                raise ValueError(
+                    "unauthenticated provider observation cannot claim authenticated status"
+                )
+            final_status = EvidenceStatus.OBSERVED.value
+            final_auth = False
+            verifier = None
+        elif src == "simulated_test_adapter":
+            if not allow_test_provider:
+                raise ValueError("test-only provider evidence cannot be used in production")
+            final_status = EvidenceStatus.AUTHENTICATED.value
+            final_auth = True
+            verifier = str(evidence.get("verifier") or "simulated_test_adapter")
+        elif src == "github_authenticated_adapter":
+            if not claimed_auth or claimed_status == EvidenceStatus.DECLARED.value:
+                final_status = EvidenceStatus.DECLARED.value
+                final_auth = False
+                verifier = None
+            elif provider_adapter is not None:
+                verifier_name = provider_adapter.verify(data)
+                final_status = EvidenceStatus.AUTHENTICATED.value
+                final_auth = True
+                verifier = verifier_name
+            elif allow_test_provider:
+                final_status = EvidenceStatus.AUTHENTICATED.value
+                final_auth = True
+                verifier = str(evidence.get("verifier") or "test_github_adapter")
+            elif not is_caller_input and evidence.get("verifier"):
+                final_status = EvidenceStatus.AUTHENTICATED.value
+                final_auth = True
+                verifier = str(evidence["verifier"])
+            else:
+                raise ValueError(
+                    "caller-authored provider observation cannot self-assert authenticated "
+                    "status without trusted provider adapter"
+                )
+        else:
+            final_status = EvidenceStatus.DECLARED.value
+            final_auth = False
+            verifier = None
+
+        if claimed_auth and not final_auth:
+            raise ValueError(
+                "caller-authored provider observation cannot self-assert authenticated status"
+            )
+
         evidence_dict = {
-            "source": str(evidence["source"]),
-            "authenticated": bool(evidence["authenticated"]),
+            "source": src,
+            "evidence_status": final_status,
+            "authenticated": final_auth,
             "retrieved_at": str(evidence.get("retrieved_at", datetime.now(UTC).isoformat())),
+            "verifier": verifier,
         }
     else:
         evidence_dict = {
             "source": "caller_declared",
+            "evidence_status": EvidenceStatus.DECLARED.value,
             "authenticated": False,
             "retrieved_at": datetime.now(UTC).isoformat(),
+            "verifier": None,
         }
 
     return {
@@ -416,12 +511,23 @@ class HandoffOrchestrator:
         simulate_freeze_for_test: bool = False,
         _test_installer_module: ModuleType | None = None,
         _test_installer_bytes: bytes | None = None,
+        _test_freeze_adapter: Any = None,
+        _test_provider_adapter: Any = None,
     ) -> None:
         self.work_dir = work_dir.expanduser().resolve()
         self.work_dir.mkdir(parents=True, exist_ok=True)
         self.object_repository = object_repository.expanduser().resolve()
         self.base_commit = require_full_sha(base_commit, "base commit")
-        self.provider_identity = validate_provider_identity(provider_identity)
+        self.simulate_freeze_for_test = simulate_freeze_for_test
+        self._test_installer_module = _test_installer_module
+        self._test_installer_bytes = _test_installer_bytes
+        self._test_freeze_adapter = _test_freeze_adapter
+        self._test_provider_adapter = _test_provider_adapter
+        self.provider_identity = validate_provider_identity(
+            provider_identity,
+            allow_test_provider=simulate_freeze_for_test,
+            provider_adapter=_test_provider_adapter,
+        )
         self.installed_skill_root = installed_skill_root.expanduser().resolve()
         self.installation_attestation_path = installation_attestation_path.expanduser().resolve()
         self.state_file = (
@@ -431,9 +537,6 @@ class HandoffOrchestrator:
         self.proposed_head = (
             require_full_sha(proposed_head, "proposed head") if proposed_head else None
         )
-        self.simulate_freeze_for_test = simulate_freeze_for_test
-        self._test_installer_module = _test_installer_module
-        self._test_installer_bytes = _test_installer_bytes
 
         require_no_symlink_components(self.work_dir)
         require_no_symlink_components(self.object_repository)
@@ -556,8 +659,80 @@ class HandoffOrchestrator:
         ):
             raise ValueError("simulated test freeze boundary cannot be recorded in production")
 
-        entry["freeze_evidence"] = freeze_evidence.to_dict()
+        if freeze_evidence.verified_post_freeze and not self.simulate_freeze_for_test:
+            raise ValueError(
+                "cannot self-assert verified_post_freeze=True; "
+                "post-freeze verification must be performed by orchestrator"
+            )
+
+        if freeze_evidence.boundary_type == FreezeBoundaryType.DEPLOYMENT_ESTABLISHED:
+            if self._test_freeze_adapter is not None:
+                self._test_freeze_adapter.verify_freeze(
+                    target, Path(entry["locator"]), freeze_evidence
+                )
+                fe_to_record = FreezeEvidence(
+                    boundary_type=FreezeBoundaryType.DEPLOYMENT_ESTABLISHED,
+                    mechanism=freeze_evidence.mechanism,
+                    verified_post_freeze=False,
+                    evidence_status=EvidenceStatus.AUTHENTICATED.value,
+                    attestation_sha256=freeze_evidence.attestation_sha256,
+                    timestamp=freeze_evidence.timestamp or datetime.now(UTC).isoformat(),
+                    verifier=getattr(self._test_freeze_adapter, "name", "test_deployment_adapter"),
+                )
+            else:
+                raise ValueError(
+                    "cannot record deployment_established freeze: "
+                    "caller self-assertion is prohibited; "
+                    "no recognized external deployment freeze provider is configured "
+                    "(external freeze capability is missing)"
+                )
+        else:
+            fe_to_record = FreezeEvidence(
+                boundary_type=freeze_evidence.boundary_type,
+                mechanism=freeze_evidence.mechanism,
+                verified_post_freeze=False,
+                evidence_status=(
+                    EvidenceStatus.AUTHENTICATED.value
+                    if self.simulate_freeze_for_test
+                    else EvidenceStatus.DECLARED.value
+                ),
+                attestation_sha256=freeze_evidence.attestation_sha256,
+                timestamp=freeze_evidence.timestamp or datetime.now(UTC).isoformat(),
+                verifier=freeze_evidence.verifier
+                or ("simulated_test" if self.simulate_freeze_for_test else None),
+            )
+
+        entry["freeze_evidence"] = fe_to_record.to_dict()
         save_state(self.state, self.state_file)
+
+    def _freeze_blocked_result(self, target: str, entry: dict[str, Any]) -> dict[str, Any]:
+        provider_ev = self.provider_identity.get("observation_evidence", {})
+        prov_authenticated = bool(provider_ev.get("authenticated"))
+        blockers = ["freeze provider missing"]
+        if not prov_authenticated:
+            blockers.append("provider-identity authentication provider missing")
+
+        return {
+            "status": STATUS_FREEZE_BLOCKED,
+            "repository_implementation_status": STATUS_REPO_IMPL_COMPLETE,
+            "canonical_disposition": STATUS_CANONICAL_BLOCKED_PROVIDER,
+            "phase": self.state["phase"],
+            "state_file": str(self.state_file),
+            "pending_artifact": {
+                "target": target,
+                "locator": entry["locator"],
+                "materialized_digest": entry["materialized_digest"],
+            },
+            "external_trust_status": {
+                "freeze_provider": "missing",
+                "provider_identity_authentication": (
+                    "authenticated" if prov_authenticated else "missing"
+                ),
+            },
+            "external_blockers": blockers,
+            "missing_primitive": MISSING_PRIMITIVE_MSG,
+            "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
+        }
 
     def run_to_freeze_or_complete(self) -> dict[str, Any]:
         while True:
@@ -613,39 +788,19 @@ class HandoffOrchestrator:
             if self.simulate_freeze_for_test:
                 self.record_freeze(
                     "bootstrap_run_image",
-                    FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test", True),
+                    FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test", False),
                 )
                 return self.step()
 
-            return {
-                "status": STATUS_FREEZE_BLOCKED,
-                "phase": self.state["phase"],
-                "state_file": str(self.state_file),
-                "pending_artifact": {
-                    "target": "bootstrap_run_image",
-                    "locator": str(bootstrap_dir),
-                    "materialized_digest": inv_digest,
-                },
-                "missing_primitive": MISSING_PRIMITIVE_MSG,
-                "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
-            }
+            return self._freeze_blocked_result(
+                "bootstrap_run_image", self.state["artifacts"]["bootstrap_run_image"]
+            )
 
         elif phase == Phase.BOOTSTRAP_IMAGE_AWAITING_FREEZE:
             entry = self.state["artifacts"]["bootstrap_run_image"]
             fe_data = entry.get("freeze_evidence")
             if not fe_data:
-                return {
-                    "status": STATUS_FREEZE_BLOCKED,
-                    "phase": phase.value,
-                    "state_file": str(self.state_file),
-                    "pending_artifact": {
-                        "target": "bootstrap_run_image",
-                        "locator": entry["locator"],
-                        "materialized_digest": entry["materialized_digest"],
-                    },
-                    "missing_primitive": MISSING_PRIMITIVE_MSG,
-                    "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
-                }
+                return self._freeze_blocked_result("bootstrap_run_image", entry)
 
             fe = FreezeEvidence.from_dict(fe_data)
             if (
@@ -655,6 +810,12 @@ class HandoffOrchestrator:
                 raise ValueError(
                     "simulated freeze boundary is prohibited in production verification"
                 )
+            if fe.boundary_type == FreezeBoundaryType.DEPLOYMENT_ESTABLISHED:
+                if fe.evidence_status != EvidenceStatus.AUTHENTICATED.value:
+                    raise ValueError(
+                        "bootstrap_run_image deployment freeze evidence is not authenticated "
+                        f"(status={fe.evidence_status})"
+                    )
 
             # Post-freeze verify bootstrap image
             installer_mod = self._get_installer_mod()
@@ -672,6 +833,9 @@ class HandoffOrchestrator:
                 raise ValueError("bootstrap run image modified between materialization and freeze")
 
             entry["post_freeze_verified"] = True
+            fe_dict = fe.to_dict()
+            fe_dict["verified_post_freeze"] = True
+            entry["freeze_evidence"] = fe_dict
             self.state["phase"] = Phase.BOOTSTRAP_IMAGE_VERIFIED.value
             save_state(self.state, self.state_file)
             return self.step()
@@ -709,39 +873,19 @@ class HandoffOrchestrator:
             if self.simulate_freeze_for_test:
                 self.record_freeze(
                     "trusted_base_snapshot",
-                    FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test", True),
+                    FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test", False),
                 )
                 return self.step()
 
-            return {
-                "status": STATUS_FREEZE_BLOCKED,
-                "phase": self.state["phase"],
-                "state_file": str(self.state_file),
-                "pending_artifact": {
-                    "target": "trusted_base_snapshot",
-                    "locator": str(snapshot_dir),
-                    "materialized_digest": inv_digest,
-                },
-                "missing_primitive": MISSING_PRIMITIVE_MSG,
-                "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
-            }
+            return self._freeze_blocked_result(
+                "trusted_base_snapshot", self.state["artifacts"]["trusted_base_snapshot"]
+            )
 
         elif phase == Phase.BASE_SNAPSHOT_AWAITING_FREEZE:
             entry = self.state["artifacts"]["trusted_base_snapshot"]
             fe_data = entry.get("freeze_evidence")
             if not fe_data:
-                return {
-                    "status": STATUS_FREEZE_BLOCKED,
-                    "phase": phase.value,
-                    "state_file": str(self.state_file),
-                    "pending_artifact": {
-                        "target": "trusted_base_snapshot",
-                        "locator": entry["locator"],
-                        "materialized_digest": entry["materialized_digest"],
-                    },
-                    "missing_primitive": MISSING_PRIMITIVE_MSG,
-                    "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
-                }
+                return self._freeze_blocked_result("trusted_base_snapshot", entry)
 
             fe = FreezeEvidence.from_dict(fe_data)
             if (
@@ -751,6 +895,12 @@ class HandoffOrchestrator:
                 raise ValueError(
                     "simulated freeze boundary is prohibited in production verification"
                 )
+            if fe.boundary_type == FreezeBoundaryType.DEPLOYMENT_ESTABLISHED:
+                if fe.evidence_status != EvidenceStatus.AUTHENTICATED.value:
+                    raise ValueError(
+                        "trusted_base_snapshot deployment freeze evidence is not authenticated "
+                        f"(status={fe.evidence_status})"
+                    )
 
             # Post-freeze verify base snapshot
             bootstrap_dir = Path(self.state["artifacts"]["bootstrap_run_image"]["locator"])
@@ -771,6 +921,9 @@ class HandoffOrchestrator:
                 raise ValueError("base snapshot modified between materialization and freeze")
 
             entry["post_freeze_verified"] = True
+            fe_dict = fe.to_dict()
+            fe_dict["verified_post_freeze"] = True
+            entry["freeze_evidence"] = fe_dict
             self.state["phase"] = Phase.BASE_SNAPSHOT_VERIFIED.value
             save_state(self.state, self.state_file)
             return self.step()
@@ -825,39 +978,19 @@ class HandoffOrchestrator:
             if self.simulate_freeze_for_test:
                 self.record_freeze(
                     "runtime_image",
-                    FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test", True),
+                    FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test", False),
                 )
                 return self.step()
 
-            return {
-                "status": STATUS_FREEZE_BLOCKED,
-                "phase": self.state["phase"],
-                "state_file": str(self.state_file),
-                "pending_artifact": {
-                    "target": "runtime_image",
-                    "locator": str(runtime_dir),
-                    "materialized_digest": inv_digest,
-                },
-                "missing_primitive": MISSING_PRIMITIVE_MSG,
-                "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
-            }
+            return self._freeze_blocked_result(
+                "runtime_image", self.state["artifacts"]["runtime_image"]
+            )
 
         elif phase == Phase.RUNTIME_IMAGE_AWAITING_FREEZE:
             entry = self.state["artifacts"]["runtime_image"]
             fe_data = entry.get("freeze_evidence")
             if not fe_data:
-                return {
-                    "status": STATUS_FREEZE_BLOCKED,
-                    "phase": phase.value,
-                    "state_file": str(self.state_file),
-                    "pending_artifact": {
-                        "target": "runtime_image",
-                        "locator": entry["locator"],
-                        "materialized_digest": entry["materialized_digest"],
-                    },
-                    "missing_primitive": MISSING_PRIMITIVE_MSG,
-                    "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
-                }
+                return self._freeze_blocked_result("runtime_image", entry)
 
             fe = FreezeEvidence.from_dict(fe_data)
             if (
@@ -867,6 +1000,12 @@ class HandoffOrchestrator:
                 raise ValueError(
                     "simulated freeze boundary is prohibited in production verification"
                 )
+            if fe.boundary_type == FreezeBoundaryType.DEPLOYMENT_ESTABLISHED:
+                if fe.evidence_status != EvidenceStatus.AUTHENTICATED.value:
+                    raise ValueError(
+                        "runtime_image deployment freeze evidence is not authenticated "
+                        f"(status={fe.evidence_status})"
+                    )
 
             # Post-freeze verify runtime image
             bootstrap_dir = Path(self.state["artifacts"]["bootstrap_run_image"]["locator"])
@@ -889,6 +1028,9 @@ class HandoffOrchestrator:
                 raise ValueError("runtime image modified between materialization and freeze")
 
             entry["post_freeze_verified"] = True
+            fe_dict = fe.to_dict()
+            fe_dict["verified_post_freeze"] = True
+            entry["freeze_evidence"] = fe_dict
             self.state["phase"] = Phase.RUNTIME_IMAGE_VERIFIED.value
             save_state(self.state, self.state_file)
             return self.step()
@@ -997,39 +1139,19 @@ class HandoffOrchestrator:
             if self.simulate_freeze_for_test:
                 self.record_freeze(
                     "review_bundle",
-                    FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test", True),
+                    FreezeEvidence(FreezeBoundaryType.SIMULATED_TEST, "simulated_test", False),
                 )
                 return self.step()
 
-            return {
-                "status": STATUS_FREEZE_BLOCKED,
-                "phase": self.state["phase"],
-                "state_file": str(self.state_file),
-                "pending_artifact": {
-                    "target": "review_bundle",
-                    "locator": str(bundle_dir),
-                    "materialized_digest": inv_digest,
-                },
-                "missing_primitive": MISSING_PRIMITIVE_MSG,
-                "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
-            }
+            return self._freeze_blocked_result(
+                "review_bundle", self.state["artifacts"]["review_bundle"]
+            )
 
         elif phase == Phase.REVIEW_BUNDLE_AWAITING_FREEZE:
             entry = self.state["artifacts"]["review_bundle"]
             fe_data = entry.get("freeze_evidence")
             if not fe_data:
-                return {
-                    "status": STATUS_FREEZE_BLOCKED,
-                    "phase": phase.value,
-                    "state_file": str(self.state_file),
-                    "pending_artifact": {
-                        "target": "review_bundle",
-                        "locator": entry["locator"],
-                        "materialized_digest": entry["materialized_digest"],
-                    },
-                    "missing_primitive": MISSING_PRIMITIVE_MSG,
-                    "sufficient_capability": SUFFICIENT_CAPABILITY_MSG,
-                }
+                return self._freeze_blocked_result("review_bundle", entry)
 
             fe = FreezeEvidence.from_dict(fe_data)
             if (
@@ -1039,6 +1161,12 @@ class HandoffOrchestrator:
                 raise ValueError(
                     "simulated freeze boundary is prohibited in production verification"
                 )
+            if fe.boundary_type == FreezeBoundaryType.DEPLOYMENT_ESTABLISHED:
+                if fe.evidence_status != EvidenceStatus.AUTHENTICATED.value:
+                    raise ValueError(
+                        "review_bundle deployment freeze evidence is not authenticated "
+                        f"(status={fe.evidence_status})"
+                    )
 
             # Post-freeze verify review bundle
             bundle_dir = Path(entry["locator"])
@@ -1056,6 +1184,9 @@ class HandoffOrchestrator:
                 raise ValueError("bundle manifest.json missing or corrupted post-freeze")
 
             entry["post_freeze_verified"] = True
+            fe_dict = fe.to_dict()
+            fe_dict["verified_post_freeze"] = True
+            entry["freeze_evidence"] = fe_dict
             self.state["phase"] = Phase.REVIEW_BUNDLE_VERIFIED.value
             save_state(self.state, self.state_file)
             return self.step()
@@ -1067,6 +1198,7 @@ class HandoffOrchestrator:
                 handoff,
                 allow_simulated_boundary=self.simulate_freeze_for_test,
                 check_locators=True,
+                require_authenticated_provider=not self.simulate_freeze_for_test,
                 _test_installer_module=self._test_installer_module,
             )
             self.state["phase"] = Phase.HANDOFF_FINALIZED.value
@@ -1184,11 +1316,21 @@ def verify_handoff(
     if handoff["schema_version"] != HANDOFF_SCHEMA_VERSION:
         raise ValueError(f"unsupported handoff schema version: {handoff['schema_version']}")
 
-    provider = validate_provider_identity(handoff["provider"])
-    if require_authenticated_provider:
+    provider = validate_provider_identity(
+        handoff["provider"],
+        allow_test_provider=allow_simulated_boundary,
+        is_caller_input=False,
+    )
+    if require_authenticated_provider or not allow_simulated_boundary:
         ev = provider.get("observation_evidence", {})
-        if not ev.get("authenticated"):
-            raise ValueError(f"provider observation is not authenticated: {ev.get('source')}")
+        if (
+            not ev.get("authenticated")
+            or ev.get("evidence_status") != EvidenceStatus.AUTHENTICATED.value
+        ):
+            raise ValueError(
+                f"provider observation is not authenticated: source={ev.get('source')} "
+                f"status={ev.get('evidence_status')}"
+            )
 
     exact_base = handoff["exact_base"]
     if not isinstance(exact_base, dict) or set(exact_base.keys()) != {"commit", "tree"}:
@@ -1239,6 +1381,14 @@ def verify_handoff(
             raise ValueError(
                 f"simulated test boundary is prohibited in production verification for {section}"
             )
+        if fe.boundary_type == FreezeBoundaryType.DEPLOYMENT_ESTABLISHED:
+            if fe.evidence_status != EvidenceStatus.AUTHENTICATED.value:
+                raise ValueError(
+                    f"{section} deployment freeze evidence is not authenticated "
+                    f"(status={fe.evidence_status})"
+                )
+            if not fe.verifier:
+                raise ValueError(f"{section} deployment freeze missing verifier provenance")
 
     semantic = handoff["semantic_output"]
     if not isinstance(semantic, dict) or set(semantic.keys()) != {"path", "renderer", "sha256"}:
@@ -1449,6 +1599,8 @@ def prepare_handoff(
     simulate_freeze_for_test: bool = False,
     _test_installer_module: ModuleType | None = None,
     _test_installer_bytes: bytes | None = None,
+    _test_freeze_adapter: Any = None,
+    _test_provider_adapter: Any = None,
 ) -> dict[str, Any]:
     orchestrator = HandoffOrchestrator(
         work_dir=work_dir,
@@ -1463,6 +1615,8 @@ def prepare_handoff(
         simulate_freeze_for_test=simulate_freeze_for_test,
         _test_installer_module=_test_installer_module,
         _test_installer_bytes=_test_installer_bytes,
+        _test_freeze_adapter=_test_freeze_adapter,
+        _test_provider_adapter=_test_provider_adapter,
     )
     return orchestrator.run_to_freeze_or_complete()
 
@@ -1557,6 +1711,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Boundary type.",
     )
     rf.add_argument("--attestation-sha256", default=None, help="Attestation SHA256.")
+    rf.add_argument(
+        "--simulate-freeze-for-test",
+        action="store_true",
+        help="Allow recording simulated test freeze evidence.",
+    )
 
     return parser.parse_args(argv)
 
@@ -1567,17 +1726,41 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "record-freeze":
         try:
             state = load_and_verify_state(args.state_file)
-            fe = FreezeEvidence(
-                boundary_type=FreezeBoundaryType(args.boundary_type),
-                mechanism=args.mechanism,
-                verified_post_freeze=True,
-                attestation_sha256=args.attestation_sha256,
-                timestamp=datetime.now(UTC).isoformat(),
-            )
             target_entry = state.get("artifacts", {}).get(args.target)
             if not target_entry:
                 print(f"Unknown or unmaterialized target: {args.target}", file=sys.stderr)
                 return 1
+
+            if args.boundary_type == FreezeBoundaryType.DEPLOYMENT_ESTABLISHED.value:
+                print(
+                    "Error recording freeze: cannot self-assert deployment_established; "
+                    "no recognized external deployment freeze provider adapter is available",
+                    file=sys.stderr,
+                )
+                return 1
+
+            if args.boundary_type == FreezeBoundaryType.SIMULATED_TEST.value:
+                if not args.simulate_freeze_for_test:
+                    print(
+                        "Error recording freeze: simulated test freeze boundary "
+                        "cannot be recorded in production",
+                        file=sys.stderr,
+                    )
+                    return 1
+
+            fe = FreezeEvidence(
+                boundary_type=FreezeBoundaryType(args.boundary_type),
+                mechanism=args.mechanism,
+                verified_post_freeze=False,
+                evidence_status=(
+                    EvidenceStatus.AUTHENTICATED.value
+                    if args.simulate_freeze_for_test
+                    else EvidenceStatus.DECLARED.value
+                ),
+                attestation_sha256=args.attestation_sha256,
+                timestamp=datetime.now(UTC).isoformat(),
+                verifier="cli_simulated_test" if args.simulate_freeze_for_test else None,
+            )
             target_entry["freeze_evidence"] = fe.to_dict()
             save_state(state, args.state_file)
             print(f"Recorded freeze evidence for {args.target} in {args.state_file}")
@@ -1604,7 +1787,10 @@ def main(argv: list[str] | None = None) -> int:
     # Prepare command
     if args.provider_observation:
         obs_data = json.loads(args.provider_observation.read_text(encoding="utf-8"))
-        provider_id = validate_provider_identity(obs_data)
+        provider_id = validate_provider_identity(
+            obs_data,
+            allow_test_provider=args.simulate_freeze_for_test,
+        )
     else:
         if not (args.repo_id and args.repo_name and args.pr_id and args.pr_number):
             print("Missing provider identification arguments", file=sys.stderr)
@@ -1615,8 +1801,10 @@ def main(argv: list[str] | None = None) -> int:
             "pull_request": {"id": args.pr_id, "number": args.pr_number},
             "observation_evidence": {
                 "source": "caller_declared",
+                "evidence_status": EvidenceStatus.DECLARED.value,
                 "authenticated": False,
                 "retrieved_at": datetime.now(UTC).isoformat(),
+                "verifier": None,
             },
         }
 
@@ -1646,6 +1834,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if result["status"] == STATUS_FREEZE_BLOCKED:
         print(STATUS_FREEZE_BLOCKED)
+        if result.get("canonical_disposition"):
+            print(result["canonical_disposition"])
         print(json.dumps(result, indent=2, sort_keys=True))
         return 2
 
