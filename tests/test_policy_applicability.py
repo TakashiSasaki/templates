@@ -194,14 +194,17 @@ def test_provider_self_host_repository_policy_is_separately_applied() -> None:
     assert "policy-repo.preserve-history-boundary" in effective_rule_ids
 
 
-def test_existing_adopted_core_rules_remain_effective() -> None:
-    """The current baseline core profile delivers its established mandatory rules in order."""
+def test_candidate_core_profile_selects_applicability_with_established_rules() -> None:
+    """Candidate source core profile selects applicability alongside established mandatory rules in
+    canonical order.
+    """
     rules = load_rules(ROOT, ["core"], [])
     rule_ids = [rule.id for rule in rules]
 
     expected_baseline_ids = [
         "core.discover-repository-topology-fail-closed",
         "core.discover-local-checkout-topology-fail-closed",
+        "core.scope-applicability-to-target",
         "changes.define-contract",
         "changes.preserve-acceptance-baseline",
         "changes.minimize-scope",
@@ -220,6 +223,8 @@ def test_existing_adopted_core_rules_remain_effective() -> None:
         "changes.prevent-diagnostic-stall",
     ]
     assert rule_ids == expected_baseline_ids
+    assert len(rule_ids) == 19
+
 
 
 # =============================================================================

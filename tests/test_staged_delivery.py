@@ -1724,7 +1724,7 @@ def test_scenario_c_preserves_canonical_package_root_isolation(
 def test_scenario_d_presentation_map_entry_alone_does_not_select_applicability_rule(
     tmp_path: Path,
 ) -> None:
-    _write_dual_output_repository(tmp_path, profiles=["core"], project_policy_files=[])
+    _write_dual_output_repository(tmp_path, profiles=["security-baseline"], project_policy_files=[])
 
     assert render.run(tmp_path, ".agent-policy.yml") == []
 
@@ -1755,6 +1755,67 @@ def test_scenario_d_presentation_map_entry_alone_does_not_select_applicability_r
     result = _run_guidance(tmp_path, "--rule-id", "core.scope-applicability-to-target")
     assert result.returncode == 2
     assert "unknown selected rule: core.scope-applicability-to-target" in result.stderr
+
+
+def test_candidate_core_profile_selects_applicability_rule_with_staged_delivery_parity(
+    tmp_path: Path,
+) -> None:
+    """Candidate core profile selects applicability rule with full parity across outputs."""
+    _write_dual_output_repository(tmp_path, profiles=["core"], project_policy_files=[])
+
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    full_text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    startup_text = (tmp_path / ".agent-policy/preview/AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+    bundle = json.loads(
+        (tmp_path / ".agent-policy/preview/policy-details.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    # 1. Full AGENTS.md includes the applicability rule
+    assert "core.scope-applicability-to-target" in full_text
+    assert "Scope policy and instruction applicability to the governed target" in full_text
+
+    # 2. Staged startup AGENTS.md includes the applicability rule
+    assert "core.scope-applicability-to-target" in startup_text
+    assert "Scope policy and instruction applicability to the governed target" in startup_text
+
+    # 3. Detail bundle contains rule with proper metadata
+    bundled_rules = bundle["rules"]
+    matching = [r for r in bundled_rules if r["id"] == "core.scope-applicability-to-target"]
+    assert len(matching) == 1
+    rule_entry = matching[0]
+    assert rule_entry["origin"] == "toolchain"
+    assert rule_entry["severity"] == "mandatory"
+    assert rule_entry["overridable"] is False
+    assert rule_entry["order"] == 48
+
+    # 4. Route parity: applicability rule mapped across all 8 operation routes
+    expected_operations = [
+        "inspect", "plan", "edit", "generate",
+        "validate", "review", "merge", "publish",
+    ]
+    operation_routes = bundle["presentation"]["operation_routes"]
+    for op in expected_operations:
+        assert op in operation_routes
+        assert "core.scope-applicability-to-target" in operation_routes[op]
+
+    # 5. Exact ID ordering: order 48 placed between order 46 and order 50
+    bundle_ids = [r["id"] for r in bundled_rules]
+    idx_46 = bundle_ids.index("core.discover-local-checkout-topology-fail-closed")
+    idx_48 = bundle_ids.index("core.scope-applicability-to-target")
+    idx_50 = bundle_ids.index("changes.define-contract")
+    assert idx_46 + 1 == idx_48
+    assert idx_48 + 1 == idx_50
+
+    # 6. Retrieval via guidance command succeeds
+    result = _run_guidance(tmp_path, "--rule-id", "core.scope-applicability-to-target")
+    assert result.returncode == 0
+    assert "Scope policy and instruction applicability to the governed target" in result.stdout
+
 
 
 def test_scenario_f_unmapped_selected_rule_fails_closed_for_operation_retrieval(

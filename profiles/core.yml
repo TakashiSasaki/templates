@@ -1,6 +1,7 @@
 policy_files:
   - policy/core/repository-topology-discovery.md
   - policy/core/local-checkout-topology-discovery.md
+  - policy/core/policy-applicability.md
   - policy/core/change-contract.md
   - policy/core/acceptance-baseline.md
   - policy/core/change-scope.md
