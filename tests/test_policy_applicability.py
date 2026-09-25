@@ -281,8 +281,9 @@ def test_candidate_unadopted_rule_does_not_masquerade_as_older_immutable_pin() -
 
 def test_policy_self_host_check_passes_with_truthful_state() -> None:
     """Policy self-hosting check passes with 0 diagnostics against the locked state."""
-    diagnostics = check.run(ROOT, ".agent-policy.yml")
-    assert diagnostics == [], f"Expected clean self-check, got: {diagnostics}"
+    from scripts.verify_policy_self_host import verify_self_host
+
+    verify_self_host(ROOT)
 
 
 # =============================================================================
@@ -469,7 +470,9 @@ def test_scenario_f_consumer_enters_provider_checkout_cwd(tmp_path: Path) -> Non
 
     # Output was written to consumer target, NOT provider repository
     assert (tmp_path / "AGENTS.md").is_file()
-    assert check.run(ROOT, ".agent-policy.yml") == []
+    from scripts.verify_policy_self_host import verify_self_host
+
+    verify_self_host(ROOT)
 
 
 def test_scenario_g_advisory_role_labels_do_not_override_configuration(tmp_path: Path) -> None:

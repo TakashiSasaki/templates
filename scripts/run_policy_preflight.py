@@ -161,6 +161,11 @@ FOCUSED_TEST_SPECS: tuple[FocusedTest, ...] = (
         parallel_safe=True,
         reason="isolated policy applicability model and scenario verification",
     ),
+    FocusedTest(
+        "tests/test_prospective_self_host_qualification_boundary.py",
+        parallel_safe=False,
+        reason="process-wide monkeypatching of package_root and repository self-host checks",
+    ),
 )
 
 FOCUSED_TESTS: tuple[str, ...] = tuple(spec.path for spec in FOCUSED_TEST_SPECS)
@@ -307,17 +312,17 @@ def check_tests() -> None:
     run(sys.executable, "-m", "pytest")
 
 
+def check_candidate_qualification() -> None:
+    run(sys.executable, "scripts/verify_candidate_qualification.py")
+
+
+def check_self_host() -> None:
+    run(sys.executable, "scripts/verify_policy_self_host.py")
+
+
 def check_self() -> None:
-    run(
-        sys.executable,
-        "-m",
-        "agent_policy.cli",
-        "--repository",
-        str(ROOT),
-        "check",
-        "--config",
-        ".agent-policy.yml",
-    )
+    check_candidate_qualification()
+    check_self_host()
 
 
 def check_installed_command() -> None:
@@ -459,6 +464,8 @@ CHECKS: dict[str, Callable[[], None]] = {
     "lint": check_lint,
     "focused-tests": check_focused_tests,
     "tests": check_tests,
+    "candidate-qualification": check_candidate_qualification,
+    "self-host": check_self_host,
     "self-check": check_self,
     "installed-command": check_installed_command,
     "runtime": check_runtime,

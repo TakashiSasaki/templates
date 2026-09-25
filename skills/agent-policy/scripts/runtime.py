@@ -125,8 +125,33 @@ def find_repository_root(start: Path | None = None) -> Path:
     raise FileNotFoundError("No Git repository root found")
 
 
-def lock_toolchain(path: Path) -> tuple[str, str]:
-    lines = path.read_text(encoding="utf-8").splitlines()
+def _parse_toolchain_payload(text: str, filename: str) -> tuple[str, str]:
+    stripped_text = text.strip()
+    if stripped_text.startswith("{"):
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{filename} is invalid JSON: {exc}") from exc
+        if not isinstance(data, dict):
+            raise ValueError(f"{filename} must be a mapping")
+        toolchain = data.get("toolchain")
+        if not isinstance(toolchain, dict):
+            raise ValueError(f"{filename} is missing the toolchain mapping")
+        allowed = {"repository", "revision"}
+        if set(toolchain) != allowed:
+            missing = ", ".join(sorted(allowed - set(toolchain)))
+            raise ValueError(f"{filename} toolchain is missing keys: {missing}")
+        repository = toolchain["repository"]
+        revision = toolchain["revision"]
+        if repository != "TakashiSasaki/templates":
+            raise ValueError(f"{filename} has an unsupported toolchain repository")
+        if not isinstance(revision, str) or FULL_SHA.fullmatch(revision) is None:
+            raise ValueError(
+                f"{filename} toolchain revision must be a full lowercase commit SHA"
+            )
+        return repository, revision
+
+    lines = text.splitlines()
     in_toolchain = False
     found_toolchain = False
     fields: dict[str, str] = {}
@@ -141,7 +166,7 @@ def lock_toolchain(path: Path) -> tuple[str, str]:
             if stripped == "toolchain:":
                 if found_toolchain:
                     raise ValueError(
-                        ".agent-policy.lock must contain exactly one toolchain mapping"
+                        f"{filename} must contain exactly one toolchain mapping"
                     )
                 found_toolchain = True
                 in_toolchain = True
@@ -152,37 +177,45 @@ def lock_toolchain(path: Path) -> tuple[str, str]:
             continue
         if indent != 2 or ":" not in stripped:
             raise ValueError(
-                ".agent-policy.lock toolchain must be a flat two-space mapping"
+                f"{filename} toolchain must be a flat two-space mapping"
             )
         key, raw_value = stripped.split(":", 1)
         if key not in allowed:
-            raise ValueError(f".agent-policy.lock toolchain has unsupported key: {key}")
+            raise ValueError(f"{filename} toolchain has unsupported key: {key}")
         if key in fields:
-            raise ValueError(f".agent-policy.lock toolchain key is duplicated: {key}")
+            raise ValueError(f"{filename} toolchain key is duplicated: {key}")
         value = raw_value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
             value = value[1:-1]
         elif not value or value[0] in {'"', "'"} or value[-1:] in {'"', "'"}:
             raise ValueError(
-                f".agent-policy.lock toolchain {key} must be a plain scalar"
+                f"{filename} toolchain {key} must be a plain scalar"
             )
         fields[key] = value
 
     if not found_toolchain:
-        raise ValueError(".agent-policy.lock is missing the toolchain mapping")
+        raise ValueError(f"{filename} is missing the toolchain mapping")
     if set(fields) != allowed:
         missing = ", ".join(sorted(allowed - set(fields)))
-        raise ValueError(f".agent-policy.lock toolchain is missing keys: {missing}")
+        raise ValueError(f"{filename} toolchain is missing keys: {missing}")
 
     repository = fields["repository"]
     revision = fields["revision"]
     if repository != "TakashiSasaki/templates":
-        raise ValueError(".agent-policy.lock has an unsupported toolchain repository")
+        raise ValueError(f"{filename} has an unsupported toolchain repository")
     if FULL_SHA.fullmatch(revision) is None:
         raise ValueError(
-            ".agent-policy.lock toolchain revision must be a full lowercase commit SHA"
+            f"{filename} toolchain revision must be a full lowercase commit SHA"
         )
     return repository, revision
+
+
+def lock_toolchain(path: Path) -> tuple[str, str]:
+    return _parse_toolchain_payload(path.read_text(encoding="utf-8"), ".agent-policy.lock")
+
+
+def config_toolchain(path: Path) -> tuple[str, str]:
+    return _parse_toolchain_payload(path.read_text(encoding="utf-8"), ".agent-policy.yml")
 
 
 def select_pin(
@@ -192,9 +225,17 @@ def select_pin(
     manifest_value = load_manifest() if manifest is None else dict(manifest)
     default = pin_from_manifest(manifest_value)
     lock_path = repository_root / ".agent-policy.lock"
+    config_path = repository_root / ".agent-policy.yml"
     if not lock_path.exists():
         return default
     repository, revision = lock_toolchain(lock_path)
+    if config_path.exists():
+        config_repo, config_rev = config_toolchain(config_path)
+        if (config_repo, config_rev) != (repository, revision):
+            raise ValueError(
+                f".agent-policy.yml toolchain ({config_repo}@{config_rev}) "
+                f"does not match .agent-policy.lock ({repository}@{revision})"
+            )
     is_default = revision == default.revision
     return RuntimePin(
         repository=repository,
