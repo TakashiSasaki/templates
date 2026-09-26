@@ -1,3 +1,6 @@
+# agent-policy-generated: true
+# source-skill: maintain-progressive-discovery
+# DO NOT EDIT DIRECTLY
 """Stage A adapter v2. Explicitly selected; never replaces the adopted runtime."""
 
 from __future__ import annotations
