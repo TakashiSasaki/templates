@@ -46,7 +46,6 @@ jobs:
           python3 controller-source/scripts/publication_promotion_intent.py verify-merged \
             --repository-root producer-source \
             --merged-revision "$MERGED_REVISION" \
-            --intent producer-source/publication-promotion-intent.json \
             --trusted-controller-revision "$CONTROLLER" \
             --trusted-policy-revision "$POLICY" \
             --branch "$PR_BRANCH"

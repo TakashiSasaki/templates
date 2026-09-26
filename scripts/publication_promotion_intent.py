@@ -28,6 +28,7 @@ DIGEST = re.compile(r"^[0-9a-f]{64}$")
 ARCHIVE_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 INTENT_NAME = "publication-promotion-intent.json"
 WORKFLOW_PATH = ".github/workflows/integration-reconcile.yml"
+PROMOTION_PR_TITLE = "chore(integration): record trusted publication intent"
 
 
 def _sha256(data: bytes) -> str:
@@ -60,6 +61,146 @@ def _require_artifact(value: dict[str, Any], label: str) -> dict[str, Any]:
 
 def _canonical_json(value: dict[str, Any]) -> bytes:
     return (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _git_output(repository_root: Path, arguments: list[str], label: str) -> bytes:
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(repository_root), *arguments],
+            stderr=subprocess.PIPE,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"could not resolve {label} from the exact Git revision") from exc
+
+
+def _git_text(repository_root: Path, arguments: list[str], label: str) -> str:
+    try:
+        return _git_output(repository_root, arguments, label).decode("ascii").strip()
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{label} is not valid Git text") from exc
+
+
+def _committed_intent_blob(repository_root: Path, merged_revision: str) -> bytes:
+    """Read the allowlisted intent from the merged revision's immutable tree."""
+    entries = [
+        entry for entry in _git_output(
+            repository_root,
+            ["ls-tree", "-z", "--full-tree", merged_revision, "--", INTENT_NAME],
+            "the merged promotion-intent tree entry",
+        ).split(b"\0")
+        if entry
+    ]
+    if len(entries) != 1:
+        raise ValueError("merged revision must contain exactly one promotion-intent tree entry")
+    try:
+        metadata, path = entries[0].split(b"\t", 1)
+    except ValueError as exc:
+        raise ValueError("merged promotion-intent tree entry is malformed") from exc
+    fields = metadata.split()
+    if len(fields) != 3 or path != INTENT_NAME.encode("utf-8"):
+        raise ValueError("merged promotion-intent tree entry is malformed")
+    mode, object_type, object_id = (field.decode("ascii", errors="replace") for field in fields)
+    if mode != "100644":
+        raise ValueError("merged promotion intent has an unexpected Git mode")
+    if object_type != "blob":
+        raise ValueError("merged promotion intent is not a regular Git blob")
+    if SHA.fullmatch(object_id) is None:
+        raise ValueError("merged promotion intent object ID is malformed")
+    actual_type = _git_text(
+        repository_root,
+        ["cat-file", "-t", object_id],
+        "the committed promotion-intent object",
+    )
+    if actual_type != "blob":
+        raise ValueError("merged promotion intent object is not a regular Git blob")
+    return _git_output(
+        repository_root,
+        ["cat-file", "blob", object_id],
+        "the committed promotion-intent blob",
+    )
+
+
+def verify_live_consumer_base(*, expected_base: str, live_base: str) -> None:
+    expected_base = _require_sha(expected_base, "expected Integration consumer base")
+    live_base = _require_sha(live_base, "live Integration target revision")
+    if live_base != expected_base:
+        raise ValueError("live Integration target differs from the reconciled consumer base")
+
+
+def verify_existing_promotion_pr(
+    *,
+    pr: dict[str, Any],
+    repository_root: Path,
+    repository: str,
+    expected_base: str,
+    expected_tree: str,
+    expected_intent_digest: str,
+    expected_branch: str,
+    expected_idempotency_key: str,
+    expected_paths: set[str],
+    remote_head_ref: str,
+) -> dict[str, Any]:
+    """Verify every binding before reusing an existing automation PR."""
+    expected_base = _require_sha(expected_base, "expected Integration consumer base")
+    expected_tree = _require_sha(expected_tree, "expected deterministic mutation tree")
+    expected_intent_digest = _require_digest(expected_intent_digest, "expected promotion-intent digest")
+    expected_idempotency_key = _require_digest(expected_idempotency_key, "expected promotion idempotency key")
+    if not isinstance(pr, dict):
+        raise ValueError("existing promotion PR response is malformed")
+    if pr.get("state") != "open" or pr.get("merged_at") is not None:
+        raise ValueError("existing promotion PR is not open")
+    if pr.get("title") != PROMOTION_PR_TITLE:
+        raise ValueError("existing promotion PR title is not the deterministic promotion title")
+    base = pr.get("base")
+    head = pr.get("head")
+    if not isinstance(base, dict) or not isinstance(head, dict):
+        raise ValueError("existing promotion PR base or head binding is malformed")
+    if base.get("ref") != "integration" or base.get("sha") != expected_base:
+        raise ValueError("existing promotion PR base branch or base SHA is stale")
+    if head.get("ref") != expected_branch:
+        raise ValueError("existing promotion PR head branch is not the expected automation branch")
+    head_sha = _require_sha(head.get("sha"), "existing promotion PR head SHA")
+    for side, binding in (("base", base), ("head", head)):
+        repo = binding.get("repo")
+        if not isinstance(repo, dict) or repo.get("full_name") != repository:
+            raise ValueError(f"existing promotion PR {side} repository binding is not the target repository")
+    body = pr.get("body")
+    if not isinstance(body, str):
+        raise ValueError("existing promotion PR body is missing")
+    if f"Consumer base: {expected_base}" not in body:
+        raise ValueError("existing promotion PR body has a different consumer base")
+    if f"Idempotency key: {expected_idempotency_key}" not in body:
+        raise ValueError("existing promotion PR body has a different idempotency key")
+
+    remote_head = _git_text(repository_root, ["rev-parse", remote_head_ref], "the automation branch tip")
+    if remote_head != head_sha:
+        raise ValueError("existing promotion PR head is stale relative to its automation branch")
+    parent_line = _git_text(
+        repository_root,
+        ["rev-list", "--parents", "-n", "1", head_sha],
+        "the existing promotion PR head commit",
+    )
+    parents = parent_line.split()
+    if len(parents) != 2 or parents[1] != expected_base:
+        raise ValueError("existing promotion PR head is not the exact deterministic commit on the consumer base")
+    actual_tree = _git_text(repository_root, ["rev-parse", f"{head_sha}^{{tree}}"], "the existing promotion PR head tree")
+    if actual_tree != expected_tree:
+        raise ValueError("existing promotion PR head tree differs from the deterministic intended mutation")
+    actual_paths = set(_git_text(
+        repository_root,
+        ["diff", "--name-only", expected_base, head_sha],
+        "the existing promotion PR mutation",
+    ).splitlines())
+    if actual_paths != expected_paths:
+        raise ValueError("existing promotion PR contains unexpected mutation paths")
+    committed_intent = _git_output(
+        repository_root,
+        ["show", f"{head_sha}:{INTENT_NAME}"],
+        "the existing promotion PR intent blob",
+    )
+    if _sha256(committed_intent) != expected_intent_digest:
+        raise ValueError("existing promotion PR intent differs from the trusted deterministic intent")
+    return pr
 
 
 def _provider_tuple(lock_path: Path) -> dict[str, str]:
@@ -404,10 +545,10 @@ def verify_merged_intent(
     *,
     repository_root: Path,
     merged_revision: str,
-    intent_path: Path,
     trusted_controller_revision: str,
     trusted_policy_revision: str,
     branch: str,
+    intent_path: Path | None = None,
 ) -> dict[str, Any]:
     merged_revision = _require_sha(merged_revision, "merged Integration revision")
     try:
@@ -425,7 +566,9 @@ def verify_merged_intent(
         raise ValueError("could not resolve the merged producer and its exact Integration parent") from exc
     if actual_head != merged_revision:
         raise ValueError("producer checkout is not the exact merged Integration revision")
-    intent_bytes = intent_path.read_bytes()
+    # The legacy path parameter is deliberately ignored. The merged intent is
+    # authoritative only when read from the exact merged Git tree.
+    intent_bytes = _committed_intent_blob(repository_root, merged_revision)
     intent = json.loads(intent_bytes)
     if not isinstance(intent, dict):
         raise ValueError("promotion intent must be a JSON object")
@@ -496,10 +639,24 @@ def main() -> int:
                             type=Path if argument in {"intent", "base-lock", "selected-lock", "github-output"} else str)
     merged = commands.add_parser("verify-merged")
     for argument in (
-        "repository-root", "merged-revision", "intent", "trusted-controller-revision", "trusted-policy-revision", "branch",
+        "repository-root", "merged-revision", "trusted-controller-revision", "trusted-policy-revision", "branch",
     ):
         merged.add_argument("--" + argument, required=True,
-                            type=Path if argument in {"repository-root", "intent"} else str)
+                            type=Path if argument == "repository-root" else str)
+    target = commands.add_parser("verify-target")
+    target.add_argument("--expected-base", required=True)
+    target.add_argument("--live-base", required=True)
+    pr = commands.add_parser("verify-pr")
+    for argument in (
+        "pr-json", "repository-root", "repository", "expected-base", "expected-tree",
+        "expected-intent-digest", "expected-branch", "expected-idempotency-key", "remote-head-ref",
+    ):
+        pr.add_argument(
+            "--" + argument,
+            required=True,
+            type=Path if argument in {"pr-json", "repository-root"} else str,
+        )
+    pr.add_argument("--expected-path", action="append", default=[])
     args = parser.parse_args()
     try:
         if args.command == "build":
@@ -539,14 +696,31 @@ def main() -> int:
                 with args.github_output.open("a", encoding="utf-8") as stream:
                     stream.write(f"lock_update_required={str(intent['lock_update_required']).lower()}\n")
             print("verified")
-        else:
+        elif args.command == "verify-merged":
             verify_merged_intent(
                 repository_root=args.repository_root,
                 merged_revision=args.merged_revision,
-                intent_path=args.intent,
                 trusted_controller_revision=args.trusted_controller_revision,
                 trusted_policy_revision=args.trusted_policy_revision,
                 branch=args.branch,
+            )
+            print("verified")
+        elif args.command == "verify-target":
+            verify_live_consumer_base(expected_base=args.expected_base, live_base=args.live_base)
+            print("verified")
+        else:
+            pr_value = json.loads(args.pr_json.read_text(encoding="utf-8"))
+            verify_existing_promotion_pr(
+                pr=pr_value,
+                repository_root=args.repository_root,
+                repository=args.repository,
+                expected_base=args.expected_base,
+                expected_tree=args.expected_tree,
+                expected_intent_digest=args.expected_intent_digest,
+                expected_branch=args.expected_branch,
+                expected_idempotency_key=args.expected_idempotency_key,
+                expected_paths=set(args.expected_path),
+                remote_head_ref=args.remote_head_ref,
             )
             print("verified")
     except (OSError, SourceLockError, ValueError, json.JSONDecodeError) as exc:

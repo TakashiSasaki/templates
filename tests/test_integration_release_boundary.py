@@ -96,6 +96,20 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || github.sha', controller)
         self.assertIn('Bind the reconciliation controller to its trusted identity', controller)
 
+    def test_privileged_promotion_revalidates_live_target_and_pr_binding_before_mutation(self):
+        reconcile = (ROOT / '.github/workflows/integration-reconcile.yml').read_text()
+        promotion = reconcile.split('  promote_lock_pr:', 1)[1]
+        self.assertIn('git -C integration-base fetch --quiet origin refs/heads/integration', promotion)
+        self.assertIn('publication_promotion_intent.py verify-target', promotion)
+        self.assertIn('publication_promotion_intent.py "${args[@]}"', promotion)
+        self.assertIn('refs/heads/$BRANCH:refs/remotes/origin/$BRANCH', promotion)
+        self.assertIn('git -C integration-base push --force-with-lease="refs/heads/$BRANCH:$branch_before"', promotion)
+        self.assertIn('verify_target\n          git -C integration-base push', promotion)
+        self.assertIn('verify_target\n            gh pr create', promotion)
+        self.assertIn('verify_existing "$existing"\n          gh pr merge', promotion)
+        self.assertGreaterEqual(promotion.count('verify_existing "$existing"'), 4)
+        self.assertNotIn('remains authoritative', promotion)
+
     def test_promotion_receipt_keeps_trusted_activation_gate_at_notify_boundary(self):
         workflow = (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
         notify = workflow.split('  notify:', 1)[1]
@@ -109,6 +123,7 @@ class ReleaseBoundaryTests(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertIn(required, notify)
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', workflow)
+        self.assertNotIn('--intent producer-source/publication-promotion-intent.json', workflow)
 
     def test_existing_selection_has_a_trusted_promotion_intent_path(self):
         reconcile = yaml.safe_load((ROOT / '.github/workflows/integration-reconcile.yml').read_text())

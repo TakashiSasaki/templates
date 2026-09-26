@@ -6,7 +6,13 @@ import subprocess
 import tempfile
 import unittest
 
-from scripts.publication_promotion_intent import build_intent, verify_merged_intent, verify_premerge_intent
+from scripts.publication_promotion_intent import (
+    build_intent,
+    verify_existing_promotion_pr,
+    verify_live_consumer_base,
+    verify_merged_intent,
+    verify_premerge_intent,
+)
 from scripts.resolve_publication_sources import render_source_lock
 
 
@@ -145,6 +151,94 @@ class PublicationPromotionIntentTests(unittest.TestCase):
         )
         return current, candidate, intent
 
+    def _new_git_repo(self, directory: str):
+        root = Path(directory) / "merged-repo"
+        root.mkdir()
+        subprocess.run(["git", "init", "-b", "integration", str(root)], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(root), "config", "user.name", "Test"], check=True)
+        subprocess.run(["git", "-C", str(root), "config", "user.email", "test@example.invalid"], check=True)
+        (root / "publication-sources.json").write_bytes(render_source_lock({
+            "modeling": MODELING,
+            "composition": COMPOSITION,
+            "policy": PROVIDER_POLICY,
+        }))
+        subprocess.run(["git", "-C", str(root), "add", "publication-sources.json"], check=True)
+        subprocess.run(["git", "-C", str(root), "commit", "-m", "base"], check=True, capture_output=True)
+        base = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+        return root, base
+
+    def _merge_intent(self, root: Path, base: str, intent_bytes: bytes, kind: str = "regular"):
+        intent_path = root / "publication-promotion-intent.json"
+        if kind == "symlink":
+            (root / "outside-intent.json").write_bytes(intent_bytes)
+            intent_path.symlink_to("outside-intent.json")
+        elif kind == "tree":
+            intent_path.mkdir()
+            (intent_path / "nested").write_bytes(intent_bytes)
+        else:
+            intent_path.write_bytes(intent_bytes)
+            if kind == "executable":
+                intent_path.chmod(0o755)
+        if kind == "symlink":
+            subprocess.run(["git", "-C", str(root), "add", "publication-promotion-intent.json"], check=True)
+        else:
+            subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(root), "commit", "-m", "intent"], check=True, capture_output=True)
+        intent_commit = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+        tree = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD^{tree}"], text=True).strip()
+        merge = subprocess.check_output(
+            ["git", "-C", str(root), "commit-tree", tree, "-p", base, "-p", intent_commit, "-m", "merge"],
+            text=True,
+        ).strip()
+        subprocess.run(["git", "-C", str(root), "update-ref", "refs/heads/integration", merge], check=True)
+        subprocess.run(["git", "-C", str(root), "checkout", "--detach", merge], check=True, capture_output=True)
+        return merge
+
+    def _merged_fixture(self, directory: str, kind: str = "regular", intent_mutator=None):
+        root, base = self._new_git_repo(directory)
+        _, _, intent = self._build(Path(directory), base)
+        if intent_mutator is not None:
+            intent_mutator(intent)
+        intent_bytes = _write_json(Path(directory) / "intent-fixture.json", intent)
+        merge = self._merge_intent(root, base, intent_bytes, kind)
+        branch = f"automation/publication-{intent['idempotency_key']}"
+        return root, base, merge, intent, intent_bytes, branch
+
+    def _existing_pr_fixture(self, directory: str):
+        root, base = self._new_git_repo(directory)
+        _, _, intent = self._build(Path(directory), base)
+        intent_path = root / "publication-promotion-intent.json"
+        intent_bytes = _write_json(intent_path, intent)
+        subprocess.run(["git", "-C", str(root), "add", str(intent_path)], check=True)
+        expected_tree = subprocess.check_output(["git", "-C", str(root), "write-tree"], text=True).strip()
+        subprocess.run(["git", "-C", str(root), "commit", "-m", "intent"], check=True, capture_output=True)
+        head = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+        branch = f"automation/publication-{intent['idempotency_key']}"
+        remote_head_ref = f"refs/remotes/origin/{branch}"
+        subprocess.run(["git", "-C", str(root), "update-ref", remote_head_ref, head], check=True)
+        repository = "TakashiSasaki/templates"
+        pr = {
+            "number": 17,
+            "state": "open",
+            "merged_at": None,
+            "title": "chore(integration): record trusted publication intent",
+            "body": (
+                f"Guarded deterministic Integration publication promotion. Consumer base: {base}. "
+                f"Idempotency key: {intent['idempotency_key']}."
+            ),
+            "base": {
+                "ref": "integration",
+                "sha": base,
+                "repo": {"full_name": repository},
+            },
+            "head": {
+                "ref": branch,
+                "sha": head,
+                "repo": {"full_name": repository},
+            },
+        }
+        return root, base, head, expected_tree, intent, intent_bytes, branch, remote_head_ref, repository, pr
+
     def test_current_lock_produces_a_bound_marker_only_intent(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -233,6 +327,7 @@ class PublicationPromotionIntentTests(unittest.TestCase):
             intent_path = root / "publication-promotion-intent.json"
             intent_path.write_bytes((json.dumps(intent, indent=2, sort_keys=True) + "\n").encode())
             branch = f"automation/publication-{intent['idempotency_key']}"
+            original_branch = branch
             subprocess.run(["git", "-C", str(root), "switch", "-c", branch], check=True, capture_output=True)
             subprocess.run(["git", "-C", str(root), "add", "publication-promotion-intent.json"], check=True)
             subprocess.run(["git", "-C", str(root), "commit", "-m", "intent"], check=True, capture_output=True)
@@ -261,7 +356,76 @@ class PublicationPromotionIntentTests(unittest.TestCase):
             intent["idempotency_key"] = _idempotency_key(intent["qualification_inputs"], intent["trusted"])
             branch = f"automation/publication-{intent['idempotency_key']}"
             intent_path.write_bytes((json.dumps(intent, indent=2, sort_keys=True) + "\n").encode())
+            subprocess.run(["git", "-C", str(root), "add", "publication-promotion-intent.json"], check=True)
+            subprocess.run(["git", "-C", str(root), "commit", "-m", "tampered intent"], check=True, capture_output=True)
+            tampered_commit = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+            tampered_tree = subprocess.check_output(
+                ["git", "-C", str(root), "rev-parse", "HEAD^{tree}"], text=True
+            ).strip()
+            tampered_merge = subprocess.check_output(
+                ["git", "-C", str(root), "commit-tree", tampered_tree, "-p", base, "-p", tampered_commit, "-m", "merge tampered"],
+                text=True,
+            ).strip()
+            subprocess.run(["git", "-C", str(root), "checkout", "--detach", tampered_merge], check=True, capture_output=True)
             with self.assertRaisesRegex(ValueError, "first parent"):
+                verify_merged_intent(
+                    repository_root=root,
+                    merged_revision=tampered_merge,
+                    intent_path=intent_path,
+                    trusted_controller_revision=CONTROLLER,
+                    trusted_policy_revision=POLICY,
+                    branch=branch,
+                )
+
+            subprocess.run(["git", "-C", str(root), "checkout", "--detach", merge], check=True, capture_output=True)
+            with self.assertRaisesRegex(ValueError, "trust pins"):
+                verify_merged_intent(
+                    repository_root=root,
+                    merged_revision=merge,
+                    intent_path=intent_path,
+                    trusted_controller_revision=CONTROLLER,
+                    trusted_policy_revision="a" * 40,
+                    branch=original_branch,
+                )
+
+    def test_merged_intent_accepts_only_the_exact_committed_regular_blob(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, base, merge, intent, intent_bytes, branch = self._merged_fixture(directory)
+            result = verify_merged_intent(
+                repository_root=root,
+                merged_revision=merge,
+                intent_path=root / "publication-promotion-intent.json",
+                trusted_controller_revision=CONTROLLER,
+                trusted_policy_revision=POLICY,
+                branch=branch,
+            )
+            self.assertEqual(result, intent)
+
+            tampered = copy.deepcopy(intent)
+            tampered["qualification"]["workflow_name"] = "tampered worktree copy"
+            (root / "publication-promotion-intent.json").write_bytes(
+                (json.dumps(tampered, indent=2, sort_keys=True) + "\n").encode()
+            )
+            result = verify_merged_intent(
+                repository_root=root,
+                merged_revision=merge,
+                intent_path=root / "publication-promotion-intent.json",
+                trusted_controller_revision=CONTROLLER,
+                trusted_policy_revision=POLICY,
+                branch=branch,
+            )
+            self.assertEqual(result["qualification"]["workflow_name"], intent["qualification"]["workflow_name"])
+            self.assertNotEqual((root / "publication-promotion-intent.json").read_bytes(), intent_bytes)
+
+    def test_merged_intent_rejects_the_symlink_exploit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, _, merge, _, _, branch = self._merged_fixture(directory, kind="symlink")
+            intent_path = root / "publication-promotion-intent.json"
+            self.assertTrue(intent_path.is_symlink())
+            tracked = subprocess.check_output(["git", "-C", str(root), "ls-files"], text=True).splitlines()
+            self.assertNotIn("outside-intent.json", tracked)
+            self.assertEqual(intent_path.read_bytes(), (root / "outside-intent.json").read_bytes())
+            with self.assertRaisesRegex(ValueError, "unexpected Git mode"):
                 verify_merged_intent(
                     repository_root=root,
                     merged_revision=merge,
@@ -271,22 +435,146 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                     branch=branch,
                 )
 
-            intent["source_integration_revision"] = base
-            intent["consumer_base_revision"] = base
-            intent["qualification_inputs"]["integration_revision"] = base
-            intent["idempotency_key"] = _idempotency_key(intent["qualification_inputs"], intent["trusted"])
-            branch = f"automation/publication-{intent['idempotency_key']}"
-            intent_path.write_bytes((json.dumps(intent, indent=2, sort_keys=True) + "\n").encode())
-            with self.assertRaisesRegex(ValueError, "trust pins"):
+    def test_merged_intent_rejects_unexpected_mode_and_object_type(self):
+        for kind in ("executable", "tree"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root, _, merge, _, _, branch = self._merged_fixture(directory, kind=kind)
+                with self.assertRaisesRegex(ValueError, "Git"):
+                    verify_merged_intent(
+                        repository_root=root,
+                        merged_revision=merge,
+                        intent_path=root / "publication-promotion-intent.json",
+                        trusted_controller_revision=CONTROLLER,
+                        trusted_policy_revision=POLICY,
+                        branch=branch,
+                    )
+
+    def test_merged_intent_rejects_tampered_committed_blob(self):
+        def tamper(intent):
+            intent["base_lock_digest"] = "0" * 64
+
+        with tempfile.TemporaryDirectory() as directory:
+            root, _, merge, _, _, branch = self._merged_fixture(directory, intent_mutator=tamper)
+            with self.assertRaisesRegex(ValueError, "parent lock"):
                 verify_merged_intent(
                     repository_root=root,
                     merged_revision=merge,
-                    intent_path=intent_path,
+                    intent_path=root / "publication-promotion-intent.json",
                     trusted_controller_revision=CONTROLLER,
-                    trusted_policy_revision="a" * 40,
+                    trusted_policy_revision=POLICY,
                     branch=branch,
                 )
 
+    def test_merged_intent_rejects_noncanonical_committed_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, base = self._new_git_repo(directory)
+            _, _, intent = self._build(Path(directory), base)
+            noncanonical = (json.dumps(intent, sort_keys=True) + "\n").encode()
+            merge = self._merge_intent(root, base, noncanonical)
+            branch = f"automation/publication-{intent['idempotency_key']}"
+            with self.assertRaisesRegex(ValueError, "canonical"):
+                verify_merged_intent(
+                    repository_root=root,
+                    merged_revision=merge,
+                    intent_path=root / "publication-promotion-intent.json",
+                    trusted_controller_revision=CONTROLLER,
+                    trusted_policy_revision=POLICY,
+                    branch=branch,
+                )
+
+    def test_live_consumer_base_compare_and_swap_stops_when_target_moves(self):
+        verify_live_consumer_base(expected_base="a" * 40, live_base="a" * 40)
+        with self.assertRaisesRegex(ValueError, "differs"):
+            verify_live_consumer_base(expected_base="a" * 40, live_base="b" * 40)
+
+    def test_existing_promotion_pr_requires_exact_base_head_tree_and_intent_bindings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (
+                root, base, head, expected_tree, intent, intent_bytes, branch,
+                remote_head_ref, repository, pr,
+            ) = self._existing_pr_fixture(directory)
+
+            verified = verify_existing_promotion_pr(
+                pr=pr,
+                repository_root=root,
+                repository=repository,
+                expected_base=base,
+                expected_tree=expected_tree,
+                expected_intent_digest=_digest(intent_bytes),
+                expected_branch=branch,
+                expected_idempotency_key=intent["idempotency_key"],
+                expected_paths={"publication-promotion-intent.json"},
+                remote_head_ref=remote_head_ref,
+            )
+            self.assertEqual(verified["head"]["sha"], head)
+
+            wrong_base = copy.deepcopy(pr)
+            wrong_base["base"]["ref"] = "main"
+            with self.assertRaisesRegex(ValueError, "base branch"):
+                verify_existing_promotion_pr(
+                    pr=wrong_base, repository_root=root, repository=repository,
+                    expected_base=base, expected_tree=expected_tree,
+                    expected_intent_digest=_digest(intent_bytes), expected_branch=branch,
+                    expected_idempotency_key=intent["idempotency_key"],
+                    expected_paths={"publication-promotion-intent.json"}, remote_head_ref=remote_head_ref,
+                )
+
+            wrong_head = copy.deepcopy(pr)
+            wrong_head["head"]["ref"] = "automation/publication-other"
+            with self.assertRaisesRegex(ValueError, "head branch"):
+                verify_existing_promotion_pr(
+                    pr=wrong_head, repository_root=root, repository=repository,
+                    expected_base=base, expected_tree=expected_tree,
+                    expected_intent_digest=_digest(intent_bytes), expected_branch=branch,
+                    expected_idempotency_key=intent["idempotency_key"],
+                    expected_paths={"publication-promotion-intent.json"}, remote_head_ref=remote_head_ref,
+                )
+
+            stale = copy.deepcopy(pr)
+            stale["head"]["sha"] = base
+            subprocess.run(["git", "-C", str(root), "update-ref", remote_head_ref, base], check=True)
+            with self.assertRaisesRegex(ValueError, "exact deterministic commit"):
+                verify_existing_promotion_pr(
+                    pr=stale, repository_root=root, repository=repository,
+                    expected_base=base, expected_tree=expected_tree,
+                    expected_intent_digest=_digest(intent_bytes), expected_branch=branch,
+                    expected_idempotency_key=intent["idempotency_key"],
+                    expected_paths={"publication-promotion-intent.json"}, remote_head_ref=remote_head_ref,
+                )
+            subprocess.run(["git", "-C", str(root), "update-ref", remote_head_ref, head], check=True)
+
+            unexpected = copy.deepcopy(pr)
+            (root / "unexpected.txt").write_text("unexpected\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "unexpected.txt"], check=True)
+            unexpected_tree = subprocess.check_output(["git", "-C", str(root), "write-tree"], text=True).strip()
+            unexpected_head = subprocess.check_output(
+                ["git", "-C", str(root), "commit-tree", unexpected_tree, "-p", base, "-m", "unexpected"],
+                text=True,
+            ).strip()
+            subprocess.run(["git", "-C", str(root), "update-ref", remote_head_ref, unexpected_head], check=True)
+            unexpected["head"]["sha"] = unexpected_head
+            with self.assertRaisesRegex(ValueError, "tree differs"):
+                verify_existing_promotion_pr(
+                    pr=unexpected, repository_root=root, repository=repository,
+                    expected_base=base, expected_tree=expected_tree,
+                    expected_intent_digest=_digest(intent_bytes), expected_branch=branch,
+                    expected_idempotency_key=intent["idempotency_key"],
+                    expected_paths={"publication-promotion-intent.json"}, remote_head_ref=remote_head_ref,
+                )
+
+            different_binding = copy.deepcopy(pr)
+            different_binding["body"] = different_binding["body"].replace(
+                intent["idempotency_key"], "0" * 64
+            )
+            subprocess.run(["git", "-C", str(root), "update-ref", remote_head_ref, head], check=True)
+            with self.assertRaisesRegex(ValueError, "idempotency key"):
+                verify_existing_promotion_pr(
+                    pr=different_binding, repository_root=root, repository=repository,
+                    expected_base=base, expected_tree=expected_tree,
+                    expected_intent_digest=_digest(intent_bytes), expected_branch=branch,
+                    expected_idempotency_key=intent["idempotency_key"],
+                    expected_paths={"publication-promotion-intent.json"}, remote_head_ref=remote_head_ref,
+                )
 
 if __name__ == "__main__":
     unittest.main()

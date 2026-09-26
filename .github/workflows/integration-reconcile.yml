@@ -400,29 +400,98 @@ jobs:
           actual_paths=$(git -C integration-base diff --cached --name-only | sort)
           test "$actual_paths" = "$(printf '%s\n' "$expected_paths" | sort)"
           test -z "$(git -C integration-base diff --cached --summary)"
-      - name: Create or reconcile the idempotent adoption PR
+      - name: Revalidate the live target before every privileged PR action
         env:
           BRANCH: automation/publication-$IDEMPOTENCY_KEY
         run: |
+          set -euo pipefail
           gh auth setup-git
           git -C integration-base config user.name publication-controller
           git -C integration-base config user.email publication-controller@users.noreply.github.com
-          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --state open --json number --jq '.[0].number')
+          expected_tree=$(git -C integration-base write-tree)
+          expected_paths=("publication-promotion-intent.json")
+          if [ "$LOCK_UPDATE_REQUIRED" = true ]; then
+            expected_paths+=("publication-sources.json")
+          fi
+          repository_owner="${GITHUB_REPOSITORY%%/*}"
+          open_pr_numbers() {
+            gh api \
+              "repos/$GITHUB_REPOSITORY/pulls?state=open&base=integration&head=$repository_owner:$BRANCH&per_page=100" \
+              --jq '.[].number'
+          }
+          require_at_most_one_pr() {
+            local numbers="$1"
+            local count
+            count=$(printf '%s\n' "$numbers" | awk 'NF { count++ } END { print count + 0 }')
+            if [ "$count" -gt 1 ]; then
+              echo 'Multiple open PRs are bound to the same automation branch; stop.' >&2
+              return 1
+            fi
+          }
+          verify_target() {
+            git -C integration-base fetch --quiet origin refs/heads/integration
+            live_base=$(git -C integration-base rev-parse FETCH_HEAD)
+            python3 controller-source/scripts/publication_promotion_intent.py verify-target \
+              --expected-base "$EXPECTED_CONSUMER_BASE" \
+              --live-base "$live_base"
+          }
+          verify_existing() {
+            local pr="$1"
+            local pr_json="$RUNNER_TEMP/publication-pr-$pr.json"
+            verify_target
+            git -C integration-base fetch --quiet origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" > "$pr_json"
+            verify_target
+            args=(
+              verify-pr
+              --pr-json "$pr_json"
+              --repository-root integration-base
+              --repository "$GITHUB_REPOSITORY"
+              --expected-base "$EXPECTED_CONSUMER_BASE"
+              --expected-tree "$expected_tree"
+              --expected-intent-digest "$PROMOTION_INTENT_DIGEST"
+              --expected-branch "$BRANCH"
+              --expected-idempotency-key "$IDEMPOTENCY_KEY"
+              --remote-head-ref "refs/remotes/origin/$BRANCH"
+            )
+            for path in "${expected_paths[@]}"; do args+=(--expected-path "$path"); done
+            python3 controller-source/scripts/publication_promotion_intent.py "${args[@]}"
+          }
+
+          existing=$(open_pr_numbers)
+          require_at_most_one_pr "$existing"
           if [ -n "$existing" ]; then
-            echo "Existing idempotent Integration adoption PR #$existing remains authoritative."
+            verify_existing "$existing"
+            # Re-read the live target and PR immediately before the merge request.
+            verify_existing "$existing"
+            gh pr merge "$existing" --repo "$GITHUB_REPOSITORY" --auto --squash
             exit 0
           fi
-          if git -C integration-base ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+          branch_before=$(git -C integration-base ls-remote origin "refs/heads/$BRANCH" | awk 'NF { print $1 }')
+          if [ -n "$branch_before" ]; then
             echo 'An idempotency branch exists without an open PR; stop for human recovery.' >&2
             exit 1
           fi
+          # This target check is immediately before the branch push.
+          verify_target
           git -C integration-base switch -c "$BRANCH"
-          git -C integration-base diff --cached --quiet && exit 0
           git -C integration-base commit -m "chore(integration): record trusted publication intent"
-          git -C integration-base push --force-with-lease origin "HEAD:$BRANCH"
-          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --json number --jq '.[0].number')
+          test "$(git -C integration-base rev-parse HEAD^{tree})" = "$expected_tree"
+          test "$(git -C integration-base rev-parse HEAD^1)" = "$EXPECTED_CONSUMER_BASE"
+          verify_target
+          git -C integration-base push --force-with-lease="refs/heads/$BRANCH:$branch_before" origin "HEAD:$BRANCH"
+          verify_target
+          existing=$(open_pr_numbers)
+          require_at_most_one_pr "$existing"
           if [ -z "$existing" ]; then
+            # This target check is immediately before PR creation.
+            verify_target
             gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --title "chore(integration): record trusted publication intent" --body "Guarded deterministic Integration publication promotion. Consumer base: $EXPECTED_CONSUMER_BASE. Idempotency key: $IDEMPOTENCY_KEY. The PR updates the provider lock only when it differs; otherwise it records the exact trusted promotion intent. Post-merge qualification uses the merged Integration revision. Auto-merge remains subject to branch protection and required CI."
+            existing=$(open_pr_numbers)
+            require_at_most_one_pr "$existing"
           fi
-          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --json number --jq '.[0].number')
-          gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --auto --squash
+          test -n "$existing"
+          verify_existing "$existing"
+          # Re-read the live target and PR immediately before the merge request.
+          verify_existing "$existing"
+          gh pr merge "$existing" --repo "$GITHUB_REPOSITORY" --auto --squash
