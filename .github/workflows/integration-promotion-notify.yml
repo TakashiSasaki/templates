@@ -7,15 +7,62 @@ permissions:
   contents: read
   actions: read
 jobs:
-  release_qualification:
+  validate_promotion_intent:
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
       github.event.pull_request.base.ref == 'integration' &&
+      (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
+      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
       vars.PUBLICATION_CONTROLLER_REVISION != '' &&
       vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}
+          path: controller-source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          path: producer-source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify same-repository provenance and the exact merged intent
+        env:
+          MERGED_REVISION: ${{ github.event.pull_request.merge_commit_sha }}
+          CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}
+          POLICY: ${{ vars.PUBLICATION_POLICY_REVISION }}
+        run: |
+          test "$(git -C producer-source rev-parse HEAD)" = "$MERGED_REVISION"
+          test "$(git -C controller-source rev-parse HEAD)" = "$CONTROLLER"
+          python3 controller-source/scripts/publication_promotion_intent.py verify-merged-pr \
+            --event "$GITHUB_EVENT_PATH" \
+            --repository "$GITHUB_REPOSITORY" \
+            --repository-root producer-source \
+            --merged-revision "$MERGED_REVISION" \
+            --trusted-controller-revision "$CONTROLLER" \
+            --trusted-policy-revision "$POLICY"
+
+  release_qualification:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      needs.validate_promotion_intent.result == 'success' &&
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
+      github.event.pull_request.base.ref == 'integration' &&
+      (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
+      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+    needs: validate_promotion_intent
     uses: ./.github/workflows/integration-qualification.yml
     with:
       producer_ref: ${{ github.event.pull_request.merge_commit_sha }}
@@ -28,10 +75,15 @@ jobs:
       actions: read
 
   verify_release:
-    needs: release_qualification
+    needs:
+      - validate_promotion_intent
+      - release_qualification
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
+      needs.validate_promotion_intent.result == 'success' &&
       needs.release_qualification.result == 'success' &&
+      (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
+      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
       vars.PUBLICATION_CONTROLLER_REVISION != '' &&
       vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
@@ -155,15 +207,19 @@ jobs:
 
   notify:
     needs:
+      - validate_promotion_intent
       - release_qualification
       - verify_release
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
+      needs.validate_promotion_intent.result == 'success' &&
       needs.release_qualification.result == 'success' &&
       needs.verify_release.result == 'success' &&
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
       github.event.pull_request.base.ref == 'integration' &&
+      (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
+      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
       vars.PUBLICATION_CONTROLLER_REVISION != '' &&
       vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'

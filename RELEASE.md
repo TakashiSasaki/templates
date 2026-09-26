@@ -129,3 +129,13 @@ P8 used v2. These versioned changes do not update Site, provider translation pro
 synchronization hashes by implication. Site adoption and warning presentation remain a
 separate gate; after activation the controller may perform only the pre-authorized
 mechanical lock mutation, never a semantic approval.
+
+When a fully qualified candidate already matches the current `publication-sources.json`,
+there is no lock diff to review. The trusted controller records the exact base, selected
+lock digest, provider tuple, Bundle identity, run/artifact identities, and active pins in
+the deterministic `publication-promotion-intent.json` included in the
+`automation/publication-*` PR. That intent is a reviewable handoff record, not a promoted
+receipt. After merge, the notification workflow verifies the intent against the merge's
+first parent, selected lock, branch idempotency key, and active pins, then performs a new
+trusted qualification for the exact merged Integration revision in the `promoted`
+artifact namespace. It does not reuse the pre-merge candidate Bundle as promoted evidence.

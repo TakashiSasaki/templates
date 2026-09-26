@@ -246,8 +246,6 @@ def reconcile(
             "next_action": "requalify with the current trusted controller",
         }
     mutation = plan(current, candidate)
-    if mutation["classification"] == "NO_CHANGE":
-        return {**report, **mutation, "stage": "authorization", "classification": "NO_CHANGE", "next_action": "no side effect"}
     if kill_switch:
         return {**report, **mutation, "stage": "authorization", "classification": "NOT_ELIGIBLE", "reason_codes": ["KILL_SWITCH_ACTIVE"], "allowed_mutations": [], "next_action": "keep the current lock and investigate"}
     if mode == "shadow":
@@ -264,14 +262,25 @@ def reconcile(
             "allowed_mutations": [],
             "next_action": "configure the reviewed active Policy and controller pins before adoption",
         }
+    allowed_mutations = [*mutation["allowed_mutations"], "publication-promotion-intent.json"]
+    if mutation["classification"] == "NO_CHANGE":
+        return {
+            **report,
+            **mutation,
+            "stage": "authorization",
+            "classification": "AUTO_PROCESSABLE",
+            "reason_codes": ["QUALIFICATION_PASSED", "AUTHORIZATION_GRANTED", "SELECTION_ALREADY_CURRENT"],
+            "allowed_mutations": ["publication-promotion-intent.json"],
+            "next_action": "create or reconcile the idempotent promotion-intent PR",
+        }
     return {
         **report,
         **mutation,
         "stage": "authorization",
         "classification": "AUTO_PROCESSABLE",
         "reason_codes": ["QUALIFICATION_PASSED", "AUTHORIZATION_GRANTED", "EXPECTED_MUTATION_MATCH"],
-        "allowed_mutations": mutation["allowed_mutations"],
-        "next_action": "create or reconcile the idempotent lock adoption PR",
+        "allowed_mutations": allowed_mutations,
+        "next_action": "create or reconcile the idempotent publication promotion PR",
     }
 
 

@@ -88,6 +88,11 @@ jobs:
       idempotency_key: ${{ steps.reconcile.outputs.idempotency_key }}
       consumer_base: ${{ steps.base.outputs.revision }}
       consumer_lock_digest: ${{ steps.base.outputs.lock_digest }}
+      lock_update_required: ${{ steps.promotion_intent.outputs.lock_update_required }}
+      promotion_intent_digest: ${{ steps.promotion_intent.outputs.intent_digest }}
+      promotion_intent_artifact_id: ${{ steps.intent_upload.outputs.artifact-id }}
+      promotion_intent_artifact_digest: sha256:${{ steps.intent_upload.outputs.artifact-digest }}
+      promotion_intent_artifact_name: publication-promotion-intent-${{ needs.qualify.outputs.bundle_identity }}-${{ needs.qualify.outputs.workflow_attempt }}-reconciliation
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -179,6 +184,7 @@ jobs:
           if [ -n "$MODELING" ]; then args+=(--candidate-provider modeling --override "modeling=$MODELING"); fi
           python3 scripts/render_candidate_source_lock.py "${args[@]}"
       - name: Verify the report and Bundle with the trusted controller
+        id: verified_report
         env:
           EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
           EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || '' }}
@@ -213,6 +219,7 @@ jobs:
           fi
           if [ -n "$EXPECTED_POLICY" ]; then args+=(--expected-policy-revision "$EXPECTED_POLICY"); fi
           python3 scripts/verify_qualification_report.py "${args[@]}"
+          echo "digest=$(sha256sum qualification/verified-report.json | awk '{print $1}')" >> "$GITHUB_OUTPUT"
       - name: Classify the guarded reconciliation transaction
         id: reconcile
         env:
@@ -243,6 +250,37 @@ jobs:
           echo "idempotency_key=$(python3 -c 'import json; print(json.load(open("reconciliation-report.json"))["idempotency_key"])')" >> "$GITHUB_OUTPUT"
           cat reconciliation-report.json >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Build the deterministic trusted promotion intent
+        id: promotion_intent
+        if: ${{ steps.reconcile.outputs.classification == 'AUTO_PROCESSABLE' }}
+        run: |
+          python3 scripts/publication_promotion_intent.py build \
+            --current current-publication-sources.json \
+            --candidate candidate-lock.json \
+            --source-report qualification/compatibility-report.json \
+            --verified-report qualification/verified-report.json \
+            --reconciliation-report reconciliation-report.json \
+            --producer-revision "${{ needs.qualify.outputs.producer_revision }}" \
+            --consumer-base-revision "${{ steps.base.outputs.revision }}" \
+            --expected-current-lock-digest "${{ steps.base.outputs.lock_digest }}" \
+            --qualification-artifact-id "${{ needs.qualify.outputs.qualification_artifact_id }}" \
+            --qualification-artifact-digest "${{ needs.qualify.outputs.qualification_artifact_digest }}" \
+            --qualification-artifact-name "${{ needs.qualify.outputs.qualification_artifact_name }}" \
+            --trusted-controller-revision "${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}" \
+            --trusted-policy-revision "${{ vars.PUBLICATION_POLICY_REVISION || '' }}" \
+            --output publication-promotion-intent.json \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Publish the trusted promotion intent for the guarded PR job
+        id: intent_upload
+        if: ${{ steps.reconcile.outputs.classification == 'AUTO_PROCESSABLE' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: publication-promotion-intent-${{ needs.qualify.outputs.bundle_identity }}-${{ needs.qualify.outputs.workflow_attempt }}-reconciliation
+          path: publication-promotion-intent.json
+          if-no-files-found: error
+          retention-days: 7
+
   promote_lock_pr:
     needs: controller
     if: >-
@@ -265,6 +303,8 @@ jobs:
       POLICY: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
       MODELING: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
       IDEMPOTENCY_KEY: ${{ needs.controller.outputs.idempotency_key }}
+      LOCK_UPDATE_REQUIRED: ${{ needs.controller.outputs.lock_update_required }}
+      PROMOTION_INTENT_DIGEST: ${{ needs.controller.outputs.promotion_intent_digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -296,20 +336,51 @@ jobs:
           test -n "$EXPECTED_CONSUMER_BASE"
           test "$EXPECTED_CONSUMER_BASE" = "$(git -C integration-base rev-parse HEAD)"
           test "$EXPECTED_CONSUMER_BASE" = "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/integration" --jq '.object.sha')"
-      - name: Apply only the deterministic source-lock patch
+      - name: Render and verify the exact candidate lock
+        env:
+          EXPECTED_CONSUMER_LOCK_DIGEST: ${{ needs.controller.outputs.consumer_lock_digest }}
         run: |
           candidate_lock="$RUNNER_TEMP/candidate-lock.json"
-          adoption_report="$RUNNER_TEMP/adoption-report.json"
-          args=(--lock integration-base/publication-sources.json --output "$candidate_lock")
+          base_lock="$RUNNER_TEMP/base-publication-sources.json"
+          cp integration-base/publication-sources.json "$base_lock"
+          args=(--lock "$base_lock" --output "$candidate_lock")
           if [ -n "$COMPOSITION" ]; then args+=(--override "composition=$COMPOSITION"); fi
           if [ -n "$POLICY" ]; then args+=(--override "policy=$POLICY"); fi
           if [ -n "$MODELING" ]; then args+=(--candidate-provider modeling --override "modeling=$MODELING"); fi
           python3 controller-source/scripts/render_candidate_source_lock.py "${args[@]}"
-          expected=$(sha256sum integration-base/publication-sources.json | awk '{print $1}')
-          python3 controller-source/scripts/adopt_publication_sources.py --current integration-base/publication-sources.json --candidate "$candidate_lock" --expected-current-digest "$expected" --apply --output "$adoption_report"
-          test -z "$(git -C integration-base status --porcelain=v1 --untracked-files=all | sed '/^ M publication-sources\.json$/d')"
-          test "$(git -C integration-base diff --name-only)" = "publication-sources.json"
-          test -z "$(git -C integration-base diff --summary)"
+          test "$(sha256sum "$base_lock" | awk '{print $1}')" = "$EXPECTED_CONSUMER_LOCK_DIGEST"
+      - name: Download the exact trusted promotion intent
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.controller.outputs.promotion_intent_artifact_id }}
+          path: promotion-intent
+      - name: Verify the promotion intent against the pinned controller and exact lock
+        id: verify_intent
+        env:
+          EXPECTED_CONSUMER_LOCK_DIGEST: ${{ needs.controller.outputs.consumer_lock_digest }}
+          ACTIVE_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION }}
+        run: |
+          base_lock="$RUNNER_TEMP/base-publication-sources.json"
+          candidate_lock="$RUNNER_TEMP/candidate-lock.json"
+          python3 controller-source/scripts/publication_promotion_intent.py verify \
+            --intent promotion-intent/publication-promotion-intent.json \
+            --base-lock "$base_lock" \
+            --selected-lock "$candidate_lock" \
+            --consumer-base-revision "$EXPECTED_CONSUMER_BASE" \
+            --trusted-controller-revision "$CONTROLLER_REF" \
+            --trusted-policy-revision "$ACTIVE_POLICY" \
+            --branch "automation/publication-$IDEMPOTENCY_KEY" \
+            --expected-intent-digest "$PROMOTION_INTENT_DIGEST" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Apply only the deterministic source-lock patch when the selection changes
+        if: ${{ needs.controller.outputs.lock_update_required == 'true' }}
+        run: |
+          adoption_report="$RUNNER_TEMP/adoption-report.json"
+          expected=$(sha256sum "$RUNNER_TEMP/base-publication-sources.json" | awk '{print $1}')
+          python3 controller-source/scripts/adopt_publication_sources.py \
+            --current integration-base/publication-sources.json \
+            --candidate "$RUNNER_TEMP/candidate-lock.json" \
+            --expected-current-digest "$expected" --apply --output "$adoption_report"
           python3 - "$adoption_report" integration-base/publication-sources.json <<'PY'
           import json
           import sys
@@ -320,32 +391,107 @@ jobs:
           if report.get('expected_bytes') != Path(sys.argv[2]).read_text(encoding='utf-8'):
               raise SystemExit('applied source-lock bytes differ from the trusted expected patch')
           PY
-      - name: Create or reconcile the idempotent adoption PR
+      - name: Add the deterministic promotion intent
+        run: |
+          cp promotion-intent/publication-promotion-intent.json integration-base/publication-promotion-intent.json
+          git -C integration-base add publication-sources.json publication-promotion-intent.json
+          expected_paths="publication-promotion-intent.json"
+          if [ "$LOCK_UPDATE_REQUIRED" = true ]; then expected_paths=$'publication-promotion-intent.json\npublication-sources.json'; fi
+          actual_paths=$(git -C integration-base diff --cached --name-only | sort)
+          test "$actual_paths" = "$(printf '%s\n' "$expected_paths" | sort)"
+          test -z "$(git -C integration-base diff --cached --summary)"
+      - name: Revalidate the live target before every privileged PR action
         env:
           BRANCH: automation/publication-$IDEMPOTENCY_KEY
         run: |
+          set -euo pipefail
           gh auth setup-git
           git -C integration-base config user.name publication-controller
           git -C integration-base config user.email publication-controller@users.noreply.github.com
-          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --state open --json number --jq '.[0].number')
+          expected_tree=$(git -C integration-base write-tree)
+          expected_paths=("publication-promotion-intent.json")
+          if [ "$LOCK_UPDATE_REQUIRED" = true ]; then
+            expected_paths+=("publication-sources.json")
+          fi
+          repository_owner="${GITHUB_REPOSITORY%%/*}"
+          open_pr_numbers() {
+            gh api \
+              "repos/$GITHUB_REPOSITORY/pulls?state=open&base=integration&head=$repository_owner:$BRANCH&per_page=100" \
+              --jq '.[].number'
+          }
+          require_at_most_one_pr() {
+            local numbers="$1"
+            local count
+            count=$(printf '%s\n' "$numbers" | awk 'NF { count++ } END { print count + 0 }')
+            if [ "$count" -gt 1 ]; then
+              echo 'Multiple open PRs are bound to the same automation branch; stop.' >&2
+              return 1
+            fi
+          }
+          verify_target() {
+            git -C integration-base fetch --quiet origin refs/heads/integration
+            live_base=$(git -C integration-base rev-parse FETCH_HEAD)
+            python3 controller-source/scripts/publication_promotion_intent.py verify-target \
+              --expected-base "$EXPECTED_CONSUMER_BASE" \
+              --live-base "$live_base"
+          }
+          verify_existing() {
+            local pr="$1"
+            local pr_json="$RUNNER_TEMP/publication-pr-$pr.json"
+            verify_target
+            git -C integration-base fetch --quiet origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" > "$pr_json"
+            verify_target
+            args=(
+              verify-pr
+              --pr-json "$pr_json"
+              --repository-root integration-base
+              --repository "$GITHUB_REPOSITORY"
+              --expected-base "$EXPECTED_CONSUMER_BASE"
+              --expected-tree "$expected_tree"
+              --expected-intent-digest "$PROMOTION_INTENT_DIGEST"
+              --expected-branch "$BRANCH"
+              --expected-idempotency-key "$IDEMPOTENCY_KEY"
+              --remote-head-ref "refs/remotes/origin/$BRANCH"
+            )
+            for path in "${expected_paths[@]}"; do args+=(--expected-path "$path"); done
+            python3 controller-source/scripts/publication_promotion_intent.py "${args[@]}"
+          }
+
+          existing=$(open_pr_numbers)
+          require_at_most_one_pr "$existing"
           if [ -n "$existing" ]; then
-            echo "Existing idempotent Integration adoption PR #$existing remains authoritative."
+            verify_existing "$existing"
+            # Re-read the live target and PR immediately before the merge request.
+            verify_existing "$existing"
+            gh pr merge "$existing" --repo "$GITHUB_REPOSITORY" --auto --squash
             exit 0
           fi
-          if git -C integration-base ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+          branch_before=$(git -C integration-base ls-remote origin "refs/heads/$BRANCH" | awk 'NF { print $1 }')
+          if [ -n "$branch_before" ]; then
             echo 'An idempotency branch exists without an open PR; stop for human recovery.' >&2
             exit 1
           fi
+          # This target check is immediately before the branch push.
+          verify_target
           git -C integration-base switch -c "$BRANCH"
-          git -C integration-base add publication-sources.json
-          git -C integration-base diff --cached --quiet && exit 0
-          test "$(git -C integration-base diff --cached --name-only)" = "publication-sources.json"
-          test -z "$(git -C integration-base diff --cached --summary)"
-          git -C integration-base commit -m "chore(integration): adopt qualified publication candidate"
-          git -C integration-base push --force-with-lease origin "HEAD:$BRANCH"
-          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --json number --jq '.[0].number')
+          git -C integration-base commit -m "chore(integration): record trusted publication intent"
+          test "$(git -C integration-base rev-parse HEAD^{tree})" = "$expected_tree"
+          test "$(git -C integration-base rev-parse HEAD^1)" = "$EXPECTED_CONSUMER_BASE"
+          verify_target
+          git -C integration-base push --force-with-lease="refs/heads/$BRANCH:$branch_before" origin "HEAD:$BRANCH"
+          verify_target
+          existing=$(open_pr_numbers)
+          require_at_most_one_pr "$existing"
           if [ -z "$existing" ]; then
-            gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --title "chore(integration): adopt qualified publication candidate" --body "Guarded deterministic lock adoption. Consumer base: $EXPECTED_CONSUMER_BASE. Idempotency key: $IDEMPOTENCY_KEY. Auto-merge remains subject to branch protection and required CI."
+            # This target check is immediately before PR creation.
+            verify_target
+            gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --title "chore(integration): record trusted publication intent" --body "Guarded deterministic Integration publication promotion. Consumer base: $EXPECTED_CONSUMER_BASE. Idempotency key: $IDEMPOTENCY_KEY. The PR updates the provider lock only when it differs; otherwise it records the exact trusted promotion intent. Post-merge qualification uses the merged Integration revision. Auto-merge remains subject to branch protection and required CI."
+            existing=$(open_pr_numbers)
+            require_at_most_one_pr "$existing"
           fi
-          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --json number --jq '.[0].number')
-          gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --auto --squash
+          test -n "$existing"
+          verify_existing "$existing"
+          # Re-read the live target and PR immediately before the merge request.
+          verify_existing "$existing"
+          gh pr merge "$existing" --repo "$GITHUB_REPOSITORY" --auto --squash

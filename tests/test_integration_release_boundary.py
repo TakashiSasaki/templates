@@ -96,10 +96,26 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || github.sha', controller)
         self.assertIn('Bind the reconciliation controller to its trusted identity', controller)
 
+    def test_privileged_promotion_revalidates_live_target_and_pr_binding_before_mutation(self):
+        reconcile = (ROOT / '.github/workflows/integration-reconcile.yml').read_text()
+        promotion = reconcile.split('  promote_lock_pr:', 1)[1]
+        self.assertIn('git -C integration-base fetch --quiet origin refs/heads/integration', promotion)
+        self.assertIn('publication_promotion_intent.py verify-target', promotion)
+        self.assertIn('publication_promotion_intent.py "${args[@]}"', promotion)
+        self.assertIn('refs/heads/$BRANCH:refs/remotes/origin/$BRANCH', promotion)
+        self.assertIn('git -C integration-base push --force-with-lease="refs/heads/$BRANCH:$branch_before"', promotion)
+        self.assertIn('verify_target\n          git -C integration-base push', promotion)
+        self.assertIn('verify_target\n            gh pr create', promotion)
+        self.assertIn('verify_existing "$existing"\n          gh pr merge', promotion)
+        self.assertGreaterEqual(promotion.count('verify_existing "$existing"'), 4)
+        self.assertNotIn('remains authoritative', promotion)
+
     def test_promotion_receipt_keeps_trusted_activation_gate_at_notify_boundary(self):
         workflow = (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
         notify = workflow.split('  notify:', 1)[1]
         for required in (
+            "vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only'",
+            "vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'",
             "vars.PUBLICATION_POLICY_REVISION != ''",
             "vars.PUBLICATION_CONTROLLER_REVISION != ''",
             "vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'",
@@ -107,6 +123,46 @@ class ReleaseBoundaryTests(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertIn(required, notify)
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', workflow)
+        self.assertNotIn('--intent producer-source/publication-promotion-intent.json', workflow)
+
+    def test_post_merge_automation_pr_provenance_gates_the_trusted_chain(self):
+        workflow = yaml.safe_load((ROOT / '.github/workflows/integration-promotion-notify.yml').read_text())
+        jobs = workflow['jobs']
+        validation = jobs['validate_promotion_intent']
+        commands = '\n'.join(step.get('run', '') for step in validation['steps'])
+        self.assertIn('publication_promotion_intent.py verify-merged-pr', commands)
+        self.assertIn('--event "$GITHUB_EVENT_PATH"', commands)
+        self.assertIn('--repository "$GITHUB_REPOSITORY"', commands)
+
+        def dependencies(job):
+            needed = jobs[job].get('needs', [])
+            return [needed] if isinstance(needed, str) else needed
+
+        for job in ('release_qualification', 'verify_release', 'notify'):
+            with self.subTest(job=job):
+                self.assertIn('validate_promotion_intent', dependencies(job))
+                self.assertIn(
+                    "needs.validate_promotion_intent.result == 'success'",
+                    jobs[job]['if'],
+                )
+
+    def test_existing_selection_has_a_trusted_promotion_intent_path(self):
+        reconcile = yaml.safe_load((ROOT / '.github/workflows/integration-reconcile.yml').read_text())
+        controller_steps = reconcile['jobs']['controller']['steps']
+        promote_steps = reconcile['jobs']['promote_lock_pr']['steps']
+        controller_commands = '\n'.join(step.get('run', '') for step in controller_steps)
+        promote_commands = '\n'.join(step.get('run', '') for step in promote_steps)
+        self.assertIn('publication_promotion_intent.py build', controller_commands)
+        self.assertIn('publication-promotion-intent-${{ needs.qualify.outputs.bundle_identity }}', '\n'.join(str(step.get('with', {})) for step in controller_steps))
+        self.assertIn('actions/download-artifact@', '\n'.join(step.get('uses', '') for step in promote_steps))
+        self.assertIn('publication_promotion_intent.py verify', promote_commands)
+        self.assertIn('publication-promotion-intent.json', promote_commands)
+        self.assertIn("needs.controller.outputs.classification == 'AUTO_PROCESSABLE'", reconcile['jobs']['promote_lock_pr']['if'])
+
+        notify = yaml.safe_load((ROOT / '.github/workflows/integration-promotion-notify.yml').read_text())
+        self.assertIn('validate_promotion_intent', notify['jobs'])
+        self.assertIn('verify-merged', '\n'.join(step.get('run', '') for step in notify['jobs']['validate_promotion_intent']['steps']))
+        self.assertIn('needs.validate_promotion_intent.result == \'success\'', notify['jobs']['release_qualification']['if'])
 
     def test_bundle_receipt_uses_github_workflow_path_shape(self):
         for name, expected_count in (
