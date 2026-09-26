@@ -150,6 +150,11 @@ def render_skill(
             encoding="utf-8"
         )
         replacements["{{ canonical_policy_schema_json }}"] = json.dumps(schema_text)[1:-1]
+        for name, filename in (("adapter", "progressive-discovery-adapter"),
+                               ("projection", "discovery-projection")):
+            text = (package_root() / f"schemas/{filename}.schema.json").read_text(encoding="utf-8")
+            token = "{{ canonical_discovery_" + name + "_schema_json }}"
+            replacements[token] = json.dumps(text)[1:-1]
     result: dict[str, str] = {}
     for path in sorted(skill_root.rglob("*")):
         if path.is_file() and "__pycache__" not in path.relative_to(skill_root).parts:
