@@ -11,6 +11,8 @@ from scripts.publication_promotion_intent import (
     verify_existing_promotion_pr,
     verify_live_consumer_base,
     verify_merged_intent,
+    verify_merged_pr_intent,
+    verify_merged_pr_provenance,
     verify_premerge_intent,
 )
 from scripts.resolve_publication_sources import render_source_lock
@@ -238,6 +240,102 @@ class PublicationPromotionIntentTests(unittest.TestCase):
             },
         }
         return root, base, head, expected_tree, intent, intent_bytes, branch, remote_head_ref, repository, pr
+
+    def test_merged_pr_provenance_accepts_same_repository_automation_branch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, _, merged, intent, _, branch = self._merged_fixture(directory)
+            event_path = root / "event.json"
+            _write_json(event_path, {
+                "pull_request": {
+                    "merged": True,
+                    "merge_commit_sha": merged,
+                    "base": {"ref": "integration"},
+                    "head": {
+                        "ref": branch,
+                        "repo": {"full_name": "TakashiSasaki/templates"},
+                    },
+                },
+            })
+
+            result = verify_merged_pr_intent(
+                event_path=event_path,
+                target_repository="TakashiSasaki/templates",
+                repository_root=root,
+                merged_revision=merged,
+                trusted_controller_revision=CONTROLLER,
+                trusted_policy_revision=POLICY,
+            )
+            self.assertEqual(result["idempotency_key"], intent["idempotency_key"])
+
+    def test_merged_pr_rejects_fork_with_identical_intent_branch_and_key(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, _, merged, intent, intent_bytes, branch = self._merged_fixture(directory)
+            # The committed bytes and branch key are valid and identical; provenance
+            # must reject the fork before those content bindings can authorize it.
+            self.assertEqual(_digest(intent_bytes), _digest(_write_json(root / "same-intent.json", intent)))
+            self.assertEqual(branch, f"automation/publication-{intent['idempotency_key']}")
+            valid_content = verify_merged_intent(
+                repository_root=root,
+                merged_revision=merged,
+                trusted_controller_revision=CONTROLLER,
+                trusted_policy_revision=POLICY,
+                branch=branch,
+            )
+            self.assertEqual(valid_content, intent)
+            event_path = root / "fork-event.json"
+            _write_json(event_path, {
+                "pull_request": {
+                    "merged": True,
+                    "merge_commit_sha": merged,
+                    "base": {"ref": "integration"},
+                    "head": {
+                        "ref": branch,
+                        "repo": {"full_name": "attacker/templates"},
+                    },
+                },
+            })
+
+            with self.assertRaisesRegex(ValueError, "not the exact target repository"):
+                verify_merged_pr_intent(
+                    event_path=event_path,
+                    target_repository="TakashiSasaki/templates",
+                    repository_root=root,
+                    merged_revision=merged,
+                    trusted_controller_revision=CONTROLLER,
+                    trusted_policy_revision=POLICY,
+                )
+
+    def test_merged_pr_provenance_rejects_missing_or_null_head_repository(self):
+        base = {
+            "merged": True,
+            "merge_commit_sha": "a" * 40,
+            "base": {"ref": "integration"},
+            "head": {
+                "ref": "automation/publication-" + "b" * 64,
+                "repo": {"full_name": "TakashiSasaki/templates"},
+            },
+        }
+        variants = []
+        missing_repo = copy.deepcopy(base)
+        del missing_repo["head"]["repo"]
+        variants.append(("missing repo", missing_repo))
+        null_repo = copy.deepcopy(base)
+        null_repo["head"]["repo"] = None
+        variants.append(("deleted source repository", null_repo))
+        missing_full_name = copy.deepcopy(base)
+        del missing_full_name["head"]["repo"]["full_name"]
+        variants.append(("missing full_name", missing_full_name))
+        null_full_name = copy.deepcopy(base)
+        null_full_name["head"]["repo"]["full_name"] = None
+        variants.append(("null full_name", null_full_name))
+
+        for label, pull_request in variants:
+            with self.subTest(provenance=label), self.assertRaises(ValueError):
+                verify_merged_pr_provenance(
+                    pull_request=pull_request,
+                    target_repository="TakashiSasaki/templates",
+                    merged_revision="a" * 40,
+                )
 
     def test_current_lock_produces_a_bound_marker_only_intent(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -575,6 +673,81 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                     expected_idempotency_key=intent["idempotency_key"],
                     expected_paths={"publication-promotion-intent.json"}, remote_head_ref=remote_head_ref,
                 )
+
+    def test_existing_promotion_pr_requires_explicit_merged_at_null(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (
+                root, base, _, expected_tree, intent, intent_bytes, branch,
+                remote_head_ref, repository, pr,
+            ) = self._existing_pr_fixture(directory)
+            arguments = {
+                "repository_root": root,
+                "repository": repository,
+                "expected_base": base,
+                "expected_tree": expected_tree,
+                "expected_intent_digest": _digest(intent_bytes),
+                "expected_branch": branch,
+                "expected_idempotency_key": intent["idempotency_key"],
+                "expected_paths": {"publication-promotion-intent.json"},
+                "remote_head_ref": remote_head_ref,
+            }
+
+            # A complete API object explicitly reports an unmerged PR with null.
+            self.assertIsNone(verify_existing_promotion_pr(pr=pr, **arguments)["merged_at"])
+
+            merged = copy.deepcopy(pr)
+            merged["merged_at"] = "2026-09-26T00:00:00Z"
+            with self.assertRaisesRegex(ValueError, "not open"):
+                verify_existing_promotion_pr(pr=merged, **arguments)
+
+            incomplete = copy.deepcopy(pr)
+            del incomplete["merged_at"]
+            with self.assertRaisesRegex(ValueError, "missing the merged_at field"):
+                verify_existing_promotion_pr(pr=incomplete, **arguments)
+
+    def test_existing_promotion_pr_rejects_incomplete_trust_bindings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (
+                root, base, _, expected_tree, intent, intent_bytes, branch,
+                remote_head_ref, repository, pr,
+            ) = self._existing_pr_fixture(directory)
+            arguments = {
+                "repository_root": root,
+                "repository": repository,
+                "expected_base": base,
+                "expected_tree": expected_tree,
+                "expected_intent_digest": _digest(intent_bytes),
+                "expected_branch": branch,
+                "expected_idempotency_key": intent["idempotency_key"],
+                "expected_paths": {"publication-promotion-intent.json"},
+                "remote_head_ref": remote_head_ref,
+            }
+            malformed = []
+            missing_state = copy.deepcopy(pr)
+            del missing_state["state"]
+            malformed.append(("state", missing_state))
+            missing_base = copy.deepcopy(pr)
+            del missing_base["base"]
+            malformed.append(("base", missing_base))
+            missing_head = copy.deepcopy(pr)
+            del missing_head["head"]
+            malformed.append(("head", missing_head))
+            missing_base_sha = copy.deepcopy(pr)
+            del missing_base_sha["base"]["sha"]
+            malformed.append(("base SHA", missing_base_sha))
+            missing_head_sha = copy.deepcopy(pr)
+            del missing_head_sha["head"]["sha"]
+            malformed.append(("head SHA", missing_head_sha))
+            missing_repo_name = copy.deepcopy(pr)
+            del missing_repo_name["head"]["repo"]["full_name"]
+            malformed.append(("repository", missing_repo_name))
+            missing_base_repo_name = copy.deepcopy(pr)
+            del missing_base_repo_name["base"]["repo"]["full_name"]
+            malformed.append(("base repository", missing_base_repo_name))
+
+            for label, incomplete in malformed:
+                with self.subTest(field=label), self.assertRaises(ValueError):
+                    verify_existing_promotion_pr(pr=incomplete, **arguments)
 
 if __name__ == "__main__":
     unittest.main()

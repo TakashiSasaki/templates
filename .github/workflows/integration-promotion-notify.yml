@@ -24,31 +24,31 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
-          path: producer-source
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
           ref: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}
           path: controller-source
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify the exact merged promotion intent
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          path: producer-source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify same-repository provenance and the exact merged intent
         env:
           MERGED_REVISION: ${{ github.event.pull_request.merge_commit_sha }}
-          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
           CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}
           POLICY: ${{ vars.PUBLICATION_POLICY_REVISION }}
         run: |
           test "$(git -C producer-source rev-parse HEAD)" = "$MERGED_REVISION"
           test "$(git -C controller-source rev-parse HEAD)" = "$CONTROLLER"
-          python3 controller-source/scripts/publication_promotion_intent.py verify-merged \
+          python3 controller-source/scripts/publication_promotion_intent.py verify-merged-pr \
+            --event "$GITHUB_EVENT_PATH" \
+            --repository "$GITHUB_REPOSITORY" \
             --repository-root producer-source \
             --merged-revision "$MERGED_REVISION" \
             --trusted-controller-revision "$CONTROLLER" \
-            --trusted-policy-revision "$POLICY" \
-            --branch "$PR_BRANCH"
+            --trusted-policy-revision "$POLICY"
 
   release_qualification:
     if: >-

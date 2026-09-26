@@ -147,8 +147,12 @@ def verify_existing_promotion_pr(
     expected_idempotency_key = _require_digest(expected_idempotency_key, "expected promotion idempotency key")
     if not isinstance(pr, dict):
         raise ValueError("existing promotion PR response is malformed")
-    if pr.get("state") != "open" or pr.get("merged_at") is not None:
+    if "state" not in pr or pr["state"] != "open":
         raise ValueError("existing promotion PR is not open")
+    if "merged_at" not in pr:
+        raise ValueError("existing promotion PR response is missing the merged_at field")
+    if pr["merged_at"] is not None:
+        raise ValueError("existing promotion PR is not open and explicitly unmerged")
     if pr.get("title") != PROMOTION_PR_TITLE:
         raise ValueError("existing promotion PR title is not the deterministic promotion title")
     base = pr.get("base")
@@ -609,6 +613,74 @@ def verify_merged_intent(
     return intent
 
 
+def verify_merged_pr_provenance(
+    *,
+    pull_request: Any,
+    target_repository: str,
+    merged_revision: str,
+) -> str:
+    """Require a complete closed-PR event proving same-repository provenance."""
+    if not isinstance(target_repository, str) or not target_repository.strip():
+        raise ValueError("GitHub target repository identity is missing")
+    if target_repository != "TakashiSasaki/templates":
+        raise ValueError("workflow target repository is not the trusted Integration repository")
+    if not isinstance(pull_request, dict):
+        raise ValueError("pull_request event object is missing or malformed")
+    if pull_request.get("merged") is not True:
+        raise ValueError("pull_request event does not explicitly report a merge")
+    event_merge_sha = _require_sha(
+        pull_request.get("merge_commit_sha"), "pull_request merge commit SHA"
+    )
+    merged_revision = _require_sha(merged_revision, "merged Integration revision")
+    if event_merge_sha != merged_revision:
+        raise ValueError("workflow merged revision differs from the pull_request event")
+
+    base = pull_request.get("base")
+    head = pull_request.get("head")
+    if not isinstance(base, dict) or not isinstance(head, dict):
+        raise ValueError("pull_request base or head provenance object is missing or malformed")
+    if base.get("ref") != "integration":
+        raise ValueError("merged automation PR does not target the Integration branch")
+    branch = head.get("ref")
+    if not isinstance(branch, str) or not branch.startswith("automation/publication-"):
+        raise ValueError("merged PR head is not on the trusted automation branch namespace")
+
+    head_repository = head.get("repo")
+    if not isinstance(head_repository, dict):
+        raise ValueError("merged PR head repository provenance is missing or malformed")
+    full_name = head_repository.get("full_name")
+    if not isinstance(full_name, str) or not full_name:
+        raise ValueError("merged PR head repository full_name is missing or malformed")
+    if full_name != target_repository:
+        raise ValueError("merged PR head repository is not the exact target repository")
+    return branch
+
+
+def verify_merged_pr_intent(
+    *,
+    event_path: Path,
+    target_repository: str,
+    repository_root: Path,
+    merged_revision: str,
+    trusted_controller_revision: str,
+    trusted_policy_revision: str,
+) -> dict[str, Any]:
+    """Check event provenance before trusting intent bytes from the merge."""
+    event = read_json_object(event_path)
+    branch = verify_merged_pr_provenance(
+        pull_request=event.get("pull_request"),
+        target_repository=target_repository,
+        merged_revision=merged_revision,
+    )
+    return verify_merged_intent(
+        repository_root=repository_root,
+        merged_revision=merged_revision,
+        trusted_controller_revision=trusted_controller_revision,
+        trusted_policy_revision=trusted_policy_revision,
+        branch=branch,
+    )
+
+
 def _qualification_artifact(args: argparse.Namespace) -> dict[str, Any]:
     try:
         artifact_id = int(args.qualification_artifact_id)
@@ -643,6 +715,16 @@ def main() -> int:
     ):
         merged.add_argument("--" + argument, required=True,
                             type=Path if argument == "repository-root" else str)
+    merged_pr = commands.add_parser("verify-merged-pr")
+    for argument in (
+        "event", "repository", "repository-root", "merged-revision",
+        "trusted-controller-revision", "trusted-policy-revision",
+    ):
+        merged_pr.add_argument(
+            "--" + argument,
+            required=True,
+            type=Path if argument in {"event", "repository-root"} else str,
+        )
     target = commands.add_parser("verify-target")
     target.add_argument("--expected-base", required=True)
     target.add_argument("--live-base", required=True)
@@ -703,6 +785,16 @@ def main() -> int:
                 trusted_controller_revision=args.trusted_controller_revision,
                 trusted_policy_revision=args.trusted_policy_revision,
                 branch=args.branch,
+            )
+            print("verified")
+        elif args.command == "verify-merged-pr":
+            verify_merged_pr_intent(
+                event_path=args.event,
+                target_repository=args.repository,
+                repository_root=args.repository_root,
+                merged_revision=args.merged_revision,
+                trusted_controller_revision=args.trusted_controller_revision,
+                trusted_policy_revision=args.trusted_policy_revision,
             )
             print("verified")
         elif args.command == "verify-target":

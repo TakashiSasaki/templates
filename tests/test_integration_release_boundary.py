@@ -125,6 +125,27 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', workflow)
         self.assertNotIn('--intent producer-source/publication-promotion-intent.json', workflow)
 
+    def test_post_merge_automation_pr_provenance_gates_the_trusted_chain(self):
+        workflow = yaml.safe_load((ROOT / '.github/workflows/integration-promotion-notify.yml').read_text())
+        jobs = workflow['jobs']
+        validation = jobs['validate_promotion_intent']
+        commands = '\n'.join(step.get('run', '') for step in validation['steps'])
+        self.assertIn('publication_promotion_intent.py verify-merged-pr', commands)
+        self.assertIn('--event "$GITHUB_EVENT_PATH"', commands)
+        self.assertIn('--repository "$GITHUB_REPOSITORY"', commands)
+
+        def dependencies(job):
+            needed = jobs[job].get('needs', [])
+            return [needed] if isinstance(needed, str) else needed
+
+        for job in ('release_qualification', 'verify_release', 'notify'):
+            with self.subTest(job=job):
+                self.assertIn('validate_promotion_intent', dependencies(job))
+                self.assertIn(
+                    "needs.validate_promotion_intent.result == 'success'",
+                    jobs[job]['if'],
+                )
+
     def test_existing_selection_has_a_trusted_promotion_intent_path(self):
         reconcile = yaml.safe_load((ROOT / '.github/workflows/integration-reconcile.yml').read_text())
         controller_steps = reconcile['jobs']['controller']['steps']
