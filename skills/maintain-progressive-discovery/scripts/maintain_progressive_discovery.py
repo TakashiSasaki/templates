@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import ctypes
 import hashlib
-import importlib.util
 import json
 import os
 import posixpath
@@ -26,6 +25,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
 
+RUNTIME_CONTRACT = "{{ discovery_runtime_contract }}"
 INDEX_NAME = "index.md"
 ADAPTER_NAME = ".progressive-discovery.json"
 POLICY_NAME = ".agent-policy.yml"
@@ -732,6 +732,12 @@ def _rendered_blocks(text: str, *, prose: bool = False) -> str:
     """Exclude comments and code blocks from the supported Markdown surfaces."""
     text = re.sub(r"<!--.*?(?:-->|$)", lambda match: "\n" * match.group().count("\n"),
                   text, flags=re.DOTALL)
+    if prose:
+        text = re.sub(
+            r"<(pre|code|script|style|textarea)\b[^>]*>.*?(?:</\1\s*>|$)",
+            lambda match: "\n" * match.group().count("\n"), text,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
     visible: list[str] = []
     fence = ""
     quote_block = False
@@ -2154,15 +2160,19 @@ def run(
     adapter_path: str = ADAPTER_NAME,
     policy_path: str = POLICY_NAME,
     apply: bool = False,
-    candidate_v2: bool = False,
+    candidate_v2: bool | None = None,
 ) -> dict[str, Any]:
+    if candidate_v2 is None:
+        candidate_v2 = RUNTIME_CONTRACT == "2"
     if candidate_v2:
-        spec = importlib.util.spec_from_file_location(
-            "discovery_candidate", Path(__file__).with_name("discovery_candidate.py"))
-        assert spec and spec.loader
-        candidate = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(candidate)
-        from types import SimpleNamespace
+        from types import ModuleType, SimpleNamespace
+
+        # This bundled module is executable package data, never an adapter hook.
+        # Importlib would create __pycache__ in an installed consumer on dry-run.
+        path = Path(__file__).with_name("discovery_candidate.py")
+        candidate = ModuleType("discovery_candidate")
+        candidate.__file__ = str(path)
+        exec(compile(path.read_bytes(), str(path), "exec"), candidate.__dict__)
         return candidate.run(SimpleNamespace(**globals()), root, adapter_path=adapter_path,
                              policy_path=policy_path, apply=apply)
     root = root.resolve()
@@ -2305,14 +2315,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adapter", default=ADAPTER_NAME)
     parser.add_argument("--policy", default=POLICY_NAME)
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--candidate-v2", action="store_true")
+    parser.add_argument("--candidate-v2", action="store_true", default=None)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     args = parser.parse_args(argv)
     report = run(args.root, adapter_path=args.adapter, policy_path=args.policy, apply=args.apply,
                  candidate_v2=args.candidate_v2)
     if args.format == "json":
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
-    elif args.candidate_v2:
+    elif report.get("contract") == "candidate-v2":
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     else:
         print(_text_report(report))
