@@ -33,9 +33,9 @@ class SourceResolutionTests(unittest.TestCase):
         self.assertEqual(
             lock["publications"],
             {
-                "modeling": {"revision": "ad4108fb16bb1b296911fa4377856d510bce9f7b"},
-                "composition": {"revision": "27a1a13b182ba5ac91ccdec38d73facf712133ba"},
-                "policy": {"revision": "e8f75acade81411a3837ebb67bb5219e5c51eb1c"},
+                "modeling": {"revision": "202afe0206d673b2e2195a2df271d76862f9323a"},
+                "composition": {"revision": "d4d0e35485ea0c2030e902f462374f6fb8f8588a"},
+                "policy": {"revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"},
             },
         )
 
