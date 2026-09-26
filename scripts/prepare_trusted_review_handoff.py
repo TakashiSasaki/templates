@@ -63,7 +63,7 @@ REQUIRED_TOP_LEVEL_KEYS = frozenset(
         "review_authority_bundle",
     }
 )
-OPTIONAL_TOP_LEVEL_KEYS = frozenset({"locators"})
+OPTIONAL_TOP_LEVEL_KEYS = frozenset({"locators", "freeze_evidence"})
 
 
 class EvidenceStatus(StrEnum):
@@ -463,10 +463,13 @@ class ExternalObservationProviderVerifier:
         self.data = json.loads(self.raw_bytes.decode("utf-8"))
 
     def verify(self, target: dict[str, Any], prov_obs: dict[str, Any]) -> None:
-        if "observation_sha256" in prov_obs and prov_obs["observation_sha256"] != self.sha256:
+        obs_sha = prov_obs.get("observation_sha256")
+        if not obs_sha:
+            raise ValueError("provider observation missing observation_sha256 binding")
+        if obs_sha != self.sha256:
             raise ValueError(
                 f"provider observation SHA256 mismatch: handoff recorded "
-                f"{prov_obs.get('observation_sha256')} but file has {self.sha256}"
+                f"{obs_sha} but file has {self.sha256}"
             )
 
         obs_repo = self.data.get("repository", {})
@@ -484,6 +487,16 @@ class ExternalObservationProviderVerifier:
             raise ValueError("provider observation PR number does not match handoff target")
 
 
+REQUIRED_FROZEN_SECTIONS = frozenset(
+    {
+        "frozen_bootstrap_image",
+        "frozen_trusted_base",
+        "frozen_runtime",
+        "review_authority_bundle",
+    }
+)
+
+
 class ExternalDeploymentFreezeVerifier:
     """Verifies that deployment freeze evidence is satisfied by an external freeze record."""
 
@@ -491,21 +504,309 @@ class ExternalDeploymentFreezeVerifier:
         self.freeze_evidence_path = freeze_evidence_path
         self.raw_bytes = freeze_evidence_path.read_bytes()
         self.sha256 = sha256_bytes(self.raw_bytes)
-        self.data = json.loads(self.raw_bytes.decode("utf-8"))
+        try:
+            self.data = json.loads(self.raw_bytes.decode("utf-8"))
+        except Exception as exc:
+            raise ValueError(f"malformed external freeze evidence JSON: {exc}") from exc
+        if not isinstance(self.data, dict):
+            raise ValueError("external freeze evidence must be a JSON object")
+
+    def verify_document_digest(self, handoff: dict[str, Any]) -> None:
+        fe_meta = handoff.get("freeze_evidence")
+        if not isinstance(fe_meta, dict) or "sha256" not in fe_meta:
+            raise ValueError("handoff missing freeze_evidence.sha256")
+        expected_sha = fe_meta["sha256"]
+        require_sha256(expected_sha, "handoff.freeze_evidence.sha256")
+        if self.sha256 != expected_sha:
+            raise ValueError(
+                f"freeze evidence SHA256 mismatch: handoff recorded {expected_sha} "
+                f"but external evidence file has {self.sha256}"
+            )
+
+        sections_dict = self.data.get("sections")
+        available_sections: set[str] = set()
+        if isinstance(sections_dict, dict):
+            available_sections.update(sections_dict.keys())
+        for sec in REQUIRED_FROZEN_SECTIONS:
+            if sec in self.data and isinstance(self.data[sec], dict):
+                available_sections.add(sec)
+        missing_sections = REQUIRED_FROZEN_SECTIONS - available_sections
+        if missing_sections:
+            raise ValueError(
+                f"external freeze evidence incomplete: missing sections {sorted(missing_sections)}"
+            )
+
+    def _get_section_data(self, section: str) -> dict[str, Any]:
+        sections = self.data.get("sections")
+        sec_data = None
+        if isinstance(sections, dict) and section in sections:
+            sec_data = sections[section]
+        elif section in self.data and isinstance(self.data[section], dict):
+            sec_data = self.data[section]
+
+        if not isinstance(sec_data, dict):
+            raise ValueError(f"external freeze evidence missing section record for {section}")
+        return sec_data
 
     def verify(self, section: str, entry: dict[str, Any]) -> None:
+        if section not in REQUIRED_FROZEN_SECTIONS:
+            raise ValueError(f"unsupported frozen section: {section}")
+
+        sec_data = self._get_section_data(section)
+
+        sec_tag = sec_data.get("section")
+        if sec_tag is not None and sec_tag != section:
+            raise ValueError(
+                f"cross-section evidence mismatch: record for {sec_tag} cannot verify {section}"
+            )
+
         fe = entry.get("freeze_mechanism") or entry.get("freeze_evidence", {})
         if not isinstance(fe, dict):
             raise ValueError(f"{section} missing freeze mechanism/evidence")
-        if self.data.get("status") in ("verified", "PASS") or self.data.get("result") == "PASS":
-            return
-        if section in self.data.get("verified_sections", []) or section in self.data.get(
-            "verified_targets", []
-        ):
-            return
-        if self.data.get("target") == section:
-            return
-        raise ValueError(f"external freeze evidence does not verify {section}")
+        entry_mech = fe.get("type") or fe.get("mechanism")
+
+        if section == "frozen_bootstrap_image":
+            ev_inv = sec_data.get("inventory_digest")
+            if not ev_inv:
+                raise ValueError("frozen_bootstrap_image freeze evidence missing inventory_digest")
+            require_sha256(ev_inv, "frozen_bootstrap_image freeze evidence inventory_digest")
+            if ev_inv != entry.get("inventory_digest"):
+                raise ValueError(
+                    f"frozen_bootstrap_image inventory_digest mismatch: "
+                    f"external={ev_inv} handoff={entry.get('inventory_digest')}"
+                )
+
+            ev_mech = (
+                sec_data.get("freeze_mechanism_type")
+                or sec_data.get("mechanism_type")
+                or sec_data.get("mechanism")
+            )
+            if not ev_mech:
+                raise ValueError(
+                    "frozen_bootstrap_image freeze evidence missing freeze mechanism type"
+                )
+            if ev_mech != entry_mech:
+                raise ValueError(
+                    f"frozen_bootstrap_image freeze mechanism mismatch: "
+                    f"external={ev_mech} handoff={entry_mech}"
+                )
+
+            entry_pfv = entry.get("post_freeze_verification", {})
+            entry_verifier = entry_pfv.get("verifier")
+            ev_verifier = sec_data.get("post_freeze_verifier") or sec_data.get("verifier")
+            if not ev_verifier:
+                raise ValueError(
+                    "frozen_bootstrap_image freeze evidence missing post-freeze verifier"
+                )
+            if ev_verifier != entry_verifier:
+                raise ValueError(
+                    f"frozen_bootstrap_image post-freeze verifier mismatch: "
+                    f"external={ev_verifier} handoff={entry_verifier}"
+                )
+
+        elif section == "frozen_trusted_base":
+            ev_commit = sec_data.get("base_commit") or sec_data.get("revision")
+            if not ev_commit:
+                raise ValueError("frozen_trusted_base freeze evidence missing base commit/revision")
+            require_full_sha(ev_commit, "frozen_trusted_base freeze evidence base commit")
+            if ev_commit != entry.get("revision"):
+                raise ValueError(
+                    f"frozen_trusted_base revision mismatch: "
+                    f"external={ev_commit} handoff={entry.get('revision')}"
+                )
+
+            ev_tree = sec_data.get("base_tree") or sec_data.get("tree")
+            if not ev_tree:
+                raise ValueError("frozen_trusted_base freeze evidence missing base tree")
+            require_full_sha(ev_tree, "frozen_trusted_base freeze evidence base tree")
+            if ev_tree != entry.get("tree"):
+                raise ValueError(
+                    f"frozen_trusted_base tree mismatch: "
+                    f"external={ev_tree} handoff={entry.get('tree')}"
+                )
+
+            ev_inv = sec_data.get("inventory_digest")
+            if not ev_inv:
+                raise ValueError("frozen_trusted_base freeze evidence missing inventory_digest")
+            require_sha256(ev_inv, "frozen_trusted_base freeze evidence inventory_digest")
+            if ev_inv != entry.get("inventory_digest"):
+                raise ValueError(
+                    f"frozen_trusted_base inventory_digest mismatch: "
+                    f"external={ev_inv} handoff={entry.get('inventory_digest')}"
+                )
+
+            ev_mech = (
+                sec_data.get("freeze_mechanism_type")
+                or sec_data.get("mechanism_type")
+                or sec_data.get("mechanism")
+            )
+            if not ev_mech:
+                raise ValueError(
+                    "frozen_trusted_base freeze evidence missing freeze mechanism type"
+                )
+            if ev_mech != entry_mech:
+                raise ValueError(
+                    f"frozen_trusted_base freeze mechanism mismatch: "
+                    f"external={ev_mech} handoff={entry_mech}"
+                )
+
+        elif section == "frozen_runtime":
+            entry_tc = entry.get("toolchain", {})
+            ev_tc = sec_data.get("toolchain")
+            if isinstance(ev_tc, dict):
+                ev_repo = ev_tc.get("repository")
+                ev_rev = ev_tc.get("revision")
+            else:
+                ev_repo = sec_data.get("toolchain_repository")
+                ev_rev = sec_data.get("toolchain_revision")
+            if not ev_repo:
+                raise ValueError("frozen_runtime freeze evidence missing toolchain repository")
+            if not ev_rev:
+                raise ValueError("frozen_runtime freeze evidence missing toolchain revision")
+            require_full_sha(ev_rev, "frozen_runtime freeze evidence toolchain revision")
+            if ev_repo != entry_tc.get("repository"):
+                raise ValueError(
+                    f"frozen_runtime toolchain repository mismatch: "
+                    f"external={ev_repo} handoff={entry_tc.get('repository')}"
+                )
+            if ev_rev != entry_tc.get("revision"):
+                raise ValueError(
+                    f"frozen_runtime toolchain revision mismatch: "
+                    f"external={ev_rev} handoff={entry_tc.get('revision')}"
+                )
+
+            entry_lock = entry.get("lock", {})
+            ev_lock_sha = sec_data.get("lock_sha256") or (sec_data.get("lock") or {}).get("sha256")
+            if not ev_lock_sha:
+                raise ValueError("frozen_runtime freeze evidence missing lock sha256")
+            require_sha256(ev_lock_sha, "frozen_runtime freeze evidence lock sha256")
+            if ev_lock_sha != entry_lock.get("sha256"):
+                raise ValueError(
+                    f"frozen_runtime lock sha256 mismatch: "
+                    f"external={ev_lock_sha} handoff={entry_lock.get('sha256')}"
+                )
+
+            entry_att = entry.get("runtime_attestation", {})
+            ev_att_sha = sec_data.get("runtime_attestation_sha256") or (
+                sec_data.get("runtime_attestation") or {}
+            ).get("sha256")
+            if not ev_att_sha:
+                raise ValueError(
+                    "frozen_runtime freeze evidence missing runtime_attestation sha256"
+                )
+            require_sha256(ev_att_sha, "frozen_runtime freeze evidence runtime_attestation sha256")
+            if ev_att_sha != entry_att.get("sha256"):
+                raise ValueError(
+                    f"frozen_runtime runtime_attestation sha256 mismatch: "
+                    f"external={ev_att_sha} handoff={entry_att.get('sha256')}"
+                )
+
+            ev_inv = sec_data.get("inventory_digest")
+            if not ev_inv:
+                raise ValueError("frozen_runtime freeze evidence missing inventory_digest")
+            require_sha256(ev_inv, "frozen_runtime freeze evidence inventory_digest")
+            if ev_inv != entry.get("inventory_digest"):
+                raise ValueError(
+                    f"frozen_runtime inventory_digest mismatch: "
+                    f"external={ev_inv} handoff={entry.get('inventory_digest')}"
+                )
+
+            ev_mech = (
+                sec_data.get("freeze_mechanism_type")
+                or sec_data.get("mechanism_type")
+                or sec_data.get("mechanism")
+            )
+            if not ev_mech:
+                raise ValueError("frozen_runtime freeze evidence missing freeze mechanism type")
+            if ev_mech != entry_mech:
+                raise ValueError(
+                    f"frozen_runtime freeze mechanism mismatch: "
+                    f"external={ev_mech} handoff={entry_mech}"
+                )
+
+        elif section == "review_authority_bundle":
+            ev_inv = sec_data.get("inventory_digest")
+            if not ev_inv:
+                raise ValueError("review_authority_bundle freeze evidence missing inventory_digest")
+            require_sha256(ev_inv, "review_authority_bundle freeze evidence inventory_digest")
+            if ev_inv != entry.get("inventory_digest"):
+                raise ValueError(
+                    f"review_authority_bundle inventory_digest mismatch: "
+                    f"external={ev_inv} handoff={entry.get('inventory_digest')}"
+                )
+
+            ev_manifest = sec_data.get("manifest_sha256")
+            if not ev_manifest:
+                raise ValueError("review_authority_bundle freeze evidence missing manifest_sha256")
+            require_sha256(ev_manifest, "review_authority_bundle freeze evidence manifest_sha256")
+            if ev_manifest != entry.get("manifest_sha256"):
+                raise ValueError(
+                    f"review_authority_bundle manifest_sha256 mismatch: "
+                    f"external={ev_manifest} handoff={entry.get('manifest_sha256')}"
+                )
+
+            entry_proc = entry.get("procedure", {})
+            ev_skill = (
+                sec_data.get("procedure_skill_sha256")
+                or sec_data.get("skill_sha256")
+                or (sec_data.get("procedure") or {}).get("skill_sha256")
+            )
+            if not ev_skill:
+                raise ValueError(
+                    "review_authority_bundle freeze evidence missing procedure_skill_sha256"
+                )
+            require_sha256(
+                ev_skill, "review_authority_bundle freeze evidence procedure_skill_sha256"
+            )
+            if ev_skill != entry_proc.get("skill_sha256"):
+                raise ValueError(
+                    f"review_authority_bundle procedure_skill_sha256 mismatch: "
+                    f"external={ev_skill} handoff={entry_proc.get('skill_sha256')}"
+                )
+
+            entry_sem = entry.get("semantic", {})
+            ev_sem = (
+                sec_data.get("semantic_policy_sha256")
+                or sec_data.get("semantic_sha256")
+                or (sec_data.get("semantic") or {}).get("sha256")
+            )
+            if not ev_sem:
+                raise ValueError(
+                    "review_authority_bundle freeze evidence missing semantic_policy_sha256"
+                )
+            require_sha256(ev_sem, "review_authority_bundle freeze evidence semantic_policy_sha256")
+            if ev_sem != entry_sem.get("sha256"):
+                raise ValueError(
+                    f"review_authority_bundle semantic_policy_sha256 mismatch: "
+                    f"external={ev_sem} handoff={entry_sem.get('sha256')}"
+                )
+
+            ev_refs = sec_data.get("procedure_references") or (sec_data.get("procedure") or {}).get(
+                "references"
+            )
+            if ev_refs is not None:
+                if not isinstance(ev_refs, list):
+                    raise ValueError(
+                        "review_authority_bundle freeze evidence "
+                        "procedure_references must be a list"
+                    )
+                entry_refs = entry_proc.get("references", [])
+                ev_ref_map = {
+                    r.get("bundle_path") or r.get("path"): r.get("sha256")
+                    for r in ev_refs
+                    if isinstance(r, dict)
+                }
+                entry_ref_map = {
+                    r.get("bundle_path") or r.get("path"): r.get("sha256")
+                    for r in entry_refs
+                    if isinstance(r, dict)
+                }
+                for ref_path, ref_sha in ev_ref_map.items():
+                    if ref_path not in entry_ref_map or entry_ref_map[ref_path] != ref_sha:
+                        raise ValueError(
+                            f"review_authority_bundle procedure reference mismatch for {ref_path}: "
+                            f"external={ref_sha} handoff={entry_ref_map.get(ref_path)}"
+                        )
 
 
 def compute_directory_inventory_digest(directory: Path) -> str:
@@ -857,6 +1158,11 @@ class HandoffOrchestrator:
             )
 
         entry["freeze_evidence"] = fe_to_record.to_dict()
+        save_state(self.state, self.state_file)
+
+    def record_freeze_evidence_document(self, evidence_sha256: str) -> None:
+        fe_sha = require_sha256(evidence_sha256, "freeze_evidence.sha256")
+        self.state["freeze_evidence"] = {"sha256": fe_sha}
         save_state(self.state, self.state_file)
 
     def _freeze_blocked_result(self, target: str, entry: dict[str, Any]) -> dict[str, Any]:
@@ -1614,7 +1920,7 @@ class HandoffOrchestrator:
             "review_bundle": k_entry["locator"],
         }
 
-        return {
+        handoff_dict = {
             "schema_version": HANDOFF_SCHEMA_VERSION,
             "handoff_type": HANDOFF_TYPE,
             "target": target,
@@ -1627,6 +1933,9 @@ class HandoffOrchestrator:
             "review_authority_bundle": review_bundle_obj,
             "locators": locators,
         }
+        if "freeze_evidence" in self.state:
+            handoff_dict["freeze_evidence"] = self.state["freeze_evidence"]
+        return handoff_dict
 
 
 def verify_handoff(
@@ -1714,7 +2023,23 @@ def verify_handoff(
                 "without trusted provider adapter"
             )
 
-    # 3. Bootstrap Authority validation
+    # 3. Freeze Evidence Document validation
+    if freeze_adapter is not None:
+        if hasattr(freeze_adapter, "verify_document_digest"):
+            freeze_adapter.verify_document_digest(handoff)
+        elif hasattr(freeze_adapter, "sha256"):
+            fe_meta = handoff.get("freeze_evidence")
+            if not isinstance(fe_meta, dict) or "sha256" not in fe_meta:
+                raise ValueError("handoff missing freeze_evidence.sha256")
+            expected_sha = fe_meta["sha256"]
+            require_sha256(expected_sha, "handoff.freeze_evidence.sha256")
+            if freeze_adapter.sha256 != expected_sha:
+                raise ValueError(
+                    f"freeze evidence SHA256 mismatch: handoff recorded {expected_sha} "
+                    f"but external evidence file has {freeze_adapter.sha256}"
+                )
+
+    # 4. Bootstrap Authority validation
     boot_auth = handoff["bootstrap_authority"]
     if not isinstance(boot_auth, dict):
         raise ValueError("bootstrap_authority must be a dict")
@@ -1827,9 +2152,7 @@ def verify_handoff(
     rt_entry = handoff["frozen_runtime"]
     if "toolchain" not in rt_entry or not isinstance(rt_entry["toolchain"], dict):
         raise ValueError("frozen_runtime missing toolchain")
-    require_full_sha(
-        rt_entry["toolchain"].get("revision", ""), "frozen_runtime.toolchain.revision"
-    )
+    require_full_sha(rt_entry["toolchain"].get("revision", ""), "frozen_runtime.toolchain.revision")
     rt_att = rt_entry.get("runtime_attestation", {})
     if not isinstance(rt_att, dict) or not rt_att.get("sha256"):
         raise ValueError("frozen_runtime missing runtime_attestation.sha256")
@@ -2325,10 +2648,18 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         if args.freeze_evidence:
-            fe_json = json.loads(args.freeze_evidence.read_text(encoding="utf-8"))
-            target = fe_json["target"]
-            fe = FreezeEvidence.from_dict(fe_json)
-            orchestrator.record_freeze(target, fe)
+            fe_bytes = args.freeze_evidence.read_bytes()
+            fe_sha = sha256_bytes(fe_bytes)
+            try:
+                fe_json = json.loads(fe_bytes.decode("utf-8"))
+            except Exception as exc:
+                print(f"Error parsing freeze evidence: {exc}", file=sys.stderr)
+                return 1
+            if "target" in fe_json and "boundary_type" in fe_json:
+                target = fe_json["target"]
+                fe = FreezeEvidence.from_dict(fe_json)
+                orchestrator.record_freeze(target, fe)
+            orchestrator.record_freeze_evidence_document(fe_sha)
 
         result = orchestrator.run_to_freeze_or_complete()
     except Exception as exc:

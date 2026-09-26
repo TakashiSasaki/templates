@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import subprocess
@@ -2053,3 +2054,622 @@ def test_production_canonical_handoff_interoperability() -> None:
         provider_adapter=TrustedProviderVerifier(),
         freeze_adapter=TrustedFreezeVerifier(),
     )
+
+
+# ---------------------------------------------------------------------------
+# Blocker 3 Dedicated Regressions: Freeze Evidence Binding & Exploits (Review 5324008296)
+# ---------------------------------------------------------------------------
+
+
+def make_valid_freeze_evidence_dict(handoff: dict[str, Any]) -> dict[str, Any]:
+    b_entry = handoff["frozen_bootstrap_image"]
+    t_entry = handoff["frozen_trusted_base"]
+    r_entry = handoff["frozen_runtime"]
+    k_entry = handoff["review_authority_bundle"]
+
+    return {
+        "schema_version": 1,
+        "evidence_type": "DEPLOYMENT_FREEZE_EVIDENCE",
+        "created_at": "2026-09-26T00:00:00Z",
+        "deployment_controller": {
+            "name": "external_deployment_controller",
+            "verifier": "production_deployment_verifier",
+            "mechanism": "kernel_ro_mount_and_chattr",
+        },
+        "sections": {
+            "frozen_bootstrap_image": {
+                "section": "frozen_bootstrap_image",
+                "inventory_digest": b_entry["inventory_digest"],
+                "freeze_mechanism_type": b_entry["freeze_mechanism"]["type"],
+                "post_freeze_verifier": b_entry["post_freeze_verification"]["verifier"],
+            },
+            "frozen_trusted_base": {
+                "section": "frozen_trusted_base",
+                "base_commit": t_entry["revision"],
+                "base_tree": t_entry["tree"],
+                "inventory_digest": t_entry["inventory_digest"],
+                "freeze_mechanism_type": t_entry["freeze_mechanism"]["type"],
+            },
+            "frozen_runtime": {
+                "section": "frozen_runtime",
+                "toolchain_repository": r_entry["toolchain"]["repository"],
+                "toolchain_revision": r_entry["toolchain"]["revision"],
+                "lock_sha256": r_entry["lock"]["sha256"],
+                "runtime_attestation_sha256": r_entry["runtime_attestation"]["sha256"],
+                "inventory_digest": r_entry["inventory_digest"],
+                "freeze_mechanism_type": r_entry["freeze_mechanism"]["type"],
+            },
+            "review_authority_bundle": {
+                "section": "review_authority_bundle",
+                "inventory_digest": k_entry["inventory_digest"],
+                "manifest_sha256": k_entry["manifest_sha256"],
+                "procedure_skill_sha256": k_entry["procedure"]["skill_sha256"],
+                "semantic_policy_sha256": k_entry["semantic"]["sha256"],
+            },
+        },
+    }
+
+
+def make_valid_provider_observation_file(handoff: dict[str, Any], path: Path) -> Path:
+    obs = {
+        "schema_version": 1,
+        "repository": handoff["target"]["repository"],
+        "pull_request": handoff["target"]["pull_request"],
+    }
+    raw = json.dumps(obs, indent=2, sort_keys=True).encode("utf-8")
+    path.write_bytes(raw)
+    handoff["provider_observation"]["observation_sha256"] = hashlib.sha256(raw).hexdigest()
+    return path
+
+
+def bind_freeze_evidence_to_handoff(
+    handoff: dict[str, Any],
+    fe_dict: dict[str, Any],
+    fe_path: Path,
+) -> Path:
+    fe_bytes = json.dumps(fe_dict, indent=2, sort_keys=True).encode("utf-8")
+    fe_path.write_bytes(fe_bytes)
+    handoff["freeze_evidence"] = {"sha256": hashlib.sha256(fe_bytes).hexdigest()}
+    return fe_path
+
+
+def setup_verified_fixtures(
+    tmp_path: Path,
+) -> tuple[dict[str, Any], Path, Path, Path]:
+    handoff = make_valid_handoff_dict(simulated_boundary=False)
+    obs_file = tmp_path / "provider_observation.json"
+    make_valid_provider_observation_file(handoff, obs_file)
+
+    fe_dict = make_valid_freeze_evidence_dict(handoff)
+    fe_file = tmp_path / "freeze_evidence.json"
+    bind_freeze_evidence_to_handoff(handoff, fe_dict, fe_file)
+
+    handoff_file = tmp_path / "handoff.json"
+    handoff_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+    return handoff, obs_file, fe_file, handoff_file
+
+
+@pytest.mark.parametrize("stub_content", [{"result": "PASS"}, {"status": "PASS"}])
+def test_freeze_verification_rejects_generic_pass(
+    tmp_path: Path, stub_content: dict[str, Any]
+) -> None:
+    """1. Generic PASS must fail: {"result": "PASS"} and {"status": "PASS"}."""
+    handoff, obs_file, _, _ = setup_verified_fixtures(tmp_path)
+    stub_file = tmp_path / "stub_freeze_evidence.json"
+    bind_freeze_evidence_to_handoff(handoff, stub_content, stub_file)
+
+    h_file = tmp_path / "handoff_generic_pass.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(stub_file)
+
+    with pytest.raises(ValueError, match="external freeze evidence"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(stub_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_freeze_verification_rejects_section_name_only(tmp_path: Path) -> None:
+    """2. Section-name-only evidence must fail without exact section identity binding."""
+    handoff, obs_file, _, _ = setup_verified_fixtures(tmp_path)
+    sec_only = {"verified_sections": ["review_authority_bundle"]}
+    stub_file = tmp_path / "section_name_only.json"
+    bind_freeze_evidence_to_handoff(handoff, sec_only, stub_file)
+
+    h_file = tmp_path / "handoff_sec_name_only.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(stub_file)
+
+    with pytest.raises(ValueError, match="external freeze evidence"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(stub_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_freeze_verification_rejects_wrong_document_digest(tmp_path: Path) -> None:
+    """3. Wrong external evidence document digest must fail."""
+    handoff, obs_file, fe_file, _ = setup_verified_fixtures(tmp_path)
+    handoff["freeze_evidence"]["sha256"] = valid_sha256("0")
+    h_file = tmp_path / "handoff_wrong_digest.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="freeze evidence SHA256 mismatch"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_freeze_verification_rejects_bootstrap_inventory_substitution(tmp_path: Path) -> None:
+    """4. Bootstrap inventory substitution must fail against unchanged external freeze evidence."""
+    handoff, obs_file, fe_file, _ = setup_verified_fixtures(tmp_path)
+    handoff["frozen_bootstrap_image"]["inventory_digest"] = valid_sha256("e")
+    h_file = tmp_path / "handoff_sub_boot.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="frozen_bootstrap_image inventory_digest mismatch"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+@pytest.mark.parametrize("tamper_field", ["revision", "tree", "inventory_digest"])
+def test_freeze_verification_rejects_trusted_base_substitution(
+    tmp_path: Path, tamper_field: str
+) -> None:
+    """5. Trusted-base identity substitution: base commit, tree, base inventory digest."""
+    handoff, obs_file, fe_file, _ = setup_verified_fixtures(tmp_path)
+    if tamper_field in ("revision", "tree"):
+        handoff["frozen_trusted_base"][tamper_field] = valid_sha("a")
+    else:
+        handoff["frozen_trusted_base"][tamper_field] = valid_sha256("e")
+
+    h_file = tmp_path / f"handoff_tamper_base_{tamper_field}.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="frozen_trusted_base"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+@pytest.mark.parametrize(
+    ("section_path", "new_val"),
+    [
+        (["toolchain", "revision"], valid_sha("a")),
+        (["lock", "sha256"], valid_sha256("e")),
+        (["runtime_attestation", "sha256"], valid_sha256("f")),
+        (["inventory_digest"], valid_sha256("0")),
+    ],
+)
+def test_freeze_verification_rejects_runtime_substitution(
+    tmp_path: Path, section_path: list[str], new_val: str
+) -> None:
+    """6. Runtime substitution: toolchain revision, lock digest, attestation, inventory."""
+    handoff, obs_file, fe_file, _ = setup_verified_fixtures(tmp_path)
+    target: dict[str, Any] = handoff["frozen_runtime"]
+    for p in section_path[:-1]:
+        target = target[p]
+    target[section_path[-1]] = new_val
+
+    h_file = tmp_path / f"handoff_tamper_rt_{section_path[-1]}.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="frozen_runtime"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_freeze_verification_rejects_review_bundle_inventory_substitution(
+    tmp_path: Path,
+) -> None:
+    """7. Review-bundle inventory substitution must fail."""
+    handoff, obs_file, fe_file, _ = setup_verified_fixtures(tmp_path)
+    handoff["review_authority_bundle"]["inventory_digest"] = valid_sha256("e")
+    h_file = tmp_path / "handoff_tamper_bundle_inv.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="review_authority_bundle inventory_digest mismatch"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_freeze_verification_rejects_bundle_manifest_substitution(tmp_path: Path) -> None:
+    """8. Bundle manifest substitution must fail."""
+    handoff, obs_file, fe_file, _ = setup_verified_fixtures(tmp_path)
+    handoff["review_authority_bundle"]["manifest_sha256"] = valid_sha256("e")
+    h_file = tmp_path / "handoff_tamper_bundle_manifest.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="review_authority_bundle manifest_sha256 mismatch"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_freeze_verification_rejects_procedure_skill_substitution(tmp_path: Path) -> None:
+    """9. Procedure Skill substitution must fail."""
+    handoff, obs_file, fe_file, _ = setup_verified_fixtures(tmp_path)
+    handoff["review_authority_bundle"]["procedure"]["skill_sha256"] = valid_sha256("e")
+    h_file = tmp_path / "handoff_tamper_proc_skill.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="review_authority_bundle procedure_skill_sha256 mismatch"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_freeze_verification_rejects_semantic_policy_substitution(tmp_path: Path) -> None:
+    """10. Semantic policy substitution must fail (mandatory Hermes exploit test)."""
+    handoff, obs_file, fe_file, _ = setup_verified_fixtures(tmp_path)
+    handoff["review_authority_bundle"]["semantic"]["sha256"] = valid_sha256("e")
+    h_file = tmp_path / "handoff_tamper_sem_policy.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="review_authority_bundle semantic_policy_sha256 mismatch"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_combined_hermes_exploit_regression(tmp_path: Path) -> None:
+    """11. Combined Hermes exploit regression (Review 5324008296 attack shape):
+    Authentic provider observation + forged semantic digest + forged procedure Skill digest
+    + forged artifact identities + generic/stub external freeze evidence.
+    Must exit != 0 from public CLI.
+    """
+    handoff, obs_file, _, _ = setup_verified_fixtures(tmp_path)
+
+    handoff["review_authority_bundle"]["semantic"]["sha256"] = valid_sha256("e")
+    handoff["review_authority_bundle"]["procedure"]["skill_sha256"] = valid_sha256("d")
+    handoff["review_authority_bundle"]["manifest_sha256"] = valid_sha256("c")
+    handoff["review_authority_bundle"]["inventory_digest"] = valid_sha256("b")
+    handoff["frozen_bootstrap_image"]["inventory_digest"] = valid_sha256("a")
+
+    stub_fe = {"result": "PASS"}
+    stub_file = tmp_path / "hermes_attack_stub.json"
+    stub_file.write_text(json.dumps(stub_fe), encoding="utf-8")
+
+    h_file = tmp_path / "hermes_attack_handoff.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(stub_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_freeze_verification_rejects_cross_section_evidence_reuse(tmp_path: Path) -> None:
+    """12. Cross-section evidence reuse must fail: using one section's evidence for another."""
+    handoff, obs_file, _, _ = setup_verified_fixtures(tmp_path)
+    fe_dict = make_valid_freeze_evidence_dict(handoff)
+
+    fe_dict["sections"]["frozen_trusted_base"] = dict(fe_dict["sections"]["frozen_bootstrap_image"])
+    tampered_fe_file = tmp_path / "cross_section_evidence.json"
+    bind_freeze_evidence_to_handoff(handoff, fe_dict, tampered_fe_file)
+
+    h_file = tmp_path / "handoff_cross_section.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(tampered_fe_file)
+
+    with pytest.raises(ValueError, match="frozen_trusted_base"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(tampered_fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+@pytest.mark.parametrize(
+    "omitted_section",
+    [
+        "frozen_bootstrap_image",
+        "frozen_trusted_base",
+        "frozen_runtime",
+        "review_authority_bundle",
+    ],
+)
+def test_freeze_verification_rejects_partial_coverage(tmp_path: Path, omitted_section: str) -> None:
+    """13. Partial evidence coverage must fail: omitting one required frozen section."""
+    handoff, obs_file, _, _ = setup_verified_fixtures(tmp_path)
+    fe_dict = make_valid_freeze_evidence_dict(handoff)
+    del fe_dict["sections"][omitted_section]
+
+    fe_file = tmp_path / f"partial_evidence_{omitted_section}.json"
+    bind_freeze_evidence_to_handoff(handoff, fe_dict, fe_file)
+
+    h_file = tmp_path / f"handoff_partial_{omitted_section}.json"
+    h_file.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    with pytest.raises(ValueError, match="external freeze evidence"):
+        verify_handoff(
+            handoff,
+            allow_simulated_boundary=False,
+            provider_adapter=prov_adapter,
+            freeze_adapter=freeze_adapter,
+        )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code != 0
+
+
+def test_positive_canonical_freeze_evidence_acceptance(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """14. Positive canonical case: exact identity binding accepts authentic evidence."""
+    handoff, obs_file, fe_file, h_file = setup_verified_fixtures(tmp_path)
+
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    freeze_adapter = handoff_module.ExternalDeploymentFreezeVerifier(fe_file)
+
+    verify_handoff(
+        handoff,
+        allow_simulated_boundary=False,
+        provider_adapter=prov_adapter,
+        freeze_adapter=freeze_adapter,
+    )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(h_file),
+            "--provider-observation",
+            str(obs_file),
+            "--freeze-evidence",
+            str(fe_file),
+            "--require-authenticated-provider",
+        ]
+    )
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert handoff_module.STATUS_HANDOFF_VERIFIED in captured.out
+
+
+def test_provider_observation_verifier_rejects_missing_digest(tmp_path: Path) -> None:
+    """Provider observation verifier must reject when observation_sha256 is omitted."""
+    handoff, obs_file, _, _ = setup_verified_fixtures(tmp_path)
+    prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
+    del handoff["provider_observation"]["observation_sha256"]
+
+    with pytest.raises(ValueError, match="provider observation missing observation_sha256 binding"):
+        prov_adapter.verify(handoff["target"], handoff["provider_observation"])
