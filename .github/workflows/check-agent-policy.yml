@@ -50,7 +50,7 @@ jobs:
       - name: Probe previously released Policy Action
         id: released
         continue-on-error: true
-        uses: TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+        uses: TakashiSasaki/templates@aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3
         with:
           command: check
           config: .agent-policy.yml
@@ -59,7 +59,7 @@ jobs:
         if: always()
         env:
           RELEASED_OUTCOME: ${{ steps.released.outcome }}
-          RELEASED_REVISION: 33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+          RELEASED_REVISION: aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3
         run: |
           case "$RELEASED_OUTCOME" in
             success)
