@@ -172,7 +172,11 @@ class PublicationSourceAdoptionTests(unittest.TestCase):
             self.assertEqual(result["classification"], "AUTO_PROCESSABLE")
             self.assertEqual(
                 set(result["allowed_mutations"]),
-                {"publication-sources.json:publications.modeling.revision", "publication-sources.json:schema_version"},
+                {
+                    "publication-sources.json:publications.modeling.revision",
+                    "publication-sources.json:schema_version",
+                    "publication-promotion-intent.json",
+                },
             )
 
             stopped = reconcile(
@@ -184,6 +188,44 @@ class PublicationSourceAdoptionTests(unittest.TestCase):
             )
             self.assertEqual(stopped["classification"], "NOT_ELIGIBLE")
             self.assertIn("KILL_SWITCH_ACTIVE", stopped["reason_codes"])
+
+    def test_already_selected_tuple_requires_and_produces_a_reviewable_promotion_intent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current = root / "current.json"
+            candidate = root / "candidate.json"
+            selected = self._lock(modeling="d" * 40)
+            current.write_bytes(selected)
+            candidate.write_bytes(selected)
+            report, source = self._qualification(root, {
+                "integration_revision": "e" * 40,
+                "modeling_revision": "d" * 40,
+                "composition_revision": "b" * 40,
+                "policy_revision": "c" * 40,
+            })
+
+            authorized = reconcile(
+                mode="adoption-only", current=current, candidate=candidate,
+                qualification=report, source_qualification=source, authorization=True, kill_switch=False,
+                expected_integration_revision="e" * 40,
+                expected_consumer_base="e" * 40,
+                expected_policy_revision="c" * 40,
+                expected_controller_revision="e" * 40,
+            )
+            self.assertEqual(authorized["classification"], "AUTO_PROCESSABLE")
+            self.assertEqual(authorized["reason_codes"][-1], "SELECTION_ALREADY_CURRENT")
+            self.assertEqual(authorized["allowed_mutations"], ["publication-promotion-intent.json"])
+
+            unauthorized = reconcile(
+                mode="adoption-only", current=current, candidate=candidate,
+                qualification=report, source_qualification=source, authorization=False, kill_switch=False,
+                expected_integration_revision="e" * 40,
+                expected_consumer_base="e" * 40,
+                expected_policy_revision="c" * 40,
+                expected_controller_revision="e" * 40,
+            )
+            self.assertEqual(unauthorized["classification"], "NOT_ELIGIBLE")
+            self.assertIn("AUTHORIZATION_NOT_GRANTED", unauthorized["reason_codes"])
 
     def test_reconciliation_stops_when_consumer_base_is_not_the_qualified_producer(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -100,6 +100,8 @@ class ReleaseBoundaryTests(unittest.TestCase):
         workflow = (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
         notify = workflow.split('  notify:', 1)[1]
         for required in (
+            "vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only'",
+            "vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'",
             "vars.PUBLICATION_POLICY_REVISION != ''",
             "vars.PUBLICATION_CONTROLLER_REVISION != ''",
             "vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'",
@@ -107,6 +109,24 @@ class ReleaseBoundaryTests(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertIn(required, notify)
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', workflow)
+
+    def test_existing_selection_has_a_trusted_promotion_intent_path(self):
+        reconcile = yaml.safe_load((ROOT / '.github/workflows/integration-reconcile.yml').read_text())
+        controller_steps = reconcile['jobs']['controller']['steps']
+        promote_steps = reconcile['jobs']['promote_lock_pr']['steps']
+        controller_commands = '\n'.join(step.get('run', '') for step in controller_steps)
+        promote_commands = '\n'.join(step.get('run', '') for step in promote_steps)
+        self.assertIn('publication_promotion_intent.py build', controller_commands)
+        self.assertIn('publication-promotion-intent-${{ needs.qualify.outputs.bundle_identity }}', '\n'.join(str(step.get('with', {})) for step in controller_steps))
+        self.assertIn('actions/download-artifact@', '\n'.join(step.get('uses', '') for step in promote_steps))
+        self.assertIn('publication_promotion_intent.py verify', promote_commands)
+        self.assertIn('publication-promotion-intent.json', promote_commands)
+        self.assertIn("needs.controller.outputs.classification == 'AUTO_PROCESSABLE'", reconcile['jobs']['promote_lock_pr']['if'])
+
+        notify = yaml.safe_load((ROOT / '.github/workflows/integration-promotion-notify.yml').read_text())
+        self.assertIn('validate_promotion_intent', notify['jobs'])
+        self.assertIn('verify-merged', '\n'.join(step.get('run', '') for step in notify['jobs']['validate_promotion_intent']['steps']))
+        self.assertIn('needs.validate_promotion_intent.result == \'success\'', notify['jobs']['release_qualification']['if'])
 
     def test_bundle_receipt_uses_github_workflow_path_shape(self):
         for name, expected_count in (
