@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import ctypes
 import hashlib
-import importlib.util
 import json
 import os
 import posixpath
@@ -733,6 +732,12 @@ def _rendered_blocks(text: str, *, prose: bool = False) -> str:
     """Exclude comments and code blocks from the supported Markdown surfaces."""
     text = re.sub(r"<!--.*?(?:-->|$)", lambda match: "\n" * match.group().count("\n"),
                   text, flags=re.DOTALL)
+    if prose:
+        text = re.sub(
+            r"<(pre|code|script|style|textarea)\b[^>]*>.*?(?:</\1\s*>|$)",
+            lambda match: "\n" * match.group().count("\n"), text,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
     visible: list[str] = []
     fence = ""
     quote_block = False
@@ -2160,12 +2165,14 @@ def run(
     if candidate_v2 is None:
         candidate_v2 = RUNTIME_CONTRACT == "2"
     if candidate_v2:
-        spec = importlib.util.spec_from_file_location(
-            "discovery_candidate", Path(__file__).with_name("discovery_candidate.py"))
-        assert spec and spec.loader
-        candidate = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(candidate)
-        from types import SimpleNamespace
+        from types import ModuleType, SimpleNamespace
+
+        # This bundled module is executable package data, never an adapter hook.
+        # Importlib would create __pycache__ in an installed consumer on dry-run.
+        path = Path(__file__).with_name("discovery_candidate.py")
+        candidate = ModuleType("discovery_candidate")
+        candidate.__file__ = str(path)
+        exec(compile(path.read_bytes(), str(path), "exec"), candidate.__dict__)
         return candidate.run(SimpleNamespace(**globals()), root, adapter_path=adapter_path,
                              policy_path=policy_path, apply=apply)
     root = root.resolve()

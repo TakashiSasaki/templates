@@ -407,3 +407,55 @@ def test_missing_or_wrong_schema_in_distribution_is_detected(tmp_path):
         "json",
     ]
     assert subprocess.run(command, capture_output=True).returncode != 0
+
+
+def test_distributed_dry_run_does_not_create_bytecode_in_checkout(tmp_path):
+    adapter = fixture(tmp_path)
+    write(tmp_path, ".progressive-discovery.json", adapter)
+    prefix = ".agents/skills/maintain-progressive-discovery/"
+    for path, content in render_skill("maintain-progressive-discovery").items():
+        write(tmp_path, prefix + path, content)
+    before = {
+        str(p.relative_to(tmp_path)): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(tmp_path / prefix / "scripts/maintain_progressive_discovery.py"),
+            "--root",
+            str(tmp_path),
+            "--candidate-v2",
+            "--format",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    clean(json.loads(result.stdout))
+    after = {
+        str(p.relative_to(tmp_path)): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()
+    }
+    assert before == after
+    assert not list(tmp_path.rglob("__pycache__"))
+
+
+@pytest.mark.parametrize("tag", ["pre", "code", "script", "style", "textarea"])
+def test_html_code_examples_do_not_establish_navigation(tmp_path, tag):
+    adapter = fixture(tmp_path)
+    write(tmp_path, "index.md", f"# Root\n\n<{tag}>[Readme](README.md)</{tag}>\n")
+    assert "root coverage missing: README.md" in run(tmp_path, adapter)["validation"]["errors"]
+
+
+def test_exclusion_cannot_silently_empty_generated_scope(tmp_path):
+    adapter = fixture(tmp_path)
+    write(tmp_path, "inventory.json", {"members": [{"source": "docs/a.md"}]})
+    write(tmp_path, "docs/a.md", "# A\n")
+    adapter["inventories"] = [inventory()]
+    adapter["generated"] = [
+        {"path": "docs/index.md", "title": "Docs", "section": "Members", "members": ["docs/a.md"]}
+    ]
+    adapter["exclude"] = [{"path": "docs/a.md", "reason": "Would empty the output"}]
+    report = run(tmp_path, adapter)
+    assert "generated scope empty" in str(report["notes"])
+    assert report["plan"] == []
