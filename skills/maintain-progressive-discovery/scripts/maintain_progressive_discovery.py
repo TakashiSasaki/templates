@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import hashlib
+import importlib.util
 import json
 import os
 import posixpath
@@ -347,6 +348,9 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
         return {}, [f"adapter: {exc}"]
     if not isinstance(value, dict):
         return {}, ["adapter: root must be an object"]
+    if "schema_version" in value and (type(value["schema_version"]) is not int
+                                      or value["schema_version"] != 1):
+        return {}, ["adapter: legacy runtime requires version 1; use explicit --candidate-v2"]
     errors: list[str] = []
     for key in ("expected_documents", "authoritative_inventories", "authored_boundaries",
                 "explicit_exclusions", "closed_inventories", "curated_shortcuts",
@@ -724,13 +728,22 @@ def _index_paths(root: Path, adapter: dict[str, Any]) -> list[str]:
     )
 
 
-def _rendered_blocks(text: str) -> str:
+def _rendered_blocks(text: str, *, prose: bool = False) -> str:
     """Exclude comments and code blocks from the supported Markdown surfaces."""
     text = re.sub(r"<!--.*?(?:-->|$)", lambda match: "\n" * match.group().count("\n"),
                   text, flags=re.DOTALL)
     visible: list[str] = []
     fence = ""
+    quote_block = False
     for line in text.splitlines():
+        if prose:
+            if not line.strip():
+                quote_block = False
+            elif line.lstrip().startswith(">"):
+                quote_block = True
+            if quote_block:
+                visible.append("")
+                continue
         marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
         if fence:
             if (marker and marker.group(1)[0] == fence[0]
@@ -754,7 +767,9 @@ def _without_code_spans(text: str) -> str:
     return re.sub(r"(`+).*?\1", "", text, flags=re.DOTALL)
 
 
-def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], list[str]]:
+def _read_index_links(
+    root: Path, relative: str, *, prose: bool = False
+) -> tuple[list[dict[str, str]], list[str]]:
     if problem := _repository_path_error(root, relative):
         return [], [problem]
     path = root / relative
@@ -764,7 +779,10 @@ def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], 
         return [], [f"{relative}: {exc}"]
     links: list[dict[str, str]] = []
     issues: list[str] = []
-    rendered = _rendered_blocks(text)
+    rendered = _rendered_blocks(text, prose=prose)
+    if prose:
+        if text.lstrip().startswith("---"):
+            issues.append(f"{relative}: front matter is forbidden")
     lines = rendered.splitlines()
     nonblank = [
         (index, line)
@@ -778,9 +796,10 @@ def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], 
     for line_number, line in nonblank:
         if line.startswith("#") and not HEADING_RE.match(line):
             issues.append(f"{relative}:{line_number}: malformed heading")
-        if line.startswith(("- ", "* ")) and "[" not in line:
+        if not prose and line.startswith(("- ", "* ")) and "[" not in line:
             issues.append(f"{relative}:{line_number}: list item must contain a Markdown link")
-        if not line.startswith(("#", "- ", "* ", "  ")) and not LINK_RE.search(line):
+        if (not prose and not line.startswith(("#", "- ", "* ", "  "))
+                and not LINK_RE.search(line)):
             issues.append(f"{relative}:{line_number}: content is outside the small index grammar")
     navigation_text = _without_code_spans(rendered)
     for match in LINK_RE.finditer(navigation_text):
@@ -795,9 +814,9 @@ def _heading_slug(value: str) -> str:
     return re.sub(r"\s+", "-", value.strip())
 
 
-def _headings(path: Path) -> set[str]:
+def _headings(path: Path, *, prose: bool = False) -> set[str]:
     try:
-        lines = _rendered_blocks(path.read_text(encoding="utf-8")).splitlines()
+        lines = _rendered_blocks(path.read_text(encoding="utf-8"), prose=prose).splitlines()
     except (OSError, UnicodeError):
         return set()
     headings: set[str] = set()
@@ -816,7 +835,7 @@ def _headings(path: Path) -> set[str]:
     return headings
 
 
-def _anchors(path: Path) -> set[str]:
+def _anchors(path: Path, *, prose: bool = False) -> set[str]:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
@@ -832,11 +851,13 @@ def _anchors(path: Path) -> set[str]:
                     self.anchors.add(value)
 
     parser = AnchorParser()
-    parser.feed(_without_code_spans(_rendered_blocks(text)))
+    parser.feed(_without_code_spans(_rendered_blocks(text, prose=prose)))
     return parser.anchors
 
 
-def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str | None]:
+def _resolve_link(
+    root: Path, source: str, target: str, *, prose: bool = False
+) -> tuple[str | None, str | None]:
     try:
         parsed = urlsplit(target)
     except ValueError as exc:
@@ -857,7 +878,7 @@ def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str
         return relative, f"{source}: missing link target {target}"
     if parsed.fragment and base.is_file():
         fragment = unquote(parsed.fragment)
-        if fragment not in _headings(base) and fragment not in _anchors(base):
+        if fragment not in _headings(base, prose=prose) and fragment not in _anchors(base, prose=prose):
             return relative, f"{source}: missing fragment {parsed.fragment} in {relative}"
     return relative, None
 
@@ -1041,6 +1062,7 @@ def _plan(
     expected: list[str],
     generated: dict[str, dict[str, Any]],
     policy: dict[str, Any],
+    *, generation_only: bool = False,
 ) -> list[dict[str, Any]]:
     plan: list[dict[str, Any]] = []
     if not policy["profile_selected"] or not policy["skill_selected"]:
@@ -1128,6 +1150,8 @@ def _plan(
                     "content": None,
                 }
             )
+    if generation_only:
+        return plan
     classifications = _classify(root, indexes, expected, adapter, generated)
     for item in classifications:
         if item["classification"] == "authored-index-needed" and item["index"] not in indexes:
@@ -2130,7 +2154,17 @@ def run(
     adapter_path: str = ADAPTER_NAME,
     policy_path: str = POLICY_NAME,
     apply: bool = False,
+    candidate_v2: bool = False,
 ) -> dict[str, Any]:
+    if candidate_v2:
+        spec = importlib.util.spec_from_file_location(
+            "discovery_candidate", Path(__file__).with_name("discovery_candidate.py"))
+        assert spec and spec.loader
+        candidate = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(candidate)
+        from types import SimpleNamespace
+        return candidate.run(SimpleNamespace(**globals()), root, adapter_path=adapter_path,
+                             policy_path=policy_path, apply=apply)
     root = root.resolve()
     adapter, adapter_errors = _load_adapter(root, adapter_path)
     policy_raw, policy_notes = _yaml_policy(root, policy_path)
@@ -2271,10 +2305,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adapter", default=ADAPTER_NAME)
     parser.add_argument("--policy", default=POLICY_NAME)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--candidate-v2", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     args = parser.parse_args(argv)
-    report = run(args.root, adapter_path=args.adapter, policy_path=args.policy, apply=args.apply)
+    report = run(args.root, adapter_path=args.adapter, policy_path=args.policy, apply=args.apply,
+                 candidate_v2=args.candidate_v2)
     if args.format == "json":
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    elif args.candidate_v2:
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     else:
         print(_text_report(report))
