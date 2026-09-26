@@ -1,0 +1,23 @@
+name: Check agent policy
+
+on:
+  pull_request: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check managed Policy outputs
+        uses: TakashiSasaki/templates@aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3
+        with:
+          command: check
+          config: .agent-policy.yml
