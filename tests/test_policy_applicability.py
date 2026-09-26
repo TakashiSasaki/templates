@@ -252,17 +252,17 @@ def test_all_generated_source_provenance_claims_resolve_in_git() -> None:
             )
 
 
-def test_candidate_unadopted_rule_does_not_masquerade_as_older_immutable_pin() -> None:
-    """The candidate shared rule must not masquerade as coming from an older immutable pin.
+def test_adopted_applicability_rule_is_claimed_with_truthful_provenance() -> None:
+    """The adopted shared applicability rule is claimed with truthful immutable provenance.
 
-    Negative test: policy/core/policy-applicability.md is authored in this PR and does NOT
-    exist in the adopted immutable pin declared in .agent-policy.yml. Therefore Policy's
-    current generated instructions must NOT claim this path as a source.
+    Under P3c, policy/core/policy-applicability.md is adopted via the stable runtime pin
+    declared in .agent-policy.yml (aa6f9ac4). Policy's current generated instructions
+    truthfully claim this path as a source at the pinned revision.
     """
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     pinned_revision = config["toolchain"]["revision"]
 
-    # 1. Verify candidate rule does NOT exist at the pinned revision in Git
+    # 1. Verify adopted rule exists at the pinned revision in Git
     res = subprocess.run(
         [
             "git",
@@ -273,15 +273,32 @@ def test_candidate_unadopted_rule_does_not_masquerade_as_older_immutable_pin() -
         cwd=ROOT,
         capture_output=True,
     )
-    assert res.returncode != 0, "Candidate rule must not exist in older immutable pin"
+    assert res.returncode == 0, "Adopted rule must exist in pinned immutable runtime"
 
-    # 2. Verify committed generated instructions do NOT falsely claim it under that pin
+    # 2. Verify committed generated instructions claim it truthfully under that pin
     for output_path in (AGENTS_MD_PATH, REVIEW_POLICY_PATH):
         content = output_path.read_text(encoding="utf-8")
-        assert f"{pinned_revision}:policy/core/policy-applicability.md" not in content, (
-            f"Unadopted candidate rule falsely claimed in {output_path}"
+        assert f"{pinned_revision}:policy/core/policy-applicability.md" in content, (
+            f"Adopted rule not claimed in {output_path}"
         )
-        assert "core.scope-applicability-to-target" not in content
+        assert "core.scope-applicability-to-target" in content
+
+    # 3. Unadopted candidate rules must not exist at the pinned revision in Git
+    unadopted_candidate = "policy/core/unadopted-prospective-rule.md"
+    res_unadopted = subprocess.run(
+        [
+            "git",
+            "cat-file",
+            "-e",
+            f"{pinned_revision}:{unadopted_candidate}",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+    )
+    assert res_unadopted.returncode != 0
+    for output_path in (AGENTS_MD_PATH, REVIEW_POLICY_PATH):
+        content = output_path.read_text(encoding="utf-8")
+        assert unadopted_candidate not in content
 
 
 def test_policy_self_host_check_passes_with_truthful_state() -> None:
@@ -393,12 +410,13 @@ def test_scenario_c_policy_provider_is_edited() -> None:
 
     Principle 4: Editing normative source does not self-activate; provider maintenance rules govern.
     """
-    # 1. The newly edited candidate rule exists in the worktree
+    # 1. The adopted rule exists in the worktree and is active via adoption
     assert RULE_PATH.is_file()
-
-    # 2. But it is NOT self-activated into Policy's effective maintainer instructions
     agents_text = AGENTS_MD_PATH.read_text(encoding="utf-8")
-    assert "core.scope-applicability-to-target" not in agents_text
+    assert "core.scope-applicability-to-target" in agents_text
+
+    # 2. But unadopted candidate edits do NOT self-activate into maintainer instructions
+    assert "core.unadopted-prospective-rule" not in agents_text
 
     # 3. Provider maintenance policy remains authoritative for provider work
     config = load_config(ROOT, ".agent-policy.yml")

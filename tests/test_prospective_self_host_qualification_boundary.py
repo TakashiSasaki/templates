@@ -141,7 +141,7 @@ Must not leak into adopted self-host maintainer instructions.
     candidate_rev = qualify_candidate()
     assert candidate_rev == resolve_checkout_revision(synthetic_root)
 
-    # 2. Adopted self-host consistency continues evaluating the adopted runtime (5ad8b0d...)
+    # 2. Adopted self-host consistency continues evaluating the adopted runtime (aa6f9ac...)
     verify_self_host(ROOT)
 
     # 3. Committed self-host outputs remain untouched and do not contain the prospective rule
@@ -151,7 +151,7 @@ Must not leak into adopted self-host maintainer instructions.
     assert "core.synthetic-prospective-rule" not in review_content
 
     # 4. No false source provenance is emitted under the pinned toolchain
-    assert "TakashiSasaki/templates@5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5" in agents_content
+    assert "TakashiSasaki/templates@aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3" in agents_content
 
 
 def test_adopted_self_host_fails_when_outputs_are_stale(tmp_path: Path) -> None:
@@ -177,7 +177,7 @@ def test_adopted_self_host_fails_closed_when_lock_and_config_disagree(tmp_path: 
     config_path = repo / ".agent-policy.yml"
     config_text = config_path.read_text(encoding="utf-8")
     tampered_config = config_text.replace(
-        "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5",
+        "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
         "1111111111111111111111111111111111111111",
     )
     config_path.write_text(tampered_config, encoding="utf-8")
@@ -195,7 +195,7 @@ def test_adopted_self_host_fails_closed_when_pin_is_malformed(tmp_path: Path) ->
     lock_path = repo / ".agent-policy.lock"
     lock_text = lock_path.read_text(encoding="utf-8")
     tampered_lock = lock_text.replace(
-        "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5",
+        "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
         "not-a-valid-sha",
     )
     lock_path.write_text(tampered_lock, encoding="utf-8")
@@ -214,14 +214,14 @@ def test_adopted_self_host_fails_closed_when_runtime_identity_unestablished(tmp_
     config_path = repo / ".agent-policy.yml"
     config_path.write_text(
         config_path.read_text(encoding="utf-8").replace(
-            "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5", nonexistent_sha
+            "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3", nonexistent_sha
         ),
         encoding="utf-8",
     )
     lock_path = repo / ".agent-policy.lock"
     lock_path.write_text(
         lock_path.read_text(encoding="utf-8").replace(
-            "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5", nonexistent_sha
+            "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3", nonexistent_sha
         ),
         encoding="utf-8",
     )
@@ -237,7 +237,7 @@ def test_toolchain_payload_supports_json_and_yaml(tmp_path: Path) -> None:
     config_toolchain = runtime.config_toolchain
     lock_toolchain = runtime.lock_toolchain
 
-    rev = "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5"
+    rev = "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
     repo = "TakashiSasaki/templates"
 
     # YAML format
@@ -273,7 +273,7 @@ def test_runtime_selection_trust_boundary_distinction(tmp_path: Path) -> None:
     manifest = runtime.load_manifest()
     default_pin = runtime.pin_from_manifest(manifest)
     repo = "TakashiSasaki/templates"
-    pinned_rev = "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5"
+    pinned_rev = "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
     custom_rev = "1111111111111111111111111111111111111111"
 
     repo_dir = tmp_path / "repo"

@@ -128,7 +128,7 @@ def test_repository_self_hosting_workflow_checks_with_released_pin() -> None:
 
     workflow = SELF_HOST_WORKFLOW_PATH.read_text(encoding="utf-8")
     assert f"uses: TakashiSasaki/templates@{stable_revision}" in workflow
-    assert revision != stable_revision
+    assert revision == stable_revision
     assert "uses: TakashiSasaki/templates@policy" not in workflow
     assert "uses: TakashiSasaki/templates@main" not in workflow
     assert "command: check" in workflow
@@ -223,7 +223,7 @@ def test_self_host_projection_uses_the_canonical_progressive_discovery_skill() -
         / ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
     )
 
-    assert revision == "5ad8b0d89a7778beb98aa5794ef6aa58dca30ab5"
+    assert revision == "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
     assert script.is_file()
     assert "authoritative inventory" in skill
     assert "--apply" in skill
