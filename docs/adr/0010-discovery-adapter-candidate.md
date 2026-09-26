@@ -118,7 +118,11 @@ Canonical Draft 2020-12 schemas reside in `schemas/`; the Skill renderer embeds
 those exact bytes for portable distribution, as it does the Policy selection
 schema. Source execution reads the same canonical files. Missing schema is an
 error. Adapter-selected schema URLs/plugins are forbidden. The candidate uses an
-explicit `--candidate-v2` launch gate. The supported legacy launch rejects version
+explicit `--candidate-v2` launch gate. Isolated qualification may render a
+version-2-default package with `render_skill(..., discovery_contract_version=2)`;
+its ordinary CLI then requires v2, including from existing qualification callers.
+This is an explicit package-construction choice, never inferred from adapter input.
+Default rendering remains version 1 during Stage A. The supported legacy launch rejects version
 2/unknown versions; candidate launch rejects missing/old/unknown versions.
 Historical independently installed binaries cannot be retroactively repaired:
 Stage B must replace runtime, adapter and generated lock in one qualified change.
@@ -129,3 +133,9 @@ P1 establishes structural examples only. P2 supplies runtime/CLI/distribution;
 P3 binds real consumer previews and migration prerequisites. Qualification must
 check selected state, validation and result, not exit code alone. Structure alone
 does not prove existence, namespace ownership, freshness, safety or coverage.
+
+The [consumer migration design](../discovery-adapter-migration.md) records the
+fixed-input audit, prospective domain work and qualification scope. The edited
+shared rule is proposed source; the active pinned AGENTS and v1 rule still govern
+the implementation work. Its old small grammar rejects new boundary paragraphs,
+which is reported as D3 rather than hidden by a skip or an adoption switch.

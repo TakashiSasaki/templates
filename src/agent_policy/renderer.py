@@ -123,7 +123,10 @@ def render_skill(
     *,
     config_path: str = ".agent-policy.yml",
     replacement_values: Mapping[str, str] | None = None,
+    discovery_contract_version: int = 1,
 ) -> dict[str, str]:
+    if type(discovery_contract_version) is not int or discovery_contract_version not in (1, 2):
+        raise ValueError("Unsupported discovery runtime contract")
     if SKILL_NAME_PATTERN.fullmatch(skill_name) is None:
         raise ValueError(f"Invalid generated skill name: {skill_name}")
     if skill_name in NON_GENERATED_SKILLS:
@@ -146,6 +149,7 @@ def render_skill(
     if replacement_values:
         replacements.update(replacement_values)
     if skill_name == "maintain-progressive-discovery":
+        replacements["{{ discovery_runtime_contract }}"] = str(discovery_contract_version)
         schema_text = (package_root() / "schemas/agent-policy.schema.json").read_text(
             encoding="utf-8"
         )
