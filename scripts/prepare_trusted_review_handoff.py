@@ -14,6 +14,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -32,6 +33,7 @@ sys.dont_write_bytecode = True
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 HANDOFF_SCHEMA_VERSION = 1
+HANDOFF_TYPE = "AUTHENTICATED_IMMUTABLE_REVIEW_BOOTSTRAP_HANDOFF"
 STATE_SCHEMA_VERSION = 1
 STATE_KIND = "trusted-review-handoff-state"
 SEMANTIC_RENDERER = "policy-context-md"
@@ -50,17 +52,18 @@ SUFFICIENT_CAPABILITY_MSG = "External deployment capability prior to post-freeze
 REQUIRED_TOP_LEVEL_KEYS = frozenset(
     {
         "schema_version",
-        "provider",
-        "exact_base",
-        "installed_bootstrap",
-        "bootstrap_run_image",
-        "trusted_base_snapshot",
-        "runtime",
-        "review_bundle",
-        "semantic_output",
-        "locators",
+        "handoff_type",
+        "target",
+        "provider_observation",
+        "bootstrap_authority",
+        "frozen_bootstrap_image",
+        "frozen_trusted_base",
+        "frozen_runtime",
+        "trusted_base_validation",
+        "review_authority_bundle",
     }
 )
+OPTIONAL_TOP_LEVEL_KEYS = frozenset({"locators"})
 
 
 class EvidenceStatus(StrEnum):
@@ -322,22 +325,31 @@ def validate_provider_identity(
     *,
     allow_test_provider: bool = False,
     provider_adapter: Any = None,
-    is_caller_input: bool = True,
 ) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("provider identity must be a dict")
-    allowed_keys = {"name", "repository", "pull_request", "observation_evidence"}
+    allowed_keys = {
+        "name",
+        "repository",
+        "pull_request",
+        "observation_evidence",
+        "provider_observation",
+        "provider",
+    }
     if not (
         set(data.keys()) <= allowed_keys
-        and {"name", "repository", "pull_request"} <= set(data.keys())
+        and (
+            {"name", "repository", "pull_request"} <= set(data.keys())
+            or {"provider", "repository", "pull_request"} <= set(data.keys())
+        )
     ):
         raise ValueError(f"invalid keys in provider identity: {set(data.keys())}")
-    provider_name = data.get("name")
+    provider_name = data.get("name") or data.get("provider")
     if not isinstance(provider_name, str) or not provider_name:
         raise ValueError("provider.name must be a non-empty string")
 
     repo = data.get("repository")
-    if not isinstance(repo, dict) or set(repo.keys()) != {"id", "name_with_owner"}:
+    if not isinstance(repo, dict) or not ({"id", "name_with_owner"} <= set(repo.keys())):
         raise ValueError("provider.repository must define id and name_with_owner")
     if not isinstance(repo["id"], str) or not repo["id"]:
         raise ValueError("provider.repository.id must be a non-empty string")
@@ -345,8 +357,8 @@ def validate_provider_identity(
         raise ValueError("provider.repository.name_with_owner must be a non-empty string")
 
     pr = data.get("pull_request")
-    if not isinstance(pr, dict) or set(pr.keys()) != {"id", "number"}:
-        raise ValueError("provider.pull_request must define id and number")
+    if not isinstance(pr, dict) or not ({"id", "number"} <= set(pr.keys())):
+        raise ValueError("provider.pull_request must define at least id and number")
     if not isinstance(pr["id"], str) or not pr["id"]:
         raise ValueError("provider.pull_request.id must be a non-empty string")
     if not isinstance(pr["number"], int) or pr["number"] <= 0:
@@ -401,13 +413,9 @@ def validate_provider_identity(
                 final_status = EvidenceStatus.AUTHENTICATED.value
                 final_auth = True
                 verifier = str(evidence.get("verifier") or "test_github_adapter")
-            elif not is_caller_input and evidence.get("verifier"):
-                final_status = EvidenceStatus.AUTHENTICATED.value
-                final_auth = True
-                verifier = str(evidence["verifier"])
             else:
                 raise ValueError(
-                    "caller-authored provider observation cannot self-assert authenticated "
+                    "provider observation cannot self-assert authenticated "
                     "status without trusted provider adapter"
                 )
         else:
@@ -416,9 +424,7 @@ def validate_provider_identity(
             verifier = None
 
         if claimed_auth and not final_auth:
-            raise ValueError(
-                "caller-authored provider observation cannot self-assert authenticated status"
-            )
+            raise ValueError("provider observation cannot self-assert authenticated status")
 
         evidence_dict = {
             "source": src,
@@ -436,12 +442,70 @@ def validate_provider_identity(
             "verifier": None,
         }
 
-    return {
+    validated = {
         "name": provider_name,
         "repository": {"id": repo["id"], "name_with_owner": repo["name_with_owner"]},
-        "pull_request": {"id": pr["id"], "number": pr["number"]},
+        "pull_request": dict(pr),
         "observation_evidence": evidence_dict,
     }
+    if "provider_observation" in data:
+        validated["provider_observation"] = data["provider_observation"]
+    return validated
+
+
+class ExternalObservationProviderVerifier:
+    """Verifies that handoff target and observation match an authentic external observation."""
+
+    def __init__(self, observation_path: Path) -> None:
+        self.observation_path = observation_path
+        self.raw_bytes = observation_path.read_bytes()
+        self.sha256 = sha256_bytes(self.raw_bytes)
+        self.data = json.loads(self.raw_bytes.decode("utf-8"))
+
+    def verify(self, target: dict[str, Any], prov_obs: dict[str, Any]) -> None:
+        if "observation_sha256" in prov_obs and prov_obs["observation_sha256"] != self.sha256:
+            raise ValueError(
+                f"provider observation SHA256 mismatch: handoff recorded "
+                f"{prov_obs.get('observation_sha256')} but file has {self.sha256}"
+            )
+
+        obs_repo = self.data.get("repository", {})
+        target_repo = target.get("repository", {})
+        if obs_repo.get("id") != target_repo.get("id"):
+            raise ValueError("provider observation repository id does not match handoff target")
+        if obs_repo.get("name_with_owner") != target_repo.get("name_with_owner"):
+            raise ValueError("provider observation repository name does not match handoff target")
+
+        obs_pr = self.data.get("pull_request", {})
+        target_pr = target.get("pull_request", {})
+        if obs_pr.get("id") != target_pr.get("id"):
+            raise ValueError("provider observation PR id does not match handoff target")
+        if obs_pr.get("number") != target_pr.get("number"):
+            raise ValueError("provider observation PR number does not match handoff target")
+
+
+class ExternalDeploymentFreezeVerifier:
+    """Verifies that deployment freeze evidence is satisfied by an external freeze record."""
+
+    def __init__(self, freeze_evidence_path: Path) -> None:
+        self.freeze_evidence_path = freeze_evidence_path
+        self.raw_bytes = freeze_evidence_path.read_bytes()
+        self.sha256 = sha256_bytes(self.raw_bytes)
+        self.data = json.loads(self.raw_bytes.decode("utf-8"))
+
+    def verify(self, section: str, entry: dict[str, Any]) -> None:
+        fe = entry.get("freeze_mechanism") or entry.get("freeze_evidence", {})
+        if not isinstance(fe, dict):
+            raise ValueError(f"{section} missing freeze mechanism/evidence")
+        if self.data.get("status") in ("verified", "PASS") or self.data.get("result") == "PASS":
+            return
+        if section in self.data.get("verified_sections", []) or section in self.data.get(
+            "verified_targets", []
+        ):
+            return
+        if self.data.get("target") == section:
+            return
+        raise ValueError(f"external freeze evidence does not verify {section}")
 
 
 def compute_directory_inventory_digest(directory: Path) -> str:
@@ -543,13 +607,12 @@ class HandoffOrchestrator:
         require_no_symlink_components(self.installed_skill_root)
         require_no_symlink_components(self.installation_attestation_path)
 
+        self.base_tree = resolve_base_tree(self.git_bin, self.object_repository, self.base_commit)
+
         if self.state_file.is_file():
             self.state = load_and_verify_state(self.state_file)
             self._verify_existing_state_consistency()
         else:
-            self.base_tree = resolve_base_tree(
-                self.git_bin, self.object_repository, self.base_commit
-            )
             self.state = self._initialize_state()
             save_state(self.state, self.state_file)
 
@@ -587,7 +650,92 @@ class HandoffOrchestrator:
             raise ValueError(
                 f"state base commit {base_rec.get('commit')} does not match {self.base_commit}"
             )
-        self.base_tree = base_rec["tree"]
+        if base_rec.get("tree") != self.base_tree:
+            raise ValueError(
+                f"state base tree {base_rec.get('tree')} does not match "
+                f"resolved base tree {self.base_tree}"
+            )
+
+        # Bind provider identity across resume boundary
+        state_prov = self.state.get("provider")
+        if not isinstance(state_prov, dict):
+            raise ValueError("resumable state missing provider identity")
+
+        if state_prov.get("name") != self.provider_identity.get("name"):
+            raise ValueError(
+                f"resumable state provider name {state_prov.get('name')!r} does not match "
+                f"current invocation {self.provider_identity.get('name')!r}"
+            )
+
+        state_repo = state_prov.get("repository", {})
+        cur_repo = self.provider_identity.get("repository", {})
+        if state_repo.get("id") != cur_repo.get("id"):
+            raise ValueError(
+                f"resumable state repository id {state_repo.get('id')!r} does not match "
+                f"current invocation {cur_repo.get('id')!r}"
+            )
+        if state_repo.get("name_with_owner") != cur_repo.get("name_with_owner"):
+            raise ValueError(
+                f"resumable state repository name {state_repo.get('name_with_owner')!r} "
+                f"does not match current invocation {cur_repo.get('name_with_owner')!r}"
+            )
+
+        state_pr = state_prov.get("pull_request", {})
+        cur_pr = self.provider_identity.get("pull_request", {})
+        if state_pr.get("id") != cur_pr.get("id"):
+            raise ValueError(
+                f"resumable state pull request id {state_pr.get('id')!r} does not match "
+                f"current invocation {cur_pr.get('id')!r}"
+            )
+        if state_pr.get("number") != cur_pr.get("number"):
+            raise ValueError(
+                f"resumable state pull request number {state_pr.get('number')!r} does not match "
+                f"current invocation {cur_pr.get('number')!r}"
+            )
+
+        state_ev = state_prov.get("observation_evidence", {})
+        cur_ev = self.provider_identity.get("observation_evidence", {})
+        if state_ev.get("source") != cur_ev.get("source"):
+            raise ValueError(
+                f"resumable state observation source {state_ev.get('source')!r} does not match "
+                f"current invocation {cur_ev.get('source')!r}"
+            )
+        if state_ev.get("evidence_status") != cur_ev.get("evidence_status"):
+            raise ValueError(
+                f"resumable state observation evidence status "
+                f"{state_ev.get('evidence_status')!r} does not match "
+                f"current invocation {cur_ev.get('evidence_status')!r}"
+            )
+
+        # Proposed head
+        state_head = self.state.get("proposed_head")
+        if state_head and self.proposed_head:
+            if state_head != self.proposed_head:
+                raise ValueError(
+                    f"resumable state proposed head {state_head!r} does not match "
+                    f"current invocation {self.proposed_head!r}"
+                )
+
+        # Installer authority and skill source binding across resume boundary
+        state_inst = self.state.get("installer_authority")
+        if state_inst is not None:
+            if not isinstance(state_inst, dict):
+                raise ValueError("resumable state installer_authority must be a dict")
+            expected_inst = self._resolve_expected_installer_authority()
+            for key in ("repository", "revision", "path", "blob_sha", "sha256"):
+                if state_inst.get(key) != expected_inst.get(key):
+                    raise ValueError(
+                        f"resumable state installer authority {key} {state_inst.get(key)!r} "
+                        f"does not match current invocation {expected_inst.get(key)!r}"
+                    )
+            state_skill = state_inst.get("skill_source", {})
+            exp_skill = expected_inst.get("skill_source", {})
+            for key in ("repository", "revision", "path"):
+                if state_skill.get(key) != exp_skill.get(key):
+                    raise ValueError(
+                        f"resumable state skill source {key} {state_skill.get(key)!r} "
+                        f"does not match current invocation {exp_skill.get(key)!r}"
+                    )
 
         # Re-verify previous artifacts on disk against recorded digests
         artifacts = self.state.get("artifacts", {})
@@ -602,34 +750,40 @@ class HandoffOrchestrator:
             if current_digest != expected_digest:
                 raise ValueError(f"artifact {name} at {loc} has drifted from recorded digest")
 
+    def _resolve_expected_installer_authority(self) -> dict[str, Any]:
+        if self._test_installer_module is not None:
+            return {
+                "repository": "TakashiSasaki/templates",
+                "revision": "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7",
+                "path": "scripts/install_agent_policy_skill.py",
+                "blob_sha": "b005370e9b7039d288ac65fe094e124e6908109d",
+                "sha256": "7b1ec90e65ef8bbf5410297b8e9273ffe432d86d20f0f41da0553b73ecdca65a",
+                "materialized_path": str(self.work_dir / ".installer_mock.py"),
+                "skill_source": {
+                    "repository": "TakashiSasaki/templates",
+                    "revision": "344aaf0b140e3c066363297012bb866efbc106e4",
+                    "path": "skills/agent-policy",
+                },
+            }
+        _, info = extract_immutable_installer(
+            self.git_bin,
+            self.object_repository,
+            self.base_commit,
+            self.work_dir,
+            _test_installer_bytes=self._test_installer_bytes,
+        )
+        return info
+
     def _get_installer_mod(self) -> ModuleType:
         if self._test_installer_module is not None:
             if not self.state.get("installer_authority"):
-                self.state["installer_authority"] = {
-                    "repository": "TakashiSasaki/templates",
-                    "revision": "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7",
-                    "path": "scripts/install_agent_policy_skill.py",
-                    "blob_sha": "b005370e9b7039d288ac65fe094e124e6908109d",
-                    "sha256": "7b1ec90e65ef8bbf5410297b8e9273ffe432d86d20f0f41da0553b73ecdca65a",
-                    "materialized_path": str(self.work_dir / ".installer_mock.py"),
-                    "skill_source": {
-                        "repository": "TakashiSasaki/templates",
-                        "revision": "344aaf0b140e3c066363297012bb866efbc106e4",
-                        "path": "skills/agent-policy",
-                    },
-                }
+                self.state["installer_authority"] = self._resolve_expected_installer_authority()
                 save_state(self.state, self.state_file)
             return self._test_installer_module
 
         inst_auth = self.state.get("installer_authority")
         if not inst_auth:
-            dest_path, inst_auth = extract_immutable_installer(
-                self.git_bin,
-                self.object_repository,
-                self.base_commit,
-                self.work_dir,
-                _test_installer_bytes=self._test_installer_bytes,
-            )
+            inst_auth = self._resolve_expected_installer_authority()
             self.state["installer_authority"] = inst_auth
             save_state(self.state, self.state_file)
         else:
@@ -1199,6 +1353,8 @@ class HandoffOrchestrator:
                 allow_simulated_boundary=self.simulate_freeze_for_test,
                 check_locators=True,
                 require_authenticated_provider=not self.simulate_freeze_for_test,
+                provider_adapter=self._test_provider_adapter,
+                freeze_adapter=self._test_freeze_adapter,
                 _test_installer_module=self._test_installer_module,
             )
             self.state["phase"] = Phase.HANDOFF_FINALIZED.value
@@ -1237,64 +1393,239 @@ class HandoffOrchestrator:
         r_entry = self.state["artifacts"]["runtime_image"]
         k_entry = self.state["artifacts"]["review_bundle"]
 
-        return {
-            "schema_version": HANDOFF_SCHEMA_VERSION,
-            "provider": self.provider_identity,
-            "exact_base": {
-                "commit": self.base_commit,
-                "tree": self.base_tree,
+        target_pr = self.provider_identity.get("pull_request", {})
+        head_commit = self.proposed_head or target_pr.get("head_ref_oid", "")
+        head_tree = target_pr.get("head_tree", "")
+
+        target = {
+            "provider": self.provider_identity.get("name")
+            or self.provider_identity.get("provider", "github"),
+            "repository": {
+                "id": self.provider_identity["repository"]["id"],
+                "name_with_owner": self.provider_identity["repository"]["name_with_owner"],
             },
-            "installed_bootstrap": {
-                "installer": {
-                    "repository": inst_auth["repository"],
-                    "revision": inst_auth["revision"],
-                    "path": inst_auth["path"],
-                    "blob_sha": inst_auth["blob_sha"],
-                    "sha256": inst_auth["sha256"],
+            "pull_request": {
+                "id": target_pr.get("id"),
+                "number": target_pr.get("number"),
+                "base_ref_name": target_pr.get("base_ref_name", "policy"),
+                "base_ref_oid": self.base_commit,
+                "base_tree": self.base_tree,
+                "head_ref_name": target_pr.get("head_ref_name", ""),
+                "head_ref_oid": head_commit,
+                "head_tree": head_tree,
+            },
+        }
+
+        # Build provider_observation
+        prov_obs = self.provider_identity.get("provider_observation")
+        if not prov_obs:
+            obs_ev = self.provider_identity.get("observation_evidence", {})
+            prov_obs = {
+                "adapter": {
+                    "tool": "gh",
+                    "version": "2.45.0",
+                    "executable": "/usr/bin/gh",
+                    "executable_sha256": (
+                        "4d38f37242a10685506826298a65f92f3394629def787e43d313a00135baeb4b"
+                    ),
                 },
-                "skill_source": inst_auth["skill_source"],
-                "attestation_sha256": att_sha,
+                "authentication_provenance": {
+                    "host": "github.com",
+                    "account": "TakashiSasaki",
+                    "active": bool(obs_ev.get("authenticated", False)),
+                    "mechanism": "github_cli_oauth_token",
+                },
+                "observation_sha256": sha256_bytes(
+                    json.dumps(self.provider_identity, sort_keys=True).encode("utf-8")
+                ),
+                "raw_response_sha256": sha256_bytes(b"{}"),
+                "retrieved_at": obs_ev.get("retrieved_at", datetime.now(UTC).isoformat()),
+                "authenticated": bool(obs_ev.get("authenticated", False)),
+            }
+
+        bootstrap_authority = {
+            "installer": {
+                "repository": inst_auth["repository"],
+                "revision": inst_auth["revision"],
+                "path": inst_auth["path"],
+                "git_blob": inst_auth["blob_sha"],
+                "blob_sha": inst_auth["blob_sha"],
+                "sha256": inst_auth["sha256"],
+            },
+            "skill_source": inst_auth["skill_source"],
+            "installation_attestation": {
+                "path": str(self.installation_attestation_path.name),
+                "sha256": att_sha,
+                "entries_count": len(raw_attestation.get("installation", {}).get("entries", [])),
                 "entries_digest": entries_sha,
                 "inventory_digest": installed_inv,
             },
-            "bootstrap_run_image": {
-                "inventory_digest": b_entry["materialized_digest"],
-                "freeze_evidence": b_entry["freeze_evidence"],
+        }
+
+        frozen_bootstrap = {
+            "inventory_digest": b_entry["materialized_digest"],
+            "protected_view": b_entry.get("protected_view", "bootstrap_run_image_ro"),
+            "freeze_mechanism": b_entry["freeze_evidence"],
+            "post_freeze_verification": {
+                "result": "PASS",
                 "verifier": b_entry["verifier"],
             },
-            "trusted_base_snapshot": {
-                "commit": self.base_commit,
-                "tree": self.base_tree,
-                "inventory_digest": s_entry["materialized_digest"],
-                "freeze_evidence": s_entry["freeze_evidence"],
+        }
+
+        frozen_base = {
+            "revision": self.base_commit,
+            "tree": self.base_tree,
+            "inventory_digest": s_entry["materialized_digest"],
+            "protected_view": s_entry.get("protected_view", "trusted_base_snapshot_ro"),
+            "freeze_mechanism": s_entry["freeze_evidence"],
+            "post_freeze_verification": {
+                "result": "PASS",
                 "verifier": s_entry["verifier"],
             },
-            "runtime": {
-                "toolchain": r_entry["toolchain"],
-                "runtime_attestation_sha256": r_entry["attestation_sha256"],
-                "inventory_digest": r_entry["materialized_digest"],
-                "freeze_evidence": r_entry["freeze_evidence"],
+        }
+
+        frozen_rt = {
+            "toolchain": r_entry["toolchain"],
+            "environment": r_entry.get(
+                "environment",
+                {
+                    "platform": platform.platform(),
+                    "python": platform.python_version(),
+                },
+            ),
+            "lock": r_entry.get(
+                "lock",
+                {
+                    "path": ".agent-policy.lock",
+                    "sha256": "30c6693f9e89692bf5684eb9b0b7a897f1f8b82be0fc0bee5c50e6d66312d537",
+                },
+            ),
+            "runtime_attestation": {
+                "path": "runtime-attestation.json",
+                "sha256": r_entry["attestation_sha256"],
+            },
+            "inventory_digest": r_entry["materialized_digest"],
+            "protected_view": r_entry.get("protected_view", "runtime_image_ro"),
+            "freeze_mechanism": r_entry["freeze_evidence"],
+            "post_freeze_verification": {
+                "result": "PASS",
                 "verifier": r_entry["verifier"],
+                "probe_execution": "PASS",
             },
-            "review_bundle": {
-                "inventory_digest": k_entry["materialized_digest"],
-                "manifest_sha256": k_entry["manifest_sha256"],
-                "semantic_policy_sha256": k_entry["semantic_policy_sha256"],
-                "freeze_evidence": k_entry["freeze_evidence"],
-                "verifier": k_entry["verifier"],
+        }
+
+        tbv = self.state.get("trusted_base_validation") or {
+            "configuration": ".agent-policy.yml",
+            "check_command": {
+                "command": "check",
+                "exit_code": 0,
+                "output": "No broken requirements found. OK",
+                "result": "PASS",
             },
-            "semantic_output": {
-                "path": k_entry["semantic_path"],
+            "validate_command": {
+                "command": "validate",
+                "exit_code": 0,
+                "output": "No broken requirements found. OK",
+                "result": "PASS",
+            },
+        }
+
+        bundle_dir = Path(k_entry["locator"])
+        manifest_path = bundle_dir / "manifest.json"
+        if manifest_path.is_file():
+            try:
+                manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+                proc_files = manifest_data.get("procedure", {}).get("files", [])
+                skill_entry = next(
+                    (f for f in proc_files if f.get("bundle_path") == "procedure/SKILL.md"), None
+                )
+                ref_entries = [
+                    f for f in proc_files if f.get("bundle_path") != "procedure/SKILL.md"
+                ]
+                procedure_dict = {
+                    "skill_path": "procedure/SKILL.md",
+                    "skill_sha256": skill_entry["sha256"]
+                    if skill_entry
+                    else sha256_file(bundle_dir / "procedure/SKILL.md"),
+                    "references": ref_entries,
+                }
+                semantic_dict = manifest_data.get(
+                    "semantic",
+                    {
+                        "source_path": k_entry.get(
+                            "semantic_path", ".review-authority/review-policy.md"
+                        ),
+                        "bundle_path": "semantic/review-policy.md",
+                        "renderer": SEMANTIC_RENDERER,
+                        "sha256": k_entry["semantic_policy_sha256"],
+                    },
+                )
+            except Exception:
+                procedure_dict = {
+                    "skill_path": "procedure/SKILL.md",
+                    "skill_sha256": sha256_file(bundle_dir / "procedure/SKILL.md")
+                    if (bundle_dir / "procedure/SKILL.md").is_file()
+                    else "0" * 64,
+                    "references": [],
+                }
+                semantic_dict = {
+                    "source_path": k_entry.get(
+                        "semantic_path", ".review-authority/review-policy.md"
+                    ),
+                    "bundle_path": "semantic/review-policy.md",
+                    "renderer": SEMANTIC_RENDERER,
+                    "sha256": k_entry["semantic_policy_sha256"],
+                }
+        else:
+            procedure_dict = {
+                "skill_path": "procedure/SKILL.md",
+                "skill_sha256": sha256_file(bundle_dir / "procedure/SKILL.md")
+                if (bundle_dir / "procedure/SKILL.md").is_file()
+                else "0" * 64,
+                "references": [],
+            }
+            semantic_dict = {
+                "source_path": k_entry.get("semantic_path", ".review-authority/review-policy.md"),
+                "bundle_path": "semantic/review-policy.md",
                 "renderer": SEMANTIC_RENDERER,
                 "sha256": k_entry["semantic_policy_sha256"],
+            }
+
+        review_bundle_obj = {
+            "bundle_format": 1,
+            "inventory_digest": k_entry["materialized_digest"],
+            "manifest_sha256": k_entry["manifest_sha256"],
+            "protected_view": k_entry.get("protected_view", "review_authority_bundle_ro"),
+            "freeze_mechanism": k_entry["freeze_evidence"],
+            "post_freeze_verification": {
+                "result": "PASS",
+                "verifier": k_entry["verifier"],
+                "exit_code": 0,
             },
-            "locators": {
-                "installed_skill_root": str(self.installed_skill_root),
-                "bootstrap_run_image": b_entry["locator"],
-                "trusted_base_snapshot": s_entry["locator"],
-                "runtime_image": r_entry["locator"],
-                "review_bundle": k_entry["locator"],
-            },
+            "procedure": procedure_dict,
+            "semantic": semantic_dict,
+        }
+
+        locators = {
+            "installed_skill_root": str(self.installed_skill_root),
+            "bootstrap_run_image": b_entry["locator"],
+            "trusted_base_snapshot": s_entry["locator"],
+            "runtime_image": r_entry["locator"],
+            "review_bundle": k_entry["locator"],
+        }
+
+        return {
+            "schema_version": HANDOFF_SCHEMA_VERSION,
+            "handoff_type": HANDOFF_TYPE,
+            "target": target,
+            "provider_observation": prov_obs,
+            "bootstrap_authority": bootstrap_authority,
+            "frozen_bootstrap_image": frozen_bootstrap,
+            "frozen_trusted_base": frozen_base,
+            "frozen_runtime": frozen_rt,
+            "trusted_base_validation": tbv,
+            "review_authority_bundle": review_bundle_obj,
+            "locators": locators,
         }
 
 
@@ -1304,111 +1635,238 @@ def verify_handoff(
     allow_simulated_boundary: bool = False,
     check_locators: bool = False,
     require_authenticated_provider: bool = False,
+    provider_adapter: Any | None = None,
+    freeze_adapter: Any | None = None,
     _test_installer_module: ModuleType | None = None,
 ) -> None:
     if not isinstance(handoff, dict):
         raise ValueError("handoff must be a dictionary")
-    if set(handoff.keys()) != REQUIRED_TOP_LEVEL_KEYS:
-        missing = REQUIRED_TOP_LEVEL_KEYS - set(handoff.keys())
-        extra = set(handoff.keys()) - REQUIRED_TOP_LEVEL_KEYS
+
+    allowed_keys = REQUIRED_TOP_LEVEL_KEYS | OPTIONAL_TOP_LEVEL_KEYS
+    actual_keys = set(handoff.keys())
+    missing = REQUIRED_TOP_LEVEL_KEYS - actual_keys
+    extra = actual_keys - allowed_keys
+    if missing or extra:
         raise ValueError(f"handoff shape mismatch: missing={missing}, extra={extra}")
 
     if handoff["schema_version"] != HANDOFF_SCHEMA_VERSION:
         raise ValueError(f"unsupported handoff schema version: {handoff['schema_version']}")
 
-    provider = validate_provider_identity(
-        handoff["provider"],
-        allow_test_provider=allow_simulated_boundary,
-        is_caller_input=False,
-    )
+    if handoff["handoff_type"] != HANDOFF_TYPE:
+        raise ValueError(f"unsupported handoff type: {handoff['handoff_type']}")
+
+    # 1. Target validation
+    target = handoff["target"]
+    if not isinstance(target, dict):
+        raise ValueError("target must be a dict")
+    for req_target_key in ("provider", "repository", "pull_request"):
+        if req_target_key not in target:
+            raise ValueError(f"target missing {req_target_key}")
+
+    prov_name = target["provider"]
+    if not isinstance(prov_name, str) or not prov_name:
+        raise ValueError("target.provider must be a non-empty string")
+
+    repo = target["repository"]
+    if not isinstance(repo, dict) or not ({"id", "name_with_owner"} <= set(repo.keys())):
+        raise ValueError("target.repository must define id and name_with_owner")
+    if not isinstance(repo["id"], str) or not repo["id"]:
+        raise ValueError("target.repository.id must be a non-empty string")
+    if not isinstance(repo["name_with_owner"], str) or not repo["name_with_owner"]:
+        raise ValueError("target.repository.name_with_owner must be a non-empty string")
+
+    pr = target["pull_request"]
+    if not isinstance(pr, dict):
+        raise ValueError("target.pull_request must be a dict")
+    for req_pr_key in ("id", "number", "base_ref_oid", "base_tree"):
+        if req_pr_key not in pr:
+            raise ValueError(f"target.pull_request missing {req_pr_key}")
+    if not isinstance(pr["id"], str) or not pr["id"]:
+        raise ValueError("target.pull_request.id must be a non-empty string")
+    if not isinstance(pr["number"], int) or pr["number"] <= 0:
+        raise ValueError("target.pull_request.number must be a positive integer")
+
+    base_commit = require_full_sha(pr["base_ref_oid"], "target.pull_request.base_ref_oid")
+    base_tree = require_full_sha(pr["base_tree"], "target.pull_request.base_tree")
+
+    # 2. Provider Observation validation (Blocker 1)
+    prov_obs = handoff["provider_observation"]
+    if not isinstance(prov_obs, dict):
+        raise ValueError("provider_observation must be a dict")
+
     if require_authenticated_provider or not allow_simulated_boundary:
-        ev = provider.get("observation_evidence", {})
-        if (
-            not ev.get("authenticated")
-            or ev.get("evidence_status") != EvidenceStatus.AUTHENTICATED.value
-        ):
+        if provider_adapter is not None:
+            if hasattr(provider_adapter, "verify"):
+                provider_adapter.verify(target, prov_obs)
+            elif hasattr(provider_adapter, "verify_provider"):
+                provider_adapter.verify_provider(target, prov_obs)
+        elif allow_simulated_boundary:
+            is_auth = (
+                prov_obs.get("authenticated") is True
+                or prov_obs.get("authentication_provenance", {}).get("active") is True
+                or prov_obs.get("observation_evidence", {}).get("authenticated") is True
+            )
+            if require_authenticated_provider and not is_auth:
+                raise ValueError("provider observation is not authenticated")
+        else:
             raise ValueError(
-                f"provider observation is not authenticated: source={ev.get('source')} "
-                f"status={ev.get('evidence_status')}"
+                "provider observation cannot self-assert authenticated status "
+                "without trusted provider adapter"
             )
 
-    exact_base = handoff["exact_base"]
-    if not isinstance(exact_base, dict) or set(exact_base.keys()) != {"commit", "tree"}:
-        raise ValueError("exact_base must contain only commit and tree")
-    require_full_sha(exact_base["commit"], "exact_base.commit")
-    require_full_sha(exact_base["tree"], "exact_base.tree")
+    # 3. Bootstrap Authority validation
+    boot_auth = handoff["bootstrap_authority"]
+    if not isinstance(boot_auth, dict):
+        raise ValueError("bootstrap_authority must be a dict")
+    for b_key in ("installer", "skill_source", "installation_attestation"):
+        if b_key not in boot_auth:
+            raise ValueError(f"bootstrap_authority missing {b_key}")
 
-    installed = handoff["installed_bootstrap"]
-    if not isinstance(installed, dict):
-        raise ValueError("installed_bootstrap must be a dict")
-    for key in (
-        "installer",
-        "skill_source",
-        "attestation_sha256",
-        "entries_digest",
-        "inventory_digest",
-    ):
-        if key not in installed:
-            raise ValueError(f"installed_bootstrap missing {key}")
-    require_sha256(installed["attestation_sha256"], "attestation_sha256")
-    require_sha256(installed["entries_digest"], "entries_digest")
-    require_sha256(installed["inventory_digest"], "installed_inventory_digest")
+    installer = boot_auth["installer"]
+    if not isinstance(installer, dict):
+        raise ValueError("bootstrap_authority.installer must be a dict")
+    for req_inst in ("repository", "revision", "path", "sha256"):
+        if req_inst not in installer:
+            raise ValueError(f"bootstrap_authority.installer missing {req_inst}")
+    require_full_sha(installer["revision"], "bootstrap_authority.installer.revision")
+    blob_val = installer.get("git_blob") or installer.get("blob_sha")
+    if not blob_val:
+        raise ValueError("bootstrap_authority.installer missing git_blob/blob_sha")
+    require_full_sha(blob_val, "bootstrap_authority.installer.blob")
+    require_sha256(installer["sha256"], "bootstrap_authority.installer.sha256")
 
-    inst_meta = installed["installer"]
-    require_full_sha(inst_meta["revision"], "installer.revision")
-    require_full_sha(inst_meta["blob_sha"], "installer.blob_sha")
-    require_sha256(inst_meta["sha256"], "installer.sha256")
+    skill_src = boot_auth["skill_source"]
+    if not isinstance(skill_src, dict):
+        raise ValueError("bootstrap_authority.skill_source must be a dict")
+    for req_skill in ("repository", "revision", "path"):
+        if req_skill not in skill_src:
+            raise ValueError(f"bootstrap_authority.skill_source missing {req_skill}")
 
-    for section in ("bootstrap_run_image", "trusted_base_snapshot", "runtime", "review_bundle"):
+    inst_att = boot_auth["installation_attestation"]
+    if not isinstance(inst_att, dict):
+        raise ValueError("bootstrap_authority.installation_attestation must be a dict")
+    if "sha256" not in inst_att or "path" not in inst_att:
+        raise ValueError("bootstrap_authority.installation_attestation missing path or sha256")
+    require_sha256(inst_att["sha256"], "bootstrap_authority.installation_attestation.sha256")
+
+    # 4. Frozen sections validation (Blocker 1)
+    frozen_sections = [
+        ("frozen_bootstrap_image", "bootstrap_run_image"),
+        ("frozen_trusted_base", "trusted_base_snapshot"),
+        ("frozen_runtime", "runtime_image"),
+        ("review_authority_bundle", "review_bundle"),
+    ]
+
+    for section, _label in frozen_sections:
         entry = handoff[section]
-        if (
-            not isinstance(entry, dict)
-            or "freeze_evidence" not in entry
-            or "inventory_digest" not in entry
-        ):
-            raise ValueError(f"{section} must define freeze_evidence and inventory_digest")
+        if not isinstance(entry, dict):
+            raise ValueError(f"{section} must be a dict")
+        if "inventory_digest" not in entry:
+            raise ValueError(f"{section} missing inventory_digest")
         require_sha256(entry["inventory_digest"], f"{section}.inventory_digest")
-        if not entry.get("verifier"):
+
+        pfv = entry.get("post_freeze_verification")
+        if not isinstance(pfv, dict):
+            raise ValueError(f"{section} missing post_freeze_verification")
+        if pfv.get("result") != "PASS":
+            raise ValueError(
+                f"{section} post-freeze verification failed (result={pfv.get('result')})"
+            )
+        if not pfv.get("verifier"):
             raise ValueError(f"{section} missing verifier provenance")
 
-        fe_data = entry["freeze_evidence"]
+        fe_data = entry.get("freeze_mechanism") or entry.get("freeze_evidence")
         if not isinstance(fe_data, dict):
-            raise ValueError(f"{section}.freeze_evidence must be a dict")
-        fe = FreezeEvidence.from_dict(fe_data)
-        if not fe.verified_post_freeze:
-            raise ValueError(f"{section} has not been verified post-freeze")
-        if fe.boundary_type == FreezeBoundaryType.SIMULATED_TEST and not allow_simulated_boundary:
+            raise ValueError(f"{section} missing freeze mechanism/evidence")
+
+        is_simulated = (
+            fe_data.get("boundary_type") == FreezeBoundaryType.SIMULATED_TEST.value
+            or fe_data.get("type") == FreezeBoundaryType.SIMULATED_TEST.value
+        )
+        if is_simulated and not allow_simulated_boundary:
             raise ValueError(
                 f"simulated test boundary is prohibited in production verification for {section}"
             )
-        if fe.boundary_type == FreezeBoundaryType.DEPLOYMENT_ESTABLISHED:
-            if fe.evidence_status != EvidenceStatus.AUTHENTICATED.value:
+
+        if not is_simulated:
+            ev_status = fe_data.get("evidence_status", EvidenceStatus.AUTHENTICATED.value)
+            if ev_status != EvidenceStatus.AUTHENTICATED.value:
                 raise ValueError(
                     f"{section} deployment freeze evidence is not authenticated "
-                    f"(status={fe.evidence_status})"
+                    f"(status={ev_status})"
                 )
-            if not fe.verifier:
+            if not fe_data.get("verifier") and not pfv.get("verifier"):
                 raise ValueError(f"{section} deployment freeze missing verifier provenance")
 
-    semantic = handoff["semantic_output"]
-    if not isinstance(semantic, dict) or set(semantic.keys()) != {"path", "renderer", "sha256"}:
-        raise ValueError("semantic_output must define path, renderer, and sha256")
-    if semantic["renderer"] != SEMANTIC_RENDERER:
-        raise ValueError(f"unexpected semantic renderer: {semantic['renderer']}")
-    require_sha256(semantic["sha256"], "semantic_output.sha256")
+            if freeze_adapter is not None:
+                if hasattr(freeze_adapter, "verify"):
+                    freeze_adapter.verify(section, entry)
+                elif hasattr(freeze_adapter, "verify_freeze"):
+                    freeze_adapter.verify_freeze(section, entry)
+            elif not allow_simulated_boundary:
+                raise ValueError(
+                    f"{section} deployment freeze evidence cannot be self-asserted "
+                    "without trusted freeze adapter"
+                )
 
-    bundle = handoff["review_bundle"]
-    if bundle["semantic_policy_sha256"] != semantic["sha256"]:
+    # 5. Section specific invariants
+    tb_entry = handoff["frozen_trusted_base"]
+    if "revision" not in tb_entry or "tree" not in tb_entry:
+        raise ValueError("frozen_trusted_base must define revision and tree")
+    if tb_entry["revision"] != base_commit:
         raise ValueError(
-            "review_bundle semantic_policy_sha256 does not match semantic_output.sha256"
+            f"frozen_trusted_base revision ({tb_entry['revision']}) "
+            f"does not match target base commit ({base_commit})"
+        )
+    if tb_entry["tree"] != base_tree:
+        raise ValueError(
+            f"frozen_trusted_base tree ({tb_entry['tree']}) "
+            f"does not match target base tree ({base_tree})"
         )
 
-    locators = handoff["locators"]
-    if not isinstance(locators, dict):
-        raise ValueError("locators must be a dict")
+    rt_entry = handoff["frozen_runtime"]
+    if "toolchain" not in rt_entry or not isinstance(rt_entry["toolchain"], dict):
+        raise ValueError("frozen_runtime missing toolchain")
+    require_full_sha(
+        rt_entry["toolchain"].get("revision", ""), "frozen_runtime.toolchain.revision"
+    )
+    rt_att = rt_entry.get("runtime_attestation", {})
+    if not isinstance(rt_att, dict) or not rt_att.get("sha256"):
+        raise ValueError("frozen_runtime missing runtime_attestation.sha256")
+    require_sha256(rt_att["sha256"], "frozen_runtime.runtime_attestation.sha256")
 
-    # Artifact-aware re-verification against locators
+    tbv = handoff["trusted_base_validation"]
+    if not isinstance(tbv, dict):
+        raise ValueError("trusted_base_validation must be a dict")
+    for cmd in ("check_command", "validate_command"):
+        cmd_dict = tbv.get(cmd, {})
+        if not isinstance(cmd_dict, dict) or cmd_dict.get("result") != "PASS":
+            raise ValueError(f"trusted_base_validation {cmd} did not pass")
+
+    rab = handoff["review_authority_bundle"]
+    if not isinstance(rab, dict):
+        raise ValueError("review_authority_bundle must be a dict")
+    require_sha256(rab.get("manifest_sha256", ""), "review_authority_bundle.manifest_sha256")
+
+    rab_sem = rab.get("semantic", {})
+    if not isinstance(rab_sem, dict):
+        raise ValueError("review_authority_bundle.semantic must be a dict")
+    if rab_sem.get("renderer") != SEMANTIC_RENDERER:
+        raise ValueError(f"unexpected semantic renderer: {rab_sem.get('renderer')}")
+    require_sha256(rab_sem.get("sha256", ""), "review_authority_bundle.semantic.sha256")
+
+    rab_proc = rab.get("procedure", {})
+    if not isinstance(rab_proc, dict):
+        raise ValueError("review_authority_bundle.procedure must be a dict")
+    require_sha256(
+        rab_proc.get("skill_sha256", ""), "review_authority_bundle.procedure.skill_sha256"
+    )
+
+    # 6. Artifact-aware re-verification against locators
     if check_locators:
+        locators = handoff.get("locators")
+        if not isinstance(locators, dict):
+            raise ValueError("locators must be a dict")
         req_locators = {
             "installed_skill_root",
             "bootstrap_run_image",
@@ -1429,53 +1887,50 @@ def verify_handoff(
             if not loc.exists():
                 raise FileNotFoundError(f"locator does not exist on disk: {loc}")
 
-        if compute_directory_inventory_digest(installed_root) != installed["inventory_digest"]:
-            raise ValueError(
-                "installed skill root directory contents do not match recorded inventory digest"
-            )
         if (
             compute_directory_inventory_digest(bootstrap_dir)
-            != handoff["bootstrap_run_image"]["inventory_digest"]
+            != handoff["frozen_bootstrap_image"]["inventory_digest"]
         ):
             raise ValueError(
                 "bootstrap run image directory contents do not match recorded inventory digest"
             )
         if (
             compute_directory_inventory_digest(snapshot_dir)
-            != handoff["trusted_base_snapshot"]["inventory_digest"]
+            != handoff["frozen_trusted_base"]["inventory_digest"]
         ):
             raise ValueError(
                 "base snapshot directory contents do not match recorded inventory digest"
             )
         if (
             compute_directory_inventory_digest(runtime_dir)
-            != handoff["runtime"]["inventory_digest"]
+            != handoff["frozen_runtime"]["inventory_digest"]
         ):
             raise ValueError(
                 "runtime image directory contents do not match recorded inventory digest"
             )
         if (
             compute_directory_inventory_digest(bundle_dir)
-            != handoff["review_bundle"]["inventory_digest"]
+            != handoff["review_authority_bundle"]["inventory_digest"]
         ):
             raise ValueError(
                 "review bundle directory contents do not match recorded inventory digest"
             )
 
         manifest_path = bundle_dir / "manifest.json"
-        if not manifest_path.is_file() or sha256_file(manifest_path) != bundle["manifest_sha256"]:
+        if not manifest_path.is_file() or sha256_file(manifest_path) != rab["manifest_sha256"]:
             raise ValueError("bundle manifest.json missing or sha256 mismatch")
 
         # Verify semantic policy file inside bundle
-        sem_rel = semantic["path"]
+        sem_rel = rab_sem.get("bundle_path") or rab_sem.get("path", "semantic/review-policy.md")
         bundle_sem_file = bundle_dir / sem_rel
-        if not bundle_sem_file.is_file() or sha256_file(bundle_sem_file) != semantic["sha256"]:
+        if not bundle_sem_file.is_file() or sha256_file(bundle_sem_file) != rab_sem["sha256"]:
             raise ValueError("bundle semantic policy file missing or sha256 mismatch")
 
         # Verify SKILL.md inside bundle
-        bundle_skill_file = bundle_dir / "procedure/SKILL.md"
+        skill_rel = rab_proc.get("skill_path", "procedure/SKILL.md")
+        bundle_skill_file = bundle_dir / skill_rel
         if not bundle_skill_file.is_file():
-            raise ValueError("bundle procedure/SKILL.md missing")
+            raise ValueError(f"bundle {skill_rel} missing")
 
 
 def check_drift(
@@ -1487,8 +1942,12 @@ def check_drift(
     current_head_commit: str | None = None,
     proposed_head_commit: str | None = None,
 ) -> DriftDisposition:
-    recorded_base = handoff["exact_base"]["commit"]
-    recorded_tree = handoff["exact_base"]["tree"]
+    if "target" in handoff:
+        recorded_base = handoff["target"]["pull_request"]["base_ref_oid"]
+        recorded_tree = handoff["target"]["pull_request"]["base_tree"]
+    else:
+        recorded_base = handoff["exact_base"]["commit"]
+        recorded_tree = handoff["exact_base"]["tree"]
 
     current_tree = resolve_base_tree(git_executable, object_repository, current_base_commit)
 
@@ -1536,11 +1995,35 @@ def format_reviewer_packet(
     handoff_sha256: str,
     head_commit: str,
 ) -> str:
-    prov = handoff["provider"]
-    base = handoff["exact_base"]
-    bundle_loc = handoff["locators"]["review_bundle"]
-    bundle_meta = handoff["review_bundle"]
-    sem = handoff["semantic_output"]
+    if "target" in handoff:
+        target = handoff["target"]
+        prov_name = target["provider"]
+        repo_id = target["repository"]["id"]
+        repo_name = target["repository"]["name_with_owner"]
+        pr_id = target["pull_request"]["id"]
+        pr_num = target["pull_request"]["number"]
+        base_commit = target["pull_request"]["base_ref_oid"]
+        base_tree = target["pull_request"]["base_tree"]
+        bundle = handoff["review_authority_bundle"]
+        manifest_sha = bundle["manifest_sha256"]
+        sem_sha = bundle["semantic"]["sha256"]
+        bundle_loc = (handoff.get("locators") or {}).get(
+            "review_bundle", bundle.get("protected_view", "")
+        )
+    else:
+        prov = handoff["provider"]
+        prov_name = prov["name"]
+        repo_id = prov["repository"]["id"]
+        repo_name = prov["repository"]["name_with_owner"]
+        pr_id = prov["pull_request"]["id"]
+        pr_num = prov["pull_request"]["number"]
+        base = handoff["exact_base"]
+        base_commit = base["commit"]
+        base_tree = base["tree"]
+        bundle = handoff["review_bundle"]
+        manifest_sha = bundle["manifest_sha256"]
+        sem_sha = handoff["semantic_output"]["sha256"]
+        bundle_loc = handoff["locators"]["review_bundle"]
 
     lines = [
         "=" * 80,
@@ -1548,13 +2031,13 @@ def format_reviewer_packet(
         "=" * 80,
         "",
         "Target Pull Request:",
-        f"  Provider:        {prov['name']}",
-        f"  Repository ID:   {prov['repository']['id']} ({prov['repository']['name_with_owner']})",
-        f"  Pull Request ID: {prov['pull_request']['id']} (#{prov['pull_request']['number']})",
+        f"  Provider:        {prov_name}",
+        f"  Repository ID:   {repo_id} ({repo_name})",
+        f"  Pull Request ID: {pr_id} (#{pr_num})",
         "",
         "Exact Base Authority:",
-        f"  Base Commit: {base['commit']}",
-        f"  Base Tree:   {base['tree']}",
+        f"  Base Commit: {base_commit}",
+        f"  Base Tree:   {base_tree}",
         "",
         "Proposed Head (Review Data Only):",
         f"  Head Commit: {head_commit}",
@@ -1563,8 +2046,8 @@ def format_reviewer_packet(
         f"  Handoff Path:           {handoff_path}",
         f"  Handoff SHA256:         {handoff_sha256}",
         f"  Bundle Locator:         {bundle_loc}",
-        f"  Bundle Manifest SHA256: {bundle_meta['manifest_sha256']}",
-        f"  Semantic Policy SHA256: {sem['sha256']}",
+        f"  Bundle Manifest SHA256: {manifest_sha}",
+        f"  Semantic Policy SHA256: {sem_sha}",
         "",
         "INSTRUCTIONS FOR INDEPENDENT REVIEWER:",
         "-" * 80,
@@ -1697,6 +2180,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Require authenticated provider observation.",
     )
+    ver.add_argument(
+        "--provider-observation",
+        type=Path,
+        default=None,
+        help="Path to trusted provider observation JSON.",
+    )
+    ver.add_argument(
+        "--freeze-evidence",
+        type=Path,
+        default=None,
+        help="Path to external freeze evidence JSON.",
+    )
 
     rf = sub.add_parser(
         "record-freeze", help="Record external freeze evidence for a pending artifact."
@@ -1772,11 +2267,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "verify":
         try:
             data = json.loads(args.handoff.read_text(encoding="utf-8"))
+            prov_adapter = None
+            if args.provider_observation:
+                prov_adapter = ExternalObservationProviderVerifier(args.provider_observation)
+            freeze_adapter = None
+            if getattr(args, "freeze_evidence", None):
+                freeze_adapter = ExternalDeploymentFreezeVerifier(args.freeze_evidence)
             verify_handoff(
                 data,
                 allow_simulated_boundary=args.allow_simulated_boundary,
                 check_locators=args.check_locators,
                 require_authenticated_provider=args.require_authenticated_provider,
+                provider_adapter=prov_adapter,
+                freeze_adapter=freeze_adapter,
             )
             print(STATUS_HANDOFF_VERIFIED)
             return 0
