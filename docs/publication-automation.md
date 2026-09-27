@@ -19,12 +19,18 @@ self-description. `integration-source.json` is the committed consumer
 selection; its four selected identity fields are the only normal adoption
 mutation.
 
-The default `site` branch also contains a thin `repository_dispatch` adapter
-for provider qualification events. It validates the immutable provider facts,
-resolves the current `integration` authority head to one exact producer SHA,
-and forwards those facts to the pinned Integration controller; it does not
-perform Integration semantics itself. A producer-head race is handled by the
-controller's expected-base check rather than by trusting the event payload.
+The default `site` branch also contains a thin adapter for provider
+`repository_dispatch` events and manual Integration `workflow_dispatch`
+requests. Provider events validate immutable provider facts and resolve the
+current `integration` authority head to one exact producer SHA. Manual requests
+must supply one exact lowercase producer SHA; optional provider overrides are
+forwarded unchanged, and an empty value leaves selection to Integration's
+committed `publication-sources.json`. Both paths delegate to the same exact
+Integration workflow, which owns reconciliation semantics. The adapter takes
+the required controller input only from `PUBLICATION_CONTROLLER_REVISION`, so
+an event payload or manual input cannot select controller code. A producer-head
+race on the provider-event path is handled by the controller's expected-base
+check rather than by trusting the event payload.
 
 Integration's candidate report is not a Site or adoption authorization. The
 upstream controller must provide a trusted receipt bound to the exact Bundle
@@ -138,7 +144,8 @@ maintainers; it does not authorize a dispatch or a setting change.
 | Event | Current code | Result and next boundary |
 |---|---|---|
 | Provider push qualification | `modeling-ci.yml`, `reference-consumer-publication.yml`, and `integration-compatibility.yml` | The provider qualifies its exact pushed SHA, then sends `publication.provider-qualified` with run/attempt/workflow identity. A provider check or added file is not publication. |
-| Provider event received | Site default-branch `provider-publication-dispatch.yml` | Site validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `a92006b95ef67abaa52d59e7a583c1f59656e7a7`. The adapter does not adopt Site or execute provider code. |
+| Provider event received | Site default-branch `provider-publication-dispatch.yml` | Site validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `fb0f078d3e51bb0dcf9bdcb0630b1f934a0ef9a8`. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
+| Manual Integration reconciliation | Site default-branch `provider-publication-dispatch.yml` | The operator supplies one exact lowercase `producer_ref`; optional provider overrides remain empty to use the committed Integration selection. Site validates and forwards those values, takes `controller_ref` from the repository trust variable, and delegates to the same pinned Integration workflow. The Site adapter adds no qualification, promotion, or lock-update semantics. |
 | Integration candidate | `integration-reconcile.yml` | Exact producer/provider qualification, trusted-controller rebuild, artifact binding, and receipt verification produce a report. The source fallback is `shadow`; live repository variables and credentials are external. Only separately authorized `adoption-only` or `auto-publish` can reach the deterministic `automation/publication-*` lock PR job. |
 | Integration merge | `integration-promotion-notify.yml` | A merged `automation/publication-*` PR is requalified and its trusted receipt is checked before `publication.integration-promoted` is sent to Site. The notification is a candidate handoff, not Site adoption or deployment. |
 | Site candidate | `publication-reconcile.yml` | Site acquires the exact Bundle/receipt and runs Site qualification. Only an externally authorized automatic mode can create an idempotent `automation/site-publication-*` lock PR; Site qualification and protected merge remain independent. |
@@ -148,10 +155,15 @@ maintainers; it does not authorize a dispatch or a setting change.
 The provider workflows use the workflow's `github.token` to submit the
 `repository_dispatch` transport. GitHub evaluates that event on the repository's
 default branch, which is why the Site adapter is the entry point; the adapter
-then resolves, rather than trusts, the Integration branch. The guarded lock-PR
-jobs use `secrets.PUBLICATION_AUTOMATION_TOKEN` for Git/PR writes and guarded
-merge requests, and the notification jobs use it for subsequent dispatch or
-workflow dispatch. It is an orchestration credential, not the Pages deployment
+then resolves, rather than trusts, the Integration branch. GitHub's manual
+`workflow_dispatch` discovery also requires a workflow on the default branch;
+the Site adapter exposes that entry point and relies on GitHub's repository
+write permission for dispatch authorization. Both entry points delegate to the
+same immutable Integration workflow revision and inherit the reusable
+workflow's secret context. The guarded lock-PR jobs use
+`secrets.PUBLICATION_AUTOMATION_TOKEN` for Git/PR writes and guarded merge
+requests, and the notification jobs use it for subsequent dispatch or workflow
+dispatch. It is an orchestration credential, not the Pages deployment
 credential. Pages deployment continues to use the workflow-scoped `pages: write`
 and `id-token: write` permissions with `actions/deploy-pages`. The secret is
 external to this implementation worktree, and its live permissions are not
