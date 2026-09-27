@@ -35,6 +35,7 @@ class CompositionPreflightTests(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
+                "-B",
                 "-I",
                 str(SCRIPTS / "run_composition_preflight.py"),
                 "--help",
