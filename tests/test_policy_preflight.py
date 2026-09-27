@@ -5,6 +5,9 @@ import inspect
 import json
 import os
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "run_policy_preflight.py"
@@ -51,6 +54,7 @@ def test_every_foreign_python_destination_is_classified_by_manifest() -> None:
 
 def test_fast_and_full_profiles_retain_distinct_validation_depth() -> None:
     preflight = load_preflight()
+    assert preflight.parse_args(["full", "--jobs", "2"]).jobs == 2
     assert preflight.PROFILES["fast"] == (
         "compile",
         "lint",
@@ -73,6 +77,33 @@ def test_preflight_subprocesses_use_the_exact_worktree_package() -> None:
         str(ROOT / "src"),
         str(ROOT),
     ]
+
+
+def test_pytest_worker_environment_cannot_be_injected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    preflight = load_preflight()
+    monkeypatch.setenv("PYTEST_ADDOPTS", "-n auto")
+    monkeypatch.setenv("PYTEST_PLUGINS", "injected_worker_plugin")
+    environment = preflight.sanitized_environment()
+    assert "PYTEST_ADDOPTS" not in environment
+    assert "PYTEST_PLUGINS" not in environment
+    # `run()` is the boundary every canonical child command uses.
+    with patch.object(preflight.subprocess, "run") as child_run:
+        preflight.run("python", "-m", "pytest")
+    child_env = child_run.call_args.kwargs["env"]
+    assert "PYTEST_ADDOPTS" not in child_env
+
+
+def test_jobs_argument_is_explicit_and_positive() -> None:
+    preflight = load_preflight()
+    assert preflight.parse_args(["fast", "--jobs", "1"]).jobs == 1
+    with pytest.raises(SystemExit):
+        preflight.parse_args(["fast", "--jobs", "0"])
+    for requested in (1, 2, 4, 16):
+        assert preflight.effective_focused_jobs(requested) <= requested
+        assert preflight.effective_runner_jobs("fast", requested) <= requested
+    assert preflight.effective_runner_jobs("fast", 1) == 1
 
 
 def test_fast_profile_requires_local_checkout_behavioral_suite() -> None:
