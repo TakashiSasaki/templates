@@ -230,6 +230,109 @@ def test_delegation_preserves_entry_but_not_all_files(tmp_path):
     assert not run(tmp_path, adapter)["validation"]["valid"]
 
 
+@pytest.mark.parametrize(
+    ("delegate_path", "entry_path"),
+    [
+        ("vendor", "README.md"),
+        ("vendor/subtree", "vendor/sibling.md"),
+        ("vendor/subtree", "vendor/index.md"),
+        ("vendor", "vendor2/index.md"),
+    ],
+    ids=("unrelated", "sibling", "ancestor", "lexical-prefix"),
+)
+def test_delegation_entry_must_be_within_its_boundary(tmp_path, delegate_path, entry_path):
+    adapter = fixture(tmp_path)
+    (tmp_path / delegate_path).mkdir(parents=True, exist_ok=True)
+    if entry_path != "README.md" and entry_path != delegate_path:
+        write(tmp_path, entry_path, "# Entry\n")
+    adapter["delegate"] = [
+        {
+            "path": delegate_path,
+            "entry": entry(entry_path),
+            "reason": "Domain inventory owns the subtree interior",
+        }
+    ]
+
+    report = run(tmp_path, adapter)
+
+    assert not report["validation"]["valid"]
+    assert report["result"] == "AUTHORITY_NEEDED"
+    assert report["plan"] == []
+    assert any("boundary or a descendant" in item for item in report["notes"])
+
+
+def test_delegation_boundary_itself_remains_discoverable(tmp_path):
+    adapter = fixture(tmp_path)
+    (tmp_path / "vendor").mkdir()
+    adapter["delegate"] = [
+        {
+            "path": "vendor",
+            "entry": entry("vendor", "directory"),
+            "reason": "Domain inventory owns the subtree interior",
+        }
+    ]
+    write(
+        tmp_path,
+        "index.md",
+        "# Root\n[Readme](README.md)\n[Vendor](vendor/)\n",
+    )
+
+    clean(run(tmp_path, adapter))
+
+
+@pytest.mark.parametrize(
+    "entry_path",
+    ["vendor/../README.md", "vendor//entry.md", "vendor/./entry.md"],
+    ids=("traversal", "duplicate-separator", "dot-segment"),
+)
+def test_delegation_rejects_unsafe_or_noncanonical_entry_paths(tmp_path, entry_path):
+    adapter = fixture(tmp_path)
+    (tmp_path / "vendor").mkdir()
+    adapter["delegate"] = [
+        {
+            "path": "vendor",
+            "entry": entry(entry_path),
+            "reason": "Domain inventory owns the subtree interior",
+        }
+    ]
+
+    report = run(tmp_path, adapter)
+
+    assert not report["validation"]["valid"]
+    assert report["result"] != "NO_UPDATE_REQUIRED"
+    assert report["plan"] == []
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_error"),
+    [
+        ("index", "index entry must name index.md: vendor/entry.md"),
+        ("directory", "expected directory missing: vendor/entry.md"),
+    ],
+    ids=("index-kind-on-file", "directory-kind-on-file"),
+)
+def test_delegation_entry_kind_must_match_its_path(tmp_path, kind, expected_error):
+    adapter = fixture(tmp_path)
+    write(tmp_path, "vendor/entry.md", "# Entry\n")
+    adapter["delegate"] = [
+        {
+            "path": "vendor",
+            "entry": entry("vendor/entry.md", kind),
+            "reason": "Domain inventory owns the subtree interior",
+        }
+    ]
+
+    report = run(tmp_path, adapter)
+
+    assert not report["validation"]["valid"]
+    assert report["result"] != "NO_UPDATE_REQUIRED"
+    assert report["plan"] == []
+    assert any(
+        expected_error in error
+        for error in report["notes"] + report["validation"]["errors"]
+    )
+
+
 def test_projection_stale_missing_closure_and_kind(tmp_path):
     adapter = fixture(tmp_path)
     write(tmp_path, "domain.json", {"ids": ["a"]})

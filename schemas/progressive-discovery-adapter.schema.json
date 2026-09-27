@@ -204,6 +204,7 @@
     },
     "delegation": {
       "type": "object",
+      "description": "The candidate runtime additionally requires entry.path to equal path or be a path-component descendant of path.",
       "additionalProperties": false,
       "required": [
         "path",

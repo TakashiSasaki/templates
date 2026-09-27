@@ -291,6 +291,11 @@ and useful nested indexes coexist without a shortcut declaration. The candidate
 uses the same generated mutation engine and all existing ownership protections.
 Require `policy_selected`, `validation.valid` and `NO_UPDATE_REQUIRED` together.
 
+Delegation keeps its declared entry discoverable. JSON Schema validates the
+declaration's shape and canonical path syntax; the candidate runtime separately
+requires `entry.path` to equal `delegate.path` or be a path-component descendant
+of it. This semantic relation is not inferred from a lexical string prefix.
+
 The renderer also accepts the explicit candidate-only construction argument
 `discovery_contract_version=2`. That package's standard launcher requires v2, so
 existing consumer qualification commands can exercise an isolated migration with
