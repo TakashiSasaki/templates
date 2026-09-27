@@ -47,6 +47,12 @@ class SitePreflightTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("unrecognized arguments", result.stderr)
 
+    def test_jobs_must_be_at_least_one(self):
+        self.assertEqual(preflight.parse_args(["fast", "--jobs", "1"]).jobs, 1)
+        for value in ("0", "-1", "many"):
+            with self.subTest(value=value), self.assertRaises(SystemExit):
+                preflight.parse_args(["fast", "--jobs", value])
+
     def test_exact_head_guard_precedes_validation(self):
         with patch.object(
             preflight.subprocess,
@@ -222,6 +228,34 @@ class SitePreflightTests(unittest.TestCase):
         with patch.object(preflight, "NODE_TESTS", ()):
             with self.assertRaisesRegex(RuntimeError, "no Composition Playground"):
                 preflight.run_node()
+
+    def test_node_runner_rejects_zero_worker_allocation(self):
+        with self.assertRaisesRegex(ValueError, "at least 1"):
+            preflight.run_node(0)
+
+    def test_node_test_runner_receives_explicit_budget_and_ignores_node_options(self):
+        with patch.dict(os.environ, {"NODE_OPTIONS": "--test-concurrency=auto"}), patch.object(
+            preflight, "_run"
+        ) as run:
+            preflight.run_node(1)
+        command = run.call_args.args[0]
+        self.assertEqual(command[:3], ["node", "--test", "--test-concurrency=1"])
+        self.assertEqual(command[3:], list(preflight.NODE_TESTS))
+        child_environment = run.call_args.kwargs["env"]
+        self.assertNotIn("NODE_OPTIONS", child_environment)
+
+    def test_node_worker_count_is_capped_to_discovered_files(self):
+        with patch.object(preflight, "NODE_TESTS", ("tests/one.test.mjs", "tests/two.test.mjs")), patch.object(
+            preflight, "_run"
+        ) as run:
+            preflight.run_node(8)
+        self.assertIn("--test-concurrency=2", run.call_args.args[0])
+
+    def test_run_check_passes_site_allocation_to_node(self):
+        args = preflight.parse_args(["source-ready", "--jobs", "2"])
+        with patch.object(preflight, "run_node") as run_node:
+            preflight.run_check("node", args)
+        run_node.assert_called_once_with(2)
 
     def test_registry_is_the_single_playground_node_inventory(self):
         self.assertEqual(preflight.NODE_TESTS, playground_node_tests(ROOT))
