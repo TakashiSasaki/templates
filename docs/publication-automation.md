@@ -44,9 +44,11 @@ read-only qualification, and summaries are allowed; lock PRs and Pages writes
 are not. A successful qualification in this mode is evidence, not adoption.
 
 `adoption-only` permits a trusted controller to create or reconcile an
-idempotent Site lock PR after the Integration and Site gates pass. Pages remains
-unchanged. Branch protection and required CI still decide whether the PR may
-merge; the controller does not bypass either.
+idempotent Site lock PR after the Integration and Site gates pass, then stop.
+The controller does not approve or merge the PR. An independent exact-head
+review and separate human merge authorization are required before landing;
+required CI and branch protection remain additional constraints. Pages remains
+unchanged.
 
 `auto-publish` adds the final Pages path. The deployment job is still gated by
 the exact artifact ID/digest emitted by the producer, a successful final
@@ -91,9 +93,11 @@ must verify each item once:
   it as the repository secret `PUBLICATION_AUTOMATION_TOKEN`; no particular
   credential implementation is required, and this implementation does not
   create the secret.
-- Protect `integration` and `site` with the required status checks and retain
-  the required human review/merge-queue policy. Confirm that the controller
-  may request auto-merge but cannot bypass protection.
+- Protect `integration` and `site` with the applicable status checks. Confirm
+  that publication automation only creates or reconciles its deterministic PR
+  and never approves, requests auto-merge, or merges it. The independent exact-
+  head review and separate human landing authorization remain required; GitHub
+  protection is an additional platform gate.
 - Configure the `github-pages` environment to permit only the intended Site
   deployment job and verify Pages uses the `site` authority branch. The live
   repository setting must be checked because a stale `main` Pages source is a
@@ -146,10 +150,10 @@ maintainers; it does not authorize a dispatch or a setting change.
 | Provider push qualification | `modeling-ci.yml`, `reference-consumer-publication.yml`, and `integration-compatibility.yml` | The provider qualifies its exact pushed SHA, then sends `publication.provider-qualified` with run/attempt/workflow identity. A provider check or added file is not publication. |
 | Provider event received | Site default-branch `provider-publication-dispatch.yml` | Site validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `fb0f078d3e51bb0dcf9bdcb0630b1f934a0ef9a8`. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
 | Manual Integration reconciliation | Site default-branch `provider-publication-dispatch.yml` | The operator supplies one exact lowercase `producer_ref`; optional provider overrides remain empty to use the committed Integration selection. Site validates and forwards those values, takes `controller_ref` from the repository trust variable, and delegates to the same pinned Integration workflow. The Site adapter adds no qualification, promotion, or lock-update semantics. |
-| Integration candidate | `integration-reconcile.yml` | Exact producer/provider qualification, trusted-controller rebuild, artifact binding, and receipt verification produce a report. The source fallback is `shadow`; live repository variables and credentials are external. Only separately authorized `adoption-only` or `auto-publish` can reach the deterministic `automation/publication-*` lock PR job. |
-| Integration merge | `integration-promotion-notify.yml` | A merged `automation/publication-*` PR is requalified and its trusted receipt is checked before `publication.integration-promoted` is sent to Site. The notification is a candidate handoff, not Site adoption or deployment. |
-| Site candidate | `publication-reconcile.yml` | Site acquires the exact Bundle/receipt and runs Site qualification. Only an externally authorized automatic mode can create an idempotent `automation/site-publication-*` lock PR; Site qualification and protected merge remain independent. |
-| Site merge | `site-publication-notify.yml` | Only a merged `automation/site-publication-*` PR in `auto-publish` with authorization, exact pins, and kill switch clear may invoke `deploy-pages.yml` with `automatic=true`. A normal Site UI PR does not take this automatic post-merge route. |
+| Integration candidate | `integration-reconcile.yml` | Exact producer/provider qualification, trusted-controller rebuild, artifact binding, and receipt verification produce a report. The source fallback is `shadow`; live repository variables and credentials are external. Only separately authorized `adoption-only` or `auto-publish` can create or reconcile the deterministic `automation/publication-*` lock PR. Automation stops at the PR, pending independent exact-head review and separate human merge authorization. |
+| Integration merge | `integration-promotion-notify.yml` | After independent review and authorized landing, a merged `automation/publication-*` PR is requalified and its trusted receipt is checked before `publication.integration-promoted` is sent to Site. The notification is a candidate handoff, not Site adoption or deployment. |
+| Site candidate | `publication-reconcile.yml` | Site acquires the exact Bundle/receipt and runs Site qualification. Only an externally authorized automatic mode can create or reconcile the idempotent `automation/site-publication-*` lock PR. Automation stops at the PR; independent exact-head review and separate human merge authorization remain required. |
+| Site merge | `site-publication-notify.yml` | Only after an authorized merge of `automation/site-publication-*`, and only in `auto-publish` with authorization, exact pins, and kill switch clear, may this workflow invoke `deploy-pages.yml` with `automatic=true`. A normal Site UI PR does not take this automatic post-merge route. |
 | Deployment | `deploy-pages.yml` and `build-pages.yml` | The workflow qualifies the exact `site_revision`, gates the exact Pages artifact/digest and current branch head, and uses the `github-pages` environment. `automatic=false` is a separate human `workflow_dispatch` path. |
 
 The provider workflows use the workflow's `github.token` to submit the
@@ -161,8 +165,8 @@ the Site adapter exposes that entry point and relies on GitHub's repository
 write permission for dispatch authorization. Both entry points delegate to the
 same immutable Integration workflow revision and inherit the reusable
 workflow's secret context. The guarded lock-PR jobs use
-`secrets.PUBLICATION_AUTOMATION_TOKEN` for Git/PR writes and guarded merge
-requests, and the notification jobs use it for subsequent dispatch or workflow
+`secrets.PUBLICATION_AUTOMATION_TOKEN` for guarded branch and PR writes; they do
+not approve or merge PRs. The notification jobs use it for subsequent dispatch or workflow
 dispatch. It is an orchestration credential, not the Pages deployment
 credential. Pages deployment continues to use the workflow-scoped `pages: write`
 and `id-token: write` permissions with `actions/deploy-pages`. The secret is
@@ -186,9 +190,10 @@ Keep these states separate:
 - A notification carries a candidate fact, not adoption authorization or a success
   receipt.
 - A controller-created PR is an allowlisted lock update. It does not generate
-  semantic code, merge foreign history, or bypass required review/CI/branch
-  protection. Requested auto-merge, CI success, review satisfaction, actual
-  merge, and deployment success are separate facts.
+  semantic code, merge foreign history, approve a change, or bypass the review
+  and landing boundary. Automation stops at PR creation/reconciliation.
+  Independent exact-head review, separate human merge authorization, CI,
+  branch protection, actual merge, and deployment success are distinct facts.
 - Integration's current Bundle-v4 capability, Site's selected
   `integration-source.json`, and the last deployed Site/Pages artifact are
   different identities. Historical Bundle v3 is compatibility/fixture material,
@@ -217,7 +222,8 @@ merge`, a notification, a variable/secret API, or Pages deployment here.
 Only a separately authorized future operator may perform the mutation sequence:
 verify external authorization and protections, bind an exact candidate and fresh
 receipt, allow the guarded controller to create/reconcile the existing idempotent
-lock PR, wait for its real CI/review/merge outcome, and then apply the distinct
-Site/deployment gates. Do not use manual publication as an unapproved bypass for
+lock PR, obtain independent exact-head review, then have a human-authorized landing
+agent apply the shared merge gate. Post-merge workflows start only after that
+authorized merge, followed by the distinct Site/deployment gates. Do not use manual publication as an unapproved bypass for
 an automatic path that stopped on an expired artifact, kill switch, or unknown
 authorization.

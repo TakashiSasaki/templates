@@ -368,9 +368,23 @@ jobs:
           gh auth setup-git
           git config user.name publication-controller
           git config user.email publication-controller@users.noreply.github.com
+          report_pr_ready() {
+            local pr="$1"
+            local url
+            url=$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+            {
+              echo "## Site adoption PR"
+              echo
+              echo "- PR: [$pr]($url)"
+              echo "- Status: awaiting independent exact-head review and separate human merge authorization."
+              echo "- Automation created or reconciled this PR; it did not approve or merge it."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "Site adoption PR #$pr awaits independent review and authorized landing."
+          }
           existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --state open --json number --jq '.[0].number')
           if [ -n "$existing" ]; then
             echo "Existing idempotent Site adoption PR #$existing remains authoritative."
+            report_pr_ready "$existing"
             exit 0
           fi
           if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
@@ -384,7 +398,7 @@ jobs:
           git push --force-with-lease origin "HEAD:$BRANCH"
           existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --json number --jq '.[0].number')
           if [ -z "$existing" ]; then
-            gh pr create --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --title "chore(site): adopt qualified Integration Bundle" --body "Guarded Site lock adoption. Consumer base: $EXPECTED_SITE_BASE. Idempotency key: $IDEMPOTENCY_KEY. Auto-merge remains subject to branch protection and required CI."
+            gh pr create --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --title "chore(site): adopt qualified Integration Bundle" --body "Guarded Site lock adoption. Consumer base: $EXPECTED_SITE_BASE. Idempotency key: $IDEMPOTENCY_KEY. The controller stops after creating or reconciling this PR: it does not approve or merge. Independent exact-head review and separate human merge authorization are required before landing. A separate post-merge workflow applies the existing auto-publish gates."
           fi
           pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --json number --jq '.[0].number')
-          gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --auto --squash
+          report_pr_ready "$pr"

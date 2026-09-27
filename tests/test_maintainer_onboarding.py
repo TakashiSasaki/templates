@@ -104,6 +104,8 @@ class MaintainerOnboardingTests(unittest.TestCase):
         for distinction in (
             "notification carries a candidate fact",
             "auto-merge",
+            "independent exact-head review",
+            "separate human merge authorization",
             "required review",
             "actual merge",
             "deployment",
