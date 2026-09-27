@@ -227,7 +227,7 @@ jobs:
     steps:
       - name: Dispatch exact merged Integration identity to Site
         env:
-          GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+          GH_TOKEN: ${{ secrets.PUBLICATION_AUTOMATION_TOKEN }}
           PRODUCER_SHA: ${{ needs.release_qualification.outputs.producer_revision }}
           BUNDLE_SCHEMA: ${{ needs.release_qualification.outputs.bundle_schema }}
           BUNDLE_IDENTITY: ${{ needs.release_qualification.outputs.bundle_identity }}
