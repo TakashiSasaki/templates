@@ -332,3 +332,130 @@ def test_cli_and_distribution_use_identical_schema(tmp_path):
     assert reports[0] == reports[1]
     assert "{{ canonical_" not in (dist / "scripts/discovery_candidate.py").read_text()
     assert load(distributed).run(repo)["result"] == "AUTHORITY_NEEDED"
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "entries",
+        "inventories",
+        "projections",
+        "exclude",
+        "delegate",
+        "omit_from",
+        "generated",
+        "retire",
+    ],
+)
+def test_unknown_nested_fields_rejected(field, tmp_path):
+    adapter = fixture(tmp_path)
+    examples = {
+        "entries": entry("README.md"),
+        "inventories": inventory(),
+        "projections": {"path": "p.json", "sources": ["a.json"]},
+        "exclude": {"path": "vendor", "reason": "why"},
+        "delegate": {"path": "vendor", "entry": entry("README.md"), "reason": "why"},
+        "omit_from": {"index": "docs/index.md", "paths": ["README.md"], "reason": "why"},
+        "generated": {
+            "path": "docs/index.md",
+            "title": "Docs",
+            "section": "Links",
+            "members": ["README.md"],
+        },
+        "retire": {"path": "old/index.md", "reason": "why"},
+    }
+    adapter[field] = [{**examples[field], "unknown": True}]
+    report = run(tmp_path, adapter)
+    assert not report["validation"]["valid"] and report["plan"] == []
+
+
+def test_quote_lazy_continuation_and_quote_fragment_do_not_count(tmp_path):
+    adapter = fixture(tmp_path)
+    write(tmp_path, "index.md", "# Root\n\n> quoted example\n[Readme](README.md)\n")
+    assert "root coverage missing: README.md" in run(tmp_path, adapter)["validation"]["errors"]
+    write(tmp_path, "index.md", "# Root\n[Readme](README.md#hidden)\n")
+    write(tmp_path, "README.md", '# Readme\n\n> <a id="hidden"></a>\n')
+    assert "missing fragment" in str(run(tmp_path, adapter)["validation"]["errors"])
+
+
+def test_missing_or_wrong_schema_in_distribution_is_detected(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    adapter = fixture(repo)
+    write(repo, ".progressive-discovery.json", adapter)
+    dist = tmp_path / "dist"
+    for path, content in render_skill("maintain-progressive-discovery").items():
+        write(dist, path, content)
+    candidate = dist / "scripts/discovery_candidate.py"
+    content = candidate.read_text()
+    # Revert only the embedded schema to its unrendered placeholder: no local schema exists.
+    lines = content.splitlines()
+    lines = [
+        'ADAPTER_SCHEMA_JSON = "{{ missing_schema }}"'
+        if line.startswith("ADAPTER_SCHEMA_JSON = ")
+        else line
+        for line in lines
+    ]
+    candidate.write_text("\n".join(lines) + "\n")
+    command = [
+        sys.executable,
+        str(dist / "scripts/maintain_progressive_discovery.py"),
+        "--root",
+        str(repo),
+        "--candidate-v2",
+        "--format",
+        "json",
+    ]
+    assert subprocess.run(command, capture_output=True).returncode != 0
+
+
+def test_distributed_dry_run_does_not_create_bytecode_in_checkout(tmp_path):
+    adapter = fixture(tmp_path)
+    write(tmp_path, ".progressive-discovery.json", adapter)
+    prefix = ".agents/skills/maintain-progressive-discovery/"
+    for path, content in render_skill("maintain-progressive-discovery").items():
+        write(tmp_path, prefix + path, content)
+    before = {
+        str(p.relative_to(tmp_path)): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(tmp_path / prefix / "scripts/maintain_progressive_discovery.py"),
+            "--root",
+            str(tmp_path),
+            "--candidate-v2",
+            "--format",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    clean(json.loads(result.stdout))
+    after = {
+        str(p.relative_to(tmp_path)): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()
+    }
+    assert before == after
+    assert not list(tmp_path.rglob("__pycache__"))
+
+
+@pytest.mark.parametrize("tag", ["pre", "code", "script", "style", "textarea"])
+def test_html_code_examples_do_not_establish_navigation(tmp_path, tag):
+    adapter = fixture(tmp_path)
+    write(tmp_path, "index.md", f"# Root\n\n<{tag}>[Readme](README.md)</{tag}>\n")
+    assert "root coverage missing: README.md" in run(tmp_path, adapter)["validation"]["errors"]
+
+
+def test_exclusion_cannot_silently_empty_generated_scope(tmp_path):
+    adapter = fixture(tmp_path)
+    write(tmp_path, "inventory.json", {"members": [{"source": "docs/a.md"}]})
+    write(tmp_path, "docs/a.md", "# A\n")
+    adapter["inventories"] = [inventory()]
+    adapter["generated"] = [
+        {"path": "docs/index.md", "title": "Docs", "section": "Members", "members": ["docs/a.md"]}
+    ]
+    adapter["exclude"] = [{"path": "docs/a.md", "reason": "Would empty the output"}]
+    report = run(tmp_path, adapter)
+    assert "generated scope empty" in str(report["notes"])
+    assert report["plan"] == []

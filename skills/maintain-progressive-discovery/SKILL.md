@@ -284,3 +284,10 @@ per-index omissions and delegated scanning are independent decisions. Deep links
 and useful nested indexes coexist without a shortcut declaration. The candidate
 uses the same generated mutation engine and all existing ownership protections.
 Require `policy_selected`, `validation.valid` and `NO_UPDATE_REQUIRED` together.
+
+The renderer also accepts the explicit candidate-only construction argument
+`discovery_contract_version=2`. That package's standard launcher requires v2, so
+existing consumer qualification commands can exercise an isolated migration with
+no wrapper or bypass. Normal rendering still emits a version-1-default package.
+Record the candidate package digest and prospective pin/lock separately from the
+unchanged active adoption. This construction interface is transitional.

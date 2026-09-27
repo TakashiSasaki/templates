@@ -159,6 +159,10 @@ def inputs(engine, root: Path, relative: str):
         if any(under(p, path) for p in protected | set(retired)):
             raise ValueError(f"required/excluded conflict: {path}")
         expected = {p: kind for p, kind in expected.items() if not under(p, path)}
+    for path, spec in generated.items():
+        for scope in spec["inventory"]:
+            if not any(under(p, scope) and p != path for p in expected):
+                raise ValueError(f"generated scope empty after exclusions: {scope}")
     for item in adapter.get("delegate", []):
         for path, kind in expected.items():
             if kind == "index" and under(path, item["path"]) and path != item["path"] + "/index.md":

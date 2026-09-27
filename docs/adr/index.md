@@ -16,3 +16,5 @@
 ## Superseded decisions
 
 * [ADR-0004: Integrated bootstrap skill](0004-integrated-bootstrap-skill.md) - Superseded by ADR-0007; retained only as historical rationale for the earlier bootstrap trust-boundary design.
+
+- [Discovery adapter candidate](0010-discovery-adapter-candidate.md) - Defines the proposed local adapter and isolated migration boundary.
