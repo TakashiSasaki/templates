@@ -16,8 +16,10 @@ Site owns presentation and browser runtime, including source browser/search/glos
 accessibility, PWA and deployed-document freshness, artifact packaging and deployment.
 Integration does not import those implementations. Site adoption of an exact reviewed
 Integration release is a separate Site-owned gate: Shadow is report-only, and an activated
-controller may prepare the allowlisted lock PR without bypassing Site qualification or
-branch protection. Integration advancement still does not authorize Pages deployment.
+controller may create or reconcile the allowlisted lock PR, then stops. Independent review
+and separate human merge authorization precede landing; Site qualification and branch
+protection remain additional constraints. Integration advancement still does not authorize
+Pages deployment.
 
 The historical P5 bootstrap used the reviewed Site provider snapshot, not provider
 HEADs. Its provenance remains immutable historical evidence. Later P7 promotion and

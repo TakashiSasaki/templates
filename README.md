@@ -27,9 +27,10 @@ Site releases and compatibility fixtures; new production publication does not fa
 to the former two-provider lock. Both carry exact provenance, and v4 also carries the
 Integration-normalized requirement closure, not provider repository source corpora for a
 Site-owned browser. Shadow is the initial release mode. After one-time activation,
-pre-authorized exact candidates may be mechanically promoted subject to qualification,
-freshness, branch protection, and the separate Site gate. Nothing here deploys Pages or
-follows mutable provider heads.
+pre-authorized exact candidates may produce deterministic promotion PRs after qualification
+and freshness checks. The controller stops at each PR; independent exact-head review and
+separate human merge authorization precede landing, with branch protection as an additional
+constraint. Nothing here deploys Pages or follows mutable provider heads.
 
 `site-manifest.json` is retained as the existing destination/reader-IA contract filename.
 `integration/site-slots.json` declares downstream Site content slots, without copying their

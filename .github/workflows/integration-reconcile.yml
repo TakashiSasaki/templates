@@ -458,13 +458,26 @@ jobs:
             python3 controller-source/scripts/publication_promotion_intent.py "${args[@]}"
           }
 
+          report_pr_ready() {
+            local pr="$1"
+            local url
+            url=$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+            {
+              echo "## Integration publication PR"
+              echo
+              echo "- PR: [$pr]($url)"
+              echo "- Status: awaiting independent exact-head review and separate human merge authorization."
+              echo "- Automation created or reconciled this PR; it did not approve or merge it."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "Integration publication PR #$pr awaits independent review and authorized landing."
+          }
+
           existing=$(open_pr_numbers)
           require_at_most_one_pr "$existing"
           if [ -n "$existing" ]; then
             verify_existing "$existing"
-            # Re-read the live target and PR immediately before the merge request.
             verify_existing "$existing"
-            gh pr merge "$existing" --repo "$GITHUB_REPOSITORY" --auto --squash
+            report_pr_ready "$existing"
             exit 0
           fi
           branch_before=$(git -C integration-base ls-remote origin "refs/heads/$BRANCH" | awk 'NF { print $1 }')
@@ -486,12 +499,11 @@ jobs:
           if [ -z "$existing" ]; then
             # This target check is immediately before PR creation.
             verify_target
-            gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --title "chore(integration): record trusted publication intent" --body "Guarded deterministic Integration publication promotion. Consumer base: $EXPECTED_CONSUMER_BASE. Idempotency key: $IDEMPOTENCY_KEY. The PR updates the provider lock only when it differs; otherwise it records the exact trusted promotion intent. Post-merge qualification uses the merged Integration revision. Auto-merge remains subject to branch protection and required CI."
+            gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --title "chore(integration): record trusted publication intent" --body "Guarded deterministic Integration publication promotion. Consumer base: $EXPECTED_CONSUMER_BASE. Idempotency key: $IDEMPOTENCY_KEY. The PR updates the provider lock only when it differs; otherwise it records the exact trusted promotion intent. The controller stops after creating or reconciling this PR: it does not approve or merge. Independent exact-head review and separate human merge authorization are required before landing. Post-merge qualification uses the merged Integration revision."
             existing=$(open_pr_numbers)
             require_at_most_one_pr "$existing"
           fi
           test -n "$existing"
           verify_existing "$existing"
-          # Re-read the live target and PR immediately before the merge request.
           verify_existing "$existing"
-          gh pr merge "$existing" --repo "$GITHUB_REPOSITORY" --auto --squash
+          report_pr_ready "$existing"
