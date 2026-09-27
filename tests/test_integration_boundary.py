@@ -101,6 +101,32 @@ class BoundaryTests(unittest.TestCase):
    'integration-qualification.yml@a92006b95ef67abaa52d59e7a583c1f59656e7a7',
    text,
   )
+
+ def test_site_publication_pr_stops_at_the_independent_review_boundary(self):
+  workflow=yaml.safe_load((ROOT/'.github/workflows/publication-reconcile.yml').read_text())
+  job=workflow['jobs']['adopt_lock_pr']
+  step=next(step for step in job['steps'] if step.get('name')=='Create or reconcile the idempotent Site adoption PR')
+  script=step['run']
+
+  self.assertEqual(step['env']['BRANCH'],'automation/site-publication-$IDEMPOTENCY_KEY')
+  self.assertIn('gh api --paginate --slurp',script)
+  self.assertIn('python3 scripts/verify_site_adoption_pr.py find',script)
+  self.assertIn('python3 scripts/verify_site_adoption_pr.py verify-pr',script)
+  self.assertIn('refresh_remote_branch()',script)
+  self.assertIn('An idempotency branch exists without an open PR; stop for human recovery.',script)
+  self.assertIn('gh pr create',script)
+  self.assertIn('report_pr_ready "$existing"',script)
+  self.assertIn('independent exact-head review',script)
+  self.assertIn('separate human merge authorization',script)
+  self.assertNotRegex(script,r'(?m)^\s*gh\s+pr\s+merge(?:\s|$)')
+  self.assertNotRegex(script,r'(?m)^\s*gh\s+pr\s+review\s+--approve(?:\s|$)')
+  self.assertNotRegex(script,r'(?m)^\s*git\s+push\b.*(?:refs/heads/)?site(?:\s|$)')
+  pushes=[line.strip() for line in script.splitlines() if line.strip().startswith('git push')]
+  self.assertEqual(pushes,['git push --force-with-lease="$remote_ref:" origin "HEAD:$BRANCH"'])
+  workflow_text=(ROOT/'.github/workflows/publication-reconcile.yml').read_text()
+  self.assertNotIn('actions/deploy-pages@',workflow_text)
+  self.assertNotIn('deploy-pages.yml',workflow_text)
+
  def test_deployment_includes_complete_qualification(self):
   deploy=yaml.safe_load((ROOT/'.github/workflows/deploy-pages.yml').read_text())
   self.assertEqual(set(deploy['jobs']['deploy']['needs']),{'build','artifact_gate','deployment_metadata'})

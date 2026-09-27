@@ -49,9 +49,11 @@ It binds an exact Integration revision, Bundle schema, identity and content dige
 Integration owns the provider tuple; Site has no independent provider publication
 lock. A new Integration release alone is not Site-adoption authorization and does
 not deploy Pages. After a separately activated controller path supplies a trusted
-promotion receipt, the guarded Site controller may prepare an allowlisted lock PR;
-Site qualification, protected review/merge, and the deployment workflow remain
-separate states. A normal Site-only change retains the selected Integration lock.
+promotion receipt, the guarded Site controller may create or reconcile an allowlisted
+lock PR, then stops. Independent exact-head review and separate human merge
+authorization precede landing; Site qualification, branch protection, and the
+deployment workflow remain separate states. A normal Site-only change retains the
+selected Integration lock.
 
 An explicit Integration adoption changes this lock. A Site-only UI, PWA or security
 fix retains it. Both use the same [Site qualification and deployment process](PUBLISHING.md).

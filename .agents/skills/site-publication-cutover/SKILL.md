@@ -32,9 +32,11 @@ generates Site code and not a mechanism for merging authority histories.
 Use [the publication automation handoff](../../../docs/publication-automation.md)
 and the current workflow files for a read-only diagnosis of an automatic event.
 Do not expand an Integration-promoted notification into Site editing or Pages
-deployment from this skill. Requested auto-merge, CI, required review, merge, and
-deployment are separate states. A normal Site UI PR and a manual
-`workflow_dispatch` use their own explicit acceptance/deployment paths.
+deployment from this skill. The controller creates or reconciles the adoption PR
+and stops; it does not approve or merge. Independent exact-head review and
+separate human merge authorization precede landing, with CI and branch protection
+as additional constraints. Post-merge deployment remains separate. A normal Site UI
+PR and a manual `workflow_dispatch` use their own explicit acceptance/deployment paths.
 
 ## Use when
 
