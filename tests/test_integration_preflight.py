@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+from threading import Barrier
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +23,80 @@ class IntegrationPreflightTests(unittest.TestCase):
             preflight.parse_args(["providers", "--expected-head", "a" * 40]).profile,
             "providers",
         )
+        self.assertEqual(preflight.parse_args(["fast", "--jobs", "1"]).jobs, 1)
+
+    def test_jobs_must_be_positive(self) -> None:
+        for value in ("0", "-1", "not-a-number"):
+            with self.subTest(value=value), self.assertRaises(SystemExit):
+                preflight.parse_args(["fast", "--jobs", value])
+
+    def test_worker_environment_drops_python_path_injection(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {"PYTHONPATH": "/unexpected", "PYTHONHOME": "/unexpected-home", "PYTHONSTARTUP": "/unexpected.py"},
+            clear=False,
+        ):
+            environment = preflight.child_environment()
+        self.assertNotIn("PYTHONPATH", environment)
+        self.assertNotIn("PYTHONHOME", environment)
+        self.assertNotIn("PYTHONSTARTUP", environment)
+        self.assertEqual(environment["PYTHONDONTWRITEBYTECODE"], "1")
+
+    def test_partition_is_deterministic_complete_and_disjoint(self) -> None:
+        test_ids = [
+            "test_alpha.Case.test_one",
+            "test_alpha.Case.test_two",
+            "test_beta.Case.test_one",
+            "test_gamma.Case.test_one",
+        ]
+        first = preflight.partition_test_ids(test_ids, 2)
+        second = preflight.partition_test_ids(test_ids, 2)
+        assigned = [test_id for shard in first for test_id in shard]
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 2)
+        self.assertEqual(set(assigned), set(test_ids))
+        self.assertEqual(len(assigned), len(set(assigned)))
+        self.assertEqual(preflight.partition_test_ids(test_ids, 1), [test_ids])
+
+    def test_new_or_changed_modules_fail_closed_to_serial_classification(self) -> None:
+        cases = preflight.discover_test_cases()
+        parallel, serial = preflight.classify_test_inventory(cases)
+        all_ids = [case.id() for case in cases]
+        self.assertEqual(set(parallel) | set(serial), set(all_ids))
+        self.assertFalse(set(parallel) & set(serial))
+        self.assertEqual(len(all_ids), len(set(all_ids)))
+        self.assertTrue(all(test_id.startswith("test_integration_preflight.") for test_id in serial))
+        self.assertEqual(len(parallel), 141)
+
+    def test_shard_failure_propagates_after_all_workers_join(self) -> None:
+        test_ids = [
+            "test_alpha.Case.test_one",
+            "test_beta.Case.test_two",
+        ]
+        barrier = Barrier(2)
+        calls = []
+
+        def fake_subprocess_run(command, **kwargs):
+            manifest_path = Path(command[-1])
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            barrier.wait(timeout=5)
+            outcomes = {test_id: {"status": "passed"} for test_id in manifest["shard_ids"]}
+            payload = {
+                "shard_index": manifest["shard_index"],
+                "ran_ids": sorted(outcomes),
+                "outcomes": outcomes,
+                "tests_run": len(outcomes),
+                "outcome_sha256": preflight.outcome_digest(outcomes),
+            }
+            Path(manifest["result_path"]).write_text(json.dumps(payload), encoding="utf-8")
+            calls.append(manifest["shard_index"])
+            return type("Completed", (), {"returncode": 7 if manifest["shard_index"] == 1 else 0, "stdout": "", "stderr": ""})()
+
+        with patch.object(preflight.subprocess, "run", side_effect=fake_subprocess_run):
+            outcomes, failures, _metrics = preflight.run_parallel_shards(test_ids, test_ids, 2, 0)
+        self.assertEqual(sorted(calls), [0, 1])
+        self.assertEqual(set(outcomes), set(test_ids))
+        self.assertTrue(any("exited with 7" in failure for failure in failures))
 
 
     def test_ready_requires_clean_tree_before_fixture_work(self) -> None:
