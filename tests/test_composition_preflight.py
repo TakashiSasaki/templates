@@ -79,8 +79,53 @@ class CompositionPreflightTests(unittest.TestCase):
             ):
                 preflight.validate_shard_workspace_symlinks(workspace)
 
+    def test_shard_timing_requires_exact_ids_and_reports_measured_work(self) -> None:
+        from run_unittest_shard import format_timing_records
+
+        test_ids = ["test_core.Example.test_a", "test_core.Example.test_b"]
+        timing_lines = format_timing_records(
+            [(test_ids[0], 0.25), (test_ids[1], 0.5)],
+            suite="core",
+            shard_count=2,
+            shard_index=1,
+        )
+        nested_lines = format_timing_records(
+            [("test_nested.Decoy.test_decoy", 9.0)],
+            suite="core",
+            shard_count=2,
+            shard_index=1,
+        )
+
+        measured = preflight.measured_shard_test_seconds(
+            "\n".join([*timing_lines, *nested_lines]),
+            test_ids,
+            shard_count=2,
+            shard_index=1,
+        )
+        self.assertEqual(measured, 0.75)
+
+        with self.assertRaisesRegex(preflight.PreflightFailure, "inventory is incomplete"):
+            preflight.measured_shard_test_seconds(
+                timing_lines[0],
+                test_ids,
+                shard_count=2,
+                shard_index=1,
+            )
+
+        with self.assertRaisesRegex(preflight.PreflightFailure, "duplicate timed test ID"):
+            preflight.measured_shard_test_seconds(
+                "\n".join([*timing_lines, timing_lines[0]]),
+                test_ids,
+                shard_count=2,
+                shard_index=1,
+            )
+
     def test_parallel_core_shards_use_a_barrier_and_exact_inventory(self) -> None:
-        from run_unittest_shard import digest_test_ids, shard_tests
+        from run_unittest_shard import (
+            digest_test_ids,
+            format_timing_records,
+            shard_tests,
+        )
 
         class ShardFixture(unittest.TestCase):
             def test_alpha(self) -> None:
@@ -110,10 +155,18 @@ class CompositionPreflightTests(unittest.TestCase):
             barrier.wait(timeout=10)
             outputs.append(shard_index)
             shard_ids = [test.id() for test in shards[shard_index]]
+            timing_lines = format_timing_records(
+                [(test_id, 0.01) for test_id in shard_ids],
+                suite="core",
+                shard_count=2,
+                shard_index=shard_index,
+            )
             return (
                 0,
                 "COMPOSITION_UNITTEST_INVENTORY "
                 f"suite=core discovered=4 selected=4 selected_ids_sha256={inventory_digest}\n"
+                + "\n".join(timing_lines)
+                + "\n"
                 "COMPOSITION_UNITTEST_INVENTORY "
                 "suite=core discovered=1 selected=1 selected_ids_sha256=nested-decoy\n"
                 "COMPOSITION_UNITTEST_SHARD_RESULT "
@@ -146,7 +199,11 @@ class CompositionPreflightTests(unittest.TestCase):
         remove.assert_called_once()
 
     def test_parallel_core_shard_failure_fails_parent_and_cleans_worktrees(self) -> None:
-        from run_unittest_shard import digest_test_ids, shard_tests
+        from run_unittest_shard import (
+            digest_test_ids,
+            format_timing_records,
+            shard_tests,
+        )
 
         class ShardFixture(unittest.TestCase):
             def test_alpha(self) -> None:
@@ -164,10 +221,18 @@ class CompositionPreflightTests(unittest.TestCase):
         def run_shard(_worktree, shard_index, _shard_count):
             child_done.append(shard_index)
             shard_ids = [test.id() for test in shards[shard_index]]
+            timing_lines = format_timing_records(
+                [(test_id, 0.01) for test_id in shard_ids],
+                suite="core",
+                shard_count=2,
+                shard_index=shard_index,
+            )
             return (
                 next(outcomes),
                 "COMPOSITION_UNITTEST_INVENTORY "
                 f"suite=core discovered=2 selected=2 selected_ids_sha256={inventory_digest}\n"
+                + "\n".join(timing_lines)
+                + "\n"
                 "COMPOSITION_UNITTEST_SHARD_RESULT "
                 f"suite=core shard={shard_index}/2 run_count={len(shard_ids)} "
                 f"run_ids_sha256={digest_test_ids(shard_ids)}\n",
@@ -332,6 +397,7 @@ class CompositionPreflightTests(unittest.TestCase):
                 preflight.resolve_chromedriver()
 
     def test_full_runs_distinct_consumer_spine_without_focused_suite_duplication(self) -> None:
+        events: list[str] = []
         args = Namespace(
             profile="full",
             jobs=2,
@@ -346,10 +412,22 @@ class CompositionPreflightTests(unittest.TestCase):
             mock.patch.object(preflight, "git_output", return_value="head-sha"),
             mock.patch.object(preflight, "run_check"),
             mock.patch.object(preflight, "run_owned_validators"),
-            mock.patch.object(preflight, "run_consumer_spine") as consumer_spine,
+            mock.patch.object(
+                preflight,
+                "run_consumer_spine",
+                side_effect=lambda: events.append("consumer"),
+            ) as consumer_spine,
             mock.patch.object(preflight, "run_focused_tests") as focused_tests,
-            mock.patch.object(preflight, "run_full_tests") as full_tests,
-            mock.patch.object(preflight, "run_integration_publication_contract"),
+            mock.patch.object(
+                preflight,
+                "run_full_tests",
+                side_effect=lambda _jobs: events.append("core-browser-smokes"),
+            ) as full_tests,
+            mock.patch.object(
+                preflight,
+                "run_integration_publication_contract",
+                side_effect=lambda _protocol: events.append("publication"),
+            ),
             mock.patch.dict(
                 preflight.os.environ,
                 {"CHROMEWEBDRIVER": sys.executable},
@@ -361,6 +439,89 @@ class CompositionPreflightTests(unittest.TestCase):
         consumer_spine.assert_called_once_with()
         focused_tests.assert_not_called()
         full_tests.assert_called_once_with(2)
+        self.assertEqual(events, ["consumer", "core-browser-smokes", "publication"])
+
+    def test_full_keeps_core_browser_and_runtime_smokes_in_order(self) -> None:
+        events: list[tuple[str, object]] = []
+
+        with (
+            mock.patch.object(
+                preflight,
+                "run_core_test_shards",
+                side_effect=lambda jobs: events.append(("core", jobs)),
+            ),
+            mock.patch.object(preflight, "resolve_chromedriver", return_value="/driver"),
+            mock.patch.object(
+                preflight,
+                "run_real_browser_tests",
+                side_effect=lambda driver: events.append(("browser", driver)),
+            ),
+            mock.patch.object(preflight, "RUNTIME_SMOKES", ("scripts/smoke-a.py", "scripts/smoke-b.py")),
+            mock.patch.object(
+                preflight,
+                "run_check",
+                side_effect=lambda name, _argv: events.append(("smoke", name)),
+            ),
+        ):
+            preflight.run_full_tests(2)
+
+        self.assertEqual(
+            events,
+            [
+                ("core", 2),
+                ("browser", "/driver"),
+                ("smoke", "smoke-a"),
+                ("smoke", "smoke-b"),
+            ],
+        )
+
+    def test_ready_cleanup_is_a_finally_barrier_after_ready_execution(self) -> None:
+        events: list[str] = []
+        head = "a" * 40
+
+        with (
+            mock.patch.object(preflight, "git_output", return_value=head),
+            mock.patch.object(
+                preflight,
+                "run_ready",
+                side_effect=lambda *_args: (events.append("ready"), None)[1],
+            ),
+            mock.patch.object(
+                preflight,
+                "cleanup_ready_outputs",
+                side_effect=lambda: events.append("cleanup"),
+            ),
+        ):
+            result = preflight.main(
+                ["ready", "--expected-head", head, "--component-version-base", "base"]
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(events, ["ready", "cleanup"])
+
+    def test_ready_cleanup_runs_after_a_failed_ready_execution(self) -> None:
+        events: list[str] = []
+        head = "b" * 40
+
+        def fail_ready(*_args) -> None:
+            events.append("ready")
+            raise preflight.PreflightFailure("expected failure")
+
+        with (
+            mock.patch.object(preflight, "git_output", return_value=head),
+            mock.patch.object(preflight, "run_ready", side_effect=fail_ready),
+            mock.patch.object(
+                preflight,
+                "cleanup_ready_outputs",
+                side_effect=lambda: events.append("cleanup"),
+            ),
+        ):
+            result = preflight.main(
+                ["ready", "--expected-head", head, "--component-version-base", "base"]
+            )
+
+        self.assertEqual(result, 1)
+        self.assertEqual(events, ["ready", "cleanup"])
 
     def test_ready_runs_cheap_checks_without_integration_or_browser(self) -> None:
         with mock.patch.object(preflight, "git_output", return_value=""), mock.patch.object(

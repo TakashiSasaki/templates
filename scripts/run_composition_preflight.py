@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import json
+import math
 import os
 import shutil
 import subprocess
@@ -31,6 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PYTHON = Path(sys.executable)
 DEFAULT_JOBS = 2
 MAX_CORE_SHARDS = 2
+TIMING_LOG_PREFIX = "COMPOSITION_UNITTEST_TIMING "
 FOCUSED_TESTS = (
     "tests/test_maintainer_entrypoint.py",
     "tests/test_composition_schemas.py",
@@ -260,6 +263,59 @@ def run_one_core_shard(
     return result.returncode, result.stdout, result.stderr, time.perf_counter() - started
 
 
+def measured_shard_test_seconds(
+    stdout: str,
+    expected_test_ids: Sequence[str],
+    *,
+    shard_count: int,
+    shard_index: int,
+) -> float:
+    expected = set(expected_test_ids)
+    observed: dict[str, float] = {}
+    for line in stdout.splitlines():
+        if not line.startswith(TIMING_LOG_PREFIX):
+            continue
+        try:
+            record = json.loads(line.removeprefix(TIMING_LOG_PREFIX))
+            if not isinstance(record, dict):
+                raise TypeError("timing payload must be a JSON object")
+            if (
+                record.get("suite") != "core"
+                or record.get("shard_count") != shard_count
+                or record.get("shard_index") != shard_index
+            ):
+                continue
+            test_id = record["test_id"]
+            if not isinstance(test_id, str):
+                raise TypeError("test_id must be a string")
+            duration = float(record["duration_seconds"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise PreflightFailure(
+                f"invalid Composition timing record for shard {shard_index}/{shard_count}"
+            ) from exc
+        if test_id not in expected:
+            # Test cases can exercise the preflight and print nested timing logs.
+            # The final shard result record independently verifies the exact ID set.
+            continue
+        if test_id in observed:
+            raise PreflightFailure(
+                f"duplicate timed test ID in shard {shard_index}/{shard_count}: {test_id}"
+            )
+        if duration < 0 or not math.isfinite(duration):
+            raise PreflightFailure(
+                f"invalid duration for shard {shard_index}/{shard_count}: {test_id}"
+            )
+        observed[test_id] = duration
+
+    if set(observed) != expected:
+        missing = sorted(expected - set(observed))
+        raise PreflightFailure(
+            f"Composition shard {shard_index}/{shard_count} timing inventory is incomplete: "
+            + ", ".join(missing[:5])
+        )
+    return sum(observed.values())
+
+
 def run_core_test_shards(requested_jobs: int) -> None:
     started = time.perf_counter()
     effective = effective_core_jobs(requested_jobs)
@@ -333,6 +389,7 @@ def run_core_test_shards(requested_jobs: int) -> None:
 
     failed = False
     shard_durations: list[float] = []
+    estimated_test_seconds: list[float] = []
     for index, result in enumerate(results):
         if result is None:
             failed = True
@@ -381,10 +438,23 @@ def run_core_test_shards(requested_jobs: int) -> None:
                 f"expected_ids_sha256={expected_shard_digest}",
                 flush=True,
             )
+        try:
+            test_seconds = measured_shard_test_seconds(
+                stdout,
+                [test.id() for test in shards[index]],
+                shard_count=effective,
+                shard_index=index,
+            )
+        except PreflightFailure as exc:
+            failed = True
+            test_seconds = 0.0
+            print(f"COMPOSITION_SHARD_FAIL {exc}", flush=True)
         shard_durations.append(duration)
+        estimated_test_seconds.append(test_seconds)
         print(
             f"COMPOSITION_SHARD_RESULT shard={index}/{effective} "
             f"run_ids_sha256={observed_run_digest} wall_seconds={duration:.3f} "
+            f"test_seconds={test_seconds:.3f} "
             f"exit_code={returncode}",
             flush=True,
         )
@@ -395,6 +465,9 @@ def run_core_test_shards(requested_jobs: int) -> None:
     shard_wall = max(shard_durations, default=0.0)
     worker_seconds = sum(shard_durations)
     estimated_idle = max(0.0, effective * shard_wall - worker_seconds)
+    timing_imbalance = max(estimated_test_seconds, default=0.0) - min(
+        estimated_test_seconds, default=0.0
+    )
     print(
         "COMPOSITION_WORKER_METRICS "
         f"requested={requested_jobs} effective={effective} peak_shard_workers={effective} "
@@ -402,6 +475,12 @@ def run_core_test_shards(requested_jobs: int) -> None:
         f"slowest_shard_seconds={shard_wall:.3f} "
         f"shard_worker_seconds={worker_seconds:.3f} "
         f"estimated_idle_worker_seconds={estimated_idle:.3f}",
+        flush=True,
+    )
+    print(
+        "COMPOSITION_SHARD_BALANCE "
+        f"test_seconds_by_shard={','.join(f'{value:.3f}' for value in estimated_test_seconds)} "
+        f"estimated_imbalance_seconds={timing_imbalance:.3f}",
         flush=True,
     )
 
