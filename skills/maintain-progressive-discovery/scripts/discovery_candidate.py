@@ -151,7 +151,13 @@ def inputs(engine, root: Path, relative: str):
             raise ValueError(problem)
         if not (root / item["path"]).is_dir():
             raise ValueError(f"delegated subtree missing: {item['path']}")
-        add(item["entry"]["path"], item["entry"]["kind"], required=True)
+        entry_path = item["entry"]["path"]
+        if not under(entry_path, item["path"]):
+            raise ValueError(
+                "delegation entry must be the delegated boundary or a descendant: "
+                f"{entry_path} is outside {item['path']}"
+            )
+        add(entry_path, item["entry"]["kind"], required=True)
     for item in adapter.get("exclude", []):
         path = item["path"]
         if problem := engine._repository_path_error(root, path):
