@@ -99,6 +99,12 @@ Corrupt or misbound evidence fails closed; absent evidence can require regenerat
 No workflow timestamps, run IDs or attempt counters contaminate deterministic identity.
 The artifact is a candidate artifact, not an automatically promoted release.
 
+During same-run reconciliation, the parent workflow may still be queued or in progress
+after the exact qualification job has uploaded its artifact. The consumer accepts that
+state only when GitHub Actions reports that the current run ID exactly matches the
+artifact's workflow run ID; it still requires the successful producing-job and artifact
+bindings above. Failed or cancelled runs remain rejected.
+
 ## Trusted reconciliation receipt
 
 The report produced by the candidate qualification checkout is untrusted input;
