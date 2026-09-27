@@ -296,7 +296,7 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+      GH_TOKEN: ${{ secrets.PUBLICATION_AUTOMATION_TOKEN }}
       EXPECTED_CONSUMER_BASE: ${{ needs.controller.outputs.consumer_base }}
       CONTROLLER_REF: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}
       COMPOSITION: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
