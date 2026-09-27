@@ -407,7 +407,7 @@ def run_source_ready_dag(args: argparse.Namespace) -> None:
         print(f"SITE_CHECK_FAIL name=l0 error={exc}", file=sys.stderr, flush=True)
         raise
     print("SITE_CHECK_PASS name=l0 wave=0", flush=True)
-    waves = plan_source_ready_waves(args.jobs, core_workers=2)
+    waves = plan_source_ready_waves(args.jobs, core_workers=1)
     effective_jobs = max(sum(workers for _, workers in wave) for wave in waves)
     print(
         f"SITE_SOURCE_READY_BUDGET requested={args.jobs} effective={effective_jobs} "

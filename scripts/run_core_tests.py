@@ -31,6 +31,7 @@ PROVIDER_INTEGRATION_MODULES = (
     frozenset()
 )  # Provider qualification belongs to Integration.
 PARALLEL_MODULE_MANIFEST = Path(__file__).with_name("site_parallel_test_modules.json")
+MEASURED_EFFECTIVE_WORKER_CAP = 1
 
 
 def get_default_tests_dir() -> Path:
@@ -702,13 +703,26 @@ def run_tests(
         flush=True,
     )
 
-    if jobs == 1 or not parallel_ids:
+    effective_jobs = (
+        min(jobs, len(parallel_ids), MEASURED_EFFECTIVE_WORKER_CAP)
+        if parallel_ids
+        else 1
+    )
+    if effective_jobs == 1:
+        runner_started = time.perf_counter()
+        if jobs == 1:
+            mode = "serial-baseline"
+        elif not parallel_ids:
+            mode = "serial-fail-closed"
+        else:
+            mode = "measured-serial-cap"
         print(
-            f"SITE_WORKERS requested={jobs} effective=1 runner=site-python "
-            f"mode={'serial-baseline' if jobs == 1 else 'serial-fail-closed'}",
+            f"SITE_WORKERS requested={jobs} effective=1 runner=site-python mode={mode} "
+            f"measured_cap={MEASURED_EFFECTIVE_WORKER_CAP}",
             flush=True,
         )
         result = run_suite(cases, verbosity)
+        runner_wall = time.perf_counter() - runner_started
         outcomes = result.outcomes
         counts = summarize_outcomes(outcomes)
         print(
@@ -716,6 +730,12 @@ def run_tests(
             f"passed={counts['passed']} skipped={counts['skipped']} failures={counts['failures']} "
             f"errors={counts['errors']} expected_failures={counts['expected_failures']} "
             f"unexpected_successes={counts['unexpected_successes']} outcome_sha256={outcome_digest(outcomes)}",
+            flush=True,
+        )
+        print(
+            f"SITE_WORKER_METRICS requested={jobs} effective=1 peak_workers=1 "
+            f"runner_wall_seconds={runner_wall:.3f} slowest_worker_seconds={runner_wall:.3f} "
+            "estimated_idle_worker_seconds=0.000",
             flush=True,
         )
         if suite_name == "integration" and result.skipped:
@@ -726,7 +746,6 @@ def run_tests(
             return 1
         return 0 if result.wasSuccessful() else 1
 
-    effective_jobs = min(jobs, len(parallel_ids))
     print(
         f"SITE_WORKERS requested={jobs} effective={effective_jobs} runner=site-python "
         "mode=deterministic-unittest-shards",

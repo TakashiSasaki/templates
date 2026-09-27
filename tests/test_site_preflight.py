@@ -106,7 +106,7 @@ class SitePreflightTests(unittest.TestCase):
                 0,
             )
         self.assertCountEqual(started, list(SOURCE_READY_CHECKS[1:]))
-        self.assertEqual(allocations["core"], 2)
+        self.assertEqual(allocations["core"], 1)
         self.assertEqual(allocations["node"], 1)
 
     def test_jobs_one_keeps_source_ready_checks_serial_in_order(self):
@@ -151,16 +151,16 @@ class SitePreflightTests(unittest.TestCase):
                 if jobs in expected_first_waves:
                     self.assertEqual(waves[:2], expected_first_waves[jobs])
 
-    def test_source_ready_core_shards_share_site_budget_with_other_domains(self):
+    def test_source_ready_python_and_node_domains_share_site_budget(self):
         expected = {
             1: [[("core", 1)], [("node", 1)], [("site-contracts", 1)], [("dependency-boundary", 1)]],
             2: [[("core", 1), ("node", 1)], [("site-contracts", 1), ("dependency-boundary", 1)]],
-            3: [[("core", 2), ("node", 1)], [("site-contracts", 1), ("dependency-boundary", 1)]],
-            4: [[("core", 2), ("node", 2)], [("site-contracts", 1), ("dependency-boundary", 1)]],
+            3: [[("core", 1), ("node", 1), ("site-contracts", 1)], [("dependency-boundary", 1)]],
+            4: [[("core", 1), ("node", 2), ("site-contracts", 1)], [("dependency-boundary", 1)]],
         }
         for jobs, expected_waves in expected.items():
             with self.subTest(jobs=jobs):
-                waves = preflight.plan_source_ready_waves(jobs, core_workers=2)
+                waves = preflight.plan_source_ready_waves(jobs, core_workers=1)
                 self.assertEqual(waves, expected_waves)
                 self.assertTrue(all(sum(count for _, count in wave) <= jobs for wave in waves))
 
@@ -171,10 +171,11 @@ class SitePreflightTests(unittest.TestCase):
         def run_check(check, _args):
             if check == "l0":
                 return
-            barrier.wait(timeout=5)
+            if check in {"core", "node"}:
+                barrier.wait(timeout=5)
             if check == "core":
                 raise RuntimeError("controlled core failure")
-            if check == "node":
+            if check in {"node", "site-contracts"}:
                 completed.add(check)
 
         with patch.object(preflight, "run_check", side_effect=run_check), patch.object(
@@ -183,7 +184,7 @@ class SitePreflightTests(unittest.TestCase):
             with self.assertRaises(SystemExit) as raised:
                 preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "3"])
         self.assertEqual(raised.exception.code, 2)
-        self.assertEqual(completed, {"node"})
+        self.assertEqual(completed, {"node", "site-contracts"})
 
     def test_source_ready_does_not_start_managed_runtime_from_empty_cache(self):
         with TemporaryDirectory() as cache:

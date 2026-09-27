@@ -30,13 +30,16 @@ Add `--jobs N` to cap test workers owned by this Site preflight. The default is
 2; `--jobs 1` runs the serial debugging baseline. Source-ready runs L0 first,
 then launches independent source checks in fixed budgeted waves. At `--jobs 2`,
 the Python core and Node suites each receive one worker and share a wave; at 3
-or 4, Python core gets two shard processes while Node receives the remaining
-one or two workers.
+or 4, Python core remains at one measured worker while Node receives one or
+two workers. Site core sharding is available in the runner, but its measured
+jobs=2 and jobs=4 runs did not improve wall-clock time, so its current effective
+cap is one.
 The Site Python runner also accepts `--jobs N` directly (default 1). It keeps
 new, changed, and unreviewed test modules in a serial/exclusive lane. The
-parallel-module manifest pins reviewed source fingerprints; changing one sends
-that module back to the serial lane until its safety is reviewed. Parallel
-workers import only modules assigned to their shard.
+parallel-module manifest pins reviewed source and test-ID fingerprints; changing
+one sends that module back to the serial lane until its safety is reviewed. If
+later measurements justify sharding, workers import only modules assigned to
+their shard.
 
 The Python `unittest` and Node `node --test` execution domains remain separate;
 Node receives its allocated `--test-concurrency`, and inherited `NODE_OPTIONS`

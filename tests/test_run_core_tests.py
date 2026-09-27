@@ -256,9 +256,7 @@ class RunCoreTestsContractTests(unittest.TestCase):
             stdout.getvalue(),
         )
 
-    def test_serial_exclusive_tests_start_after_all_parallel_shards_finish(
-        self,
-    ) -> None:
+    def test_measured_worker_cap_keeps_parallel_and_exclusive_ids_serial(self) -> None:
         class ParallelCase(unittest.TestCase):
             def test_parallel(self):
                 pass
@@ -272,40 +270,29 @@ class RunCoreTestsContractTests(unittest.TestCase):
         suite = unittest.TestSuite([parallel_case, exclusive_case])
         parallel_id = parallel_case.id()
         exclusive_id = exclusive_case.id()
-        parallel_finished = threading.Event()
         original_run_suite = run_suite
-
-        def run_shards(suite_name, inventory, parallel, jobs, verbosity, tests_dir):
-            self.assertEqual(inventory, [parallel_id, exclusive_id])
-            self.assertEqual(parallel, [parallel_id])
-            self.assertEqual(jobs, 1)
-            parallel_finished.set()
-            return (
-                {parallel_id: {"status": "passed"}},
-                [],
-                {
-                    "runner_wall_seconds": 0.01,
-                    "slowest_shard_seconds": 0.01,
-                    "shard_worker_seconds": 0.01,
-                    "estimated_idle_worker_seconds": 0.0,
-                },
-            )
+        executed_ids = []
 
         def run_serial(cases, verbosity):
-            self.assertTrue(parallel_finished.is_set())
-            self.assertEqual([case.id() for case in cases], [exclusive_id])
+            executed_ids.extend(case.id() for case in cases)
             return original_run_suite(cases, verbosity)
 
+        output = io.StringIO()
         with (
             patch("scripts.run_core_tests.load_test_suite", return_value=suite),
             patch(
                 "scripts.run_core_tests.classify_test_inventory",
                 return_value=([parallel_id], [exclusive_id]),
             ),
-            patch("scripts.run_core_tests.run_parallel_shards", side_effect=run_shards),
+            patch("scripts.run_core_tests.run_parallel_shards") as run_shards,
             patch("scripts.run_core_tests.run_suite", side_effect=run_serial),
+            patch("sys.stdout", output),
         ):
             self.assertEqual(run_tests("core", verbosity=0, jobs=2), 0)
+        run_shards.assert_not_called()
+        self.assertEqual(executed_ids, [parallel_id, exclusive_id])
+        self.assertIn("requested=2 effective=1", output.getvalue())
+        self.assertIn("mode=measured-serial-cap", output.getvalue())
 
     def test_parallel_shard_subprocesses_start_together_and_report_exact_ids(
         self,
