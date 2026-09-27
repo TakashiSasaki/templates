@@ -12,9 +12,12 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import os
+import signal
 import subprocess
 import sys
 import time
+import uuid
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -69,8 +72,59 @@ class AuthorityRunResult:
     working_directory: str
     elapsed_seconds: float
     exit_code: int | None
+    allocated_workers: int
+    allocation_batch: int
     log_file: str | None = None
     failure_excerpt: str | None = None
+
+
+def allocate_worker_batches(
+    authorities: Sequence[str], global_jobs: int
+) -> tuple[tuple[tuple[str, int], ...], ...]:
+    """Make a deterministic allocation plan whose every batch fits the budget."""
+
+    if global_jobs < 1:
+        raise ValueError(f"jobs must be at least 1, got {global_jobs}")
+    selected = tuple(authorities)
+    if len(selected) != len(set(selected)):
+        raise ValueError("authority selection contains duplicates")
+
+    batches: list[tuple[tuple[str, int], ...]] = []
+    for start in range(0, len(selected), global_jobs):
+        members = selected[start : start + global_jobs]
+        base, remainder = divmod(global_jobs, len(members))
+        batch = tuple(
+            (authority, base + (index < remainder))
+            for index, authority in enumerate(members)
+        )
+        if sum(workers for _, workers in batch) > global_jobs:
+            raise AssertionError("worker allocation exceeded the global budget")
+        batches.append(batch)
+    return tuple(batches)
+
+
+def _terminate_process_tree(process: subprocess.Popen[str]) -> tuple[str, str]:
+    """Terminate and reap an authority process and any nested workers."""
+
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGTERM)
+        else:
+            process.terminate()
+    except ProcessLookupError:
+        pass
+
+    try:
+        return process.communicate(timeout=1.0)
+    except subprocess.TimeoutExpired:
+        try:
+            if os.name == "posix":
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+        except ProcessLookupError:
+            pass
+        return process.communicate()
 
 
 def _get_git_head(worktree: Path) -> str | None:
@@ -92,8 +146,12 @@ def run_single_preflight(
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
     log_dir: Path | None = None,
     python_bin: str | None = None,
+    allocated_workers: int = 1,
+    allocation_batch: int = 1,
 ) -> AuthorityRunResult:
     """Execute canonical preflight for a single authority and return normalized result."""
+    if allocated_workers < 1:
+        raise ValueError(f"allocated_workers must be at least 1, got {allocated_workers}")
     py_exec = python_bin or sys.executable
     cfg = CANONICAL_CONFIGS.get(authority)
     if not cfg:
@@ -105,6 +163,8 @@ def run_single_preflight(
             working_directory=str(repo_root),
             elapsed_seconds=0.0,
             exit_code=None,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
             failure_excerpt=f"unknown authority: {authority}",
         )
 
@@ -118,6 +178,8 @@ def run_single_preflight(
             working_directory=str(worktree),
             elapsed_seconds=0.0,
             exit_code=None,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
             failure_excerpt=f"worktree directory does not exist: {worktree}",
         )
 
@@ -131,6 +193,8 @@ def run_single_preflight(
             working_directory=str(worktree),
             elapsed_seconds=0.0,
             exit_code=None,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
             failure_excerpt=f"failed to obtain git rev-parse HEAD from: {worktree}",
         )
 
@@ -146,6 +210,8 @@ def run_single_preflight(
                 working_directory=str(worktree),
                 elapsed_seconds=0.0,
                 exit_code=2,
+                allocated_workers=allocated_workers,
+                allocation_batch=allocation_batch,
                 failure_excerpt=(
                     f"head mismatch for {authority}: expected {expected}, "
                     f"observed {actual_head}"
@@ -162,6 +228,8 @@ def run_single_preflight(
             working_directory=str(worktree),
             elapsed_seconds=0.0,
             exit_code=None,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
             failure_excerpt=f"canonical preflight entrypoint not found: {script_path}",
         )
 
@@ -175,6 +243,7 @@ def run_single_preflight(
 
     if expected_heads and authority in expected_heads and cfg["supports_expected_head"]:
         cmd.extend(["--expected-head", expected_heads[authority]])
+    cmd.extend(["--jobs", str(allocated_workers)])
 
     start_time = time.monotonic()
     log_file_path: Path | None = None
@@ -183,18 +252,40 @@ def run_single_preflight(
         log_file_path = log_dir / f"{authority}.log"
 
     try:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
             cwd=worktree,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout,
-            check=False,
+            start_new_session=os.name == "posix",
         )
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = _terminate_process_tree(proc)
+            elapsed = round(time.monotonic() - start_time, 2)
+            full_output = (
+                f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
+                f"TIMEOUT after {timeout} seconds\n"
+            )
+            if log_file_path:
+                log_file_path.write_text(full_output, encoding="utf-8")
+            return AuthorityRunResult(
+                authority=authority,
+                status="TIMEOUT",
+                head_sha=actual_head,
+                command=cmd,
+                working_directory=str(worktree),
+                elapsed_seconds=elapsed,
+                exit_code=None,
+                allocated_workers=allocated_workers,
+                allocation_batch=allocation_batch,
+                log_file=str(log_file_path) if log_file_path else None,
+                failure_excerpt=f"execution exceeded {timeout}s timeout limit",
+            )
         elapsed = round(time.monotonic() - start_time, 2)
-        full_output = (
-            f"=== STDOUT ===\n{proc.stdout}\n=== STDERR ===\n{proc.stderr}\n"
-        )
+        full_output = f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
 
         if log_file_path:
             log_file_path.write_text(full_output, encoding="utf-8")
@@ -208,11 +299,13 @@ def run_single_preflight(
                 working_directory=str(worktree),
                 elapsed_seconds=elapsed,
                 exit_code=0,
+                allocated_workers=allocated_workers,
+                allocation_batch=allocation_batch,
                 log_file=str(log_file_path) if log_file_path else None,
             )
         else:
             # Extract concise failure excerpt (last ~10 lines of stderr/stdout)
-            combined = proc.stderr.strip() or proc.stdout.strip()
+            combined = stderr.strip() or stdout.strip()
             lines = combined.splitlines()
             excerpt = "\n".join(lines[-10:]) if len(lines) > 10 else combined
             return AuthorityRunResult(
@@ -223,27 +316,11 @@ def run_single_preflight(
                 working_directory=str(worktree),
                 elapsed_seconds=elapsed,
                 exit_code=proc.returncode,
+                allocated_workers=allocated_workers,
+                allocation_batch=allocation_batch,
                 log_file=str(log_file_path) if log_file_path else None,
                 failure_excerpt=excerpt,
             )
-
-    except subprocess.TimeoutExpired:
-        elapsed = round(time.monotonic() - start_time, 2)
-        if log_file_path:
-            log_file_path.write_text(
-                f"TIMEOUT after {timeout} seconds\n", encoding="utf-8"
-            )
-        return AuthorityRunResult(
-            authority=authority,
-            status="TIMEOUT",
-            head_sha=actual_head,
-            command=cmd,
-            working_directory=str(worktree),
-            elapsed_seconds=elapsed,
-            exit_code=None,
-            log_file=str(log_file_path) if log_file_path else None,
-            failure_excerpt=f"execution exceeded {timeout}s timeout limit",
-        )
     except Exception as exc:
         elapsed = round(time.monotonic() - start_time, 2)
         return AuthorityRunResult(
@@ -254,6 +331,8 @@ def run_single_preflight(
             working_directory=str(worktree),
             elapsed_seconds=elapsed,
             exit_code=1,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
             failure_excerpt=f"subprocess execution failed with error: {exc}",
         )
 
@@ -264,55 +343,65 @@ def orchestrate_preflights(
     expected_heads: dict[str, str] | None = None,
     tier_overrides: dict[str, list[str]] | None = None,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
-    concurrent_jobs: int = 2,
+    global_jobs: int = 2,
     log_dir: Path | None = None,
     python_bin: str | None = None,
 ) -> dict[str, Any]:
     """Orchestrate canonical preflights across specified authorities."""
-    if concurrent_jobs < 1:
-        raise ValueError(f"concurrent_jobs must be at least 1, got {concurrent_jobs}")
-    selected_authorities = list(authorities or ALL_AUTHORITIES)
+    if global_jobs < 1:
+        raise ValueError(f"jobs must be at least 1, got {global_jobs}")
+    selected_authorities = list(ALL_AUTHORITIES if authorities is None else authorities)
+    allocation_batches = allocate_worker_batches(selected_authorities, global_jobs)
     root = (repo_root or Path.cwd()).resolve()
+    invocation_id = uuid.uuid4().hex
+    invocation_log_dir = log_dir / invocation_id if log_dir else None
+
+    max_active_workers = max(
+        (sum(workers for _, workers in batch) for batch in allocation_batches),
+        default=0,
+    )
+    max_authority_concurrency = max(
+        (len(batch) for batch in allocation_batches), default=0
+    )
+    print(
+        f"PREFLIGHT_WORKER_BUDGET requested={global_jobs} "
+        f"effective_allocation={max_active_workers} "
+        f"max_authorities={max_authority_concurrency} run_id={invocation_id}",
+        file=sys.stderr,
+        flush=True,
+    )
+    for batch_number, batch in enumerate(allocation_batches, start=1):
+        total = sum(workers for _, workers in batch)
+        print(
+            f"PREFLIGHT_WORKER_ALLOCATION batch={batch_number} total={total} "
+            + " ".join(f"{authority}={workers}" for authority, workers in batch),
+            file=sys.stderr,
+            flush=True,
+        )
 
     start_wall = time.monotonic()
     results: list[AuthorityRunResult] = []
-
-    if concurrent_jobs > 1:
-        # Run concurrently using thread pool for subprocess management
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=concurrent_jobs
-        ) as executor:
-            future_to_auth = {
+    for batch_number, batch in enumerate(allocation_batches, start=1):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(batch)) as executor:
+            future_to_authority = {
                 executor.submit(
                     run_single_preflight,
-                    auth,
+                    authority,
                     repo_root=root,
                     expected_heads=expected_heads,
                     tier_overrides=tier_overrides,
                     timeout=timeout,
-                    log_dir=log_dir,
+                    log_dir=invocation_log_dir,
                     python_bin=python_bin,
-                ): auth
-                for auth in selected_authorities
+                    allocated_workers=workers,
+                    allocation_batch=batch_number,
+                ): authority
+                for authority, workers in batch
             }
-            for future in concurrent.futures.as_completed(future_to_auth):
+            for future in concurrent.futures.as_completed(future_to_authority):
                 results.append(future.result())
-        # Sort results back to selected_authorities order
-        auth_order = {auth: idx for idx, auth in enumerate(selected_authorities)}
-        results.sort(key=lambda r: auth_order.get(r.authority, 999))
-    else:
-        # Serial execution
-        for auth in selected_authorities:
-            res = run_single_preflight(
-                auth,
-                repo_root=root,
-                expected_heads=expected_heads,
-                tier_overrides=tier_overrides,
-                timeout=timeout,
-                log_dir=log_dir,
-                python_bin=python_bin,
-            )
-            results.append(res)
+    auth_order = {auth: idx for idx, auth in enumerate(selected_authorities)}
+    results.sort(key=lambda result: auth_order.get(result.authority, 999))
 
     total_wall = round(time.monotonic() - start_wall, 2)
 
@@ -335,13 +424,28 @@ def orchestrate_preflights(
     summary_table = "\n".join(summary_lines)
 
     result_data: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "preflight-orchestration-result",
         "overall_status": overall_status,
         "is_validation_evidence_only": True,
         "may_establish_acceptance": False,
         "total_wall_clock_seconds": total_wall,
-        "concurrency": concurrent_jobs,
+        "run_id": invocation_id,
+        "worker_budget": {
+            "requested_jobs": global_jobs,
+            "max_active_allocated_workers": max_active_workers,
+            "max_authority_processes": max_authority_concurrency,
+            "allocation_batches": [
+                {
+                    "batch": batch_number,
+                    "authorities": [
+                        {"authority": authority, "workers": workers}
+                        for authority, workers in batch
+                    ],
+                }
+                for batch_number, batch in enumerate(allocation_batches, start=1)
+            ],
+        },
         "summary_table": summary_table,
         "authorities": [asdict(r) for r in results],
     }
@@ -393,7 +497,10 @@ def build_parser() -> argparse.ArgumentParser:
         "-j",
         type=int,
         default=2,
-        help="number of concurrent jobs (default: 2)",
+        help=(
+            "global simultaneous test-worker budget (default: 2); each authority's "
+            "explicit local --jobs allocation shares this limit"
+        ),
     )
     parser.add_argument(
         "--log-dir",
@@ -423,11 +530,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     res = orchestrate_preflights(
-        authorities=args.authorities,
+        authorities=args.authorities or None,
         repo_root=args.repo_root,
         expected_heads=expected_heads,
         timeout=args.timeout,
-        concurrent_jobs=args.jobs,
+        global_jobs=args.jobs,
         log_dir=args.log_dir,
     )
 

@@ -21,6 +21,14 @@ runners. It allocates child budgets whose active sum does not exceed that global
 limit; it must not forward the same global value to every authority. A direct
 authority invocation treats `--jobs` as that runner's local limit.
 
+The Policy cross-authority coordinator builds a fixed, ordered batch plan before
+starting children. Each child receives its allocated local `--jobs` value, and
+the allocation sum for every concurrently active batch is at most the requested
+global budget. When there are more authorities than worker slots, later batches
+wait for earlier ones to finish. The result records the allocation per authority
+and batch; authority-process count is reported separately from worker count.
+There is no runtime rebalancing.
+
 Environment variables and project configuration must not silently increase a
 requested limit. A runner that owns nested parallelism clears or explicitly
 overrides inherited worker options before launching its test runtime.
