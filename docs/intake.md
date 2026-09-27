@@ -32,6 +32,14 @@ The initial records are plain JSON administrative records. Their use of familiar
 4. Regenerate with `python tools/catalog.py generate`; qualify with `python tools/qualify.py`.
 5. Inspect both authored and generated diffs, create the appropriate stacked PR, and state the source/rights limitations and exact validation evidence.
 
+The canonical qualifier accepts `--jobs N` for its unittest stage; it defaults to
+`1`, and measured effective workers are capped at `4`. `--jobs 1` runs the
+deterministic serial baseline. Projection and authority-boundary checks stay
+serial, and changed or unreviewed test modules remain in the serial test lane.
+Parallel qualification records requested/effective workers and exact test
+inventory/outcome digests. Use `--expected-head SHA` for a clean exact-commit run
+and bind serial/parallel comparisons to the same full SHA.
+
 If a generated resource file is obsolete after an intentional removal, the generator fails rather than silently deleting it. Inspect the file and remove that work-owned obsolete projection explicitly, then regenerate. This is not permission to delete unrelated files or history.
 
 ## Review checklist
