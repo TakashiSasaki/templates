@@ -320,7 +320,7 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+      GH_TOKEN: ${{ secrets.PUBLICATION_AUTOMATION_TOKEN }}
       INTEGRATION: ${{ inputs.integration_revision || github.event.client_payload.integration_revision }}
       SCHEMA: ${{ inputs.bundle_schema || github.event.client_payload.bundle_schema }}
       IDENTITY: ${{ inputs.bundle_identity || github.event.client_payload.bundle_identity }}

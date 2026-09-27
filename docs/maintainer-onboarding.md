@@ -171,9 +171,9 @@ and consumer base must remain bound at every handoff.
 
 `PUBLICATION_AUTOMATION_MODE`, `PUBLICATION_AUTOMATION_AUTHORIZED`,
 `PUBLICATION_POLICY_REVISION`, `PUBLICATION_CONTROLLER_REVISION`,
-`PUBLICATION_AUTOMATION_KILL_SWITCH`, App credentials, branch protection, and
-Pages environment settings are live authorization inputs outside these source
-files. This implementation does not read or change them. A mode change does not
+`PUBLICATION_AUTOMATION_KILL_SWITCH`, the publication automation credential,
+branch protection, and Pages environment settings are live authorization inputs
+outside these source files. This implementation does not read or change them. A mode change does not
 replay an earlier run; an authorized operator must re-check current base, exact
 candidate, existing PR, run attempt, artifact expiry, receipt, and pins. Auto-
 merge requested by a controller, successful CI, satisfied required review,

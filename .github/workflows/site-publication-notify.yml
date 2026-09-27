@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Dispatch the explicit Pages workflow on the merged Site head
         env:
-          GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+          GH_TOKEN: ${{ secrets.PUBLICATION_AUTOMATION_TOKEN }}
           SITE_REVISION: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           test -n "$GH_TOKEN"
