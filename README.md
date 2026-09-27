@@ -65,7 +65,11 @@ the existing `python -m pytest` plus compile/release checks described in
 `repository-policy/maintainer-validation.md`; remote CI and review remain separate
 evidence layers. For a local serial baseline or bounded parallel fast preflight,
 run `python3 scripts/run_policy_preflight.py fast --jobs 1` or
-`python3 scripts/run_policy_preflight.py fast --jobs 2`. The shared semantics,
+`python3 scripts/run_policy_preflight.py fast --jobs 2`. The full pytest profile
+uses the same budget with fingerprinted parallel-safe modules; changed and new
+tests remain in the serial lane until reviewed. Compare it with
+`python3 scripts/run_policy_preflight.py full --jobs 1` when qualifying a change.
+The shared semantics,
 authority boundaries, and qualification evidence contract are in
 [`docs/worker-budget-contract.md`](docs/worker-budget-contract.md).
 
