@@ -1,5 +1,9 @@
 """Final authority boundary regressions, including the canonical transitive path."""
 import ast,json,unittest
+import os
+import re
+import subprocess
+import sys
 from pathlib import Path
 import yaml
 ROOT=Path(__file__).resolve().parents[1]
@@ -25,21 +29,71 @@ class BoundaryTests(unittest.TestCase):
    if 'pages: write' in text or 'actions/deploy-pages@' in text:
     self.assertEqual(path.name,'deploy-pages.yml');self.assertIn("github.ref == 'refs/heads/site'",text)
     events=yaml.safe_load(text)[True];self.assertEqual(set(events),{'workflow_dispatch'})
- def test_default_branch_provider_event_adapter_delegates_to_exact_integration_controller(self):
+ def test_default_branch_adapter_validates_and_delegates_provider_and_manual_events(self):
   path=ROOT/'.github/workflows/provider-publication-dispatch.yml'
   text=path.read_text()
-  self.assertIn('repository_dispatch:',text)
-  self.assertIn('publication.provider-qualified',text)
-  self.assertIn('integration-reconcile.yml@a92006b95ef67abaa52d59e7a583c1f59656e7a7',text)
+  workflow=yaml.safe_load(text)
+  events=workflow.get('on',workflow.get(True))
+  self.assertIn('repository_dispatch',events)
+  self.assertIn('publication.provider-qualified',events['repository_dispatch']['types'])
+  self.assertIn('workflow_dispatch',events)
+  manual=events['workflow_dispatch']['inputs']
+  self.assertTrue(manual['producer_ref']['required'])
+  self.assertEqual(set(manual),{'producer_ref','composition_ref','policy_ref','modeling_ref'})
+  for name in ('composition_ref','policy_ref','modeling_ref'):
+   self.assertFalse(manual[name]['required'])
+   self.assertEqual(manual[name]['default'],'')
+
+  validation=workflow['jobs']['validate_event']
+  self.assertIn("github.ref == 'refs/heads/site'",validation['if'])
   self.assertIn('git/ref/heads/integration',text)
   self.assertIn('integration_ref: ${{ steps.integration.outputs.integration_ref }}',text)
-  self.assertIn('producer_ref: ${{ needs.validate_event.outputs.integration_ref }}',text)
-  self.assertIn('controller_ref: a92006b95ef67abaa52d59e7a583c1f59656e7a7',text)
   self.assertIn('set(payload) != expected',text)
+  self.assertEqual(validation['outputs']['integration_ref'],'${{ steps.integration.outputs.integration_ref }}')
+  self.assertEqual(validation['outputs']['producer_ref'],"${{ github.event_name == 'workflow_dispatch' && steps.manual.outputs.producer_ref || steps.integration.outputs.integration_ref }}")
+  self.assertEqual(validation['outputs']['composition_ref'],"${{ github.event_name == 'workflow_dispatch' && steps.manual.outputs.composition_ref || steps.payload.outputs.composition_ref }}")
   self.assertNotIn('client_payload.producer_ref',text)
   self.assertNotIn('client_payload.controller_ref',text)
+
+  caller=workflow['jobs']['integration_controller']
+  self.assertEqual(caller['uses'],'TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@fb0f078d3e51bb0dcf9bdcb0630b1f934a0ef9a8')
+  self.assertEqual(caller['with']['producer_ref'],'${{ needs.validate_event.outputs.producer_ref }}')
+  self.assertEqual(caller['with']['composition_ref'],'${{ needs.validate_event.outputs.composition_ref || \'\' }}')
+  self.assertEqual(caller['with']['policy_ref'],'${{ needs.validate_event.outputs.policy_ref || \'\' }}')
+  self.assertEqual(caller['with']['modeling_ref'],'${{ needs.validate_event.outputs.modeling_ref || \'\' }}')
+  self.assertEqual(caller['with']['controller_ref'],'${{ needs.validate_event.outputs.controller_ref }}')
+  self.assertEqual(caller['secrets'],'inherit')
+  self.assertEqual(validation['outputs']['controller_ref'],'${{ steps.controller.outputs.controller_ref }}')
+  controller=next(step for step in validation['steps'] if step['id']=='controller')
+  self.assertEqual(controller['env']['CONTROLLER_REF'],'${{ vars.PUBLICATION_CONTROLLER_REVISION }}')
+  self.assertNotIn('controller_ref',manual)
+  self.assertIn('re.fullmatch(r"[0-9a-f]{40}"',text)
+  self.assertIn('value and re.fullmatch(r"[0-9a-f]{40}"',text)
+
+  manual_step=next(step for step in validation['steps'] if step.get('id')=='manual')
+  match=re.search(r"python3 - <<'PY' >> \"\$GITHUB_OUTPUT\"\n(.*?)\nPY\n",manual_step['run'],re.S)
+  self.assertIsNotNone(match)
+  validator=match.group(1)
+  environment={**os.environ,'PRODUCER_REF':'f'*40,'COMPOSITION_REF':'','POLICY_REF':'','MODELING_REF':''}
+  valid=subprocess.run([sys.executable,'-c',validator],capture_output=True,text=True,env=environment)
+  self.assertEqual(valid.returncode,0,valid.stderr)
+  self.assertIn(f'producer_ref={"f"*40}',valid.stdout)
+  self.assertIn('composition_ref=',valid.stdout)
+  environment['PRODUCER_REF']='F'*40
+  invalid=subprocess.run([sys.executable,'-c',validator],capture_output=True,text=True,env=environment)
+  self.assertNotEqual(invalid.returncode,0)
+  environment['PRODUCER_REF']='f'*39
+  invalid=subprocess.run([sys.executable,'-c',validator],capture_output=True,text=True,env=environment)
+  self.assertNotEqual(invalid.returncode,0)
+  environment['PRODUCER_REF']='f'*40
+  environment['COMPOSITION_REF']='a'*39
+  invalid=subprocess.run([sys.executable,'-c',validator],capture_output=True,text=True,env=environment)
+  self.assertNotEqual(invalid.returncode,0)
+
   for forbidden in ('qualify_integration.py','render_candidate_source_lock.py','publication-sources.json','actions/deploy-pages@'):
    self.assertNotIn(forbidden,text)
+  for path in (*ROOT.joinpath('.github/workflows').glob('*.yml'),ROOT/'docs/publication-automation.md'):
+   self.assertNotIn('PUBLICATION_APP_TOKEN',path.read_text())
 
  def test_site_producer_uses_the_current_integration_controller_pin(self):
   text=(ROOT/'.github/workflows/site-producer.yml').read_text()
