@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
-from threading import Barrier
+from threading import Barrier, Lock
 import unittest
 from unittest.mock import patch
 
@@ -134,6 +134,58 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertIn('git", "clone", "--quiet", "--shared"', source)
         self.assertIn("materialized-provider-inputs", source)
         self.assertIn("must be clean before materialization", source)
+
+    def test_provider_preparation_respects_budget_and_uses_distinct_targets(self) -> None:
+        barrier = Barrier(2)
+        lock = Lock()
+        state = {"active": 0, "peak": 0, "calls": 0}
+
+        def fake_clone(_source, _revision, target, _label):
+            with lock:
+                state["calls"] += 1
+                ordinal = state["calls"]
+                state["active"] += 1
+                state["peak"] = max(state["peak"], state["active"])
+            if ordinal <= 2:
+                barrier.wait(timeout=5)
+            with lock:
+                state["active"] -= 1
+            return target
+
+        providers = [
+            (name, Path(f"/provider/{name}"), "a" * 40)
+            for name in ("composition", "policy", "modeling")
+        ]
+        with patch.object(preflight, "clone_provider_for_materialization", side_effect=fake_clone):
+            prepared = preflight.prepare_provider_checkouts(providers, Path("/materialized"), jobs=2)
+        self.assertEqual(state["calls"], 3)
+        self.assertEqual(state["peak"], 2)
+        self.assertEqual(set(prepared), {"composition", "policy", "modeling"})
+        self.assertEqual(len(set(prepared.values())), 3)
+
+    def test_provider_preparation_failure_waits_for_other_workers(self) -> None:
+        barrier = Barrier(2)
+        lock = Lock()
+        state = {"calls": 0}
+
+        def fake_clone(_source, _revision, target, label):
+            with lock:
+                state["calls"] += 1
+                ordinal = state["calls"]
+            if ordinal <= 2:
+                barrier.wait(timeout=5)
+            if label.startswith("policy"):
+                raise RuntimeError("controlled clone failure")
+            return target
+
+        providers = [
+            (name, Path(f"/provider/{name}"), "a" * 40)
+            for name in ("composition", "policy", "modeling")
+        ]
+        with patch.object(preflight, "clone_provider_for_materialization", side_effect=fake_clone):
+            with self.assertRaisesRegex(preflight.PreflightFailure, "controlled clone failure"):
+                preflight.prepare_provider_checkouts(providers, Path("/materialized"), jobs=2)
+        self.assertEqual(state["calls"], 3)
 
 
     def test_discovery_fails_if_a_test_import_is_not_represented(self) -> None:

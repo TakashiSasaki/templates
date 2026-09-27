@@ -622,6 +622,67 @@ def clone_provider_for_materialization(
     return target
 
 
+def prepare_provider_checkouts(
+    providers: list[tuple[str, Path, str]],
+    materialized_root: Path,
+    jobs: int,
+) -> dict[str, Path]:
+    if jobs < 1:
+        raise ValueError("jobs must be an integer of at least 1")
+    if len({name for name, _root, _revision in providers}) != len(providers):
+        raise PreflightFailure("provider preparation contains duplicate names")
+    effective_jobs = min(jobs, len(providers))
+    if effective_jobs < 1:
+        raise PreflightFailure("provider preparation requires at least one provider")
+    print(
+        f"INTEGRATION_PROVIDER_WORKERS requested={jobs} effective={effective_jobs} "
+        "mode=isolated-provider-clones",
+        flush=True,
+    )
+    started = time.perf_counter()
+
+    def prepare(name: str, source: Path, revision: str) -> tuple[Path, float]:
+        worker_started = time.perf_counter()
+        target = materialized_root / name
+        path = clone_provider_for_materialization(source, revision, target, f"{name} materialization")
+        return path, time.perf_counter() - worker_started
+
+    results: dict[str, tuple[Path, float]] = {}
+    failures: list[str] = []
+    with ThreadPoolExecutor(max_workers=effective_jobs, thread_name_prefix="integration-provider-prep") as executor:
+        futures = {
+            executor.submit(prepare, name, root, revision): name
+            for name, root, revision in providers
+        }
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                results[name] = future.result()
+            except Exception as exc:
+                failures.append(f"{name}: {type(exc).__name__}: {exc}")
+
+    wall = time.perf_counter() - started
+    total_worker_seconds = sum(seconds for _path, seconds in results.values())
+    slowest_worker_seconds = max((seconds for _path, seconds in results.values()), default=0.0)
+    for name in sorted(results):
+        path, elapsed = results[name]
+        print(
+            f"INTEGRATION_PROVIDER_PREPARED name={name} worker_seconds={elapsed:.3f} "
+            f"target={path}",
+            flush=True,
+        )
+    print(
+        f"INTEGRATION_PROVIDER_METRICS requested={jobs} effective={effective_jobs} "
+        f"peak_workers={effective_jobs} wall_seconds={wall:.3f} slowest_worker_seconds={slowest_worker_seconds:.3f} "
+        f"worker_seconds={total_worker_seconds:.3f} "
+        f"estimated_idle_worker_seconds={max(0.0, effective_jobs * wall - total_worker_seconds):.3f}",
+        flush=True,
+    )
+    if failures:
+        raise PreflightFailure("provider preparation failed: " + "; ".join(sorted(failures)))
+    return {name: path for name, (path, _seconds) in results.items()}
+
+
 def run_providers(args: argparse.Namespace, expected_head: str) -> None:
     composition_root = args.composition_root.resolve()
     policy_root = args.policy_root.resolve()
@@ -649,26 +710,16 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
     with tempfile.TemporaryDirectory(prefix="integration-preflight-providers-") as directory:
         materialized_root = Path(directory) / "materialized-provider-inputs"
         materialized_root.mkdir()
-        materialized_composition = clone_provider_for_materialization(
-            composition_root,
-            composition_revision,
-            materialized_root / "composition",
-            "Composition materialization",
-        )
-        materialized_policy = clone_provider_for_materialization(
-            policy_root,
-            policy_revision,
-            materialized_root / "policy",
-            "Policy materialization",
-        )
-        materialized_modeling = None
+        providers = [
+            ("composition", composition_root, composition_revision),
+            ("policy", policy_root, policy_revision),
+        ]
         if modeling_root is not None:
-            materialized_modeling = clone_provider_for_materialization(
-                modeling_root,
-                modeling_revision,
-                materialized_root / "modeling",
-                "Modeling materialization",
-            )
+            providers.append(("modeling", modeling_root, modeling_revision))
+        materialized = prepare_provider_checkouts(providers, materialized_root, args.jobs)
+        materialized_composition = materialized["composition"]
+        materialized_policy = materialized["policy"]
+        materialized_modeling = materialized.get("modeling")
         materialization = [
             "scripts/materialize_publication_assets.py",
             "--publication", f"composition={materialized_composition}",
