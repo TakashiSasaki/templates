@@ -19,6 +19,7 @@ qualification and GitHub/API aggregation remain remote acceptance checks.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 from pathlib import Path
@@ -258,6 +259,126 @@ def run_check(check: str, args: argparse.Namespace) -> None:
         raise RuntimeError(f"unsupported local check: {check}")
 
 
+def plan_source_ready_waves(
+    jobs: int,
+    *,
+    core_workers: int = 1,
+) -> list[list[tuple[str, int]]]:
+    """Build a fixed, fail-closed worker allocation for independent source checks."""
+    if jobs < 1:
+        raise ValueError("Site worker budget must be at least 1")
+    if core_workers < 1:
+        raise ValueError("Site core allocation must be at least 1")
+
+    node_capacity = len(NODE_TESTS)
+    if node_capacity < 1:
+        raise RuntimeError("no Composition Playground Node tests were found")
+
+    core_allocation = min(core_workers, jobs)
+    node_target = min(node_capacity, max(1, jobs // 2))
+    waves: list[list[tuple[str, int]]] = []
+    if core_allocation + node_target <= jobs:
+        first_wave = [("core", core_allocation), ("node", node_target)]
+        remaining = jobs - core_allocation - node_target
+        for check in ("site-contracts", "dependency-boundary"):
+            if remaining:
+                first_wave.append((check, 1))
+                remaining -= 1
+        waves.append(first_wave)
+    else:
+        waves.append([("core", core_allocation)])
+        waves.append([("node", min(node_capacity, jobs))])
+
+    remaining_checks = ("site-contracts", "dependency-boundary")
+    pending: list[tuple[str, int]] = []
+    for check in remaining_checks:
+        if any(check == name for wave in waves for name, _ in wave):
+            continue
+        pending.append((check, 1))
+    for offset in range(0, len(pending), jobs):
+        waves.append(pending[offset : offset + jobs])
+
+    if any(not wave or sum(allocation for _, allocation in wave) > jobs for wave in waves):
+        raise RuntimeError("Site source-ready allocation exceeds its worker budget")
+    scheduled = [check for wave in waves for check, _ in wave]
+    if scheduled != ["core", "node", *(check for check in remaining_checks if check in scheduled)]:
+        raise RuntimeError("Site source-ready allocation changed deterministic check order")
+    return waves
+
+
+def _run_allocated_check(
+    check: str,
+    args: argparse.Namespace,
+    allocation: int,
+    wave_index: int,
+) -> None:
+    check_args = argparse.Namespace(**vars(args))
+    check_args.jobs = allocation
+    print(
+        f"SITE_CHECK_START name={check} wave={wave_index} allocated_workers={allocation}",
+        flush=True,
+    )
+    try:
+        run_check(check, check_args)
+    except Exception as exc:
+        print(f"SITE_CHECK_FAIL name={check} error={exc}", file=sys.stderr, flush=True)
+        raise
+    print(f"SITE_CHECK_PASS name={check} wave={wave_index}", flush=True)
+
+
+def _run_check_wave(
+    wave: list[tuple[str, int]],
+    args: argparse.Namespace,
+    wave_index: int,
+) -> None:
+    allocations = sum(workers for _, workers in wave)
+    print(
+        f"SITE_WORKER_ALLOCATION requested={args.jobs} effective={allocations} "
+        f"wave={wave_index} checks={','.join(f'{name}:{workers}' for name, workers in wave)}",
+        flush=True,
+    )
+    if args.jobs == 1 or len(wave) == 1:
+        for check, workers in wave:
+            _run_allocated_check(check, args, workers, wave_index)
+        return
+
+    failures: list[tuple[str, Exception]] = []
+    with ThreadPoolExecutor(max_workers=len(wave), thread_name_prefix="site-check") as executor:
+        futures = {
+            executor.submit(_run_allocated_check, check, args, workers, wave_index): check
+            for check, workers in wave
+        }
+        for future in as_completed(futures):
+            check = futures[future]
+            try:
+                future.result()
+            except Exception as exc:
+                failures.append((check, exc))
+    if failures:
+        details = "; ".join(f"{check}: {failure}" for check, failure in failures)
+        raise RuntimeError(f"Site source-ready wave {wave_index} failed: {details}")
+
+
+def run_source_ready_dag(args: argparse.Namespace) -> None:
+    """Run L0 first, then fixed-budget waves of checks that share only read-only source."""
+    print("SITE_CHECK_START name=l0 wave=0 allocated_workers=1", flush=True)
+    try:
+        run_check("l0", argparse.Namespace(**{**vars(args), "jobs": 1}))
+    except Exception as exc:
+        print(f"SITE_CHECK_FAIL name=l0 error={exc}", file=sys.stderr, flush=True)
+        raise
+    print("SITE_CHECK_PASS name=l0 wave=0", flush=True)
+    waves = plan_source_ready_waves(args.jobs)
+    effective_jobs = max(sum(workers for _, workers in wave) for wave in waves)
+    print(
+        f"SITE_SOURCE_READY_BUDGET requested={args.jobs} effective={effective_jobs} "
+        "python=unittest node=node-test",
+        flush=True,
+    )
+    for index, wave in enumerate(waves, start=1):
+        _run_check_wave(wave, args, index)
+
+
 def positive_jobs(value: str) -> int:
     try:
         jobs = int(value)
@@ -311,14 +432,17 @@ def main(argv: list[str] | None = None) -> int:
         if args.profile == "artifact-local":
             _require_artifact_inputs(args)
         checks = args.check or PROFILES[args.profile]
-        effective_jobs = min(args.jobs, len(NODE_TESTS)) if "node" in checks and NODE_TESTS else 1
-        print(
-            f"SITE_PREFLIGHT_WORKERS profile={args.profile} requested={args.jobs} "
-            f"effective={effective_jobs} runner=site-preflight",
-            flush=True,
-        )
-        for check in checks:
-            run_check(check, args)
+        if args.profile == "source-ready" and args.check is None:
+            run_source_ready_dag(args)
+        else:
+            effective_jobs = min(args.jobs, len(NODE_TESTS)) if "node" in checks and NODE_TESTS else 1
+            print(
+                f"SITE_PREFLIGHT_WORKERS profile={args.profile} requested={args.jobs} "
+                f"effective={effective_jobs} runner=site-preflight",
+                flush=True,
+            )
+            for check in checks:
+                run_check(check, args)
     except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as exc:
         parser.error(str(exc))
     return 0
