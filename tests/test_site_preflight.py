@@ -154,7 +154,7 @@ class SitePreflightTests(unittest.TestCase):
     def test_source_ready_core_shards_share_site_budget_with_other_domains(self):
         expected = {
             1: [[("core", 1)], [("node", 1)], [("site-contracts", 1)], [("dependency-boundary", 1)]],
-            2: [[("core", 2)], [("node", 2)], [("site-contracts", 1), ("dependency-boundary", 1)]],
+            2: [[("core", 1), ("node", 1)], [("site-contracts", 1), ("dependency-boundary", 1)]],
             3: [[("core", 2), ("node", 1)], [("site-contracts", 1), ("dependency-boundary", 1)]],
             4: [[("core", 2), ("node", 2)], [("site-contracts", 1), ("dependency-boundary", 1)]],
         }

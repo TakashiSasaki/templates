@@ -29,8 +29,9 @@ source-ready gate from a clean checkout:
 Add `--jobs N` to cap test workers owned by this Site preflight. The default is
 2; `--jobs 1` runs the serial debugging baseline. Source-ready runs L0 first,
 then launches independent source checks in fixed budgeted waves. At `--jobs 2`,
-the Python core suite gets two unittest shard processes, followed by two Node
-test workers; at 3 or 4, core and Node share the first wave within that total.
+the Python core and Node suites each receive one worker and share a wave; at 3
+or 4, Python core gets two shard processes while Node receives the remaining
+one or two workers.
 The Site Python runner also accepts `--jobs N` directly (default 1). It keeps
 new, changed, and unreviewed test modules in a serial/exclusive lane. The
 parallel-module manifest pins reviewed source fingerprints; changing one sends

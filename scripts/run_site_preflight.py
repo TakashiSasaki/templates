@@ -301,7 +301,7 @@ def plan_source_ready_waves(
     if node_capacity < 1:
         raise RuntimeError("no Composition Playground Node tests were found")
 
-    core_allocation = min(core_workers, jobs)
+    core_allocation = min(core_workers, max(1, jobs - 1))
     node_target = min(node_capacity, max(1, jobs // 2))
     waves: list[list[tuple[str, int]]] = []
     if core_allocation + node_target <= jobs:
