@@ -31,6 +31,22 @@ class CompositionPreflightTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             preflight.parse_args(["other"])
 
+    def test_canonical_runner_starts_under_python_isolated_mode(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                str(SCRIPTS / "run_composition_preflight.py"),
+                "--help",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--jobs", result.stdout)
+
     def test_jobs_must_be_positive_and_core_sharding_is_capped_at_two(self) -> None:
         self.assertEqual(preflight.parse_args(["fast", "--jobs", "1"]).jobs, 1)
         self.assertEqual(preflight.parse_args(["fast", "--jobs", "4"]).jobs, 4)
@@ -97,6 +113,11 @@ class CompositionPreflightTests(unittest.TestCase):
                 0,
                 "COMPOSITION_UNITTEST_INVENTORY "
                 f"suite=core discovered=4 selected=4 selected_ids_sha256={inventory_digest}\n"
+                "COMPOSITION_UNITTEST_INVENTORY "
+                "suite=core discovered=1 selected=1 selected_ids_sha256=nested-decoy\n"
+                "COMPOSITION_UNITTEST_SHARD_RESULT "
+                f"suite=core shard={shard_index}/2 run_count=999 "
+                "run_ids_sha256=nested-decoy\n"
                 "COMPOSITION_UNITTEST_SHARD_RESULT "
                 f"suite=core shard={shard_index}/2 run_count={len(shard_ids)} "
                 f"run_ids_sha256={digest_test_ids(shard_ids)}\n",

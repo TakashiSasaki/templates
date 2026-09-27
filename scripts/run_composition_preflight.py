@@ -14,7 +14,11 @@ import time
 from pathlib import Path
 from typing import Sequence
 
-from run_unittest_shard import (
+SCRIPT_DIRECTORY = Path(__file__).resolve().parent
+if str(SCRIPT_DIRECTORY) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIRECTORY))
+
+from run_unittest_shard import (  # noqa: E402
     discover_tests,
     digest_test_ids,
     select_tests_for_suite,
@@ -346,7 +350,10 @@ def run_core_test_shards(requested_jobs: int) -> None:
         observed_run_count = None
         observed_run_digest = None
         for line in stdout.splitlines():
-            if line.startswith("COMPOSITION_UNITTEST_INVENTORY "):
+            if (
+                observed_digest is None
+                and line.startswith("COMPOSITION_UNITTEST_INVENTORY ")
+            ):
                 fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
                 observed_digest = fields.get("selected_ids_sha256")
             elif line.startswith("COMPOSITION_UNITTEST_SHARD_RESULT "):
