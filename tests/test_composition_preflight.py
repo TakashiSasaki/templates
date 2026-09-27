@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -47,6 +48,28 @@ class CompositionPreflightTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--jobs", result.stdout)
+
+    def test_normal_cli_start_does_not_create_source_bytecode_before_phase_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            for name in ("run_composition_preflight.py", "run_unittest_shard.py"):
+                shutil.copy2(SCRIPTS / name, scripts / name)
+            environment = dict(preflight.os.environ)
+            environment.pop("PYTHONDONTWRITEBYTECODE", None)
+
+            result = subprocess.run(
+                [sys.executable, str(scripts / "run_composition_preflight.py"), "--help"],
+                cwd=root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((scripts / "__pycache__").exists())
 
     def test_jobs_must_be_positive_and_core_sharding_is_capped_at_two(self) -> None:
         self.assertEqual(preflight.parse_args(["fast", "--jobs", "1"]).jobs, 1)

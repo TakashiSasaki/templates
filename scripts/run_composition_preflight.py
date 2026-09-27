@@ -16,6 +16,12 @@ import time
 from pathlib import Path
 from typing import Sequence
 
+# The source gate rejects bytecode anywhere under the Composition tree. Disable
+# bytecode before importing this directory's shard helper so a normal CLI launch
+# cannot create the artifact that the gate is meant to detect.
+if __name__ == "__main__":
+    sys.dont_write_bytecode = True
+
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent
 if str(SCRIPT_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIRECTORY))
