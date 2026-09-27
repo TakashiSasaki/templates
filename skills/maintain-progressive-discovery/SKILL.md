@@ -255,3 +255,32 @@ path inventories and never establish local document reachability. Surface names
 and publication semantics belong to the repository authority, not a shared enum.
 These declarations do not replace authoritative expected-document inventories,
 closed-inventory exclusions, or the provider's publication-contract validator.
+
+## Stage A candidate contract (not adopted)
+
+The proposed adapter version 2 is specified in the Policy ADR
+`docs/adr/0010-discovery-adapter-candidate.md`. It is a validation target, not a
+replacement for the currently selected operating rules. In an isolated consumer
+checkout, invoke this candidate distribution explicitly:
+
+```sh
+python3 .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py --root . --candidate-v2 --format json
+```
+
+The candidate requires exactly adapter version 2; the normal launcher rejects it.
+Do not send version 2 to an older installed runtime that lacks this gate. Replace
+runtime, schema, adapter and lock together in a separately authorized migration.
+The renderer embeds the canonical adapter/projection schemas; no consumer schema
+URL or executable hook is honored. Source-only fixtures and candidate checkouts
+are never evidence that an authority adopted this contract.
+
+Candidate indexes are front-matter-free, may contain boundary prose, and require
+a level-one title. Visible inline Markdown links establish navigation; comments,
+code, blockquotes and their lazy continuation lines do not. Directory links reach
+their operational index but not arbitrary descendants. Inventory selectors carry
+explicit namespaces; domain projections bind an exact source digest closure and
+require an independent domain-owned freshness qualification. Global exclusions,
+per-index omissions and delegated scanning are independent decisions. Deep links
+and useful nested indexes coexist without a shortcut declaration. The candidate
+uses the same generated mutation engine and all existing ownership protections.
+Require `policy_selected`, `validation.valid` and `NO_UPDATE_REQUIRED` together.
