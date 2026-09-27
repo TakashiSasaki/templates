@@ -38,8 +38,9 @@ that module back to the serial lane until its safety is reviewed. Parallel
 workers import only modules assigned to their shard.
 
 The Python `unittest` and Node `node --test` execution domains remain separate;
-Node receives its allocated `--test-concurrency` and inherited `NODE_OPTIONS`
-is removed from the child environment. The Node tests load the shipped
+Node receives its allocated `--test-concurrency`, and inherited `NODE_OPTIONS`
+is removed before both core Python tests and Node tests run. Python shard workers
+also remove Python path overrides. The Node tests load the shipped
 Composition Playground JavaScript directly and exercise its URL, rendering,
 event, fetch, clipboard and async behavior. A cross-authority coordinator's
 `--jobs` is a larger shared budget that it divides among authority-local

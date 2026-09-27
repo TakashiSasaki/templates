@@ -22,6 +22,7 @@ from scripts.run_core_tests import (
     partition_test_ids,
     run_parallel_shards,
     run_suite,
+    sanitize_execution_environment,
     test_id_digest,
     run_tests,
 )
@@ -397,6 +398,23 @@ class RunCoreTestsContractTests(unittest.TestCase):
             environment = child_environment()
         self.assertNotIn("PYTHONPATH", environment)
         self.assertNotIn("PYTHONHOME", environment)
+
+    def test_canonical_runner_removes_ambient_node_and_python_path_options(self) -> None:
+        original_path = sys.path.copy()
+        output = io.StringIO()
+        injected = {
+            "NODE_OPTIONS": "--test-concurrency=auto",
+            "PYTHONPATH": "/untrusted/site-packages",
+        }
+        try:
+            with patch.dict(os.environ, injected), patch("sys.stdout", output):
+                sanitize_execution_environment()
+                for name in injected:
+                    self.assertNotIn(name, os.environ)
+                    self.assertIn(f"variable={name}", output.getvalue())
+                self.assertNotIn("/untrusted/site-packages", sys.path)
+        finally:
+            sys.path[:] = original_path
 
 
 if __name__ == "__main__":

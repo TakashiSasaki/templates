@@ -353,6 +353,23 @@ class SitePreflightTests(unittest.TestCase):
         child_environment = run.call_args.kwargs["env"]
         self.assertNotIn("NODE_OPTIONS", child_environment)
 
+    def test_core_runner_sanitizes_environment_before_python_tests_spawn_node(self):
+        output = io.StringIO()
+        injected = {
+            "NODE_OPTIONS": "--test-concurrency=auto",
+            "PYTHONPATH": "/untrusted/python-path",
+            "PYTHONHOME": "/untrusted/python-home",
+        }
+        with patch.dict(os.environ, injected), patch.object(
+            preflight, "_run"
+        ) as run, patch("sys.stdout", output):
+            preflight.run_core(3)
+        self.assertEqual(run.call_args.args[0][-2:], ["--jobs", "3"])
+        child_environment = run.call_args.kwargs["env"]
+        for name in injected:
+            self.assertNotIn(name, child_environment)
+            self.assertIn(f"variable={name}", output.getvalue())
+
     def test_node_worker_count_is_capped_to_discovered_files(self):
         with patch.object(preflight, "NODE_TESTS", ("tests/one.test.mjs", "tests/two.test.mjs")), patch.object(
             preflight, "_run"

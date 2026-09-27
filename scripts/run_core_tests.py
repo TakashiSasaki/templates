@@ -306,6 +306,37 @@ def child_environment() -> dict[str, str]:
     return environment
 
 
+def sanitize_execution_environment() -> None:
+    """Remove ambient runner injection before importing or executing test cases."""
+    node_options = os.environ.pop("NODE_OPTIONS", None)
+    if node_options is not None:
+        print(
+            "SITE_ENV_SANITIZED variable=NODE_OPTIONS runner=site-python reason=explicit-worker-budget",
+            flush=True,
+        )
+    python_path = os.environ.pop("PYTHONPATH", None)
+    if python_path is not None:
+        injected_paths = {
+            str(Path(entry or os.curdir).resolve())
+            for entry in python_path.split(os.pathsep)
+        }
+        sys.path[:] = [
+            entry
+            for entry in sys.path
+            if str(Path(entry or os.curdir).resolve()) not in injected_paths
+        ]
+        print(
+            "SITE_ENV_SANITIZED variable=PYTHONPATH runner=site-python reason=explicit-worker-budget",
+            flush=True,
+        )
+    for name in ("PYTHONHOME", "PYTHONSTARTUP"):
+        if os.environ.pop(name, None) is not None:
+            print(
+                f"SITE_ENV_SANITIZED variable={name} runner=site-python reason=explicit-worker-budget",
+                flush=True,
+            )
+
+
 def run_shard_worker(
     manifest_path: Path,
     *,
@@ -624,6 +655,8 @@ def run_tests(
 ) -> int:
     if jobs < 1:
         raise ValueError("jobs must be an integer of at least 1")
+    if worker_manifest is None:
+        sanitize_execution_environment()
     worker_data = None
     worker_modules = None
     if worker_manifest is not None:

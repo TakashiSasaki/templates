@@ -149,6 +149,13 @@ def _validate_toml(path: Path) -> None:
 
 
 def run_core(jobs: int = 1) -> None:
+    environment = os.environ.copy()
+    for name in ("NODE_OPTIONS", "PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP"):
+        if environment.pop(name, None) is not None:
+            print(
+                f"SITE_ENV_SANITIZED variable={name} runner=site-python reason=explicit-worker-budget",
+                flush=True,
+            )
     _run(
         [
             sys.executable,
@@ -157,7 +164,8 @@ def run_core(jobs: int = 1) -> None:
             "core",
             "--jobs",
             str(jobs),
-        ]
+        ],
+        env=environment,
     )
 
 
