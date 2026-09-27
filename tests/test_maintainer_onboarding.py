@@ -115,6 +115,9 @@ class MaintainerOnboardingTests(unittest.TestCase):
             with self.subTest(distinction=distinction):
                 self.assertIn(distinction, self.guide_flat)
                 self.assertIn(distinction, self.automation_flat)
+        self.assertIn("never requests auto-merge", self.guide_flat)
+        self.assertNotIn("Auto- merge requested by a controller", self.guide_flat)
+        self.assertIn("it does not approve, request auto-merge, or merge", self.guide_flat)
 
     def test_branch_local_and_generated_routes_are_present(self):
         for path in (

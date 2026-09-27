@@ -45,10 +45,12 @@ are not. A successful qualification in this mode is evidence, not adoption.
 
 `adoption-only` permits a trusted controller to create or reconcile an
 idempotent Site lock PR after the Integration and Site gates pass, then stop.
-The controller does not approve or merge the PR. An independent exact-head
-review and separate human merge authorization are required before landing;
-required CI and branch protection remain additional constraints. Pages remains
-unchanged.
+The controller creates or reconciles the deterministic
+`automation/site-publication-*` PR, reports that it awaits independent
+exact-head review, and stops. It does not approve, request auto-merge, or merge
+the PR. A human separately authorizes any merge after review; post-merge
+automation starts only after that authorized merge. Required CI and branch
+protection remain additional constraints. Pages remains unchanged.
 
 `auto-publish` adds the final Pages path. The deployment job is still gated by
 the exact artifact ID/digest emitted by the producer, a successful final
@@ -152,7 +154,7 @@ maintainers; it does not authorize a dispatch or a setting change.
 | Manual Integration reconciliation | Site default-branch `provider-publication-dispatch.yml` | The operator supplies one exact lowercase `producer_ref`; optional provider overrides remain empty to use the committed Integration selection. Site validates and forwards those values, takes `controller_ref` from the repository trust variable, and delegates to the same pinned Integration workflow. The Site adapter adds no qualification, promotion, or lock-update semantics. |
 | Integration candidate | `integration-reconcile.yml` | Exact producer/provider qualification, trusted-controller rebuild, artifact binding, and receipt verification produce a report. The source fallback is `shadow`; live repository variables and credentials are external. Only separately authorized `adoption-only` or `auto-publish` can create or reconcile the deterministic `automation/publication-*` lock PR. Automation stops at the PR, pending independent exact-head review and separate human merge authorization. |
 | Integration merge | `integration-promotion-notify.yml` | After independent review and authorized landing, a merged `automation/publication-*` PR is requalified and its trusted receipt is checked before `publication.integration-promoted` is sent to Site. The notification is a candidate handoff, not Site adoption or deployment. |
-| Site candidate | `publication-reconcile.yml` | Site acquires the exact Bundle/receipt and runs Site qualification. Only an externally authorized automatic mode can create or reconcile the idempotent `automation/site-publication-*` lock PR. Automation stops at the PR; independent exact-head review and separate human merge authorization remain required. |
+| Site candidate | `publication-reconcile.yml` | Site acquires the exact Bundle/receipt and runs Site qualification. Only an externally authorized automatic mode can create or reconcile the idempotent `automation/site-publication-*` lock PR. The controller stops there; it does not approve, request auto-merge, or merge. Independent exact-head review and separate human merge authorization follow. |
 | Site merge | `site-publication-notify.yml` | Only after an authorized merge of `automation/site-publication-*`, and only in `auto-publish` with authorization, exact pins, and kill switch clear, may this workflow invoke `deploy-pages.yml` with `automatic=true`. A normal Site UI PR does not take this automatic post-merge route. |
 | Deployment | `deploy-pages.yml` and `build-pages.yml` | The workflow qualifies the exact `site_revision`, gates the exact Pages artifact/digest and current branch head, and uses the `github-pages` environment. `automatic=false` is a separate human `workflow_dispatch` path. |
 

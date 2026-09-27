@@ -109,14 +109,23 @@ class BoundaryTests(unittest.TestCase):
   script=step['run']
 
   self.assertEqual(step['env']['BRANCH'],'automation/site-publication-$IDEMPOTENCY_KEY')
-  self.assertIn('gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH"',script)
+  self.assertIn('gh api --paginate --slurp',script)
+  self.assertIn('python3 scripts/verify_site_adoption_pr.py find',script)
+  self.assertIn('python3 scripts/verify_site_adoption_pr.py verify-pr',script)
+  self.assertIn('refresh_remote_branch()',script)
   self.assertIn('An idempotency branch exists without an open PR; stop for human recovery.',script)
-  self.assertIn('gh pr create --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH"',script)
+  self.assertIn('gh pr create',script)
   self.assertIn('report_pr_ready "$existing"',script)
   self.assertIn('independent exact-head review',script)
   self.assertIn('separate human merge authorization',script)
   self.assertNotRegex(script,r'(?m)^\s*gh\s+pr\s+merge(?:\s|$)')
+  self.assertNotRegex(script,r'(?m)^\s*gh\s+pr\s+review\s+--approve(?:\s|$)')
   self.assertNotRegex(script,r'(?m)^\s*git\s+push\b.*(?:refs/heads/)?site(?:\s|$)')
+  pushes=[line.strip() for line in script.splitlines() if line.strip().startswith('git push')]
+  self.assertEqual(pushes,['git push --force-with-lease="$remote_ref:" origin "HEAD:$BRANCH"'])
+  workflow_text=(ROOT/'.github/workflows/publication-reconcile.yml').read_text()
+  self.assertNotIn('actions/deploy-pages@',workflow_text)
+  self.assertNotIn('deploy-pages.yml',workflow_text)
 
  def test_deployment_includes_complete_qualification(self):
   deploy=yaml.safe_load((ROOT/'.github/workflows/deploy-pages.yml').read_text())

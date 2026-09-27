@@ -364,14 +364,65 @@ jobs:
       - name: Create or reconcile the idempotent Site adoption PR
         env:
           BRANCH: automation/site-publication-$IDEMPOTENCY_KEY
+          EXPECTED_SITE_BASE: ${{ needs.classify.outputs.site_base_revision }}
         run: |
           gh auth setup-git
           git config user.name publication-controller
           git config user.email publication-controller@users.noreply.github.com
+          candidate_lock="$RUNNER_TEMP/candidate-integration-source.json"
+          expected_tree=''
+          remote_ref="refs/heads/$BRANCH"
+          local_remote_ref="refs/remotes/origin/$BRANCH"
+          verify_target() {
+            python3 scripts/verify_site_adoption_pr.py verify-target \
+              --repository-root . \
+              --repository "$GITHUB_REPOSITORY" \
+              --expected-base "$EXPECTED_SITE_BASE"
+          }
+          matching_pr() {
+            local all_prs="$RUNNER_TEMP/site-publication-pull-requests.json"
+            gh api --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/pulls?state=all&per_page=100" > "$all_prs"
+            python3 scripts/verify_site_adoption_pr.py find \
+              --pull-requests "$all_prs" \
+              --expected-branch "$BRANCH"
+          }
+          refresh_remote_branch() {
+            local before fetched after
+            before=$(git ls-remote origin "$remote_ref" | awk 'NF { print $1 }')
+            test -n "$before"
+            git fetch --quiet origin "+$remote_ref:$local_remote_ref"
+            fetched=$(git rev-parse --verify "$local_remote_ref")
+            after=$(git ls-remote origin "$remote_ref" | awk 'NF { print $1 }')
+            test "$before" = "$fetched"
+            test "$fetched" = "$after"
+          }
+          verify_existing() {
+            local pr="$1"
+            local pr_json="$RUNNER_TEMP/site-publication-pr-$pr.json"
+            verify_target
+            refresh_remote_branch
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" > "$pr_json"
+            verify_target
+            refresh_remote_branch
+            python3 scripts/verify_site_adoption_pr.py verify-pr \
+              --pr-json "$pr_json" \
+              --repository-root . \
+              --repository "$GITHUB_REPOSITORY" \
+              --expected-base "$EXPECTED_SITE_BASE" \
+              --expected-tree "$expected_tree" \
+              --expected-branch "$BRANCH" \
+              --expected-idempotency-key "$IDEMPOTENCY_KEY" \
+              --candidate-lock "$candidate_lock" \
+              --remote-head-ref "$local_remote_ref"
+            cp "$pr_json" "$RUNNER_TEMP/site-publication-verified-pr-$pr.json"
+          }
           report_pr_ready() {
             local pr="$1"
+            local verified_pr="$RUNNER_TEMP/site-publication-verified-pr-$pr.json"
             local url
-            url=$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+            verify_existing "$pr"
+            url=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["html_url"])' "$verified_pr")
             {
               echo "## Site adoption PR"
               echo
@@ -381,24 +432,72 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             echo "Site adoption PR #$pr awaits independent review and authorized landing."
           }
-          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --state open --json number --jq '.[0].number')
+
+          test -n "$EXPECTED_SITE_BASE"
+          test -s "$candidate_lock"
+          cmp "$candidate_lock" integration-source.json
+          git add -- integration-source.json
+          test "$(git diff --cached --name-only)" = "integration-source.json"
+          test -z "$(git diff --cached --summary)"
+          expected_tree=$(git write-tree)
+
+          # This check is refreshed before PR lookup, reuse reporting, branch push, and PR creation.
+          verify_target
+          existing=$(matching_pr)
           if [ -n "$existing" ]; then
-            echo "Existing idempotent Site adoption PR #$existing remains authoritative."
+            verify_existing "$existing"
             report_pr_ready "$existing"
             exit 0
           fi
-          if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+          branch_before=$(git ls-remote origin "$remote_ref" | awk 'NF { print $1 }')
+          if [ -n "$branch_before" ]; then
             echo 'An idempotency branch exists without an open PR; stop for human recovery.' >&2
             exit 1
           fi
-          git switch -c "$BRANCH"
-          git add integration-source.json
-          git diff --cached --quiet && exit 0
-          git commit -m "chore(site): adopt qualified Integration Bundle"
-          git push --force-with-lease origin "HEAD:$BRANCH"
-          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --json number --jq '.[0].number')
-          if [ -z "$existing" ]; then
-            gh pr create --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --title "chore(site): adopt qualified Integration Bundle" --body "Guarded Site lock adoption. Consumer base: $EXPECTED_SITE_BASE. Idempotency key: $IDEMPOTENCY_KEY. The controller stops after creating or reconciling this PR: it does not approve or merge. Independent exact-head review and separate human merge authorization are required before landing. A separate post-merge workflow applies the existing auto-publish gates."
+
+          if git diff --cached --quiet; then
+            echo 'The exact candidate lock is already current; no adoption PR is needed.'
+            exit 0
           fi
-          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --json number --jq '.[0].number')
-          report_pr_ready "$pr"
+          git switch -c "$BRANCH"
+          git commit -m "chore(site): adopt qualified Integration Bundle"
+          test "$(git rev-parse HEAD^{tree})" = "$expected_tree"
+          test "$(git rev-parse HEAD^1)" = "$EXPECTED_SITE_BASE"
+          test "$(git diff --name-only "$EXPECTED_SITE_BASE" HEAD)" = "integration-source.json"
+
+          # Re-read the live Site target immediately before publishing the branch.
+          verify_target
+          git push --force-with-lease="$remote_ref:" origin "HEAD:$BRANCH"
+          refresh_remote_branch
+          test "$(git rev-parse HEAD)" = "$(git rev-parse --verify "$local_remote_ref")"
+          verify_target
+
+          existing=$(matching_pr)
+          if [ -z "$existing" ]; then
+            # Refresh the target and branch immediately before associating this candidate with a PR.
+            verify_target
+            refresh_remote_branch
+            test "$(git rev-parse HEAD)" = "$(git rev-parse --verify "$local_remote_ref")"
+            existing=$(matching_pr)
+          fi
+          if [ -z "$existing" ]; then
+            body_path="$RUNNER_TEMP/site-publication-pr-body.md"
+            python3 scripts/verify_site_adoption_pr.py write-body \
+              --repository "$GITHUB_REPOSITORY" \
+              --consumer-base "$EXPECTED_SITE_BASE" \
+              --idempotency-key "$IDEMPOTENCY_KEY" \
+              --candidate-lock "$candidate_lock" \
+              --output "$body_path"
+            # No candidate may be associated after Site advances from its consumer base.
+            verify_target
+            gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base site \
+              --head "$BRANCH" \
+              --title "chore(site): adopt qualified Integration Bundle" \
+              --body-file "$body_path"
+            existing=$(matching_pr)
+          fi
+          test -n "$existing"
+          verify_existing "$existing"
+          report_pr_ready "$existing"
