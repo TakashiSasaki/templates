@@ -106,9 +106,28 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('git -C integration-base push --force-with-lease="refs/heads/$BRANCH:$branch_before"', promotion)
         self.assertIn('verify_target\n          git -C integration-base push', promotion)
         self.assertIn('verify_target\n            gh pr create', promotion)
-        self.assertIn('verify_existing "$existing"\n          gh pr merge', promotion)
+        self.assertRegex(
+            promotion,
+            r'verify_existing "\$existing"\s+verify_existing "\$existing"\s+report_pr_ready "\$existing"',
+        )
         self.assertGreaterEqual(promotion.count('verify_existing "$existing"'), 4)
         self.assertNotIn('remains authoritative', promotion)
+
+    def test_publication_promotion_stops_at_the_independent_review_boundary(self):
+        workflow = yaml.safe_load((ROOT / '.github/workflows/integration-reconcile.yml').read_text())
+        job = workflow['jobs']['promote_lock_pr']
+        step = next(step for step in job['steps'] if step.get('name') == 'Revalidate the live target before every privileged PR action')
+        script = step['run']
+
+        self.assertEqual(step['env']['BRANCH'], 'automation/publication-$IDEMPOTENCY_KEY')
+        self.assertIn('gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH"', script)
+        self.assertIn('open_pr_numbers()', script)
+        self.assertIn('verify_existing "$existing"', script)
+        self.assertIn('report_pr_ready "$existing"', script)
+        self.assertIn('independent exact-head review', script)
+        self.assertIn('separate human merge authorization', script)
+        self.assertNotRegex(script, r'(?m)^\s*gh\s+pr\s+merge(?:\s|$)')
+        self.assertNotRegex(script, r'(?m)^\s*git(?:\s+-C integration-base)?\s+push\b.*(?:refs/heads/)?integration(?:\s|$)')
 
     def test_promotion_receipt_keeps_trusted_activation_gate_at_notify_boundary(self):
         workflow = (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()

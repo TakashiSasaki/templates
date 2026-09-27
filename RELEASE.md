@@ -24,23 +24,26 @@ promotion, a Site release, or deployment authorization.
 
 The initial sequence is provider candidate → Integration candidate → qualification →
 Shadow report → STOP. After the one-time activation contract is reviewed and enabled,
-the trusted controller may perform the pre-authorized mechanical promotion and guarded
-auto-merge for an eligible exact candidate. It still cannot bypass branch protection,
-required review, freshness, or the separate Site boundary. To promote a candidate,
-refresh exact provider SHAs, deliberately change only intended locks, qualify a stable
-exact candidate, and guard the Integration merge by its accepted head. Record the exact
-released producer/provider identities and Bundle identity/digests. Requalify changed
-inputs; do not reuse stale evidence. The first reviewed bootstrap release is
+the trusted controller may create or reconcile a deterministic promotion PR for an
+eligible exact candidate, then stops. It does not approve or merge that PR. An
+independent exact-head review and separate human merge authorization are required
+before landing; required checks and branch protection are additional constraints.
+To promote a candidate, refresh exact provider SHAs, deliberately change only intended
+locks, qualify a stable exact candidate, and guard the authorized Integration landing
+by its accepted head. Record the exact released producer/provider identities and Bundle
+identity/digests. Requalify changed inputs; do not reuse stale evidence. The first
+reviewed bootstrap release is
 `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d` (#894–#896). Its provider pair and
 payload reference remain historical bootstrap evidence, separate from the current
 reviewed provider selection. Release acceptance is established by exact-head review,
 qualification and guarded landing; an authority status string is not acceptance.
 
 Site adoption remains a separate Site-owned boundary. In the initial Shadow mode it is
-report-only; after activation the trusted controller may create an idempotent Site lock
-PR for the exact Integration release, subject to Site qualification and branch protection.
-Integration releases can occur without Site releases; Site-only runtime fixes must be able
-to retain the same adopted Integration input.
+report-only; after activation the trusted controller may create or reconcile an idempotent
+Site lock PR for the exact Integration release, then stops. Independent review and a
+separate human landing authorization remain Site-owned. Integration releases can occur
+without Site releases; Site-only runtime fixes must be able to retain the same adopted
+Integration input.
 
 ## Maintainer routing and operational handoff
 
@@ -128,7 +131,8 @@ transported for Site browsing. The P5/P7 releases used v1 current-only publicati
 P8 used v2. These versioned changes do not update Site, provider translation prose, or
 synchronization hashes by implication. Site adoption and warning presentation remain a
 separate gate; after activation the controller may perform only the pre-authorized
-mechanical lock mutation, never a semantic approval.
+mechanical lock mutation on its PR, never a semantic approval or merge. Independent
+review and human merge authorization remain separate.
 
 When a fully qualified candidate already matches the current `publication-sources.json`,
 there is no lock diff to review. The trusted controller records the exact base, selected
