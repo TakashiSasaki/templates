@@ -16,6 +16,7 @@ Profiles:
 Real browser/PWA acceptance, cross-authority acceptance, immutable artifact
 qualification and GitHub/API aggregation remain remote acceptance checks.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -78,7 +79,9 @@ def _changed_paths(base_ref: str, path_file: Path | None) -> tuple[str, ...]:
     return tuple(dict.fromkeys(path for path in candidates if path))
 
 
-def _require_clean_source_ready_tree(expected_head: str | None, actual_head: str) -> None:
+def _require_clean_source_ready_tree(
+    expected_head: str | None, actual_head: str
+) -> None:
     if not expected_head:
         raise RuntimeError("source-ready requires --expected-head")
     if expected_head != actual_head:
@@ -145,8 +148,17 @@ def _validate_toml(path: Path) -> None:
         raise RuntimeError(f"invalid TOML syntax in {path}: {exc}") from exc
 
 
-def run_core() -> None:
-    _run([sys.executable, "scripts/run_core_tests.py", "--suite", "core"])
+def run_core(jobs: int = 1) -> None:
+    _run(
+        [
+            sys.executable,
+            "scripts/run_core_tests.py",
+            "--suite",
+            "core",
+            "--jobs",
+            str(jobs),
+        ]
+    )
 
 
 def run_node(jobs: int = 1) -> None:
@@ -157,7 +169,10 @@ def run_node(jobs: int = 1) -> None:
     effective_jobs = min(jobs, len(NODE_TESTS))
     environment = os.environ.copy()
     if environment.pop("NODE_OPTIONS", None) is not None:
-        print("SITE_ENV_SANITIZED variable=NODE_OPTIONS runner=site-node reason=explicit-worker-budget", flush=True)
+        print(
+            "SITE_ENV_SANITIZED variable=NODE_OPTIONS runner=site-node reason=explicit-worker-budget",
+            flush=True,
+        )
     print(
         f"SITE_WORKERS requested={jobs} effective={effective_jobs} "
         "runner=site-node mode=node-test",
@@ -190,7 +205,9 @@ def _require_artifact_inputs(args: argparse.Namespace) -> tuple[Path, Path]:
     return args.bundle, args.site_root
 
 
-def run_exact_assembly(bundle: Path | None, site_root: Path | None) -> dict[str, str | int]:
+def run_exact_assembly(
+    bundle: Path | None, site_root: Path | None
+) -> dict[str, str | int]:
     from scripts.check_site_artifact import check as check_site_artifact
     from site_renderer import acquire
     from site_renderer.bundle import load_lock
@@ -226,7 +243,7 @@ def run_check(check: str, args: argparse.Namespace) -> None:
     if check == "l0":
         run_l0(args.base_ref, args.changed_paths)
     elif check == "core":
-        run_core()
+        run_core(args.jobs)
     elif check == "node":
         run_node(args.jobs)
     elif check == "site-contracts":
@@ -243,7 +260,9 @@ def run_check(check: str, args: argparse.Namespace) -> None:
         from site_renderer.bundle import load_lock
 
         bundle, site_root = _require_artifact_inputs(args)
-        check_bundle_reader(site_root, bundle, load_lock(ROOT / "integration-source.json"))
+        check_bundle_reader(
+            site_root, bundle, load_lock(ROOT / "integration-source.json")
+        )
     elif check == "site-artifact":
         from scripts.check_site_artifact import check as check_site_artifact
         from site_renderer.bundle import load_lock
@@ -298,11 +317,19 @@ def plan_source_ready_waves(
     for offset in range(0, len(pending), jobs):
         waves.append(pending[offset : offset + jobs])
 
-    if any(not wave or sum(allocation for _, allocation in wave) > jobs for wave in waves):
+    if any(
+        not wave or sum(allocation for _, allocation in wave) > jobs for wave in waves
+    ):
         raise RuntimeError("Site source-ready allocation exceeds its worker budget")
     scheduled = [check for wave in waves for check, _ in wave]
-    if scheduled != ["core", "node", *(check for check in remaining_checks if check in scheduled)]:
-        raise RuntimeError("Site source-ready allocation changed deterministic check order")
+    if scheduled != [
+        "core",
+        "node",
+        *(check for check in remaining_checks if check in scheduled),
+    ]:
+        raise RuntimeError(
+            "Site source-ready allocation changed deterministic check order"
+        )
     return waves
 
 
@@ -343,9 +370,13 @@ def _run_check_wave(
         return
 
     failures: list[tuple[str, Exception]] = []
-    with ThreadPoolExecutor(max_workers=len(wave), thread_name_prefix="site-check") as executor:
+    with ThreadPoolExecutor(
+        max_workers=len(wave), thread_name_prefix="site-check"
+    ) as executor:
         futures = {
-            executor.submit(_run_allocated_check, check, args, workers, wave_index): check
+            executor.submit(
+                _run_allocated_check, check, args, workers, wave_index
+            ): check
             for check, workers in wave
         }
         for future in as_completed(futures):
@@ -368,7 +399,7 @@ def run_source_ready_dag(args: argparse.Namespace) -> None:
         print(f"SITE_CHECK_FAIL name=l0 error={exc}", file=sys.stderr, flush=True)
         raise
     print("SITE_CHECK_PASS name=l0 wave=0", flush=True)
-    waves = plan_source_ready_waves(args.jobs)
+    waves = plan_source_ready_waves(args.jobs, core_workers=2)
     effective_jobs = max(sum(workers for _, workers in wave) for wave in waves)
     print(
         f"SITE_SOURCE_READY_BUDGET requested={args.jobs} effective={effective_jobs} "
@@ -383,7 +414,9 @@ def positive_jobs(value: str) -> int:
     try:
         jobs = int(value)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError("jobs must be an integer of at least 1") from exc
+        raise argparse.ArgumentTypeError(
+            "jobs must be an integer of at least 1"
+        ) from exc
     if jobs < 1:
         raise argparse.ArgumentTypeError("jobs must be an integer of at least 1")
     return jobs
@@ -405,7 +438,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--bundle", type=Path)
     parser.add_argument("--site-root", type=Path)
     parser.add_argument("--changed-paths", type=Path)
-    parser.add_argument("--base-ref", default="HEAD^", help="base used for L0 changed-path checks")
+    parser.add_argument(
+        "--base-ref", default="HEAD^", help="base used for L0 changed-path checks"
+    )
     parser.add_argument(
         "--jobs",
         type=positive_jobs,
@@ -435,7 +470,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.profile == "source-ready" and args.check is None:
             run_source_ready_dag(args)
         else:
-            effective_jobs = min(args.jobs, len(NODE_TESTS)) if "node" in checks and NODE_TESTS else 1
+            effective_jobs = 1
+            for check in checks:
+                if check == "core":
+                    effective_jobs = max(effective_jobs, args.jobs)
+                elif check == "node" and NODE_TESTS:
+                    effective_jobs = max(
+                        effective_jobs, min(args.jobs, len(NODE_TESTS))
+                    )
             print(
                 f"SITE_PREFLIGHT_WORKERS profile={args.profile} requested={args.jobs} "
                 f"effective={effective_jobs} runner=site-preflight",

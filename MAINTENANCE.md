@@ -28,15 +28,25 @@ source-ready gate from a clean checkout:
 
 Add `--jobs N` to cap test workers owned by this Site preflight. The default is
 2; `--jobs 1` runs the serial debugging baseline. Source-ready runs L0 first,
-then launches independent source checks in fixed budgeted waves. The Python
-`unittest` and Node `node --test` execution domains remain separate; Node receives
-its allocated `--test-concurrency` and inherited `NODE_OPTIONS` is removed from
-the child environment. A cross-authority coordinator's `--jobs` is a larger
-shared budget that it divides among authority-local runners; invoking this Site
-command directly treats it as the entire Site-local budget. The shared
-worker-budget contract documents the safety classes and allocation rules. Node
-tests load the shipped Composition Playground JavaScript directly and exercise
-its URL, rendering, event, fetch, clipboard and async behavior.
+then launches independent source checks in fixed budgeted waves. At `--jobs 2`,
+the Python core suite gets two unittest shard processes, followed by two Node
+test workers; at 3 or 4, core and Node share the first wave within that total.
+The Site Python runner also accepts `--jobs N` directly (default 1). It keeps
+new, changed, and unreviewed test modules in a serial/exclusive lane. The
+parallel-module manifest pins reviewed source fingerprints; changing one sends
+that module back to the serial lane until its safety is reviewed. Parallel
+workers import only modules assigned to their shard.
+
+The Python `unittest` and Node `node --test` execution domains remain separate;
+Node receives its allocated `--test-concurrency` and inherited `NODE_OPTIONS`
+is removed from the child environment. The Node tests load the shipped
+Composition Playground JavaScript directly and exercise its URL, rendering,
+event, fetch, clipboard and async behavior. A cross-authority coordinator's
+`--jobs` is a larger shared budget that it divides among authority-local
+runners; invoking this Site command directly treats it as the entire Site-local
+budget. See the normative worker-budget contract in the Policy authority for
+the shared safety classes, nested-worker limit, and exact-SHA qualification
+rules.
 
 This runs the complete classified Python core suite, every cheap Playground
 Node test, Site-owned declaration/contract checks, static Python dependency

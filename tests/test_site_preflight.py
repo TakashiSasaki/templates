@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 import builtins
 import importlib
+import io
 import os
 import subprocess
 import sys
@@ -54,6 +55,20 @@ class SitePreflightTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(SystemExit):
                 preflight.parse_args(["fast", "--jobs", value])
 
+    def test_explicit_core_check_retains_assigned_site_budget(self):
+        output = io.StringIO()
+        with patch.object(preflight, "_git_output", return_value="a" * 40), patch.object(
+            preflight, "run_check"
+        ) as run_check, patch("sys.stdout", output):
+            self.assertEqual(
+                preflight.main(
+                    ["composition-validation", "--check", "core", "--jobs", "4"]
+                ),
+                0,
+            )
+        self.assertEqual(run_check.call_args.args[1].jobs, 4)
+        self.assertIn("requested=4 effective=4 runner=site-preflight", output.getvalue())
+
     def test_exact_head_guard_precedes_validation(self):
         with patch.object(
             preflight.subprocess,
@@ -69,13 +84,15 @@ class SitePreflightTests(unittest.TestCase):
         reached_l0 = threading.Event()
         independent_checks = threading.Barrier(2)
         started = []
+        allocations = {}
 
-        def run_check(check, _args):
+        def run_check(check, args):
             if check == "l0":
                 reached_l0.set()
                 return
             self.assertTrue(reached_l0.is_set())
             started.append(check)
+            allocations[check] = args.jobs
             if check in {"core", "node"}:
                 independent_checks.wait(timeout=5)
 
@@ -85,10 +102,12 @@ class SitePreflightTests(unittest.TestCase):
             side_effect=["a" * 40, ""],
         ):
             self.assertEqual(
-                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "2"]),
+                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "3"]),
                 0,
             )
         self.assertCountEqual(started, list(SOURCE_READY_CHECKS[1:]))
+        self.assertEqual(allocations["core"], 2)
+        self.assertEqual(allocations["node"], 1)
 
     def test_jobs_one_keeps_source_ready_checks_serial_in_order(self):
         active = 0
@@ -132,6 +151,19 @@ class SitePreflightTests(unittest.TestCase):
                 if jobs in expected_first_waves:
                     self.assertEqual(waves[:2], expected_first_waves[jobs])
 
+    def test_source_ready_core_shards_share_site_budget_with_other_domains(self):
+        expected = {
+            1: [[("core", 1)], [("node", 1)], [("site-contracts", 1)], [("dependency-boundary", 1)]],
+            2: [[("core", 2)], [("node", 2)], [("site-contracts", 1), ("dependency-boundary", 1)]],
+            3: [[("core", 2), ("node", 1)], [("site-contracts", 1), ("dependency-boundary", 1)]],
+            4: [[("core", 2), ("node", 2)], [("site-contracts", 1), ("dependency-boundary", 1)]],
+        }
+        for jobs, expected_waves in expected.items():
+            with self.subTest(jobs=jobs):
+                waves = preflight.plan_source_ready_waves(jobs, core_workers=2)
+                self.assertEqual(waves, expected_waves)
+                self.assertTrue(all(sum(count for _, count in wave) <= jobs for wave in waves))
+
     def test_source_ready_child_failure_waits_for_and_reaps_wave_siblings(self):
         barrier = threading.Barrier(2)
         completed = set()
@@ -149,7 +181,7 @@ class SitePreflightTests(unittest.TestCase):
             preflight, "_git_output", side_effect=["a" * 40, ""]
         ), patch("sys.stderr", new_callable=__import__("io").StringIO):
             with self.assertRaises(SystemExit) as raised:
-                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "2"])
+                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "3"])
         self.assertEqual(raised.exception.code, 2)
         self.assertEqual(completed, {"node"})
 
