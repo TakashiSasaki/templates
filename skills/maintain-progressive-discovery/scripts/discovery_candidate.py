@@ -182,6 +182,8 @@ def inputs(engine, root: Path, relative: str):
             or not (root / path).is_file()
         ):
             raise ValueError(f"invalid scoped omission index: {path}")
+        if path in retired:
+            raise ValueError(f"scoped omission index is also retired: {path}")
         if any(p not in expected for p in omission["paths"]):
             raise ValueError(f"scoped omission of unknown member: {path}")
     return adapter, expected, generated, sorted(set(inventories)), references
@@ -293,6 +295,13 @@ def run(engine, root, *, adapter_path, policy_path, apply=False):
     except Exception as exc:
         errors.append(f"candidate input: {exc}")
     indexes = indexes_for(engine, root, adapter) if not errors else []
+    if not errors:
+        for omission in adapter.get("omit_from", []):
+            if omission["index"] not in indexes:
+                errors.append(
+                    "scoped omission index is not an active authored/generated index: "
+                    f"{omission['index']}"
+                )
     planning_adapter = {"remove_generated_indexes": [x["path"] for x in adapter.get("retire", [])]}
     plan = (
         []
@@ -329,6 +338,13 @@ def run(engine, root, *, adapter_path, policy_path, apply=False):
         if not errors
         else {"valid": False, "errors": [], "warnings": [], "reachable": []}
     )
+    if not errors:
+        for omission in adapter.get("omit_from", []):
+            if omission["index"] not in validation["reachable"]:
+                validation["errors"].append(
+                    "scoped omission index is not reachable from the root discovery graph: "
+                    f"{omission['index']}"
+                )
     validation["errors"] = sorted(set(validation["errors"] + errors + apply_errors))
     validation["valid"] = not validation["errors"]
     authority = bool(errors or apply_errors or any(p["action"] == "authority-needed" for p in plan))
