@@ -291,6 +291,11 @@ and useful nested indexes coexist without a shortcut declaration. The candidate
 uses the same generated mutation engine and all existing ownership protections.
 Require `policy_selected`, `validation.valid` and `NO_UPDATE_REQUIRED` together.
 
+Each `omit_from` declaration must name an existing authored or generated index
+that remains active after exclusions and delegation and is reachable from the root
+discovery index. An inactive, retired, or unreachable omission target fails
+closed; omission never removes a document from the global expected set.
+
 Delegation keeps its declared entry discoverable. JSON Schema validates the
 declaration's shape and canonical path syntax; the candidate runtime separately
 requires `entry.path` to equal `delegate.path` or be a path-component descendant

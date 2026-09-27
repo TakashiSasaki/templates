@@ -226,6 +226,7 @@
     },
     "omission": {
       "type": "object",
+      "description": "The candidate runtime requires index to remain active and root-reachable after exclusions, delegation and retirement.",
       "additionalProperties": false,
       "required": [
         "index",
