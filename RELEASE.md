@@ -149,3 +149,23 @@ receipt. After merge, the notification workflow verifies the intent against the 
 first parent, selected lock, branch idempotency key, and active pins, then performs a new
 trusted qualification for the exact merged Integration revision in the `promoted`
 artifact namespace. It does not reuse the pre-merge candidate Bundle as promoted evidence.
+
+Promotion-intent schema 2 keeps two workflow identities separate. `run_provenance`
+records the top-level GitHub Actions run, including its API-bound workflow path, run ID,
+attempt, head, repository, name and event, plus the bound Bundle and qualification
+artifacts. `reconciliation_implementation` records the repository, path, immutable
+workflow reference and SHA from GitHub's `job.workflow_*` context for the workflow that
+defines the running reconciliation job. A direct Integration dispatch requires the
+implementation SHA to match the run head. The Site reusable path requires the exact
+Site dispatch entry point and an immutable Integration workflow reference. Both
+identities are checked when the intent is built, before privileged PR actions, and when
+the merged intent is verified. Direct `workflow_dispatch` and `repository_dispatch`
+remain supported. The qualification verification receipt retains its existing
+`workflow_path` meaning: the actual top-level run path used for GitHub API and artifact
+binding.
+
+Changes to controller-executed scripts require a later reviewed update of
+`PUBLICATION_CONTROLLER_REVISION`. Changes to `integration-reconcile.yml` also require
+the Site caller to be repinned to the landed Integration workflow revision before
+another Site-driven reconciliation. Neither pin is updated as part of preparing this
+remediation for review.

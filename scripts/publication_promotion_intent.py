@@ -27,7 +27,10 @@ SHA = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
 ARCHIVE_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 INTENT_NAME = "publication-promotion-intent.json"
-WORKFLOW_PATH = ".github/workflows/integration-reconcile.yml"
+REPOSITORY = "TakashiSasaki/templates"
+RECONCILIATION_WORKFLOW_PATH = ".github/workflows/integration-reconcile.yml"
+SITE_DISPATCH_WORKFLOW_PATH = ".github/workflows/provider-publication-dispatch.yml"
+RECONCILIATION_EVENTS = {"workflow_dispatch", "repository_dispatch"}
 PROMOTION_PR_TITLE = "chore(integration): record trusted publication intent"
 
 
@@ -57,6 +60,138 @@ def _require_artifact(value: dict[str, Any], label: str) -> dict[str, Any]:
     if not isinstance(value["name"], str) or not value["name"]:
         raise ValueError(f"{label} name is missing")
     return value
+
+
+def _validate_reconciliation_implementation(value: Any) -> dict[str, str]:
+    """Validate the GitHub job context for the workflow defining the controller job."""
+    required = {"workflow_repository", "workflow_file_path", "workflow_ref", "workflow_sha"}
+    if not isinstance(value, dict) or set(value) != required:
+        raise ValueError("reconciliation implementation provenance is incomplete or malformed")
+    repository = value["workflow_repository"]
+    workflow_path = value["workflow_file_path"]
+    workflow_ref = value["workflow_ref"]
+    workflow_sha = _require_sha(value["workflow_sha"], "reconciliation workflow SHA")
+    if repository != REPOSITORY:
+        raise ValueError("reconciliation implementation repository is not the trusted Integration repository")
+    if workflow_path != RECONCILIATION_WORKFLOW_PATH:
+        raise ValueError("reconciliation implementation path is not the Integration reconciliation workflow")
+    ref_prefix = f"{repository}/{workflow_path}@"
+    if not isinstance(workflow_ref, str) or not workflow_ref.startswith(ref_prefix):
+        raise ValueError("reconciliation implementation ref does not identify its repository and path")
+    selected_ref = workflow_ref[len(ref_prefix):]
+    if not selected_ref or any(character.isspace() for character in selected_ref):
+        raise ValueError("reconciliation implementation ref is malformed")
+    if SHA.fullmatch(selected_ref):
+        if selected_ref != workflow_sha:
+            raise ValueError("immutable reconciliation workflow ref differs from its runtime SHA")
+    elif not (selected_ref.startswith("refs/heads/") or selected_ref.startswith("refs/tags/")):
+        raise ValueError("reconciliation implementation ref is not an immutable SHA or Git ref")
+    return {
+        "workflow_repository": repository,
+        "workflow_file_path": workflow_path,
+        "workflow_ref": workflow_ref,
+        "workflow_sha": workflow_sha,
+    }
+
+
+def _runtime_run_context(
+    *,
+    repository: Any,
+    workflow_run_id: Any,
+    workflow_attempt: Any,
+    workflow_head: Any,
+    workflow_name: Any,
+    workflow_event: Any,
+    run_workflow_path: Any,
+    reconciliation_implementation: dict[str, str],
+) -> dict[str, Any]:
+    """Bind a supported top-level run to the separately identified Integration implementation."""
+    if repository != REPOSITORY:
+        raise ValueError("qualification run repository is not the trusted Integration repository")
+    if type(workflow_run_id) is not int or workflow_run_id <= 0:
+        raise ValueError("qualification workflow run ID must be a positive integer")
+    if type(workflow_attempt) is not int or workflow_attempt <= 0:
+        raise ValueError("qualification workflow attempt must be a positive integer")
+    workflow_head = _require_sha(workflow_head, "qualification workflow head")
+    if not isinstance(workflow_name, str) or not workflow_name.strip():
+        raise ValueError("qualification workflow name is missing")
+    if not isinstance(workflow_event, str) or workflow_event not in RECONCILIATION_EVENTS:
+        raise ValueError("qualification workflow event is not a supported reconciliation invocation")
+    if not isinstance(run_workflow_path, str) or not run_workflow_path.strip():
+        raise ValueError("top-level qualification run workflow path is missing")
+
+    if run_workflow_path == RECONCILIATION_WORKFLOW_PATH:
+        invocation_mode = "direct"
+        if reconciliation_implementation["workflow_sha"] != workflow_head:
+            raise ValueError("direct reconciliation workflow SHA differs from the top-level run head")
+    elif run_workflow_path == SITE_DISPATCH_WORKFLOW_PATH:
+        invocation_mode = "site-reusable"
+        if workflow_event != "workflow_dispatch":
+            raise ValueError("Site reusable reconciliation is supported only for workflow_dispatch runs")
+        selected_ref = reconciliation_implementation["workflow_ref"].rsplit("@", 1)[1]
+        if SHA.fullmatch(selected_ref) is None or selected_ref != reconciliation_implementation["workflow_sha"]:
+            raise ValueError("Site caller did not pin the Integration reconciliation workflow to its runtime SHA")
+    else:
+        raise ValueError("top-level run workflow path is not an approved Integration reconciliation entry point")
+
+    return {
+        "invocation_mode": invocation_mode,
+        "repository": repository,
+        "workflow_run_id": workflow_run_id,
+        "workflow_attempt": workflow_attempt,
+        "workflow_head": workflow_head,
+        "workflow_name": workflow_name,
+        "workflow_event": workflow_event,
+        "run_workflow_path": run_workflow_path,
+    }
+
+
+def _expected_runtime_context(
+    runtime_run_context: Any,
+    reconciliation_implementation: Any,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    required = {
+        "repository", "workflow_run_id", "workflow_attempt", "workflow_head",
+        "workflow_name", "workflow_event", "run_workflow_path",
+    }
+    if not isinstance(runtime_run_context, dict) or set(runtime_run_context) != required:
+        raise ValueError("exact GitHub run provenance is incomplete or malformed")
+    implementation = _validate_reconciliation_implementation(reconciliation_implementation)
+    run = _runtime_run_context(
+        **runtime_run_context,
+        reconciliation_implementation=implementation,
+    )
+    return run, implementation
+
+
+def _check_runtime_provenance(
+    intent: dict[str, Any],
+    *,
+    expected_run: dict[str, Any],
+    expected_implementation: dict[str, str],
+) -> None:
+    run = intent.get("run_provenance")
+    if not isinstance(run, dict):
+        raise ValueError("promotion intent lacks run provenance")
+    for field, value in expected_run.items():
+        if run.get(field) != value:
+            raise ValueError(f"promotion intent {field} differs from the exact GitHub run")
+    if intent.get("reconciliation_implementation") != expected_implementation:
+        raise ValueError("promotion intent reconciliation implementation differs from the exact GitHub job context")
+
+
+def _decode_canonical_intent(data: bytes) -> dict[str, Any]:
+    intent = json.loads(data)
+    if not isinstance(intent, dict):
+        raise ValueError("promotion intent must be a JSON object")
+    _validate_intent_shape(intent)
+    if data != _canonical_json(intent):
+        raise ValueError("promotion intent is not the canonical deterministic rendering")
+    return intent
+
+
+def _read_canonical_intent(intent_path: Path) -> dict[str, Any]:
+    return _decode_canonical_intent(intent_path.read_bytes())
 
 
 def _canonical_json(value: dict[str, Any]) -> bytes:
@@ -266,6 +401,10 @@ def _check_report_bindings(
         raise ValueError("verified source report is not the expected pre-promotion qualification")
     if verification.get("source_report_digest") != _sha256(source_bytes):
         raise ValueError("trusted verification receipt is not bound to the source qualification report")
+    if verified.get("inputs") != source.get("inputs"):
+        raise ValueError("source and verified qualification inputs disagree")
+    if verified.get("idempotency_key") != source.get("idempotency_key"):
+        raise ValueError("source and verified qualification idempotency keys disagree")
     if verification.get("schema_version") != 1:
         raise ValueError("trusted verification receipt has an unsupported schema")
     if verification.get("verifier_revision") != trusted_controller_revision:
@@ -324,8 +463,6 @@ def _check_report_bindings(
     for key in ("workflow_head", "workflow_name", "workflow_event", "workflow_path"):
         if not isinstance(verification.get(key), str) or not verification[key]:
             raise ValueError(f"trusted verification receipt is missing {key}")
-    if verification["workflow_path"] != WORKFLOW_PATH:
-        raise ValueError("qualification workflow path is not the Integration reconciliation workflow")
     if qualification_artifact["name"] != f"publication-compatibility-{verification['bundle_identity']}-{attempt}-reconciliation":
         raise ValueError("qualification report artifact name is outside the reconciliation namespace")
     if bundle_artifact["name"] != f"publication-bundle-{verification['bundle_identity']}-{attempt}-reconciliation":
@@ -360,6 +497,8 @@ def build_intent(
     qualification_artifact: dict[str, Any],
     trusted_controller_revision: str,
     trusted_policy_revision: str,
+    runtime_run_context: dict[str, Any],
+    reconciliation_implementation: dict[str, Any],
 ) -> dict[str, Any]:
     reconciliation, verified, verification, providers, base_plan = _check_report_bindings(
         current=current,
@@ -376,13 +515,38 @@ def build_intent(
     )
     trusted_controller_revision = _require_sha(trusted_controller_revision, "trusted controller revision")
     trusted_policy_revision = _require_sha(trusted_policy_revision, "trusted Policy revision")
+    expected_run, implementation = _expected_runtime_context(
+        runtime_run_context,
+        reconciliation_implementation,
+    )
+    receipt_run = _runtime_run_context(
+        repository=expected_run["repository"],
+        workflow_run_id=verification["workflow_run_id"],
+        workflow_attempt=verification["workflow_attempt"],
+        workflow_head=verification["workflow_head"],
+        workflow_name=verification["workflow_name"],
+        workflow_event=verification["workflow_event"],
+        run_workflow_path=verification["workflow_path"],
+        reconciliation_implementation=implementation,
+    )
+    if receipt_run != expected_run:
+        raise ValueError("trusted qualification receipt differs from the exact GitHub run provenance")
     bundle_artifact = {
         "id": verification["artifact_id"],
         "digest": verification["artifact_digest"],
         "name": verification["artifact_name"],
     }
+    qualification_artifact = _require_artifact(qualification_artifact, "qualification artifact")
+    run_provenance = {
+        **receipt_run,
+        "artifact_namespace": "reconciliation",
+        "bundle_artifact": bundle_artifact,
+        "qualification_artifact": qualification_artifact,
+        "source_report_sha256": _sha256(source_report.read_bytes()),
+        "verified_report_sha256": _sha256(verified_report.read_bytes()),
+    }
     intent = {
-        "schema_version": 1,
+        "schema_version": 2,
         "boundary": "provider-to-integration",
         "stage": "promotion-intent",
         "idempotency_key": reconciliation["idempotency_key"],
@@ -398,18 +562,8 @@ def build_intent(
             "identity": verification["bundle_identity"],
             "content_digest": verification["bundle_content_digest"],
         },
-        "qualification": {
-            "run_id": verification["workflow_run_id"],
-            "attempt": verification["workflow_attempt"],
-            "workflow_head": verification["workflow_head"],
-            "workflow_name": verification["workflow_name"],
-            "workflow_event": verification["workflow_event"],
-            "workflow_path": verification["workflow_path"],
-            "bundle_artifact": bundle_artifact,
-            "qualification_artifact": qualification_artifact,
-            "source_report_sha256": _sha256(source_report.read_bytes()),
-            "verified_report_sha256": _sha256(verified_report.read_bytes()),
-        },
+        "run_provenance": run_provenance,
+        "reconciliation_implementation": implementation,
         "trusted": {
             "controller_revision": trusted_controller_revision,
             "policy_revision": trusted_policy_revision,
@@ -424,9 +578,9 @@ def _validate_intent_shape(intent: dict[str, Any]) -> None:
         "schema_version", "boundary", "stage", "idempotency_key",
         "source_integration_revision", "consumer_base_revision", "base_lock_digest",
         "selected_lock_digest", "lock_update_required", "provider_tuple", "qualification_inputs", "bundle",
-        "qualification", "trusted",
+        "run_provenance", "reconciliation_implementation", "trusted",
     }
-    if set(intent) != required or type(intent.get("schema_version")) is not int or intent["schema_version"] != 1:
+    if set(intent) != required or type(intent.get("schema_version")) is not int or intent["schema_version"] != 2:
         raise ValueError("promotion intent has an unsupported or malformed schema")
     if intent.get("boundary") != "provider-to-integration" or intent.get("stage") != "promotion-intent":
         raise ValueError("promotion intent is for the wrong publication boundary")
@@ -472,28 +626,39 @@ def _validate_intent_shape(intent: dict[str, Any]) -> None:
     ).encode("utf-8"))
     if intent["idempotency_key"] != expected_idempotency_key:
         raise ValueError("promotion intent idempotency key does not bind its qualification inputs and trust pins")
-    qualification = intent.get("qualification")
-    expected_qualification = {
-        "run_id", "attempt", "workflow_head", "workflow_name", "workflow_event",
-        "workflow_path", "bundle_artifact", "qualification_artifact",
+    implementation = _validate_reconciliation_implementation(intent.get("reconciliation_implementation"))
+    run = intent.get("run_provenance")
+    expected_run_fields = {
+        "invocation_mode", "repository", "workflow_run_id", "workflow_attempt",
+        "workflow_head", "workflow_name", "workflow_event", "run_workflow_path",
+        "artifact_namespace", "bundle_artifact", "qualification_artifact",
         "source_report_sha256", "verified_report_sha256",
     }
-    if not isinstance(qualification, dict) or set(qualification) != expected_qualification:
-        raise ValueError("promotion intent qualification evidence is incomplete")
-    if type(qualification["run_id"]) is not int or qualification["run_id"] <= 0:
-        raise ValueError("qualification run ID is malformed")
-    if type(qualification["attempt"]) is not int or qualification["attempt"] <= 0:
-        raise ValueError("qualification attempt is malformed")
-    _require_sha(qualification["workflow_head"], "qualification workflow head")
-    for field in ("workflow_name", "workflow_event"):
-        if not isinstance(qualification[field], str) or not qualification[field]:
-            raise ValueError(f"qualification {field} is missing")
-    if qualification["workflow_path"] != WORKFLOW_PATH:
-        raise ValueError("qualification workflow path is not the Integration reconciliation workflow")
-    _require_artifact(qualification["bundle_artifact"], "Bundle artifact")
-    _require_artifact(qualification["qualification_artifact"], "qualification artifact")
-    _require_digest(qualification["source_report_sha256"], "source report digest")
-    _require_digest(qualification["verified_report_sha256"], "verified report digest")
+    if not isinstance(run, dict) or set(run) != expected_run_fields:
+        raise ValueError("promotion intent run provenance is incomplete")
+    expected_run = _runtime_run_context(
+        repository=run["repository"],
+        workflow_run_id=run["workflow_run_id"],
+        workflow_attempt=run["workflow_attempt"],
+        workflow_head=run["workflow_head"],
+        workflow_name=run["workflow_name"],
+        workflow_event=run["workflow_event"],
+        run_workflow_path=run["run_workflow_path"],
+        reconciliation_implementation=implementation,
+    )
+    for field, value in expected_run.items():
+        if run.get(field) != value:
+            raise ValueError(f"promotion intent {field} does not match its run provenance")
+    if run.get("artifact_namespace") != "reconciliation":
+        raise ValueError("promotion intent artifacts are outside the reconciliation namespace")
+    bundle_artifact = _require_artifact(run["bundle_artifact"], "Bundle artifact")
+    qualification_artifact = _require_artifact(run["qualification_artifact"], "qualification artifact")
+    if bundle_artifact["name"] != f"publication-bundle-{bundle['identity']}-{run['workflow_attempt']}-reconciliation":
+        raise ValueError("promotion intent Bundle artifact is outside the reconciliation namespace")
+    if qualification_artifact["name"] != f"publication-compatibility-{bundle['identity']}-{run['workflow_attempt']}-reconciliation":
+        raise ValueError("promotion intent qualification artifact is outside the reconciliation namespace")
+    _require_digest(run["source_report_sha256"], "source report digest")
+    _require_digest(run["verified_report_sha256"], "verified report digest")
     trusted = intent.get("trusted")
     if not isinstance(trusted, dict) or set(trusted) != {"controller_revision", "policy_revision"}:
         raise ValueError("promotion intent trust pins are incomplete")
@@ -510,17 +675,23 @@ def verify_premerge_intent(
     trusted_controller_revision: str,
     trusted_policy_revision: str,
     branch: str,
+    runtime_run_context: dict[str, Any],
+    reconciliation_implementation: dict[str, Any],
     expected_intent_digest: str | None = None,
 ) -> dict[str, Any]:
     data = intent_path.read_bytes()
     if expected_intent_digest and _sha256(data) != _require_digest(expected_intent_digest, "expected intent digest"):
         raise ValueError("downloaded promotion intent differs from the trusted controller output")
-    intent = json.loads(data)
-    if not isinstance(intent, dict):
-        raise ValueError("promotion intent must be a JSON object")
-    _validate_intent_shape(intent)
-    if data != _canonical_json(intent):
-        raise ValueError("promotion intent is not the canonical deterministic rendering")
+    intent = _decode_canonical_intent(data)
+    expected_run, expected_implementation = _expected_runtime_context(
+        runtime_run_context,
+        reconciliation_implementation,
+    )
+    _check_runtime_provenance(
+        intent,
+        expected_run=expected_run,
+        expected_implementation=expected_implementation,
+    )
     consumer_base_revision = _require_sha(consumer_base_revision, "consumer base revision")
     trusted_controller_revision = _require_sha(trusted_controller_revision, "active controller revision")
     trusted_policy_revision = _require_sha(trusted_policy_revision, "active Policy revision")
@@ -542,6 +713,33 @@ def verify_premerge_intent(
         raise ValueError("promotion intent trust pins do not match current activation pins")
     if branch != f"automation/publication-{intent['idempotency_key']}":
         raise ValueError("promotion branch does not match the verified idempotency key")
+    return intent
+
+
+def verify_target_intent(
+    *,
+    intent_path: Path,
+    runtime_run_context: dict[str, Any],
+    reconciliation_implementation: dict[str, Any],
+    expected_intent_digest: str | None = None,
+) -> dict[str, Any]:
+    """Recheck the intent's exact run and workflow identities at each target boundary."""
+    data = intent_path.read_bytes()
+    if expected_intent_digest is not None and _sha256(data) != _require_digest(
+        expected_intent_digest,
+        "expected intent digest",
+    ):
+        raise ValueError("promotion intent differs from the trusted controller output")
+    intent = _decode_canonical_intent(data)
+    expected_run, expected_implementation = _expected_runtime_context(
+        runtime_run_context,
+        reconciliation_implementation,
+    )
+    _check_runtime_provenance(
+        intent,
+        expected_run=expected_run,
+        expected_implementation=expected_implementation,
+    )
     return intent
 
 
@@ -689,9 +887,51 @@ def _qualification_artifact(args: argparse.Namespace) -> dict[str, Any]:
     return {"id": artifact_id, "digest": args.qualification_artifact_digest, "name": args.qualification_artifact_name}
 
 
+def _runtime_provenance_from_args(
+    args: argparse.Namespace,
+    *,
+    expected: bool,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    prefix = "expected_" if expected else ""
+    run = {
+        "repository": getattr(args, prefix + "run_repository"),
+        "workflow_run_id": getattr(args, prefix + "run_id"),
+        "workflow_attempt": getattr(args, prefix + "run_attempt"),
+        "workflow_head": getattr(args, prefix + "run_head"),
+        "workflow_name": getattr(args, prefix + "run_workflow_name"),
+        "workflow_event": getattr(args, prefix + "run_event"),
+        "run_workflow_path": getattr(args, prefix + "run_workflow_path"),
+    }
+    implementation = {
+        "workflow_repository": getattr(args, prefix + "reconciliation_workflow_repository"),
+        "workflow_file_path": getattr(args, prefix + "reconciliation_workflow_file_path"),
+        "workflow_ref": getattr(args, prefix + "reconciliation_workflow_ref"),
+        "workflow_sha": getattr(args, prefix + "reconciliation_workflow_sha"),
+    }
+    return run, implementation
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
+
+    def add_runtime_provenance_arguments(command: argparse.ArgumentParser, *, expected: bool) -> None:
+        prefix = "expected-" if expected else ""
+        for name, value_type in (
+            ("run-repository", str),
+            ("run-id", int),
+            ("run-attempt", int),
+            ("run-head", str),
+            ("run-workflow-name", str),
+            ("run-event", str),
+            ("run-workflow-path", str),
+            ("reconciliation-workflow-repository", str),
+            ("reconciliation-workflow-file-path", str),
+            ("reconciliation-workflow-ref", str),
+            ("reconciliation-workflow-sha", str),
+        ):
+            command.add_argument(f"--{prefix}{name}", required=True, type=value_type)
+
     build = commands.add_parser("build")
     for argument in (
         "current", "candidate", "source-report", "verified-report", "reconciliation-report",
@@ -702,6 +942,7 @@ def main() -> int:
         build.add_argument("--" + argument, required=True, type=Path if argument in {
             "current", "candidate", "source-report", "verified-report", "reconciliation-report", "output", "github-output"
         } else str)
+    add_runtime_provenance_arguments(build, expected=False)
     verify = commands.add_parser("verify")
     for argument in (
         "intent", "base-lock", "selected-lock", "consumer-base-revision",
@@ -709,6 +950,7 @@ def main() -> int:
     ):
         verify.add_argument("--" + argument, required=argument not in {"expected-intent-digest", "github-output"},
                             type=Path if argument in {"intent", "base-lock", "selected-lock", "github-output"} else str)
+    add_runtime_provenance_arguments(verify, expected=True)
     merged = commands.add_parser("verify-merged")
     for argument in (
         "repository-root", "merged-revision", "trusted-controller-revision", "trusted-policy-revision", "branch",
@@ -726,8 +968,11 @@ def main() -> int:
             type=Path if argument in {"event", "repository-root"} else str,
         )
     target = commands.add_parser("verify-target")
+    target.add_argument("--intent", required=True, type=Path)
     target.add_argument("--expected-base", required=True)
     target.add_argument("--live-base", required=True)
+    target.add_argument("--expected-intent-digest", required=True)
+    add_runtime_provenance_arguments(target, expected=True)
     pr = commands.add_parser("verify-pr")
     for argument in (
         "pr-json", "repository-root", "repository", "expected-base", "expected-tree",
@@ -743,6 +988,10 @@ def main() -> int:
     try:
         if args.command == "build":
             artifact = _qualification_artifact(args)
+            runtime_run_context, reconciliation_implementation = _runtime_provenance_from_args(
+                args,
+                expected=False,
+            )
             intent = build_intent(
                 current=args.current,
                 candidate=args.candidate,
@@ -755,6 +1004,8 @@ def main() -> int:
                 qualification_artifact=artifact,
                 trusted_controller_revision=args.trusted_controller_revision,
                 trusted_policy_revision=args.trusted_policy_revision,
+                runtime_run_context=runtime_run_context,
+                reconciliation_implementation=reconciliation_implementation,
             )
             encoded = _canonical_json(intent)
             args.output.write_bytes(encoded)
@@ -764,6 +1015,10 @@ def main() -> int:
                     stream.write(f"lock_update_required={str(intent['lock_update_required']).lower()}\n")
             print(_sha256(encoded))
         elif args.command == "verify":
+            runtime_run_context, reconciliation_implementation = _runtime_provenance_from_args(
+                args,
+                expected=True,
+            )
             intent = verify_premerge_intent(
                 intent_path=args.intent,
                 base_lock=args.base_lock,
@@ -772,6 +1027,8 @@ def main() -> int:
                 trusted_controller_revision=args.trusted_controller_revision,
                 trusted_policy_revision=args.trusted_policy_revision,
                 branch=args.branch,
+                runtime_run_context=runtime_run_context,
+                reconciliation_implementation=reconciliation_implementation,
                 expected_intent_digest=args.expected_intent_digest,
             )
             if args.github_output:
@@ -798,6 +1055,16 @@ def main() -> int:
             )
             print("verified")
         elif args.command == "verify-target":
+            runtime_run_context, reconciliation_implementation = _runtime_provenance_from_args(
+                args,
+                expected=True,
+            )
+            verify_target_intent(
+                intent_path=args.intent,
+                runtime_run_context=runtime_run_context,
+                reconciliation_implementation=reconciliation_implementation,
+                expected_intent_digest=args.expected_intent_digest,
+            )
             verify_live_consumer_base(expected_base=args.expected_base, live_base=args.live_base)
             print("verified")
         else:
