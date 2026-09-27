@@ -165,7 +165,9 @@ def test_stable_release_probe_sanitizes_inherited_pip_inputs() -> None:
 
     assert "POLICY_SOURCE_REF: refs/remotes/origin/policy-source" in workflow
     assert "scripts/run_policy_preflight.py --check release-state" in workflow
-    assert 'if not key.startswith("PIP_") and not key.startswith("PYTHON")' in runner
+    assert 'if not key.startswith("PIP_")' in runner
+    assert 'and not key.startswith("PYTHON")' in runner
+    assert 'and not key.startswith("PYTEST_")' in runner
     assert 'environment["PIP_CONFIG_FILE"] = os.devnull' in runner
 
 
