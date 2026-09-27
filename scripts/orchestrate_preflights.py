@@ -44,7 +44,7 @@ CANONICAL_CONFIGS: dict[str, dict[str, Any]] = {
         "worktree_rel": "modeling",
         "entrypoint": "tools/qualify.py",
         "default_args": [],
-        "supports_expected_head": False,
+        "supports_expected_head": True,
     },
     "integration": {
         "worktree_rel": "integration",

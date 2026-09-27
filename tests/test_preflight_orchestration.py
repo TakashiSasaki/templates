@@ -308,6 +308,24 @@ def test_unexpected_exact_head_fails_closed(tmp_path: Path) -> None:
     assert "head mismatch" in res.failure_excerpt
 
 
+def test_modeling_runner_receives_exact_head_and_allocated_budget(tmp_path: Path) -> None:
+    repo_root = tmp_path / "workspace"
+    worktree = _create_mock_authority(repo_root, "modeling", output_text="MODELING_PASS")
+    expected_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+    result = run_single_preflight(
+        authority="modeling",
+        repo_root=repo_root,
+        expected_heads={"modeling": expected_head},
+        allocated_workers=2,
+    )
+
+    assert result.status == "PASS"
+    assert result.command[-4:] == ["--expected-head", expected_head, "--jobs", "2"]
+
+
 def test_log_preservation_and_bounded_summary_size(tmp_path: Path) -> None:
     repo_root = tmp_path / "workspace"
     log_dir = tmp_path / "logs"
