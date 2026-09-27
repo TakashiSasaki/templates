@@ -84,9 +84,9 @@ authorization path.
 
 The initial repository configuration is `shadow`; it does not mutate locks or
 publish. After review and landing, one explicit activation may select the next
-mode after the minimal-permission GitHub App token, branch protection, and
-`github-pages` environment restrictions are verified. The activation procedure
-is not self-applied by this implementation PR.
+mode after the dedicated publication automation credential, branch protection,
+and `github-pages` environment restrictions are verified. The activation
+procedure is not self-applied by this implementation PR.
 
 In `auto-publish`, the Pages path captures the deployment timestamp, performs
 the complete qualification DAG against the final Site SHA, and deploys the exact

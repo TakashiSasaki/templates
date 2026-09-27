@@ -80,9 +80,11 @@ never treated as an inactive switch.
 After all authority PRs have been reviewed and landed, an authorized operator
 must verify each item once:
 
-- Install the least-privileged GitHub App credential required by the guarded
-  controller. Store it as the repository secret `PUBLICATION_APP_TOKEN`; this
-  implementation does not create the secret.
+- Configure a dedicated GitHub automation credential with the minimum
+  repository permissions required for guarded publication orchestration. Store
+  it as the repository secret `PUBLICATION_AUTOMATION_TOKEN`; no particular
+  credential implementation is required, and this implementation does not
+  create the secret.
 - Protect `integration` and `site` with the required status checks and retain
   the required human review/merge-queue policy. Confirm that the controller
   may request auto-merge but cannot bypass protection.
@@ -147,17 +149,20 @@ The provider workflows use the workflow's `github.token` to submit the
 `repository_dispatch` transport. GitHub evaluates that event on the repository's
 default branch, which is why the Site adapter is the entry point; the adapter
 then resolves, rather than trusts, the Integration branch. The guarded lock-PR
-jobs use `secrets.PUBLICATION_APP_TOKEN` for Git/PR writes and guarded merge
-requests, and the notification jobs use that App token for subsequent dispatch or
-workflow dispatch. These credentials are not present in this implementation
-worktree and their live permissions are not asserted here.
+jobs use `secrets.PUBLICATION_AUTOMATION_TOKEN` for Git/PR writes and guarded
+merge requests, and the notification jobs use it for subsequent dispatch or
+workflow dispatch. It is an orchestration credential, not the Pages deployment
+credential. Pages deployment continues to use the workflow-scoped `pages: write`
+and `id-token: write` permissions with `actions/deploy-pages`. The secret is
+external to this implementation worktree, and its live permissions are not
+asserted here.
 
 This distinction matters for GitHub's workflow-event rules: activity performed
 with `GITHUB_TOKEN` is generally prevented from recursively starting workflows,
 with the documented `workflow_dispatch` and `repository_dispatch` exceptions.
-The repository explicitly uses those event types and an App token at the
-privileged PR/notification boundaries. The YAML's presence is not proof that the
-credential, permission, branch protection, or downstream delivery succeeded;
+The repository explicitly uses those event types and the dedicated automation
+credential at the privileged PR/notification boundaries. The YAML's presence is
+not proof that the credential, permission, branch protection, or downstream delivery succeeded;
 verify each run and exact identity read-only before treating it as evidence.
 The applicable platform behavior is documented in [GitHub's workflow event
 reference](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows).
@@ -177,8 +182,9 @@ Keep these states separate:
   different identities. Historical Bundle v3 is compatibility/fixture material,
   not a reason to replace the current v4 selection wholesale.
 - The initial committed mode/default fallback is `shadow`; actual repository
-  variables, App credentials, protection rules, trusted pins, and Pages
-  environment are external live state. An unreadable value is `unknown`.
+  variables, publication automation credentials, protection rules, trusted
+  pins, and Pages environment are external live state. An unreadable value is
+  `unknown`.
 - A mode change does not replay an earlier run. Reuse requires checking the latest base,
   exact candidate, existing idempotency PR, run attempt, artifact/receipt expiry,
   and current authorization. Do not resend notifications or rerun a stale run in
