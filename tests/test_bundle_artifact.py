@@ -9,7 +9,7 @@ import unittest
 import zipfile
 from argparse import Namespace
 from unittest.mock import patch
-from ci_artifacts.publication_bundle import pack, extract, binding, consume
+from ci_artifacts.publication_bundle import pack, extract, binding, consume, current_actions_run_id
 from ci_artifacts.transport import ArtifactError
 from publication_bundle.contract import BundleError
 from tests.test_publication_bundle import fixture, finish, PRODUCER, PROVIDERS
@@ -67,6 +67,35 @@ class BundleArtifactTests(unittest.TestCase):
             data=copy.deepcopy({'metadata':metadata,'run':run,'job':job});data[target][key]=value
             with self.subTest(target=target,key=key),self.assertRaises(ArtifactError):binding(data['metadata'],data['run'],[data['job']],**expected)
         with self.assertRaises(ArtifactError):binding(metadata,run,[job,job],**expected)
+
+    def test_active_caller_run_requires_exact_identity_and_successful_producer(self):
+        name='publication-bundle-'+self.manifest['identity']+'-1-reconciliation'
+        metadata={'id':1,'expired':False,'digest':'sha256:'+'d'*64,'name':name,'workflow_run':{'id':2,'head_sha':'a'*40},'created_at':'2026-09-16T12:00:03Z'}
+        expected=dict(artifact_id=1,archive_digest=metadata['digest'],run_id=2,attempt=1,producer='a'*40,workflow_head='a'*40,repository='TakashiSasaki/templates',identity=self.manifest['identity'],artifact_name=name,workflow_name='Dispatch provider qualification to Integration',workflow_event='workflow_dispatch',workflow_path='.github/workflows/provider-publication-dispatch.yml')
+        job={'name':'integration_controller / qualify / Qualify Integration candidate (reconciliation)','run_attempt':1,'status':'completed','conclusion':'success','started_at':'2026-09-16T12:00:00Z','completed_at':'2026-09-16T12:00:10Z'}
+        for status in ('queued','in_progress'):
+            run={'id':2,'run_attempt':1,'head_sha':'a'*40,'head_repository':{'full_name':'TakashiSasaki/templates'},'name':expected['workflow_name'],'event':expected['workflow_event'],'path':expected['workflow_path'],'status':status,'conclusion':None}
+            binding(metadata,run,[job],**expected,active_caller_run_id=2)
+            with self.subTest(status=status,active_caller_run_id=None), self.assertRaisesRegex(ArtifactError,'workflow run was not successful'):
+                binding(metadata,run,[job],**expected)
+            with self.subTest(status=status,active_caller_run_id=3), self.assertRaisesRegex(ArtifactError,'workflow run was not successful'):
+                binding(metadata,run,[job],**expected,active_caller_run_id=3)
+            with self.subTest(status=status,producer_job='failure'), self.assertRaisesRegex(ArtifactError,'no unique successful producing attempt'):
+                binding(metadata,run,[{**job,'conclusion':'failure'}],**expected,active_caller_run_id=2)
+
+        for conclusion in ('failure','cancelled'):
+            run={'id':2,'run_attempt':1,'head_sha':'a'*40,'head_repository':{'full_name':'TakashiSasaki/templates'},'name':expected['workflow_name'],'event':expected['workflow_event'],'path':expected['workflow_path'],'status':'completed','conclusion':conclusion}
+            with self.subTest(conclusion=conclusion), self.assertRaisesRegex(ArtifactError,'workflow run was not successful'):
+                binding(metadata,run,[job],**expected,active_caller_run_id=2)
+
+    def test_active_caller_identity_comes_from_matching_actions_run(self):
+        with patch.dict('os.environ', {'GITHUB_ACTIONS':'true','GITHUB_RUN_ID':'8'}, clear=True):
+            self.assertEqual(current_actions_run_id(8), 8)
+            self.assertIsNone(current_actions_run_id(9))
+        with patch.dict('os.environ', {'GITHUB_ACTIONS':'false','GITHUB_RUN_ID':'8'}, clear=True):
+            self.assertIsNone(current_actions_run_id(8))
+        with patch.dict('os.environ', {'GITHUB_ACTIONS':'true','GITHUB_RUN_ID':'invalid'}, clear=True):
+            self.assertIsNone(current_actions_run_id(8))
 
     def test_remote_consume_keeps_download_alive_for_verified_extraction(self):
         archive, digest = self.archive()

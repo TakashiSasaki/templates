@@ -1,6 +1,7 @@
 """Exact scheduled Bundle transport using the shared Pages archive safeguards."""
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -12,7 +13,8 @@ from publication_bundle.contract import validate
 
 def binding(metadata, run, jobs, *, artifact_id, archive_digest, run_id, attempt,
             producer, workflow_head, repository, identity, artifact_name,
-            workflow_name=None, workflow_event=None, workflow_path=None):
+            workflow_name=None, workflow_event=None, workflow_path=None,
+            active_caller_run_id=None):
     if (run.get('id') != run_id or run.get('run_attempt') != attempt
             or run.get('head_sha') != workflow_head
             or run.get('head_repository',{}).get('full_name') != repository):
@@ -23,7 +25,18 @@ def binding(metadata, run, jobs, *, artifact_id, archive_digest, run_id, attempt
         raise ArtifactError('Bundle workflow event mismatch')
     if workflow_path is not None and run.get('path') != workflow_path:
         raise ArtifactError('Bundle workflow path mismatch')
-    if run.get('status') != 'completed' or run.get('conclusion') != 'success':
+    successful_run = run.get('status') == 'completed' and run.get('conclusion') == 'success'
+    active_caller_run = (
+        # A reusable qualification can upload its artifact before the caller
+        # run completes. Accept that state only for the explicitly supplied,
+        # exact active caller; the successful producing-job binding below is
+        # still required.
+        run.get('status') in ('queued', 'in_progress')
+        and run.get('conclusion') in (None, '')
+        and isinstance(active_caller_run_id, int)
+        and run.get('id') == active_caller_run_id
+    )
+    if not (successful_run or active_caller_run):
         raise ArtifactError('Bundle workflow run was not successful')
     if (metadata.get('id') != artifact_id or metadata.get('expired') is not False
             or metadata.get('digest') != archive_digest
@@ -77,6 +90,16 @@ def api(path):
     return json.loads(subprocess.check_output(['gh','api',path],text=True))
 
 
+def current_actions_run_id(expected_run_id):
+    if os.environ.get('GITHUB_ACTIONS') != 'true':
+        return None
+    try:
+        current_run_id = int(os.environ['GITHUB_RUN_ID'])
+    except (KeyError, ValueError):
+        return None
+    return current_run_id if current_run_id == expected_run_id else None
+
+
 def consume(args):
     prefix=f'repos/{args.repository}/actions'
     metadata=api(f'{prefix}/artifacts/{args.artifact_id}')
@@ -87,7 +110,24 @@ def consume(args):
         jobs+=batch
         if len(batch)<100:break
     else:raise ArtifactError('Bundle job pagination limit exceeded')
-    binding(metadata,run,jobs,artifact_id=args.artifact_id,archive_digest=args.archive_digest,run_id=args.run_id,attempt=args.attempt,producer=args.producer,workflow_head=args.workflow_head,repository=args.repository,identity=args.bundle_identity,artifact_name=args.artifact_name,workflow_name=args.workflow_name,workflow_event=args.workflow_event,workflow_path=args.workflow_path)
+    binding(
+        metadata,
+        run,
+        jobs,
+        artifact_id=args.artifact_id,
+        archive_digest=args.archive_digest,
+        run_id=args.run_id,
+        attempt=args.attempt,
+        producer=args.producer,
+        workflow_head=args.workflow_head,
+        repository=args.repository,
+        identity=args.bundle_identity,
+        artifact_name=args.artifact_name,
+        workflow_name=args.workflow_name,
+        workflow_event=args.workflow_event,
+        workflow_path=args.workflow_path,
+        active_caller_run_id=current_actions_run_id(args.run_id),
+    )
     providers={'composition':args.composition,'policy':args.policy}
     if args.modeling:
         providers={'modeling':args.modeling,**providers}
