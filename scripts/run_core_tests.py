@@ -221,11 +221,17 @@ class InventoryTextTestResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.outcomes: dict[str, dict[str, str]] = {}
+        self.discovered_cases: tuple[unittest.TestCase, ...] = ()
 
     def _record(
         self, test: unittest.TestCase, status: str, reason: str | None = None
     ) -> None:
         test_id = test.id()
+        self._record_id(test_id, status, reason)
+
+    def _record_id(
+        self, test_id: str, status: str, reason: str | None = None
+    ) -> None:
         existing = self.outcomes.get(test_id)
         if existing is not None and existing["status"] in {
             "failure",
@@ -239,29 +245,57 @@ class InventoryTextTestResult(unittest.TextTestResult):
             value["reason"] = str(reason)
         self.outcomes[test_id] = value
 
+    def _fixture_outcome_test_ids(self, test) -> tuple[str, ...] | None:
+        fixture_id = test.id()
+        if fixture_id.startswith("setUpModule (") and fixture_id.endswith(")"):
+            module = fixture_id[len("setUpModule (") : -1]
+            return tuple(
+                case.id()
+                for case in self.discovered_cases
+                if case.__class__.__module__ == module
+            )
+        if fixture_id.startswith("setUpClass (") and fixture_id.endswith(")"):
+            target = fixture_id[len("setUpClass (") : -1]
+            return tuple(
+                case.id()
+                for case in self.discovered_cases
+                if case.id().rsplit(".", 1)[0] == target
+            )
+        if fixture_id.startswith(("tearDownModule (", "tearDownClass (")):
+            return ()
+        return None
+
+    def _record_outcome(self, test, status: str, reason: str | None = None) -> None:
+        fixture_test_ids = self._fixture_outcome_test_ids(test)
+        if fixture_test_ids is None:
+            self._record(getattr(test, "test_case", test), status, reason)
+            return
+        for test_id in fixture_test_ids:
+            self._record_id(test_id, status, reason)
+
     def addSuccess(self, test):
         super().addSuccess(test)
         self._record(test, "passed")
 
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
-        self._record(getattr(test, "test_case", test), "skipped", reason)
+        self._record_outcome(test, "skipped", reason)
 
     def addFailure(self, test, err):
         super().addFailure(test, err)
-        self._record(test, "failure")
+        self._record_outcome(test, "failure")
 
     def addError(self, test, err):
         super().addError(test, err)
-        self._record(test, "error")
+        self._record_outcome(test, "error")
 
     def addExpectedFailure(self, test, err):
         super().addExpectedFailure(test, err)
-        self._record(test, "expected-failure")
+        self._record_outcome(test, "expected-failure")
 
     def addUnexpectedSuccess(self, test):
         super().addUnexpectedSuccess(test)
-        self._record(test, "unexpected-success")
+        self._record_outcome(test, "unexpected-success")
 
     def addSubTest(self, test, subtest, err):
         super().addSubTest(test, subtest, err)
@@ -273,12 +307,23 @@ class InventoryTextTestResult(unittest.TextTestResult):
 class InventoryTextTestRunner(unittest.TextTestRunner):
     resultclass = InventoryTextTestResult
 
+    def __init__(self, *args, discovered_cases=(), **kwargs):
+        self.discovered_cases = tuple(discovered_cases)
+        super().__init__(*args, **kwargs)
+
+    def _makeResult(self):
+        result = super()._makeResult()
+        result.discovered_cases = self.discovered_cases
+        return result
+
 
 def run_suite(
     cases: list[unittest.TestCase],
     verbosity: int,
 ) -> InventoryTextTestResult:
-    result = InventoryTextTestRunner(verbosity=verbosity).run(unittest.TestSuite(cases))
+    result = InventoryTextTestRunner(
+        verbosity=verbosity, discovered_cases=cases
+    ).run(unittest.TestSuite(cases))
     return result
 
 
@@ -726,14 +771,22 @@ def run_tests(
         result = run_suite(cases, verbosity)
         runner_wall = time.perf_counter() - runner_started
         outcomes = result.outcomes
+        failures = []
+        if len(outcomes) != len(inventory_ids) or set(outcomes) != set(inventory_ids):
+            failures.append(
+                "Site unittest results do not cover the exact discovered inventory"
+            )
         counts = summarize_outcomes(outcomes)
         print(
-            f"SITE_UNITTEST_RESULT suite={suite_name} tests_run={result.testsRun} "
+            f"SITE_UNITTEST_RESULT suite={suite_name} tests_run={len(outcomes)} "
             f"passed={counts['passed']} skipped={counts['skipped']} failures={counts['failures']} "
             f"errors={counts['errors']} expected_failures={counts['expected_failures']} "
             f"unexpected_successes={counts['unexpected_successes']} outcome_sha256={outcome_digest(outcomes)}",
             flush=True,
         )
+        if failures:
+            for failure in failures:
+                print(f"SITE_UNITTEST_FAIL {failure}", file=sys.stderr, flush=True)
         print(
             f"SITE_WORKER_METRICS requested={jobs} effective=1 peak_workers=1 "
             f"runner_wall_seconds={runner_wall:.3f} slowest_worker_seconds={runner_wall:.3f} "
@@ -746,7 +799,7 @@ def run_tests(
                 file=sys.stderr,
             )
             return 1
-        return 0 if result.wasSuccessful() else 1
+        return 0 if result.wasSuccessful() and not failures else 1
 
     print(
         f"SITE_WORKERS requested={jobs} effective={effective_jobs} runner=site-python "

@@ -10,6 +10,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import patch
 
 from scripts.run_core_tests import (
@@ -30,6 +31,127 @@ from scripts.run_core_tests import (
 
 
 class RunCoreTestsContractTests(unittest.TestCase):
+    def _assert_serial_fixture_outcomes(
+        self,
+        cases: list[unittest.TestCase],
+        *,
+        status: str,
+        expected_exit: int,
+        reason: str | None = None,
+    ) -> None:
+        outcomes = {
+            case.id(): (
+                {"status": status, "reason": reason}
+                if reason is not None
+                else {"status": status}
+            )
+            for case in cases
+        }
+        output = io.StringIO()
+        error_output = io.StringIO()
+        with (
+            patch(
+                "scripts.run_core_tests.load_test_suite",
+                return_value=unittest.TestSuite(cases),
+            ),
+            patch("sys.stdout", output),
+            patch("sys.stderr", error_output),
+        ):
+            result = run_tests("core", verbosity=0, jobs=1)
+
+        self.assertEqual(result, expected_exit)
+        self.assertIn(f"discovered={len(cases)}", output.getvalue())
+        self.assertIn(f"tests_run={len(cases)}", output.getvalue())
+        self.assertIn(f"skipped={len(cases) if status == 'skipped' else 0}", output.getvalue())
+        self.assertIn(f"errors={len(cases) if status == 'error' else 0}", output.getvalue())
+        self.assertIn(f"outcome_sha256={outcome_digest(outcomes)}", output.getvalue())
+        self.assertNotIn("SITE_UNITTEST_FAIL", error_output.getvalue())
+
+    def test_serial_class_setup_skip_accounts_every_discovered_id(self) -> None:
+        class SkippedClass(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise unittest.SkipTest("controlled class setup skip")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        self._assert_serial_fixture_outcomes(
+            [SkippedClass("test_one"), SkippedClass("test_two")],
+            status="skipped",
+            expected_exit=0,
+            reason="controlled class setup skip",
+        )
+
+    def test_serial_class_setup_error_accounts_every_discovered_id(self) -> None:
+        class BrokenClass(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise RuntimeError("controlled class setup error")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        self._assert_serial_fixture_outcomes(
+            [BrokenClass("test_one"), BrokenClass("test_two")],
+            status="error",
+            expected_exit=1,
+        )
+
+    def _module_fixture_cases(self, module_name: str, exception: Exception):
+        module = ModuleType(module_name)
+
+        def set_up_module():
+            raise exception
+
+        module.setUpModule = set_up_module
+        case_type = type(
+            "FixtureModuleCases",
+            (unittest.TestCase,),
+            {
+                "__module__": module_name,
+                "test_one": lambda self: None,
+                "test_two": lambda self: None,
+            },
+        )
+        cases = [case_type("test_one"), case_type("test_two")]
+        return module, cases
+
+    def test_serial_module_setup_skip_accounts_every_discovered_id(self) -> None:
+        module_name = "site_serial_module_setup_skip"
+        module, cases = self._module_fixture_cases(
+            module_name, unittest.SkipTest("controlled module setup skip")
+        )
+        sys.modules[module_name] = module
+        try:
+            self._assert_serial_fixture_outcomes(
+                cases,
+                status="skipped",
+                expected_exit=0,
+                reason="controlled module setup skip",
+            )
+        finally:
+            sys.modules.pop(module_name, None)
+
+    def test_serial_module_setup_error_accounts_every_discovered_id(self) -> None:
+        module_name = "site_serial_module_setup_error"
+        module, cases = self._module_fixture_cases(
+            module_name, RuntimeError("controlled module setup error")
+        )
+        sys.modules[module_name] = module
+        try:
+            self._assert_serial_fixture_outcomes(
+                cases, status="error", expected_exit=1
+            )
+        finally:
+            sys.modules.pop(module_name, None)
+
     def test_skipped_subtest_records_parent_discovered_id(self) -> None:
         class SkippedSubtest(unittest.TestCase):
             def test_skipped_subtest(self) -> None:
