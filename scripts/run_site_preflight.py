@@ -208,7 +208,7 @@ def sanitize_node_options_for_worker_budget(environment: dict[str, str]) -> None
     index = 0
     while index < len(tokens):
         token = tokens[index]
-        option_name = token.partition("=")[0].replace('"', "")
+        option_name = token.partition("=")[0].replace('"', "").replace("_", "-")
         if option_name == "--test-concurrency":
             removed = True
             if "=" in token:
@@ -216,7 +216,7 @@ def sanitize_node_options_for_worker_budget(environment: dict[str, str]) -> None
                 continue
             index += 1
             next_option = (
-                tokens[index].partition("=")[0].replace('"', "")
+                tokens[index].partition("=")[0].replace('"', "").replace("_", "-")
                 if index < len(tokens)
                 else ""
             )
