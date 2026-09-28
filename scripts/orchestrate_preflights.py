@@ -27,6 +27,7 @@ MAX_SUMMARY_BYTES = 8192
 DEFAULT_TIMEOUT_SECONDS = 300
 SUPERVISOR_CLEANUP_TIMEOUT_SECONDS = 4.0
 SUPERVISOR_KILL_TIMEOUT_SECONDS = 1.0
+SUPERVISOR_STOPPED_CLEANLY_EXIT_CODE = 124
 
 # Canonical authority definitions based on live authority contracts
 CANONICAL_CONFIGS: dict[str, dict[str, Any]] = {
@@ -183,10 +184,12 @@ def _stop_authority_supervisor(
                 f"{stderr}\nsupervisor cleanup wait failed: {wait_error}"
             )
         else:
+            # Once the reporting pipes are closed, only the supervisor's
+            # explicit stop-and-clean exit code proves descendant cleanup.
             return (
                 stdout,
                 stderr,
-                process.returncode is not None and process.returncode != 125,
+                process.returncode == SUPERVISOR_STOPPED_CLEANLY_EXIT_CODE,
             )
 
     # communicate() already waited for the supervisor's cleanup deadline, or
