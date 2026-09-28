@@ -24,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -169,6 +170,40 @@ def run_core(jobs: int = 1) -> None:
     )
 
 
+def sanitize_node_options_for_worker_budget(environment: dict[str, str]) -> None:
+    value = environment.get("NODE_OPTIONS")
+    if value is None:
+        return
+    tokens = shlex.split(value)
+    sanitized: list[str] = []
+    removed = False
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "--test-concurrency":
+            removed = True
+            index += 1
+            if index < len(tokens) and not tokens[index].startswith("--"):
+                index += 1
+            continue
+        if token.startswith("--test-concurrency="):
+            removed = True
+            index += 1
+            continue
+        sanitized.append(token)
+        index += 1
+    if removed:
+        if sanitized:
+            environment["NODE_OPTIONS"] = shlex.join(sanitized)
+        else:
+            environment.pop("NODE_OPTIONS", None)
+        print(
+            "SITE_ENV_SANITIZED variable=NODE_OPTIONS option=--test-concurrency "
+            "runner=site-node reason=explicit-worker-budget",
+            flush=True,
+        )
+
+
 def run_node(jobs: int = 1) -> None:
     if jobs < 1:
         raise ValueError("Site Node worker budget must be at least 1")
@@ -176,11 +211,7 @@ def run_node(jobs: int = 1) -> None:
         raise RuntimeError("no Composition Playground Node tests were found")
     effective_jobs = min(jobs, len(NODE_TESTS))
     environment = os.environ.copy()
-    if environment.pop("NODE_OPTIONS", None) is not None:
-        print(
-            "SITE_ENV_SANITIZED variable=NODE_OPTIONS runner=site-node reason=explicit-worker-budget",
-            flush=True,
-        )
+    sanitize_node_options_for_worker_budget(environment)
     print(
         f"SITE_WORKERS requested={jobs} effective={effective_jobs} "
         "runner=site-node mode=node-test",

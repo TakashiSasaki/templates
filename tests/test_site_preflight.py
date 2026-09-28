@@ -343,16 +343,25 @@ class SitePreflightTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "at least 1"):
             preflight.run_node(0)
 
-    def test_node_test_runner_receives_explicit_budget_and_ignores_node_options(self):
-        with patch.dict(os.environ, {"NODE_OPTIONS": "--test-concurrency=auto"}), patch.object(
-            preflight, "_run"
-        ) as run:
+    def test_node_runner_preserves_unrelated_options_and_pins_worker_budget(self):
+        with patch.dict(
+            os.environ,
+            {
+                "NODE_OPTIONS": (
+                    "--max-old-space-size=2048 --test-concurrency=auto "
+                    "--trace-warnings --test-concurrency 6"
+                )
+            },
+        ), patch.object(preflight, "_run") as run:
             preflight.run_node(1)
         command = run.call_args.args[0]
         self.assertEqual(command[:3], ["node", "--test", "--test-concurrency=1"])
         self.assertEqual(command[3:], list(preflight.NODE_TESTS))
         child_environment = run.call_args.kwargs["env"]
-        self.assertNotIn("NODE_OPTIONS", child_environment)
+        self.assertEqual(
+            child_environment["NODE_OPTIONS"],
+            "--max-old-space-size=2048 --trace-warnings",
+        )
 
     def test_core_runner_sanitizes_environment_before_python_tests_spawn_node(self):
         output = io.StringIO()
