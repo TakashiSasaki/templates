@@ -6,6 +6,7 @@ import importlib
 import os
 import subprocess
 import sys
+import threading
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -65,16 +66,92 @@ class SitePreflightTests(unittest.TestCase):
         run_check.assert_not_called()
 
     def test_source_ready_profile_runs_every_cheap_source_check(self):
-        with patch.object(preflight, "run_check") as run_check, patch.object(
+        reached_l0 = threading.Event()
+        independent_checks = threading.Barrier(2)
+        started = []
+
+        def run_check(check, _args):
+            if check == "l0":
+                reached_l0.set()
+                return
+            self.assertTrue(reached_l0.is_set())
+            started.append(check)
+            if check in {"core", "node"}:
+                independent_checks.wait(timeout=5)
+
+        with patch.object(preflight, "run_check", side_effect=run_check), patch.object(
             preflight.subprocess,
             "check_output",
             side_effect=["a" * 40, ""],
         ):
-            self.assertEqual(preflight.main(["source-ready", "--expected-head", "a" * 40]), 0)
-        self.assertEqual(
-            [call.args[0] for call in run_check.call_args_list],
-            list(SOURCE_READY_CHECKS),
-        )
+            self.assertEqual(
+                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "2"]),
+                0,
+            )
+        self.assertCountEqual(started, list(SOURCE_READY_CHECKS[1:]))
+
+    def test_jobs_one_keeps_source_ready_checks_serial_in_order(self):
+        active = 0
+        peak = 0
+        seen = []
+        lock = threading.Lock()
+
+        def run_check(check, _args):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+                seen.append(check)
+                active -= 1
+
+        with patch.object(preflight, "run_check", side_effect=run_check), patch.object(
+            preflight, "_git_output", side_effect=["a" * 40, ""]
+        ):
+            self.assertEqual(
+                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "1"]),
+                0,
+            )
+        self.assertEqual(seen, list(SOURCE_READY_CHECKS))
+        self.assertEqual(peak, 1)
+
+    def test_source_ready_wave_plan_respects_assigned_budget(self):
+        expected_first_waves = {
+            1: [[("core", 1)], [("node", 1)]],
+            2: [[("core", 1), ("node", 1)], [("site-contracts", 1), ("dependency-boundary", 1)]],
+            3: [[("core", 1), ("node", 1), ("site-contracts", 1)], [("dependency-boundary", 1)]],
+            4: [[("core", 1), ("node", 2), ("site-contracts", 1)], [("dependency-boundary", 1)]],
+        }
+        for jobs in (1, 2, 3, 4, 8):
+            with self.subTest(jobs=jobs):
+                waves = preflight.plan_source_ready_waves(jobs)
+                self.assertTrue(all(sum(count for _, count in wave) <= jobs for wave in waves))
+                self.assertEqual(
+                    [check for wave in waves for check, _ in wave],
+                    ["core", "node", "site-contracts", "dependency-boundary"],
+                )
+                if jobs in expected_first_waves:
+                    self.assertEqual(waves[:2], expected_first_waves[jobs])
+
+    def test_source_ready_child_failure_waits_for_and_reaps_wave_siblings(self):
+        barrier = threading.Barrier(2)
+        completed = set()
+
+        def run_check(check, _args):
+            if check == "l0":
+                return
+            barrier.wait(timeout=5)
+            if check == "core":
+                raise RuntimeError("controlled core failure")
+            if check == "node":
+                completed.add(check)
+
+        with patch.object(preflight, "run_check", side_effect=run_check), patch.object(
+            preflight, "_git_output", side_effect=["a" * 40, ""]
+        ), patch("sys.stderr", new_callable=__import__("io").StringIO):
+            with self.assertRaises(SystemExit) as raised:
+                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "2"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertEqual(completed, {"node"})
 
     def test_source_ready_does_not_start_managed_runtime_from_empty_cache(self):
         with TemporaryDirectory() as cache:
