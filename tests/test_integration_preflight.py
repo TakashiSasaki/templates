@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import hashlib
 import io
 import json
@@ -148,6 +148,34 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("tests_run=1 passed=0 skipped=1 failures=0 errors=0", output.getvalue())
         self.assertNotIn("omitted test IDs", output.getvalue())
+
+    def test_subtest_failure_is_not_overwritten_by_later_skip(self) -> None:
+        class Probe(unittest.TestCase):
+            def test_failure_then_skip(self):
+                with self.subTest(case="failure"):
+                    self.fail("controlled subtest failure")
+                with self.subTest(case="skip"):
+                    self.skipTest("controlled later skip")
+
+        case = Probe("test_failure_then_skip")
+        with redirect_stderr(io.StringIO()):
+            result = preflight.run_suite([case], verbosity=0)
+
+        self.assertEqual(
+            result.outcomes,
+            {case.id(): {"status": "failure"}},
+        )
+        self.assertEqual(
+            preflight.summarize_outcomes(result.outcomes),
+            {
+                "passed": 0,
+                "skipped": 0,
+                "failures": 1,
+                "errors": 0,
+                "expected_failures": 0,
+                "unexpected_successes": 0,
+            },
+        )
 
     def test_parallel_worker_budget_is_capped_by_schedulable_modules(self) -> None:
         cases = []

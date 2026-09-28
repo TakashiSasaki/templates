@@ -198,6 +198,15 @@ def partition_test_ids(test_ids: list[str] | tuple[str, ...], jobs: int) -> list
 
 
 class InventoryTextTestResult(unittest.TextTestResult):
+    _OUTCOME_PRECEDENCE = {
+        "passed": 0,
+        "skipped": 1,
+        "expected-failure": 2,
+        "unexpected-success": 3,
+        "failure": 4,
+        "error": 5,
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.outcomes: dict[str, dict[str, str]] = {}
@@ -207,6 +216,9 @@ class InventoryTextTestResult(unittest.TextTestResult):
         self._record_id(test.id(), status, reason)
 
     def _record_id(self, test_id: str, status: str, reason: str | None = None) -> None:
+        previous = self.outcomes.get(test_id)
+        if previous is not None and self._OUTCOME_PRECEDENCE[previous["status"]] > self._OUTCOME_PRECEDENCE[status]:
+            return
         value = {"status": status}
         if reason is not None:
             value["reason"] = str(reason)
