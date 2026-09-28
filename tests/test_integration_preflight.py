@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from threading import Barrier, Lock
 import sys
 import time
+from types import ModuleType
 import unittest
 from unittest.mock import patch
 
@@ -42,6 +43,43 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("tests_run=2 passed=0 skipped=2 failures=0 errors=0", output.getvalue())
         self.assertNotIn("omitted test IDs", output.getvalue())
+
+    def test_teardown_class_skip_does_not_add_a_synthetic_test_id(self) -> None:
+        class TeardownSkippedClass(unittest.TestCase):
+            def test_case_passed_before_teardown(self):
+                pass
+
+            @classmethod
+            def tearDownClass(cls):
+                raise unittest.SkipTest("controlled teardown skip")
+
+        case = TeardownSkippedClass("test_case_passed_before_teardown")
+        result = preflight.run_suite([case], verbosity=0)
+        self.assertEqual(result.outcomes, {case.id(): {"status": "passed"}})
+
+    def test_teardown_module_skip_does_not_add_a_synthetic_test_id(self) -> None:
+        module_name = "test_integration_teardown_module_skip"
+        module = ModuleType(module_name)
+
+        def tear_down_module():
+            raise unittest.SkipTest("controlled module teardown skip")
+
+        module.tearDownModule = tear_down_module
+        case_type = type(
+            "TeardownSkippedModule",
+            (unittest.TestCase,),
+            {
+                "__module__": module_name,
+                "test_case_passed_before_teardown": lambda self: None,
+            },
+        )
+        sys.modules[module_name] = module
+        try:
+            case = case_type("test_case_passed_before_teardown")
+            result = preflight.run_suite([case], verbosity=0)
+        finally:
+            sys.modules.pop(module_name, None)
+        self.assertEqual(result.outcomes, {case.id(): {"status": "passed"}})
 
     def test_module_fixture_skip_preserves_worker_inventory(self) -> None:
         module_name = "test_integration_module_fixture_skip"
