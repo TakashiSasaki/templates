@@ -1106,6 +1106,72 @@ def test_normal_exit_does_not_signal_a_reaped_authority_process_group(
 
 
 @pytest.mark.skipif(
+    os.name != "posix" or not _authority_supervisor._supports_unreaped_child_observation(),
+    reason="requires POSIX waitid(WNOWAIT)",
+)
+def test_posix_without_subreaper_signals_only_while_group_id_is_reserved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    worktree = _create_mock_authority(repo_root, "policy")
+    authority_pid_file = tmp_path / "authority.pid"
+    signal_audit = tmp_path / "group-signals.log"
+    (worktree / "scripts" / "run_policy_preflight.py").write_text(
+        "import os, pathlib\n"
+        f"pathlib.Path({str(authority_pid_file)!r}).write_text(\n"
+        "    str(os.getpid()), encoding='utf-8'\n"
+        ")\n",
+        encoding="utf-8",
+    )
+
+    supervisor_directory = tmp_path / "supervisor"
+    supervisor_directory.mkdir()
+    supervisor_path = supervisor_directory / "_authority_supervisor.py"
+    supervisor_source = (ROOT / "scripts" / "_authority_supervisor.py").read_text(
+        encoding="utf-8"
+    )
+    main_marker = "\ndef main(argv: list[str] | None = None) -> int:\n"
+    assert main_marker in supervisor_source
+    signal_audit_wrapper = (
+        "\n_signal_group_before_audit = _signal_authority_group\n"
+        "def _signal_authority_group(process_group_id: int, signum: int) -> None:\n"
+        f"    leader_file = Path({str(authority_pid_file)!r})\n"
+        "    if leader_file.exists():\n"
+        "        leader_id = int(leader_file.read_text(encoding='utf-8'))\n"
+        "    else:\n"
+        "        leader_id = None\n"
+        "    if leader_id == process_group_id:\n"
+        "        leader_present = Path(f'/proc/{process_group_id}/stat').exists()\n"
+        f"        with Path({str(signal_audit)!r}).open('a', encoding='utf-8') as stream:\n"
+        "            stream.write(f'{signum} {leader_present}\\n')\n"
+        "    _signal_group_before_audit(process_group_id, signum)\n"
+    )
+    supervisor_source = supervisor_source.replace(main_marker, signal_audit_wrapper + main_marker)
+    supervisor_source = supervisor_source.replace(
+        "        subreaper_enabled = _enable_linux_child_subreaper()\n",
+        "        subreaper_enabled = False\n",
+    )
+    supervisor_source = supervisor_source.replace(
+        "NATURAL_EXIT_GRACE_SECONDS = 0.25",
+        "NATURAL_EXIT_GRACE_SECONDS = 0.01",
+    )
+    supervisor_path.write_text(supervisor_source, encoding="utf-8")
+    monkeypatch.setattr(
+        orchestrator_module,
+        "__file__",
+        str(supervisor_directory / "orchestrate_preflights.py"),
+    )
+
+    result = run_single_preflight(authority="policy", repo_root=repo_root, timeout=5.0)
+
+    assert result.status == "PASS"
+    signals = signal_audit.read_text(encoding="utf-8").splitlines()
+    assert len(signals) == 2
+    assert all(line.endswith(" True") for line in signals)
+    assert not _pid_exists(int(authority_pid_file.read_text(encoding="utf-8")))
+
+
+@pytest.mark.skipif(
     sys.platform != "linux" or os.geteuid() != 0,
     reason="requires Linux and root to change descendant credentials",
 )

@@ -42,6 +42,32 @@ def _enable_linux_child_subreaper() -> bool:
     return True
 
 
+def _supports_unreaped_child_observation() -> bool:
+    return (
+        os.name == "posix"
+        and callable(getattr(os, "waitid", None))
+        and all(
+            hasattr(os, name)
+            for name in ("P_PID", "WEXITED", "WNOHANG", "WNOWAIT")
+        )
+    )
+
+
+def _authority_exit_observed(
+    process: subprocess.Popen[bytes], *, subreaper_enabled: bool
+) -> bool:
+    if os.name == "posix" and not subreaper_enabled:
+        if not _supports_unreaped_child_observation():
+            raise OSError("POSIX waitid(WNOWAIT) is required for safe process-group cleanup")
+        result = os.waitid(
+            os.P_PID,
+            process.pid,
+            os.WEXITED | os.WNOHANG | os.WNOWAIT,
+        )
+        return result is not None and result.si_pid != 0
+    return process.poll() is not None
+
+
 def _parent_pid_from_proc_stat(value: str) -> int:
     """Read PPID from ``/proc/<pid>/stat``, whose command field may contain spaces."""
 
@@ -176,12 +202,38 @@ def _wait_for_process_group(process_group_id: int, timeout: float) -> bool:
     return True
 
 
+def _finish_posix_group_without_subreaper(
+    process: subprocess.Popen[bytes], *, allow_natural_exit: bool
+) -> bool:
+    # Keep the session leader unreaped until every group signal has been sent.
+    # Its zombie PID reserves the numeric PGID, preventing it from being reused
+    # for an unrelated process group during cleanup.
+    if process.returncode is not None:
+        return False
+
+    group_id = process.pid
+    _signal_authority_group(group_id, signal.SIGTERM)
+    grace = NATURAL_EXIT_GRACE_SECONDS if allow_natural_exit else TERMINATION_GRACE_SECONDS
+    time.sleep(grace)
+    _signal_authority_group(group_id, signal.SIGKILL)
+    try:
+        process.wait(timeout=REAP_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        return False
+    return True
+
+
 def _finish_authority_tree(
     process: subprocess.Popen[bytes],
     *,
     subreaper_enabled: bool,
     allow_natural_exit: bool,
 ) -> bool:
+    if os.name == "posix" and not subreaper_enabled:
+        return _finish_posix_group_without_subreaper(
+            process, allow_natural_exit=allow_natural_exit
+        )
+
     process_group_id = process.pid
 
     if process.poll() is None:
@@ -302,6 +354,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 125
 
+    if os.name == "posix" and not subreaper_enabled:
+        if not _supports_unreaped_child_observation():
+            print(
+                "POSIX waitid(WNOWAIT) is required for safe process-group cleanup; "
+                "refusing to launch the authority",
+                file=sys.stderr,
+            )
+            return 125
+
     if _STOP_REQUESTED:
         return 124
 
@@ -315,7 +376,12 @@ def main(argv: list[str] | None = None) -> int:
         return 126
 
     try:
-        while process.poll() is None and not _STOP_REQUESTED:
+        while (
+            not _authority_exit_observed(
+                process, subreaper_enabled=subreaper_enabled
+            )
+            and not _STOP_REQUESTED
+        ):
             time.sleep(POLL_INTERVAL_SECONDS)
         cleanup_complete = _finish_authority_tree(
             process,
