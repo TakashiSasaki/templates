@@ -116,7 +116,9 @@ def _runtime_run_context(
     if not isinstance(workflow_name, str) or not workflow_name.strip():
         raise ValueError("qualification workflow name is missing")
     if not isinstance(workflow_event, str) or workflow_event not in RECONCILIATION_EVENTS:
-        raise ValueError("qualification workflow event is not a supported reconciliation invocation")
+        raise ValueError(
+            "qualification workflow event is not supported; expected workflow_dispatch or repository_dispatch"
+        )
     if not isinstance(run_workflow_path, str) or not run_workflow_path.strip():
         raise ValueError("top-level qualification run workflow path is missing")
 
@@ -126,8 +128,6 @@ def _runtime_run_context(
             raise ValueError("direct reconciliation workflow SHA differs from the top-level run head")
     elif run_workflow_path == SITE_DISPATCH_WORKFLOW_PATH:
         invocation_mode = "site-reusable"
-        if workflow_event != "workflow_dispatch":
-            raise ValueError("Site reusable reconciliation is supported only for workflow_dispatch runs")
         selected_ref = reconciliation_implementation["workflow_ref"].rsplit("@", 1)[1]
         if SHA.fullmatch(selected_ref) is None or selected_ref != reconciliation_implementation["workflow_sha"]:
             raise ValueError("Site caller did not pin the Integration reconciliation workflow to its runtime SHA")

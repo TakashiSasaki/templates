@@ -96,14 +96,14 @@ def _direct_reconciliation_implementation(producer: str) -> dict:
     }
 
 
-def _observed_site_run_context() -> dict:
+def _observed_site_run_context(*, event: str = "workflow_dispatch") -> dict:
     return {
         "repository": REPOSITORY,
         "workflow_run_id": 36322246692,
         "workflow_attempt": 1,
         "workflow_head": SITE_HEAD,
         "workflow_name": "Dispatch provider qualification to Integration",
-        "workflow_event": "workflow_dispatch",
+        "workflow_event": event,
         "run_workflow_path": SITE_DISPATCH_PATH,
     }
 
@@ -704,6 +704,81 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                     runtime_run_context=run_context,
                     reconciliation_implementation=implementation,
                     expected_intent_digest=_digest(encoded),
+                )
+
+    def test_site_provider_repository_dispatch_builds_verifies_and_preserves_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, base = self._new_git_repo(directory)
+            run_context = _observed_site_run_context(event="repository_dispatch")
+            implementation = _observed_reconciliation_implementation()
+            current, candidate, intent = self._build(
+                Path(directory),
+                base,
+                run_context=run_context,
+                reconciliation_implementation=implementation,
+            )
+
+            self.assertEqual(intent["schema_version"], 2)
+            self.assertEqual(intent["run_provenance"]["workflow_event"], "repository_dispatch")
+            self.assertEqual(intent["run_provenance"]["run_workflow_path"], SITE_DISPATCH_PATH)
+            self.assertEqual(
+                intent["reconciliation_implementation"]["workflow_file_path"],
+                RECONCILIATION_PATH,
+            )
+            self.assertEqual(
+                intent["reconciliation_implementation"]["workflow_ref"],
+                f"{REPOSITORY}/{RECONCILIATION_PATH}@{SITE_RECONCILIATION_SHA}",
+            )
+            self.assertEqual(
+                intent["reconciliation_implementation"]["workflow_sha"],
+                SITE_RECONCILIATION_SHA,
+            )
+
+            intent_path = root / "publication-promotion-intent.json"
+            encoded = _write_json(intent_path, intent)
+            branch = f"automation/publication-{intent['idempotency_key']}"
+            verified = verify_premerge_intent(
+                intent_path=intent_path,
+                base_lock=current,
+                selected_lock=candidate,
+                consumer_base_revision=base,
+                trusted_controller_revision=CONTROLLER,
+                trusted_policy_revision=POLICY,
+                branch=branch,
+                runtime_run_context=run_context,
+                reconciliation_implementation=implementation,
+                expected_intent_digest=_digest(encoded),
+            )
+            self.assertEqual(verified["run_provenance"]["workflow_event"], "repository_dispatch")
+
+            targeted = verify_target_intent(
+                intent_path=intent_path,
+                runtime_run_context=run_context,
+                reconciliation_implementation=implementation,
+                expected_intent_digest=_digest(encoded),
+            )
+            self.assertEqual(targeted["run_provenance"]["workflow_event"], "repository_dispatch")
+
+            merged_revision = self._merge_intent(root, base, encoded)
+            merged = verify_merged_intent(
+                repository_root=root,
+                merged_revision=merged_revision,
+                trusted_controller_revision=CONTROLLER,
+                trusted_policy_revision=POLICY,
+                branch=branch,
+            )
+            self.assertEqual(merged["run_provenance"]["workflow_event"], "repository_dispatch")
+
+            unsupported_run_context = copy.deepcopy(run_context)
+            unsupported_run_context["workflow_event"] = "push"
+            with self.assertRaisesRegex(ValueError, "workflow event is not supported"):
+                unsupported_root = Path(directory) / "unsupported-event"
+                unsupported_root.mkdir()
+                self._build(
+                    unsupported_root,
+                    base,
+                    run_context=unsupported_run_context,
+                    reconciliation_implementation=implementation,
                 )
 
     def test_direct_workflow_dispatch_and_repository_dispatch_build_and_verify(self):

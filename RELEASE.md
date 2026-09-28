@@ -155,12 +155,22 @@ records the top-level GitHub Actions run, including its API-bound workflow path,
 attempt, head, repository, name and event, plus the bound Bundle and qualification
 artifacts. `reconciliation_implementation` records the repository, path, immutable
 workflow reference and SHA from GitHub's `job.workflow_*` context for the workflow that
-defines the running reconciliation job. A direct Integration dispatch requires the
-implementation SHA to match the run head. The Site reusable path requires the exact
-Site dispatch entry point and an immutable Integration workflow reference. Both
-identities are checked when the intent is built, before privileged PR actions, and when
-the merged intent is verified. Direct `workflow_dispatch` and `repository_dispatch`
-remain supported. The qualification verification receipt retains its existing
+defines the running reconciliation job. Supported invocation modes are:
+
+- Direct Integration `workflow_dispatch` and `repository_dispatch` runs use
+  `integration-reconcile.yml` as the top-level workflow; its implementation SHA must
+  match the run head.
+- Site reusable `workflow_dispatch` runs and Site provider `repository_dispatch`
+  runs use `provider-publication-dispatch.yml` as the top-level workflow. The Site
+  adapter validates the provider notification, including the
+  `publication.provider-qualified` dispatch type, before calling Integration. The
+  `job.workflow_*` context must identify the same-repository
+  `integration-reconcile.yml` implementation through a full immutable SHA equal to
+  its runtime workflow SHA.
+
+Other event names and top-level workflow paths are rejected. Both workflow identities
+are checked when the intent is built, before privileged PR actions, and when the merged
+intent is verified. The qualification verification receipt retains its existing
 `workflow_path` meaning: the actual top-level run path used for GitHub API and artifact
 binding.
 
