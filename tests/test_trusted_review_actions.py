@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -27,12 +28,14 @@ def run_identity() -> actions.ActionsRunIdentity:
         repository=actions.REPOSITORY,
         repository_id=REPO_ID,
         run_id="73124",
-        run_attempt=2,
+        run_attempt=1,
         event="workflow_dispatch",
         ref=actions.DEFAULT_REF,
         workflow_ref=actions.WORKFLOW_REF,
         workflow_sha=WORKFLOW_SHA,
         source_sha="f" * 40,
+        actor="maintainer",
+        actor_id="9001",
     )
 
 
@@ -46,6 +49,8 @@ def observation(run: actions.ActionsRunIdentity | None = None) -> dict[str, Any]
             "id": "81001",
             "node_id": "PR_kwDOExample",
             "number": 97,
+            "author_id": "9002",
+            "author_login": "contributor",
             "base": {"sha": BASE_SHA, "tree": BASE_TREE},
             "head": {"sha": HEAD_SHA, "tree": HEAD_TREE},
         },
@@ -63,6 +68,8 @@ def observation(run: actions.ActionsRunIdentity | None = None) -> dict[str, Any]
             "workflow_ref": identity.workflow_ref,
             "workflow_sha": identity.workflow_sha,
             "source_sha": identity.source_sha,
+            "actor_id": identity.actor_id,
+            "actor_login": identity.actor,
         },
     }
 
@@ -243,10 +250,12 @@ def test_timestamp_is_not_required_but_ambiguous_attestation_fails_closed(tmp_pa
         lambda d: d["repository"].update(name_with_owner="other/repo"),
         lambda d: d["pull_request"].update(id="999999"),
         lambda d: d["pull_request"].update(number=98),
+        lambda d: d["pull_request"].update(author_id="9003"),
         lambda d: d["pull_request"]["base"].update(sha="f" * 40),
         lambda d: d["pull_request"]["base"].update(tree="f" * 40),
         lambda d: d["pull_request"]["head"].update(sha="f" * 40),
         lambda d: d["pull_request"]["head"].update(tree="f" * 40),
+        lambda d: d["producer"].update(actor_id="9003"),
     ],
 )
 def test_stale_or_cross_target_live_api_observation_is_rejected(tmp_path: Path, change) -> None:
@@ -307,6 +316,8 @@ def test_observation_replay_from_another_run_is_rejected(tmp_path: Path) -> None
         workflow_ref=actions.WORKFLOW_REF,
         workflow_sha=WORKFLOW_SHA,
         source_sha="f" * 40,
+        actor="maintainer",
+        actor_id="9001",
     )
     doc = observation(old_run)
     provider = actions.provider_identity(doc, actions.canonical_observation_bytes(doc))
@@ -341,6 +352,10 @@ def test_attestation_command_failure_is_not_converted_to_authentication(tmp_path
             "TakashiSasaki/templates/.github/workflows/evil.yml@refs/heads/site",
         ),
         ("GITHUB_WORKFLOW_SHA", "not-a-sha"),
+        ("GITHUB_RUN_ATTEMPT", "2"),
+        ("TRUSTED_REVIEW_ACTOR_LOGIN", ""),
+        ("TRUSTED_REVIEW_ACTOR_LOGIN", "bad/login"),
+        ("TRUSTED_REVIEW_ACTOR_ID", "invalid"),
     ],
 )
 def test_workflow_identity_drift_fails_closed(field: str, value: str) -> None:
@@ -348,12 +363,14 @@ def test_workflow_identity_drift_fails_closed(field: str, value: str) -> None:
         "GITHUB_REPOSITORY": actions.REPOSITORY,
         "GITHUB_REPOSITORY_ID": REPO_ID,
         "GITHUB_RUN_ID": "73124",
-        "GITHUB_RUN_ATTEMPT": "2",
+        "GITHUB_RUN_ATTEMPT": "1",
         "GITHUB_EVENT_NAME": "workflow_dispatch",
         "GITHUB_REF": actions.DEFAULT_REF,
         "GITHUB_WORKFLOW_REF": actions.WORKFLOW_REF,
         "GITHUB_WORKFLOW_SHA": WORKFLOW_SHA,
         "GITHUB_SHA": "f" * 40,
+        "TRUSTED_REVIEW_ACTOR_LOGIN": "maintainer",
+        "TRUSTED_REVIEW_ACTOR_ID": "9001",
     }
     env[field] = value
     with pytest.raises(actions.TrustedObservationError):
@@ -426,6 +443,7 @@ def test_api_client_reads_fork_head_tree_without_shell_or_input_interpolation() 
             "node_id": "PR_kwDOExample",
             "number": 97,
             "state": "open",
+            "user": {"id": 9002, "login": "contributor"},
             "base": {"sha": BASE_SHA, "repo": {"id": int(REPO_ID)}},
             "head": {"sha": HEAD_SHA, "repo": {"full_name": "fork-owner/templates"}},
         },
@@ -458,3 +476,28 @@ def test_api_client_reads_fork_head_tree_without_shell_or_input_interpolation() 
     assert result["pull_request"]["head"] == {"sha": HEAD_SHA, "tree": HEAD_TREE}
     assert requests[-1].full_url.endswith(f"/repos/fork-owner/templates/git/commits/{HEAD_SHA}")
     assert requests[0].get_header("Authorization") == "Bearer secret-token"
+
+
+def test_pull_request_author_cannot_dispatch_their_own_review() -> None:
+    run = replace(run_identity(), actor_id="9002", actor="contributor")
+
+    class AuthorApi(actions.GitHubApi):
+        def get(self, path: str) -> dict[str, Any]:
+            if path == "/repos/TakashiSasaki/templates":
+                return {
+                    "id": int(REPO_ID),
+                    "full_name": actions.REPOSITORY,
+                    "owner": {"id": int(OWNER_ID)},
+                }
+            if path == "/repos/TakashiSasaki/templates/pulls/97":
+                return {
+                    "id": 81001,
+                    "node_id": "PR_kwDOExample",
+                    "number": 97,
+                    "state": "open",
+                    "user": {"id": 9002, "login": "contributor"},
+                }
+            raise AssertionError(f"unexpected GitHub API request: {path}")
+
+    with pytest.raises(actions.TrustedObservationError, match="cannot dispatch an independent"):
+        AuthorApi("token").observe(97, run)

@@ -56,6 +56,8 @@ class ActionsRunIdentity:
     workflow_ref: str
     workflow_sha: str
     source_sha: str
+    actor: str
+    actor_id: str
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> ActionsRunIdentity:
@@ -69,6 +71,8 @@ class ActionsRunIdentity:
         workflow_ref = values.get("GITHUB_WORKFLOW_REF", "")
         workflow_sha = values.get("GITHUB_WORKFLOW_SHA", "")
         source_sha = values.get("GITHUB_SHA", "")
+        actor = values.get("TRUSTED_REVIEW_ACTOR_LOGIN", "")
+        actor_id = values.get("TRUSTED_REVIEW_ACTOR_ID", "")
 
         if repository != REPOSITORY:
             raise TrustedObservationError("workflow repository identity is not trusted")
@@ -78,8 +82,10 @@ class ActionsRunIdentity:
             )
         if not DECIMAL_ID.fullmatch(run_id):
             raise TrustedObservationError("GITHUB_RUN_ID is missing or invalid")
-        if not run_attempt_raw.isdecimal() or int(run_attempt_raw) < 1:
-            raise TrustedObservationError("GITHUB_RUN_ATTEMPT is missing or invalid")
+        if run_attempt_raw != "1":
+            raise TrustedObservationError(
+                "trusted review requires the original workflow attempt; dispatch a fresh run"
+            )
         if event != "workflow_dispatch" or ref != DEFAULT_REF:
             raise TrustedObservationError(
                 "trusted review accepts only default-branch workflow_dispatch"
@@ -90,6 +96,10 @@ class ActionsRunIdentity:
             raise TrustedObservationError("trusted workflow SHA is missing or invalid")
         if not SHA1.fullmatch(source_sha):
             raise TrustedObservationError("workflow source SHA is missing or invalid")
+        if not re.fullmatch(r"[A-Za-z0-9-]{1,39}", actor):
+            raise TrustedObservationError("trusted workflow actor login is missing or invalid")
+        if not DECIMAL_ID.fullmatch(actor_id):
+            raise TrustedObservationError("trusted workflow actor ID is missing or invalid")
 
         return cls(
             repository=repository,
@@ -101,6 +111,8 @@ class ActionsRunIdentity:
             workflow_ref=workflow_ref,
             workflow_sha=workflow_sha,
             source_sha=source_sha,
+            actor=actor,
+            actor_id=actor_id,
         )
 
 
@@ -168,6 +180,18 @@ class GitHubApi:
         pull = self.get(f"/repos/{encoded_repo}/pulls/{number}")
         if pull.get("number") != number or not pull.get("id") or not pull.get("node_id"):
             raise TrustedObservationError("GitHub API pull-request identity is incomplete")
+        author = pull.get("user")
+        if (
+            not isinstance(author, dict)
+            or not isinstance(author.get("id"), int)
+            or not isinstance(author.get("login"), str)
+        ):
+            raise TrustedObservationError("GitHub API pull-request author identity is incomplete")
+        if str(author["id"]) == run.actor_id or author["login"].casefold() == run.actor.casefold():
+            raise TrustedObservationError(
+                "pull-request author cannot dispatch an independent review "
+                "of their own pull request"
+            )
         if pull.get("state") != "open":
             raise TrustedObservationError("pull request is not open")
         base = pull.get("base")
@@ -208,6 +232,8 @@ class GitHubApi:
                 "id": str(pull["id"]),
                 "node_id": pull["node_id"],
                 "number": number,
+                "author_id": str(author["id"]),
+                "author_login": author["login"],
                 "base": {"sha": base_sha, "tree": base_tree},
                 "head": {"sha": head_sha, "tree": head_tree},
             },
@@ -225,6 +251,8 @@ class GitHubApi:
                 "workflow_ref": run.workflow_ref,
                 "workflow_sha": run.workflow_sha,
                 "source_sha": run.source_sha,
+                "actor_id": run.actor_id,
+                "actor_login": run.actor,
             },
         }
 
@@ -276,9 +304,9 @@ def _observation_schema() -> dict[str, Any]:
 
 def validate_observation(document: Any) -> None:
     try:
-        Draft202012Validator(
-            _observation_schema(), format_checker=FormatChecker()
-        ).validate(document)
+        Draft202012Validator(_observation_schema(), format_checker=FormatChecker()).validate(
+            document
+        )
     except ValidationError as exc:
         path = ".".join(str(part) for part in exc.absolute_path) or "<root>"
         raise TrustedObservationError(
@@ -403,6 +431,10 @@ class GitHubActionsObservationVerifier:
             raise TrustedObservationError(
                 "provider observation repository ID does not match current run"
             )
+        if producer.get("actor_id") != run.actor_id or producer.get("actor_login") != run.actor:
+            raise TrustedObservationError(
+                "provider observation dispatch actor does not match current workflow actor"
+            )
 
         api_document = self.api.observe(document["pull_request"]["number"], run)
         if _observation_identity(api_document) != _observation_identity(document):
@@ -480,6 +512,10 @@ def _observation_identity(document: dict[str, Any]) -> tuple[Any, ...]:
         document["producer"]["workflow_ref"],
         document["producer"]["workflow_sha"],
         document["producer"]["source_sha"],
+        document["producer"]["actor_id"],
+        document["producer"]["actor_login"],
+        pull["author_id"],
+        pull["author_login"],
     )
 
 

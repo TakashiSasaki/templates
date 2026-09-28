@@ -15,11 +15,13 @@
     },
     "pull_request": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "node_id", "number", "base", "head"],
+      "required": ["id", "node_id", "number", "author_id", "author_login", "base", "head"],
       "properties": {
         "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
         "node_id": {"type": "string", "minLength": 1},
         "number": {"type": "integer", "minimum": 1},
+        "author_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "author_login": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,39}$"},
         "base": {"$ref": "#/$defs/commit"},
         "head": {"$ref": "#/$defs/commit"}
       }
@@ -37,14 +39,16 @@
     },
     "producer": {
       "type": "object", "additionalProperties": false,
-      "required": ["issuer", "repository_id", "owner_id", "workflow_ref", "workflow_sha", "source_sha"],
+      "required": ["issuer", "repository_id", "owner_id", "workflow_ref", "workflow_sha", "source_sha", "actor_id", "actor_login"],
       "properties": {
         "issuer": {"const": "https://token.actions.githubusercontent.com"},
         "repository_id": {"const": "1315875002"},
         "owner_id": {"const": "556958"},
         "workflow_ref": {"const": "TakashiSasaki/templates/.github/workflows/trusted-review-bootstrap.yml@refs/heads/site"},
         "workflow_sha": {"$ref": "#/$defs/sha1"},
-        "source_sha": {"$ref": "#/$defs/sha1"}
+        "source_sha": {"$ref": "#/$defs/sha1"},
+        "actor_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "actor_login": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,39}$"}
       }
     }
   },
