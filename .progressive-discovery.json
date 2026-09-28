@@ -24,7 +24,9 @@
     "docs/studies/open-knowledge-format/index-and-discovery.md",
     "docs/studies/open-knowledge-format/implementation-gaps.md",
     "docs/studies/open-knowledge-format/sources.md",
-    "docs/studies/open-knowledge-format/observation-2026-09-28.json"
+    "docs/studies/open-knowledge-format/observation-2026-09-28.json",
+    "docs/studies/open-knowledge-format/evolution.md",
+    "docs/studies/open-knowledge-format/probe_reference.py"
   ],
   "authored_boundaries": [
     "docs",
