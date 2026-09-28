@@ -372,6 +372,7 @@ def test_attestation_command_failure_is_not_converted_to_authentication(tmp_path
         ("GITHUB_RUN_ATTEMPT", "2"),
         ("TRUSTED_REVIEW_ACTOR_LOGIN", ""),
         ("TRUSTED_REVIEW_ACTOR_LOGIN", "bad/login"),
+        ("TRUSTED_REVIEW_ACTOR_LOGIN", "github-actions[app]"),
         ("TRUSTED_REVIEW_ACTOR_ID", "invalid"),
     ],
 )
@@ -445,7 +446,10 @@ def test_provider_observation_bytes_reject_duplicate_json_keys(tmp_path: Path) -
         verifier.verify_target({}, {})
 
 
-def test_api_client_reads_fork_head_tree_without_shell_or_input_interpolation() -> None:
+@pytest.mark.parametrize("author_login", ["contributor", "dependabot[bot]"])
+def test_api_client_reads_fork_head_tree_without_shell_or_input_interpolation(
+    author_login: str,
+) -> None:
     run = run_identity()
     base_commit = {"sha": BASE_SHA, "tree": {"sha": BASE_TREE}}
     head_commit = {"sha": HEAD_SHA, "tree": {"sha": HEAD_TREE}}
@@ -460,7 +464,7 @@ def test_api_client_reads_fork_head_tree_without_shell_or_input_interpolation() 
             "node_id": "PR_kwDOExample",
             "number": 97,
             "state": "open",
-            "user": {"id": 9002, "login": "contributor"},
+            "user": {"id": 9002, "login": author_login},
             "base": {"ref": "policy", "sha": BASE_SHA, "repo": {"id": int(REPO_ID)}},
             "head": {"sha": HEAD_SHA, "repo": {"full_name": "fork-owner/templates"}},
         },
@@ -496,8 +500,63 @@ def test_api_client_reads_fork_head_tree_without_shell_or_input_interpolation() 
         "tree": BASE_TREE,
     }
     assert result["pull_request"]["head"] == {"sha": HEAD_SHA, "tree": HEAD_TREE}
+    assert result["pull_request"]["author_login"] == author_login
+    assert actions.canonical_observation_bytes(result)
     assert requests[-1].full_url.endswith(f"/repos/fork-owner/templates/git/commits/{HEAD_SHA}")
     assert requests[0].get_header("Authorization") == "Bearer secret-token"
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    [
+        ("pull_request", "author_login", "dependabot[bot]"),
+        ("producer", "actor_login", "github-actions[bot]"),
+    ],
+)
+def test_observation_schema_accepts_github_bot_login_forms(
+    section: str, field: str, value: str
+) -> None:
+    document = observation()
+    document[section][field] = value
+
+    assert actions.canonical_observation_bytes(document)
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    [
+        ("pull_request", "author_login", "dependabot[app]"),
+        ("producer", "actor_login", "github-actions[bot]extra"),
+    ],
+)
+def test_observation_schema_rejects_noncanonical_bot_login_forms(
+    section: str, field: str, value: str
+) -> None:
+    document = observation()
+    document[section][field] = value
+
+    with pytest.raises(actions.TrustedObservationError):
+        actions.validate_observation(document)
+
+
+def test_workflow_identity_accepts_github_app_actor_login() -> None:
+    env = {
+        "GITHUB_REPOSITORY": actions.REPOSITORY,
+        "GITHUB_REPOSITORY_ID": REPO_ID,
+        "GITHUB_RUN_ID": "73124",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_EVENT_NAME": "workflow_dispatch",
+        "GITHUB_REF": actions.DEFAULT_REF,
+        "GITHUB_WORKFLOW_REF": actions.WORKFLOW_REF,
+        "GITHUB_WORKFLOW_SHA": WORKFLOW_SHA,
+        "GITHUB_SHA": "f" * 40,
+        "TRUSTED_REVIEW_ACTOR_LOGIN": "github-actions[bot]",
+        "TRUSTED_REVIEW_ACTOR_ID": "9001",
+    }
+
+    identity = actions.ActionsRunIdentity.from_env(env)
+
+    assert identity.actor == "github-actions[bot]"
 
 
 def test_api_client_rejects_pull_request_targeting_non_policy_branch() -> None:
