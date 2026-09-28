@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TakashiSasaki/templates/blob/policy/schemas/trusted-review-freeze-evidence.schema.json",
+  "title": "Authenticated trusted-review OCI freeze evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider", "object", "attestation", "target", "roles", "post_freeze_verification"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider": {"const": "github-actions-ghcr"},
+    "object": {
+      "type": "object", "additionalProperties": false,
+      "required": ["registry", "repository", "manifest_digest", "media_type"],
+      "properties": {
+        "registry": {"const": "ghcr.io"},
+        "repository": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._/-]*$"},
+        "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "media_type": {"type": "string", "minLength": 1}
+      }
+    },
+    "attestation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["digest", "issuer", "repository_id", "workflow_ref", "workflow_sha", "run_id", "run_attempt", "event"],
+      "properties": {
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "issuer": {"const": "https://token.actions.githubusercontent.com"},
+        "repository_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "workflow_ref": {"type": "string", "minLength": 1},
+        "workflow_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "run_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "run_attempt": {"type": "integer", "minimum": 1},
+        "event": {"const": "workflow_dispatch"}
+      }
+    },
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository_id", "repository_name", "pull_request_id", "pull_request_node_id", "pull_request_number", "base_sha", "base_tree", "head_sha", "head_tree", "observation_sha256"],
+      "properties": {
+        "repository_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "repository_name": {"type": "string", "minLength": 3},
+        "pull_request_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "pull_request_node_id": {"type": "string", "minLength": 1},
+        "pull_request_number": {"type": "integer", "minimum": 1},
+        "base_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "base_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "head_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "head_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "observation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "roles": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["role", "path", "inventory_sha256", "identity"],
+        "properties": {
+          "role": {"enum": ["bootstrap_run_image", "trusted_base_snapshot", "runtime_image", "review_bundle"]},
+          "path": {"type": "string", "pattern": "^[a-zA-Z0-9._/-]+$"},
+          "inventory_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "identity": {"type": "object"}
+        }
+      }
+    },
+    "post_freeze_verification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["result", "before_use", "after_use", "verifier"],
+      "properties": {
+        "result": {"const": "PASS"},
+        "before_use": {"const": "PASS"},
+        "after_use": {"const": "PASS"},
+        "verifier": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

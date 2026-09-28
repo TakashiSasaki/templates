@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TakashiSasaki/templates/blob/policy/schemas/trusted-review-provider-observation.schema.json",
+  "title": "Authenticated trusted-review provider observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider", "repository", "pull_request", "observation", "producer"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider": {"const": "github"},
+    "repository": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name_with_owner"],
+      "properties": {"id": {"type": "string", "pattern": "^[1-9][0-9]*$"}, "name_with_owner": {"type": "string", "minLength": 3}}
+    },
+    "pull_request": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "node_id", "number", "base", "head"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "node_id": {"type": "string", "minLength": 1},
+        "number": {"type": "integer", "minimum": 1},
+        "base": {"$ref": "#/$defs/commit"},
+        "head": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "observation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["retrieved_at", "api_origin", "run_id", "run_attempt", "event"],
+      "properties": {
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "api_origin": {"const": "https://api.github.com"},
+        "run_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "run_attempt": {"type": "integer", "minimum": 1},
+        "event": {"const": "workflow_dispatch"}
+      }
+    },
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["issuer", "repository_id", "owner_id", "workflow_ref", "workflow_sha", "job_workflow_ref", "job_workflow_sha"],
+      "properties": {
+        "issuer": {"const": "https://token.actions.githubusercontent.com"},
+        "repository_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "owner_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "workflow_ref": {"type": "string", "minLength": 1},
+        "workflow_sha": {"$ref": "#/$defs/sha1"},
+        "job_workflow_ref": {"type": "string", "minLength": 1},
+        "job_workflow_sha": {"$ref": "#/$defs/sha1"}
+      }
+    }
+  },
+  "$defs": {
+    "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "commit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha", "tree"],
+      "properties": {"sha": {"$ref": "#/$defs/sha1"}, "tree": {"$ref": "#/$defs/sha1"}}
+    }
+  }
+}
