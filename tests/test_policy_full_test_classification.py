@@ -171,7 +171,8 @@ def test_jobs_one_runs_full_suite_without_partition_or_xdist() -> None:
         "pytest",
         "-o",
         "addopts=-q",
-        "--durations=20",
+        "--durations=0",
+        "--durations-min=0",
     )
     assert "-n" not in calls[0]
 

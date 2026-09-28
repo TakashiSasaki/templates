@@ -368,7 +368,8 @@ def run_pytest_subset(
         "pytest",
         "-o",
         "addopts=-q",
-        "--durations=20",
+        "--durations=0",
+        "--durations-min=0",
         *worker_args,
         *node_ids,
     ]
@@ -565,7 +566,8 @@ def check_tests(jobs: int = DEFAULT_JOBS) -> None:
             "pytest",
             "-o",
             "addopts=-q",
-            "--durations=20",
+            "--durations=0",
+            "--durations-min=0",
         )
         return
     run_pytest_subset("parallel", partition.parallel, jobs, effective_jobs)
