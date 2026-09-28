@@ -189,7 +189,7 @@ REQUIRED_TOP_LEVEL_KEYS = frozenset(
         "review_authority_bundle",
     }
 )
-OPTIONAL_TOP_LEVEL_KEYS = frozenset({"locators", "freeze_evidence"})
+OPTIONAL_TOP_LEVEL_KEYS = frozenset({"locators", "freeze_evidence", "backing_locators"})
 LOCAL_VIEW_ROLE_SECTIONS = {
     "bootstrap_run_image": "frozen_bootstrap_image",
     "trusted_base_snapshot": "frozen_trusted_base",

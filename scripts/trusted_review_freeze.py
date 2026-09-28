@@ -271,6 +271,20 @@ class GitHubActionsOciFreezeVerifier:
             raise TrustedFreezeError(f"freeze role inventory mismatch: {role}")
         if record.get("identity") != self._expected_role_identity(role):
             raise TrustedFreezeError(f"freeze role identity mismatch: {role}")
+        locators = self._handoff_locators
+        backing_locators = self._handoff_backing_locators
+        if locators is not None or backing_locators is not None:
+            if locators is None or backing_locators is None:
+                raise TrustedFreezeError("local protected view is missing its backing locators")
+            locator_key = SECTION_TO_LOCATOR[role]
+            if locator_key not in locators or locator_key not in backing_locators:
+                raise TrustedFreezeError(f"local protected view is missing role {role}")
+            self._verify_role_view(
+                role,
+                Path(locators[locator_key]),
+                Path(backing_locators[locator_key]),
+                record,
+            )
         self._verified_roles.add(role)
 
     def _expected_role_identity(self, role: str) -> dict[str, Any]:
@@ -311,9 +325,9 @@ class GitHubActionsOciFreezeVerifier:
     def bind_handoff(self, handoff: dict[str, Any]) -> None:
         locators = handoff.get("locators")
         backing_locators = handoff.get("backing_locators")
-        self._handoff_locators = locators if isinstance(locators, dict) else None
+        self._handoff_locators = dict(locators) if isinstance(locators, dict) else None
         self._handoff_backing_locators = (
-            backing_locators if isinstance(backing_locators, dict) else None
+            dict(backing_locators) if isinstance(backing_locators, dict) else None
         )
         self._bound_handoff = handoff
 
@@ -326,6 +340,13 @@ class GitHubActionsOciFreezeVerifier:
         if locators is not None or backing_locators is not None:
             if locators is None or backing_locators is None:
                 raise TrustedFreezeError("local protected view is missing its backing locators")
+            if (
+                handoff.get("locators") != locators
+                or handoff.get("backing_locators") != backing_locators
+            ):
+                raise TrustedFreezeError(
+                    "local protected view locators changed during verification"
+                )
             for role, locator_key in SECTION_TO_LOCATOR.items():
                 if locator_key not in locators or locator_key not in backing_locators:
                     raise TrustedFreezeError(f"local protected view is missing role {role}")

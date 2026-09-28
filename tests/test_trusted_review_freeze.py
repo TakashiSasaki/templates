@@ -239,6 +239,12 @@ def handoff() -> dict[str, Any]:
             "runtime_image": "/authority/roles/runtime_image",
             "review_bundle": "/authority/roles/review_bundle",
         },
+        "backing_locators": {
+            "bootstrap_run_image": "/authority/.materialized/bootstrap_run_image",
+            "trusted_base_snapshot": "/authority/.materialized/trusted_base_snapshot",
+            "runtime_image": "/authority/.materialized/runtime_image",
+            "review_bundle": "/authority/.materialized/review_bundle",
+        },
     }
 
 
@@ -763,6 +769,49 @@ def test_protected_view_requires_the_declared_backing_alias(
 
     with pytest.raises(freeze.TrustedFreezeError, match="declared backing tree"):
         freeze.require_protected_view(view, backing_path=backing)
+
+
+def test_role_verification_rejects_writable_backing_alias(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = evidence()
+    role = next(item for item in document["roles"] if item["role"] == "review_bundle")
+    root = tmp_path / "authority"
+    view = root / role["path"]
+    backing = root / ".materialized" / "review_bundle"
+    view.mkdir(parents=True)
+    backing.mkdir(parents=True)
+    (view / "authority.txt").write_text("review bundle")
+    (backing / "authority.txt").write_text("review bundle")
+    role["inventory_sha256"] = freeze._inventory_digest(view)
+
+    data = handoff()
+    data["locators"]["review_bundle"] = str(view)
+    data["backing_locators"]["review_bundle"] = str(backing)
+    data["review_authority_bundle"]["inventory_digest"] = role["inventory_sha256"]
+    evidence_path = write_evidence(tmp_path, document)
+    verifier = freeze.GitHubActionsOciFreezeVerifier(
+        evidence_path,
+        token="test-token",
+        run_identity=run_identity(),
+        runner=Runner(),
+    )
+    data["freeze_evidence"] = freeze_summary(verifier)
+    verifier.verify_document_digest(data)
+
+    monkeypatch.setattr(
+        freeze.os,
+        "statvfs",
+        lambda _path: SimpleNamespace(f_flag=getattr(freeze.os, "ST_RDONLY", 1)),
+    )
+    monkeypatch.setattr(
+        freeze,
+        "_readonly_mount",
+        lambda path, _mountinfo=None: Path(path).absolute() != backing.absolute(),
+    )
+
+    with pytest.raises(freeze.TrustedFreezeError, match="read-only filesystem"):
+        verifier.verify("review_authority_bundle", data["review_authority_bundle"])
 
 
 def test_readonly_backing_and_view_reject_transient_alias_writes(tmp_path: Path) -> None:

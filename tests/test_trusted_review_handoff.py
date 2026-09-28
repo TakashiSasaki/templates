@@ -240,9 +240,16 @@ def make_valid_handoff_dict(*, simulated_boundary: bool = True) -> dict[str, Any
             "runtime_image": "/var/run/runtime-image",
             "review_bundle": "/var/run/review-bundle",
         },
+        "backing_locators": {
+            "bootstrap_run_image": "/var/run/bootstrap-image",
+            "trusted_base_snapshot": "/var/run/base-snapshot",
+            "runtime_image": "/var/run/runtime-image",
+            "review_bundle": "/var/run/review-bundle",
+        },
     }
     if not simulated_boundary:
         handoff.pop("locators")
+        handoff.pop("backing_locators")
     return handoff
 
 
@@ -761,6 +768,8 @@ def _populate_mock_locators(handoff: dict[str, Any], root: Path) -> None:
         p.mkdir(parents=True, exist_ok=True)
         (p / "file.txt").write_text(f"content_{loc_key}\n", encoding="utf-8")
         handoff["locators"][loc_key] = str(p)
+        if loc_key in handoff["backing_locators"]:
+            handoff["backing_locators"][loc_key] = str(p)
         if loc_key == "bootstrap_run_image":
             handoff["frozen_bootstrap_image"]["inventory_digest"] = (
                 compute_directory_inventory_digest(p)
