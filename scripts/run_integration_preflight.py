@@ -15,6 +15,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from threading import Lock
 import time
 import unittest
 import zipfile
@@ -681,10 +682,17 @@ def prepare_provider_checkouts(
         flush=True,
     )
     started = time.perf_counter()
+    metrics_lock = Lock()
+    active_workers = 0
+    peak_workers = 0
 
     def prepare(
         name: str, source: Path, revision: str
     ) -> tuple[Path | None, float, Exception | None]:
+        nonlocal active_workers, peak_workers
+        with metrics_lock:
+            active_workers += 1
+            peak_workers = max(peak_workers, active_workers)
         worker_started = time.perf_counter()
         target = materialized_root / name
         try:
@@ -693,7 +701,11 @@ def prepare_provider_checkouts(
             )
         except Exception as exc:
             return None, time.perf_counter() - worker_started, exc
-        return path, time.perf_counter() - worker_started, None
+        else:
+            return path, time.perf_counter() - worker_started, None
+        finally:
+            with metrics_lock:
+                active_workers -= 1
 
     results: dict[str, tuple[Path | None, float, Exception | None]] = {}
     failures: list[str] = []
@@ -729,7 +741,7 @@ def prepare_provider_checkouts(
         )
     print(
         f"INTEGRATION_PROVIDER_METRICS requested={jobs} effective={effective_jobs} "
-        f"peak_workers={effective_jobs} wall_seconds={wall:.3f} slowest_worker_seconds={slowest_worker_seconds:.3f} "
+        f"peak_workers={peak_workers} wall_seconds={wall:.3f} slowest_worker_seconds={slowest_worker_seconds:.3f} "
         f"worker_seconds={total_worker_seconds:.3f} "
         f"estimated_idle_worker_seconds={max(0.0, effective_jobs * wall - total_worker_seconds):.3f}",
         flush=True,

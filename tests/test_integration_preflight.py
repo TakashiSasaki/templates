@@ -346,6 +346,36 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertEqual(set(prepared), {"composition", "policy", "modeling"})
         self.assertEqual(len(set(prepared.values())), 3)
 
+    def test_provider_metrics_report_observed_peak_below_configured_cap(self) -> None:
+        from concurrent.futures import ThreadPoolExecutor as RealThreadPoolExecutor
+
+        providers = [
+            (name, Path(f"/provider/{name}"), "a" * 40)
+            for name in ("composition", "policy", "modeling")
+        ]
+
+        def single_worker_executor(*, max_workers, thread_name_prefix):
+            self.assertEqual(max_workers, 3)
+            return RealThreadPoolExecutor(max_workers=1, thread_name_prefix=thread_name_prefix)
+
+        with (
+            patch.object(preflight, "clone_provider_for_materialization", side_effect=lambda _s, _r, target, _l: target),
+            patch.object(preflight, "ThreadPoolExecutor", side_effect=single_worker_executor),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            prepared = preflight.prepare_provider_checkouts(
+                providers, Path("/materialized"), jobs=3
+            )
+
+        self.assertEqual(set(prepared), {"composition", "policy", "modeling"})
+        metrics = next(
+            line
+            for line in output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_PROVIDER_METRICS ")
+        )
+        self.assertIn("requested=3 effective=3", metrics)
+        self.assertIn("peak_workers=1", metrics)
+
     def test_provider_preparation_failure_waits_for_other_workers(self) -> None:
         barrier = Barrier(2)
         lock = Lock()
