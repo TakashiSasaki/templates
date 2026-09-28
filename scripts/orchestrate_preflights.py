@@ -133,6 +133,17 @@ def _supervisor_process_options() -> dict[str, bool | int]:
     return {}
 
 
+def _close_authority_supervisor_pipes(
+    process: subprocess.Popen[str],
+) -> None:
+    for stream in (process.stdout, process.stderr):
+        if stream is not None:
+            try:
+                stream.close()
+            except (OSError, ValueError):
+                pass
+
+
 def _stop_authority_supervisor(
     process: subprocess.Popen[str],
 ) -> tuple[str, str, bool]:
@@ -148,6 +159,7 @@ def _stop_authority_supervisor(
 
     stdout = ""
     stderr = ""
+    communication_failed = False
     try:
         stdout, stderr = process.communicate(
             timeout=SUPERVISOR_CLEANUP_TIMEOUT_SECONDS
@@ -157,8 +169,29 @@ def _stop_authority_supervisor(
         stdout = _decode_captured_output(timeout_error.output)
         stderr = _decode_captured_output(timeout_error.stderr)
     except Exception as exc:
+        # Stop reading unusable streams, but leave the supervisor alive long
+        # enough to handle the stop signal and reap its separate authority tree.
+        communication_failed = True
         stderr = f"supervisor cleanup communication failed: {exc}"
+        _close_authority_supervisor_pipes(process)
+        try:
+            process.wait(timeout=SUPERVISOR_CLEANUP_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            pass
+        except Exception as wait_error:
+            stderr = (
+                f"{stderr}\nsupervisor cleanup wait failed: {wait_error}"
+            )
+        else:
+            return (
+                stdout,
+                stderr,
+                process.returncode is not None and process.returncode != 125,
+            )
 
+    # communicate() already waited for the supervisor's cleanup deadline, or
+    # the supervisor failed to exit during the bounded wait above. Force stop
+    # is now the last resort and is reported as incomplete cleanup.
     try:
         if os.name == "posix":
             # The supervisor has its own session. Its authority command is
@@ -168,6 +201,13 @@ def _stop_authority_supervisor(
             process.kill()
     except (OSError, ValueError):
         pass
+
+    if communication_failed:
+        try:
+            process.wait(timeout=SUPERVISOR_KILL_TIMEOUT_SECONDS)
+        except Exception as wait_error:
+            stderr = f"{stderr}\nsupervisor wait after kill failed: {wait_error}"
+        return stdout, stderr, False
 
     try:
         final_stdout, final_stderr = process.communicate(
@@ -180,17 +220,12 @@ def _stop_authority_supervisor(
     except Exception as exc:
         detail = f"supervisor cleanup communication failed after kill: {exc}"
         stderr = f"{stderr}\n{detail}".strip()
+        _close_authority_supervisor_pipes(process)
 
-    for stream in (process.stdout, process.stderr):
-        if stream is not None:
-            try:
-                stream.close()
-            except OSError:
-                pass
     try:
         process.wait(timeout=SUPERVISOR_KILL_TIMEOUT_SECONDS)
-    except Exception as exc:
-        detail = f"supervisor wait after kill failed: {exc}"
+    except Exception as wait_error:
+        detail = f"supervisor wait after kill failed: {wait_error}"
         stderr = f"{stderr}\n{detail}".strip()
 
     return stdout, stderr, False

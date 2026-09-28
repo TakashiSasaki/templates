@@ -485,7 +485,7 @@ def test_pipe_errors_during_cleanup_force_supervisor_termination(
         pid = 4242
         returncode: int | None = None
         communicate_calls = 0
-        wait_timeout: float | None = None
+        wait_calls = 0
         stdout = None
         stderr = None
 
@@ -497,7 +497,9 @@ def test_pipe_errors_during_cleanup_force_supervisor_termination(
             raise OSError(f"controlled pipe read error {self.communicate_calls}")
 
         def wait(self, *, timeout: float) -> int:
-            self.wait_timeout = timeout
+            self.wait_calls += 1
+            if self.wait_calls == 1:
+                raise subprocess.TimeoutExpired("supervisor", timeout)
             self.returncode = -signal.SIGKILL
             return self.returncode
 
@@ -524,8 +526,88 @@ def test_pipe_errors_during_cleanup_force_supervisor_termination(
         in result.failure_excerpt
     )
     assert killed_groups == [(supervisor.pid, signal.SIGKILL)]
-    assert supervisor.communicate_calls == 3
-    assert supervisor.wait_timeout == orchestrator_module.SUPERVISOR_KILL_TIMEOUT_SECONDS
+    assert supervisor.communicate_calls == 2
+    assert supervisor.wait_calls == 2
+
+
+def test_pipe_read_failures_wait_for_real_supervisor_tree_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    worktree = _create_mock_authority(repo_root, "integration")
+    authority_pid_file = tmp_path / "authority.pid"
+    child_pid_file = tmp_path / "child.pid"
+    child_code = (
+        "import os, signal; os.setsid(); "
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+        f"open({str(child_pid_file)!r}, 'w').write(str(os.getpid())); "
+        "signal.pause()"
+    )
+    (worktree / "scripts" / "run_integration_preflight.py").write_text(
+        "import os, signal, subprocess, sys\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        f"open({str(authority_pid_file)!r}, 'w').write(str(os.getpid()))\n"
+        f"child = subprocess.Popen([sys.executable, '-c', {child_code!r}])\n"
+        "signal.pause()\n",
+        encoding="utf-8",
+    )
+
+    real_popen = subprocess.Popen
+    wrapped_processes = []
+
+    class PipeReadErrorProcess:
+        def __init__(self, *args, **kwargs):
+            self.process = real_popen(*args, **kwargs)
+            wrapped_processes.append(self)
+
+        @property
+        def pid(self):
+            return self.process.pid
+
+        @property
+        def returncode(self):
+            return self.process.returncode
+
+        @property
+        def stdout(self):
+            return self.process.stdout
+
+        @property
+        def stderr(self):
+            return self.process.stderr
+
+        def communicate(self, *, timeout: float) -> tuple[str, str]:
+            assert _wait_for_path(child_pid_file, timeout=5.0)
+            raise OSError("controlled supervisor pipe read error")
+
+        def terminate(self) -> None:
+            self.process.terminate()
+
+        def kill(self) -> None:
+            self.process.kill()
+
+        def send_signal(self, signum: int) -> None:
+            self.process.send_signal(signum)
+
+        def wait(self, *, timeout: float) -> int:
+            return self.process.wait(timeout=timeout)
+
+    monkeypatch.setattr(orchestrator_module, "_get_git_head", lambda _path: FAKE_SHA)
+    monkeypatch.setattr(
+        orchestrator_module.subprocess, "Popen", PipeReadErrorProcess
+    )
+
+    result = run_single_preflight(
+        authority="integration", repo_root=repo_root, timeout=10
+    )
+
+    authority_pid = int(authority_pid_file.read_text(encoding="utf-8"))
+    child_pid = int(child_pid_file.read_text(encoding="utf-8"))
+    assert result.status == "FAIL"
+    assert "controlled supervisor pipe read error" in result.failure_excerpt
+    assert wrapped_processes[0].returncode not in (None, 125)
+    assert not _pid_exists(authority_pid)
+    assert not _pid_exists(child_pid)
 
 
 def test_windows_supervisor_uses_control_break_and_private_process_group(
