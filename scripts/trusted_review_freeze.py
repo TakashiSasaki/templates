@@ -168,7 +168,7 @@ def _readonly_mount(path: Path, mountinfo: str | None = None) -> bool:
     return max(matches, key=lambda item: item[0])[1]
 
 
-def require_protected_view(path: Path, *, mountinfo: str | None = None) -> None:
+def _require_readonly_directory(path: Path, *, mountinfo: str | None = None) -> None:
     absolute = path.expanduser().absolute()
     current = Path(absolute.anchor)
     for component in absolute.parts[1:]:
@@ -183,6 +183,30 @@ def require_protected_view(path: Path, *, mountinfo: str | None = None) -> None:
         raise TrustedFreezeError("cannot inspect authority filesystem flags") from exc
     if not stat_readonly or not _readonly_mount(path, mountinfo):
         raise TrustedFreezeError(f"authority role is not on a read-only filesystem: {path}")
+
+
+def require_protected_view(
+    path: Path,
+    *,
+    backing_path: Path | None = None,
+    mountinfo: str | None = None,
+) -> None:
+    """Require an immutable exposed view and, when supplied, its backing tree.
+
+    A read-only bind mount does not protect its writable source path. Production
+    OCI callers must pass the materialized backing directory so both mount
+    points are checked and the view is proven to expose those exact bytes.
+    """
+    _require_readonly_directory(path, mountinfo=mountinfo)
+    if backing_path is None:
+        return
+    _require_readonly_directory(backing_path, mountinfo=mountinfo)
+    try:
+        same_backing = os.path.samefile(path, backing_path)
+    except OSError as exc:
+        raise TrustedFreezeError("cannot compare protected view with its backing tree") from exc
+    if not same_backing:
+        raise TrustedFreezeError("protected view does not expose its declared backing tree")
 
 
 class GitHubActionsOciFreezeVerifier:
