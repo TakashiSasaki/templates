@@ -18,6 +18,48 @@ import qualify  # noqa: E402
 
 
 class QualificationWorkerBudgetTests(unittest.TestCase):
+    def test_skipped_subtest_uses_the_discovered_parent_id(self) -> None:
+        class Probe(unittest.TestCase):
+            def test_skipped_subtest(self):
+                with self.subTest(case="child"):
+                    self.skipTest("not available")
+
+        case = Probe("test_skipped_subtest")
+        result = qualify.run_suite([case], verbosity=0)
+        self.assertEqual(
+            result.outcomes,
+            {case.id(): {"status": "skipped", "reason": "not available"}},
+        )
+        self.assertEqual(qualify.outcome_digest(result.outcomes), qualify.outcome_digest({
+            case.id(): {"status": "skipped", "reason": "not available"},
+        }))
+
+    def test_subtest_assertion_and_error_are_classified_separately(self) -> None:
+        class AssertionProbe(unittest.TestCase):
+            def test_subtest_assertion(self):
+                with self.subTest(case="assertion"):
+                    self.assertEqual(1, 2)
+
+        class ErrorProbe(unittest.TestCase):
+            def test_subtest_error(self):
+                with self.subTest(case="runtime"):
+                    raise RuntimeError("unexpected runtime error")
+
+        assertion = AssertionProbe("test_subtest_assertion")
+        error = ErrorProbe("test_subtest_error")
+        assertion_result = qualify.run_suite([assertion], verbosity=0)
+        error_result = qualify.run_suite([error], verbosity=0)
+        self.assertEqual(assertion_result.outcomes, {assertion.id(): {"status": "failure"}})
+        self.assertEqual(error_result.outcomes, {error.id(): {"status": "error"}})
+        self.assertEqual(
+            qualify.outcome_digest(assertion_result.outcomes),
+            qualify.outcome_digest({assertion.id(): {"status": "failure"}}),
+        )
+        self.assertEqual(
+            qualify.outcome_digest(error_result.outcomes),
+            qualify.outcome_digest({error.id(): {"status": "error"}}),
+        )
+
     def test_jobs_must_be_positive_and_default_to_serial(self) -> None:
         self.assertEqual(qualify.parse_args([]).jobs, 1)
         for value in ("0", "-1", "invalid"):
