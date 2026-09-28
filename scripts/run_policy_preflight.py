@@ -228,17 +228,23 @@ def effective_runner_jobs(
     profile: str,
     requested_jobs: int,
     checks: Sequence[str] | None = None,
+    *,
+    schedulable_modules: int | None = None,
 ) -> int:
     if checks:
         if "focused-tests" in checks:
             return effective_focused_jobs(requested_jobs)
         if "tests" in checks:
-            return effective_full_test_jobs(requested_jobs)
+            return effective_full_test_jobs(
+                requested_jobs, schedulable_modules=schedulable_modules
+            )
         return 1
     if profile == "fast":
         return max(min(requested_jobs, 2), effective_focused_jobs(requested_jobs))
     if profile in {"full", "ready"}:
-        return effective_full_test_jobs(requested_jobs)
+        return effective_full_test_jobs(
+            requested_jobs, schedulable_modules=schedulable_modules
+        )
     return 1
 
 
@@ -336,6 +342,13 @@ def collect_full_test_inventory() -> tuple[str, ...]:
     if not isinstance(node_ids, list) or any(not isinstance(item, str) for item in node_ids):
         raise ValueError("Policy pytest collector returned malformed node IDs")
     return tuple(node_ids)
+
+
+def schedulable_full_test_module_count() -> int:
+    """Return the module cap from the current exact discovered inventory."""
+
+    partition = classify_full_test_inventory(collect_full_test_inventory())
+    return len({node_id.split("::", maxsplit=1)[0] for node_id in partition.parallel})
 
 
 def run_pytest_subset(
@@ -833,7 +846,18 @@ def main(arguments: Sequence[str] | None = None) -> int:
         )
         return 1
     try:
-        effective_jobs = effective_runner_jobs(args.profile, args.jobs, args.checks)
+        needs_full_inventory = args.profile in {"full", "ready"} or (
+            args.checks is not None and "tests" in args.checks
+        )
+        schedulable_modules = (
+            schedulable_full_test_module_count() if needs_full_inventory else None
+        )
+        effective_jobs = effective_runner_jobs(
+            args.profile,
+            args.jobs,
+            args.checks,
+            schedulable_modules=schedulable_modules,
+        )
         print(
             f"POLICY_PREFLIGHT_WORKERS profile={args.profile} "
             f"requested={args.jobs} effective={effective_jobs}",

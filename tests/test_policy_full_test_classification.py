@@ -17,7 +17,9 @@ from scripts.run_policy_preflight import (
     check_tests,
     classify_full_test_inventory,
     effective_full_test_jobs,
+    effective_runner_jobs,
     run_pytest_subset,
+    schedulable_full_test_module_count,
 )
 
 
@@ -233,6 +235,33 @@ def test_full_xdist_budget_is_capped_by_schedulable_modules() -> None:
         ("serial", (), 100, 2),
         ("exclusive", (), 100, 2),
     ]
+
+
+def test_top_level_full_budget_uses_inventory_schedulable_modules() -> None:
+    parallel = (
+        "tests/test_alpha.py::test_one",
+        "tests/test_alpha.py::test_two",
+    )
+    partition = PolicyTestPartition(
+        discovered=parallel,
+        parallel=parallel,
+        serial=(),
+        exclusive=(),
+        fallback_modules=(),
+    )
+    with (
+        patch("scripts.run_policy_preflight.collect_full_test_inventory", return_value=parallel),
+        patch("scripts.run_policy_preflight.classify_full_test_inventory", return_value=partition),
+    ):
+        schedulable_modules = schedulable_full_test_module_count()
+
+    assert schedulable_modules == 1
+    assert effective_runner_jobs(
+        "full", 100, schedulable_modules=schedulable_modules
+    ) == 1
+    assert effective_runner_jobs(
+        "ready", 100, schedulable_modules=schedulable_modules
+    ) == 1
 
 
 def test_inventory_collector_clears_injected_pytest_worker_options(
