@@ -361,14 +361,14 @@ def _attach_browser_diagnostics(context, page, evidence, run_started):
     )
 
 
-def _attach_service_worker_protocol_diagnostics(browser, evidence, run_started):
+def _attach_service_worker_protocol_diagnostics(context, page, evidence, run_started):
     evidence["service_worker_protocol"] = {
         "status": "unavailable",
         "registrations": [],
     }
     session = None
     try:
-        session = browser.new_browser_cdp_session()
+        session = context.new_cdp_session(page)
 
         def record(kind, payload):
             observation = {
@@ -715,7 +715,7 @@ def run(site, bundle, output=None):
         _attach_browser_diagnostics(context, page, evidence, run_started)
         with _phase(evidence, "browser.service_worker_protocol.enable"):
             service_worker_cdp = _attach_service_worker_protocol_diagnostics(
-                browser, evidence, run_started
+                context, page, evidence, run_started
             )
 
         if trace_path is not None:
