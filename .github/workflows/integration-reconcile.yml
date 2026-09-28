@@ -497,7 +497,15 @@ jobs:
           if [ "$LOCK_UPDATE_REQUIRED" = true ]; then expected_paths=$'publication-promotion-intent.json\npublication-sources.json'; fi
           actual_paths=$(git -C integration-base diff --cached --name-only | sort)
           test "$actual_paths" = "$(printf '%s\n' "$expected_paths" | sort)"
-          test -z "$(git -C integration-base diff --cached --summary)"
+          staged_summary=$(git -C integration-base diff --cached --summary)
+          case "$staged_summary" in
+            ""|" create mode 100644 publication-promotion-intent.json")
+              ;;
+            *)
+              echo "staged files contain unexpected file mode or type changes" >&2
+              exit 1
+              ;;
+          esac
       - name: Revalidate the live target before every privileged PR action
         env:
           BRANCH: automation/publication-$IDEMPOTENCY_KEY
