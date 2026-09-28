@@ -11,23 +11,22 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
-import ctypes
 import json
 import os
 import signal
 import subprocess
 import sys
-import threading
 import time
 import uuid
-from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 MAX_SUMMARY_BYTES = 8192
 DEFAULT_TIMEOUT_SECONDS = 300
+SUPERVISOR_CLEANUP_TIMEOUT_SECONDS = 4.0
+SUPERVISOR_KILL_TIMEOUT_SECONDS = 1.0
 
 # Canonical authority definitions based on live authority contracts
 CANONICAL_CONFIGS: dict[str, dict[str, Any]] = {
@@ -64,13 +63,6 @@ CANONICAL_CONFIGS: dict[str, dict[str, Any]] = {
 }
 
 ALL_AUTHORITIES = tuple(CANONICAL_CONFIGS.keys())
-
-_PR_SET_CHILD_SUBREAPER = 36
-_PR_GET_CHILD_SUBREAPER = 37
-_SUBREAPER_LOCK = threading.Lock()
-_SUBREAPER_USERS = 0
-_SUBREAPER_ENABLED_BY_US = False
-
 
 @dataclass
 class AuthorityRunResult:
@@ -114,128 +106,6 @@ def allocate_worker_batches(
     return tuple(batches)
 
 
-def _linux_subreaper_enabled(enabled: bool | None = None) -> bool:
-    """Read or update this process's Linux child-subreaper setting."""
-
-    libc = ctypes.CDLL(None, use_errno=True)
-    prctl = libc.prctl
-    prctl.restype = ctypes.c_int
-    if enabled is None:
-        value = ctypes.c_int()
-        result = prctl(_PR_GET_CHILD_SUBREAPER, ctypes.byref(value), 0, 0, 0)
-    else:
-        result = prctl(_PR_SET_CHILD_SUBREAPER, int(enabled), 0, 0, 0)
-    if result != 0:
-        error_number = ctypes.get_errno()
-        raise OSError(error_number, os.strerror(error_number))
-    return bool(value.value) if enabled is None else enabled
-
-
-@contextmanager
-def _linux_child_subreaper_scope() -> Iterator[bool]:
-    """Adopt orphaned descendants while coordinator-owned commands are active.
-
-    Linux has no per-process-group subreaper setting, so concurrent commands
-    share this short-lived process setting.  Only children that orphan while
-    the scope is active can be adopted; callers reap them by their unique
-    coordinator-created process group before leaving the scope.
-    """
-
-    global _SUBREAPER_USERS, _SUBREAPER_ENABLED_BY_US
-
-    if sys.platform != "linux":
-        yield False
-        return
-
-    manages_orphans = False
-    with _SUBREAPER_LOCK:
-        if _SUBREAPER_USERS == 0:
-            try:
-                already_enabled = _linux_subreaper_enabled()
-                _SUBREAPER_ENABLED_BY_US = not already_enabled
-                if _SUBREAPER_ENABLED_BY_US:
-                    _linux_subreaper_enabled(True)
-                manages_orphans = True
-            except OSError as exc:
-                _SUBREAPER_ENABLED_BY_US = False
-                raise RuntimeError(
-                    "Linux child-subreaper support is required for safe preflight cleanup"
-                ) from exc
-        else:
-            manages_orphans = True
-        if manages_orphans:
-            _SUBREAPER_USERS += 1
-
-    try:
-        yield manages_orphans
-    finally:
-        if manages_orphans:
-            with _SUBREAPER_LOCK:
-                _SUBREAPER_USERS -= 1
-                if _SUBREAPER_USERS == 0 and _SUBREAPER_ENABLED_BY_US:
-                    try:
-                        _linux_subreaper_enabled(False)
-                    except OSError:
-                        # Keep cleanup best-effort if the host rejects reset.
-                        pass
-                    _SUBREAPER_ENABLED_BY_US = False
-
-
-def _reap_process_group_children(process_group_id: int) -> None:
-    """Wait for orphaned Linux descendants adopted from one authority group."""
-
-    while True:
-        try:
-            child_pid, _ = os.waitpid(-process_group_id, 0)
-        except ChildProcessError:
-            return
-        except InterruptedError:
-            continue
-        if child_pid == 0:
-            continue
-
-
-def _terminate_process_tree(
-    process: subprocess.Popen[str], *, reap_descendants: bool = False
-) -> tuple[str, str]:
-    """Terminate an authority process group and reap owned descendants.
-
-    ``communicate`` drains both captured streams throughout shutdown.  The
-    process group gets a one-second TERM grace, followed by KILL.  On Linux,
-    callers that enabled subreaper ownership then wait for adopted children
-    from this unique process group; elsewhere only the direct child is
-    waitable by the coordinator.
-    """
-
-    try:
-        if os.name == "posix":
-            os.killpg(process.pid, signal.SIGTERM)
-        else:
-            process.terminate()
-    except ProcessLookupError:
-        pass
-
-    try:
-        stdout, stderr = process.communicate(timeout=1.0)
-    except subprocess.TimeoutExpired:
-        stdout = stderr = None
-
-    try:
-        if os.name == "posix":
-            os.killpg(process.pid, signal.SIGKILL)
-        elif process.poll() is None:
-            process.kill()
-    except ProcessLookupError:
-        pass
-
-    if stdout is None or stderr is None:
-        stdout, stderr = process.communicate()
-
-    if os.name == "posix" and reap_descendants:
-        _reap_process_group_children(process.pid)
-    return stdout, stderr
-
-
 def _get_git_head(worktree: Path) -> str | None:
     try:
         return subprocess.check_output(
@@ -245,6 +115,66 @@ def _get_git_head(worktree: Path) -> str | None:
         ).strip()
     except Exception:
         return None
+
+
+def _decode_captured_output(value: bytes | str | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode(errors="replace")
+    return value
+
+
+def _stop_authority_supervisor(
+    process: subprocess.Popen[str],
+) -> tuple[str, str, bool]:
+    """Ask the per-invocation supervisor to finalize, with a bounded fallback."""
+
+    try:
+        process.terminate()
+    except ProcessLookupError:
+        pass
+
+    try:
+        stdout, stderr = process.communicate(
+            timeout=SUPERVISOR_CLEANUP_TIMEOUT_SECONDS
+        )
+        return stdout, stderr, True
+    except subprocess.TimeoutExpired as timeout_error:
+        stdout = _decode_captured_output(timeout_error.output)
+        stderr = _decode_captured_output(timeout_error.stderr)
+
+    try:
+        if os.name == "posix":
+            # The supervisor has its own session. Its authority command is
+            # finalized by that supervisor in a separate process group.
+            os.killpg(process.pid, signal.SIGKILL)
+        else:
+            process.kill()
+    except ProcessLookupError:
+        pass
+
+    try:
+        final_stdout, final_stderr = process.communicate(
+            timeout=SUPERVISOR_KILL_TIMEOUT_SECONDS
+        )
+        return final_stdout or stdout, final_stderr or stderr, False
+    except subprocess.TimeoutExpired as kill_error:
+        for stream in (process.stdout, process.stderr):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+        try:
+            process.wait(timeout=SUPERVISOR_KILL_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            pass
+        return (
+            _decode_captured_output(kill_error.output) or stdout,
+            _decode_captured_output(kill_error.stderr) or stderr,
+            False,
+        )
 
 
 def run_single_preflight(
@@ -360,81 +290,74 @@ def run_single_preflight(
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file_path = log_dir / f"{authority}.log"
 
+    proc: subprocess.Popen[str] | None = None
+    stdout = ""
+    stderr = ""
+    timed_out = False
+    execution_error: Exception | None = None
+    cleanup_complete = True
+    cleanup_failure: str | None = None
+
+    supervisor_path = Path(__file__).with_name("_authority_supervisor.py")
+    supervisor_cmd = [py_exec, str(supervisor_path), "--", *cmd]
     try:
-        with _linux_child_subreaper_scope() as reap_descendants:
-            proc = subprocess.Popen(
-                cmd,
-                cwd=worktree,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                start_new_session=os.name == "posix",
-            )
-            try:
-                stdout, stderr = proc.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                stdout, stderr = _terminate_process_tree(
-                    proc, reap_descendants=reap_descendants
+        proc = subprocess.Popen(
+            supervisor_cmd,
+            cwd=worktree,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=os.name == "posix",
+        )
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            stdout, stderr, cleanup_complete = _stop_authority_supervisor(proc)
+            if not cleanup_complete:
+                cleanup_failure = (
+                    "authority supervisor did not complete bounded descendant cleanup"
                 )
-                elapsed = round(time.monotonic() - start_time, 2)
-                full_output = (
-                    f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
-                    f"TIMEOUT after {timeout} seconds\n"
+        except Exception as exc:
+            execution_error = exc
+            stdout, stderr, cleanup_complete = _stop_authority_supervisor(proc)
+            if not cleanup_complete:
+                cleanup_failure = (
+                    "authority supervisor did not complete bounded descendant cleanup"
                 )
-                if log_file_path:
-                    log_file_path.write_text(full_output, encoding="utf-8")
-                return AuthorityRunResult(
-                    authority=authority,
-                    status="TIMEOUT",
-                    head_sha=actual_head,
-                    command=cmd,
-                    working_directory=str(worktree),
-                    elapsed_seconds=elapsed,
-                    exit_code=None,
-                    allocated_workers=allocated_workers,
-                    allocation_batch=allocation_batch,
-                    log_file=str(log_file_path) if log_file_path else None,
-                    failure_excerpt=f"execution exceeded {timeout}s timeout limit",
-                )
-            elapsed = round(time.monotonic() - start_time, 2)
-            full_output = f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
-
-            if log_file_path:
-                log_file_path.write_text(full_output, encoding="utf-8")
-
-            if proc.returncode == 0:
-                return AuthorityRunResult(
-                    authority=authority,
-                    status="PASS",
-                    head_sha=actual_head,
-                    command=cmd,
-                    working_directory=str(worktree),
-                    elapsed_seconds=elapsed,
-                    exit_code=0,
-                    allocated_workers=allocated_workers,
-                    allocation_batch=allocation_batch,
-                    log_file=str(log_file_path) if log_file_path else None,
-                )
-
-            # Extract concise failure excerpt (last ~10 lines of stderr/stdout)
-            combined = stderr.strip() or stdout.strip()
-            lines = combined.splitlines()
-            excerpt = "\n".join(lines[-10:]) if len(lines) > 10 else combined
-            return AuthorityRunResult(
-                authority=authority,
-                status="FAIL",
-                head_sha=actual_head,
-                command=cmd,
-                working_directory=str(worktree),
-                elapsed_seconds=elapsed,
-                exit_code=proc.returncode,
-                allocated_workers=allocated_workers,
-                allocation_batch=allocation_batch,
-                log_file=str(log_file_path) if log_file_path else None,
-                failure_excerpt=excerpt,
-            )
     except Exception as exc:
-        elapsed = round(time.monotonic() - start_time, 2)
+        if execution_error is None:
+            execution_error = exc
+
+    elapsed = round(time.monotonic() - start_time, 2)
+    full_output = f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
+    if timed_out:
+        full_output += f"TIMEOUT after {timeout} seconds\n"
+    if cleanup_failure:
+        full_output += f"PROCESS CLEANUP\n{cleanup_failure}\n"
+
+    if log_file_path:
+        log_file_path.write_text(full_output, encoding="utf-8")
+
+    if timed_out:
+        failure = f"execution exceeded {timeout}s timeout limit"
+        if cleanup_failure:
+            failure = f"{failure}; {cleanup_failure}"
+        return AuthorityRunResult(
+            authority=authority,
+            status="TIMEOUT",
+            head_sha=actual_head,
+            command=cmd,
+            working_directory=str(worktree),
+            elapsed_seconds=elapsed,
+            exit_code=None,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
+            log_file=str(log_file_path) if log_file_path else None,
+            failure_excerpt=failure,
+        )
+
+    if execution_error is not None:
         return AuthorityRunResult(
             authority=authority,
             status="FAIL",
@@ -445,8 +368,75 @@ def run_single_preflight(
             exit_code=1,
             allocated_workers=allocated_workers,
             allocation_batch=allocation_batch,
-            failure_excerpt=f"subprocess execution failed with error: {exc}",
+            log_file=str(log_file_path) if log_file_path else None,
+            failure_excerpt=f"subprocess execution failed with error: {execution_error}",
         )
+
+    if proc is None:
+        return AuthorityRunResult(
+            authority=authority,
+            status="FAIL",
+            head_sha=actual_head,
+            command=cmd,
+            working_directory=str(worktree),
+            elapsed_seconds=elapsed,
+            exit_code=1,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
+            log_file=str(log_file_path) if log_file_path else None,
+            failure_excerpt="subprocess was not started",
+        )
+
+    if not cleanup_complete:
+        combined = stderr.strip() or stdout.strip()
+        excerpt = cleanup_failure or "authority descendant cleanup failed"
+        if combined:
+            excerpt = f"{combined}\n{excerpt}"
+        return AuthorityRunResult(
+            authority=authority,
+            status="FAIL",
+            head_sha=actual_head,
+            command=cmd,
+            working_directory=str(worktree),
+            elapsed_seconds=elapsed,
+            exit_code=proc.returncode if proc.returncode not in (None, 0) else 1,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
+            log_file=str(log_file_path) if log_file_path else None,
+            failure_excerpt=excerpt,
+        )
+
+    if proc.returncode == 0:
+        return AuthorityRunResult(
+            authority=authority,
+            status="PASS",
+            head_sha=actual_head,
+            command=cmd,
+            working_directory=str(worktree),
+            elapsed_seconds=elapsed,
+            exit_code=0,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
+            log_file=str(log_file_path) if log_file_path else None,
+        )
+
+    # Extract concise failure excerpt (last ~10 lines of stderr/stdout).
+    combined = stderr.strip() or stdout.strip()
+    lines = combined.splitlines()
+    excerpt = "\n".join(lines[-10:]) if len(lines) > 10 else combined
+    return AuthorityRunResult(
+        authority=authority,
+        status="FAIL",
+        head_sha=actual_head,
+        command=cmd,
+        working_directory=str(worktree),
+        elapsed_seconds=elapsed,
+        exit_code=proc.returncode,
+        allocated_workers=allocated_workers,
+        allocation_batch=allocation_batch,
+        log_file=str(log_file_path) if log_file_path else None,
+        failure_excerpt=excerpt,
+    )
 
 
 def orchestrate_preflights(

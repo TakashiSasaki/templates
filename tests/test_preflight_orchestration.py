@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import ctypes
 import json
 import os
 import signal
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts import _authority_supervisor  # noqa: E402
 from scripts.orchestrate_preflights import (  # noqa: E402
     ALL_AUTHORITIES,
     MAX_SUMMARY_BYTES,
@@ -26,25 +27,6 @@ from scripts.orchestrate_preflights import (  # noqa: E402
 )
 
 FAKE_SHA = "1234567890abcdef1234567890abcdef12345678"
-
-
-def _temporary_linux_subreaper():
-    if sys.platform != "linux":
-        pytest.skip("nested descendant reaping is guaranteed with Linux subreapers")
-    libc = ctypes.CDLL(None, use_errno=True)
-    prctl = libc.prctl
-    prctl.restype = ctypes.c_int
-    previous = ctypes.c_int()
-    if prctl(37, ctypes.byref(previous), 0, 0, 0) != 0:
-        pytest.skip("kernel does not expose PR_GET_CHILD_SUBREAPER")
-    if not previous.value and prctl(36, 1, 0, 0, 0) != 0:
-        pytest.skip("kernel does not allow PR_SET_CHILD_SUBREAPER")
-    return libc, bool(previous.value)
-
-
-def _restore_linux_subreaper(libc: ctypes.CDLL, previous: bool) -> None:
-    if not previous:
-        libc.prctl(36, 0, 0, 0, 0)
 
 
 def _pid_exists(pid: int) -> bool:
@@ -80,7 +62,8 @@ def _assert_nested_timeout_is_reaped(workspace: Path, tmp_path: Path) -> None:
         "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
         f"open({str(authority_pid_file)!r}, 'w').write(str(os.getpid()))\n"
         "child = subprocess.Popen([sys.executable, '-c', "
-        "'import signal; signal.signal(signal.SIGTERM, signal.SIG_IGN); signal.pause()'])\n"
+        "'import os, signal; os.setsid(); "
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN); signal.pause()'])\n"
         f"open({str(child_pid_file)!r}, 'w').write(str(child.pid))\n"
         "os.write(1, b'o' * 131072)\n"
         "os.write(2, b'e' * 131072)\n"
@@ -88,8 +71,8 @@ def _assert_nested_timeout_is_reaped(workspace: Path, tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    libc, previous_subreaper = _temporary_linux_subreaper()
     authority_pid: int | None = None
+    child_pid: int | None = None
     try:
         result = run_single_preflight(
             authority="policy", repo_root=workspace, timeout=1.0
@@ -100,14 +83,134 @@ def _assert_nested_timeout_is_reaped(workspace: Path, tmp_path: Path) -> None:
         child_pid = int(child_pid_file.read_text(encoding="utf-8"))
         assert not _pid_exists(authority_pid)
         assert not _pid_exists(child_pid)
-        with pytest.raises(ChildProcessError):
-            os.waitpid(-authority_pid, os.WNOHANG)
     finally:
         if authority_pid is None and authority_pid_file.exists():
             authority_pid = int(authority_pid_file.read_text(encoding="utf-8"))
         if authority_pid is not None:
             _cleanup_test_process_group(authority_pid)
-        _restore_linux_subreaper(libc, previous_subreaper)
+        if child_pid is None and child_pid_file.exists():
+            child_pid = int(child_pid_file.read_text(encoding="utf-8"))
+        if child_pid is not None:
+            try:
+                os.kill(child_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
+def _wait_for_path(path: Path, timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while not path.exists():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        threading.Event().wait(min(0.01, remaining))
+    return True
+
+
+def _process_state_and_parent(pid: int) -> tuple[str, int] | None:
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    fields = stat[stat.rfind(")") + 2 :].split()
+    return fields[0], int(fields[1])
+
+
+def _wait_for_pid_absent(pid: int, timeout: float = 3.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while _process_state_and_parent(pid) is not None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        threading.Event().wait(min(0.01, remaining))
+    return True
+
+
+def _run_normal_completion_case(tmp_path: Path, exit_code: int):
+    workspace = tmp_path / "workspace"
+    worktree = _create_mock_authority(workspace, "policy")
+    parent_pid_file = tmp_path / "authority.pid"
+    child_pid_file = tmp_path / "child.pid"
+    adopted_file = tmp_path / "adopted"
+    release_file = tmp_path / "release"
+    child_code = (
+        "import os, pathlib, sys, time\n"
+        "os.setsid()\n"
+        "authority_pid = int(sys.argv[1])\n"
+        "adopted = pathlib.Path(sys.argv[2])\n"
+        "release = pathlib.Path(sys.argv[3])\n"
+        "while os.getppid() == authority_pid:\n"
+        "    time.sleep(0.001)\n"
+        "adopted.write_text(str(os.getppid()), encoding='utf-8')\n"
+        "while not release.exists():\n"
+        "    time.sleep(0.001)\n"
+    )
+    script = worktree / "scripts" / "run_policy_preflight.py"
+    script.write_text(
+        "import os, subprocess, sys\n"
+        f"child_code = {child_code!r}\n"
+        "child = subprocess.Popen([sys.executable, '-c', child_code, "
+        "str(os.getpid()), "
+        f"{str(adopted_file)!r}, {str(release_file)!r}], "
+        "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+        f"open({str(parent_pid_file)!r}, 'w').write(str(os.getpid()))\n"
+        f"open({str(child_pid_file)!r}, 'w').write(str(child.pid))\n"
+        + (
+            "print('synthetic authority failure', file=sys.stderr)\n"
+            if exit_code
+            else "print('synthetic authority pass')\n"
+        )
+        + f"sys.exit({exit_code})\n",
+        encoding="utf-8",
+    )
+
+    release_errors: list[str] = []
+
+    def release_after_adoption() -> None:
+        if _wait_for_path(adopted_file):
+            release_file.write_text("release", encoding="utf-8")
+        else:
+            release_errors.append("descendant was not adopted before the test deadline")
+
+    release_thread = threading.Thread(target=release_after_adoption, daemon=True)
+    release_thread.start()
+    authority_pid: int | None = None
+    child_pid: int | None = None
+    supervisor_pid: int | None = None
+    try:
+        result = run_single_preflight(
+            authority="policy", repo_root=workspace, timeout=5.0
+        )
+        assert result.status == ("PASS" if exit_code == 0 else "FAIL")
+        if exit_code:
+            assert "synthetic authority failure" in result.failure_excerpt
+
+        assert release_thread.join(timeout=5.0) is None
+        assert not release_thread.is_alive()
+        assert not release_errors
+        authority_pid = int(parent_pid_file.read_text(encoding="utf-8"))
+        child_pid = int(child_pid_file.read_text(encoding="utf-8"))
+        supervisor_pid = int(adopted_file.read_text(encoding="utf-8"))
+        assert supervisor_pid not in (os.getpid(), authority_pid)
+        assert _process_state_and_parent(child_pid) is None
+        assert not _pid_exists(authority_pid)
+        assert not _pid_exists(supervisor_pid)
+        assert result.elapsed_seconds < 5.0
+        return result
+    finally:
+        release_file.write_text("release", encoding="utf-8")
+        release_thread.join(timeout=5.0)
+        if authority_pid is None and parent_pid_file.exists():
+            authority_pid = int(parent_pid_file.read_text(encoding="utf-8"))
+        if authority_pid is not None:
+            _cleanup_test_process_group(authority_pid)
+        if child_pid is None and child_pid_file.exists():
+            child_pid = int(child_pid_file.read_text(encoding="utf-8"))
+        if child_pid is not None:
+            try:
+                os.kill(child_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
 def _create_mock_authority(
@@ -276,17 +379,31 @@ def test_linux_preflight_fails_before_launch_without_subreaper_support(
         encoding="utf-8",
     )
 
-    def unavailable(*_: object) -> bool:
+    def unavailable() -> bool:
         raise OSError("subreaper unavailable")
 
     monkeypatch.setattr(
-        "scripts.orchestrate_preflights._linux_subreaper_enabled", unavailable
+        "scripts._authority_supervisor._enable_linux_child_subreaper", unavailable
     )
-    result = run_single_preflight(authority="policy", repo_root=repo_root)
+    result = _authority_supervisor.main(
+        ["--", sys.executable, str(worktree / "scripts" / "run_policy_preflight.py")]
+    )
 
-    assert result.status == "FAIL"
-    assert "child-subreaper support is required" in result.failure_excerpt
+    assert result == 125
     assert not started_file.exists()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
+def test_authority_spawn_failure_is_reported_without_launching_child(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_to_spawn(*_: object, **__: object) -> subprocess.Popen[bytes]:
+        raise OSError("synthetic authority spawn failure")
+
+    monkeypatch.setattr(_authority_supervisor, "_enable_linux_child_subreaper", lambda: True)
+    monkeypatch.setattr(_authority_supervisor.subprocess, "Popen", fail_to_spawn)
+
+    assert _authority_supervisor.main(["--", "/not/a/real/authority"]) == 126
 
 
 def test_timeout_terminates_nested_authority_processes(tmp_path: Path) -> None:
@@ -299,6 +416,165 @@ def test_repeated_timeout_runs_do_not_leak_child_processes(tmp_path: Path) -> No
         _assert_nested_timeout_is_reaped(
             run_root / "workspace", run_root / "processes"
         )
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
+@pytest.mark.parametrize(
+    ("exit_code", "expected_status"),
+    ((0, "PASS"), (7, "FAIL")),
+    ids=("pass", "fail"),
+)
+def test_normal_completion_reaps_adopted_descendants(
+    tmp_path: Path, exit_code: int, expected_status: str
+) -> None:
+    result = _run_normal_completion_case(tmp_path, exit_code)
+    assert result.status == expected_status
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
+def test_repeated_pass_fail_completions_do_not_leak_adopted_children(
+    tmp_path: Path,
+) -> None:
+    for run_number in range(4):
+        exit_code = 0 if run_number % 2 == 0 else 7
+        result = _run_normal_completion_case(
+            tmp_path / f"run-{run_number}", exit_code
+        )
+        assert result.status == ("PASS" if exit_code == 0 else "FAIL")
+
+
+def test_spawn_failure_is_reported_without_leaking_a_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    _create_mock_authority(repo_root, "policy")
+
+    def fail_to_spawn(*_: object, **__: object) -> subprocess.Popen[str]:
+        raise OSError("synthetic spawn failure")
+
+    monkeypatch.setattr("scripts.orchestrate_preflights._get_git_head", lambda _: FAKE_SHA)
+    monkeypatch.setattr("scripts.orchestrate_preflights.subprocess.Popen", fail_to_spawn)
+    result = run_single_preflight(authority="policy", repo_root=repo_root)
+
+    assert result.status == "FAIL"
+    assert "synthetic spawn failure" in result.failure_excerpt
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
+def test_authority_cleanup_does_not_reap_a_concurrent_groups_child(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    b_parent_pid_file = tmp_path / "b-parent.pid"
+    b_child_pid_file = tmp_path / "b-child.pid"
+    b_adopted_file = tmp_path / "b-adopted"
+    b_release_child = tmp_path / "b-release-child"
+    b_release_parent = tmp_path / "b-release-parent"
+    _create_mock_authority(
+        workspace, "policy", custom_script="print('authority A passed')\n"
+    )
+    b = _create_mock_authority(workspace, "composition")
+
+    child_code = (
+        "import os, pathlib, sys, time\n"
+        "os.setsid()\n"
+        "intermediate_pid = int(sys.argv[1])\n"
+        "adopted = pathlib.Path(sys.argv[2])\n"
+        "release = pathlib.Path(sys.argv[3])\n"
+        "while os.getppid() == intermediate_pid:\n"
+        "    time.sleep(0.001)\n"
+        "adopted.write_text(str(os.getppid()), encoding='utf-8')\n"
+        "while not release.exists():\n"
+        "    time.sleep(0.001)\n"
+    )
+    intermediate_code = (
+        "import os, pathlib, subprocess, sys\n"
+        f"child_code = {child_code!r}\n"
+        "child = subprocess.Popen([sys.executable, '-c', child_code, "
+        "str(os.getpid()), "
+        f"{str(b_adopted_file)!r}, {str(b_release_child)!r}], "
+        "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+        f"pathlib.Path({str(b_child_pid_file)!r}).write_text(str(child.pid))\n"
+    )
+    b_script = b / "scripts" / "run_composition_preflight.py"
+    b_script.write_text(
+        "import os, pathlib, subprocess, sys, time\n"
+        f"intermediate_code = {intermediate_code!r}\n"
+        "intermediate = subprocess.Popen([sys.executable, '-c', intermediate_code], "
+        "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+        "intermediate.wait()\n"
+        f"pathlib.Path({str(b_parent_pid_file)!r}).write_text(str(os.getpid()))\n"
+        f"release_parent = pathlib.Path({str(b_release_parent)!r})\n"
+        "while not release_parent.exists():\n"
+        "    time.sleep(0.001)\n",
+        encoding="utf-8",
+    )
+
+    b_result: list[AuthorityRunResult] = []
+    b_errors: list[BaseException] = []
+
+    def run_b() -> None:
+        try:
+            b_result.append(
+                run_single_preflight(
+                    authority="composition", repo_root=workspace, timeout=10.0
+                )
+            )
+        except BaseException as exc:
+            b_errors.append(exc)
+
+    b_thread = threading.Thread(target=run_b, daemon=True)
+    b_thread.start()
+    b_parent_pid: int | None = None
+    try:
+        assert _wait_for_path(b_adopted_file)
+        b_parent_pid = int(b_parent_pid_file.read_text(encoding="utf-8"))
+        b_child_pid = int(b_child_pid_file.read_text(encoding="utf-8"))
+        b_supervisor_pid = int(b_adopted_file.read_text(encoding="utf-8"))
+        assert b_supervisor_pid != b_parent_pid
+        child_state = _process_state_and_parent(b_child_pid)
+        assert child_state is not None
+        assert child_state[0] != "Z"
+        assert child_state[1] == b_supervisor_pid
+
+        b_release_child.write_text("release", encoding="utf-8")
+        deadline = time.monotonic() + 5.0
+        while True:
+            child_state = _process_state_and_parent(b_child_pid)
+            if child_state is not None and child_state[0] == "Z":
+                break
+            assert time.monotonic() < deadline, "authority B descendant did not exit"
+            threading.Event().wait(0.01)
+        assert child_state[1] == b_supervisor_pid
+
+        a_result = run_single_preflight(
+            authority="policy", repo_root=workspace, timeout=5.0
+        )
+        assert a_result.status == "PASS"
+
+        # B's adopted zombie must remain waitable until B's own finalizer runs.
+        assert _process_state_and_parent(b_child_pid) == ("Z", b_supervisor_pid)
+        assert b_thread.is_alive()
+
+        b_release_parent.write_text("release", encoding="utf-8")
+        b_thread.join(timeout=5.0)
+        assert not b_thread.is_alive()
+        assert not b_errors
+        assert b_result[0].status == "PASS"
+        assert _wait_for_pid_absent(b_child_pid)
+    finally:
+        b_release_child.write_text("release", encoding="utf-8")
+        b_release_parent.write_text("release", encoding="utf-8")
+        b_thread.join(timeout=5.0)
+        if b_parent_pid is None and b_parent_pid_file.exists():
+            b_parent_pid = int(b_parent_pid_file.read_text(encoding="utf-8"))
+        if b_parent_pid is not None:
+            _cleanup_test_process_group(b_parent_pid)
+        if b_child_pid_file.exists():
+            try:
+                os.kill(int(b_child_pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
 def test_static_worker_batches_never_exceed_global_budget() -> None:
