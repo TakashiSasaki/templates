@@ -2217,8 +2217,29 @@ def test_actions_observation_verifier_supports_canonical_cli_verify_contract(
     handoff["frozen_trusted_base"]["tree"] = "c" * 40
 
     freeze_path = tmp_path / "freeze-evidence.json"
-    freeze_evidence = make_valid_freeze_evidence_dict(handoff)
-    bind_freeze_evidence_to_handoff(handoff, freeze_evidence, freeze_path)
+    if hasattr(handoff_module, "GitHubActionsOciFreezeVerifier"):
+        freeze_bytes = json.dumps(
+            {"schema_version": 1, "provider": "github-actions-ghcr"}, sort_keys=True
+        ).encode()
+        freeze_path.write_bytes(freeze_bytes)
+        handoff["freeze_evidence"] = {"sha256": hashlib.sha256(freeze_bytes).hexdigest()}
+
+        class TestOciFreezeVerifier:
+            production_capable = True
+
+            def __init__(self, _path: Path) -> None:
+                pass
+
+            def verify_document_digest(self, _handoff: dict[str, Any]) -> None:
+                pass
+
+            def verify(self, _section: str, _entry: dict[str, Any]) -> None:
+                pass
+
+        monkeypatch.setattr(handoff_module, "GitHubActionsOciFreezeVerifier", TestOciFreezeVerifier)
+    else:
+        freeze_evidence = make_valid_freeze_evidence_dict(handoff)
+        bind_freeze_evidence_to_handoff(handoff, freeze_evidence, freeze_path)
     handoff_path = tmp_path / "actions-handoff.json"
     handoff_path.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
 
