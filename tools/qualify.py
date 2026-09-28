@@ -203,8 +203,19 @@ class InventoryTextTestResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.outcomes: dict[str, dict[str, str]] = {}
+        self._status_priority = {
+            "passed": 0,
+            "skipped": 1,
+            "expected-failure": 2,
+            "unexpected-success": 3,
+            "failure": 4,
+            "error": 5,
+        }
 
     def _record(self, test: unittest.TestCase, status: str, reason: str | None = None) -> None:
+        existing = self.outcomes.get(test.id())
+        if existing is not None and self._status_priority[existing["status"]] >= self._status_priority[status]:
+            return
         outcome = {"status": status}
         if reason is not None:
             outcome["reason"] = str(reason)
@@ -275,6 +286,18 @@ def outcome_counts(outcomes: dict[str, dict[str, str]]) -> dict[str, int]:
         "expected_failures": counts["expected-failure"],
         "unexpected_successes": counts["unexpected-success"],
     }
+
+
+def test_result_line(
+    tests_run: int, counts: dict[str, int], outcomes: dict[str, dict[str, str]]
+) -> str:
+    return (
+        f"MODELING_TEST_RESULT tests_run={tests_run} passed={counts['passed']} "
+        f"skipped={counts['skipped']} failures={counts['failures']} errors={counts['errors']} "
+        f"expected_failures={counts['expected_failures']} "
+        f"unexpected_successes={counts['unexpected_successes']} "
+        f"outcome_sha256={outcome_digest(outcomes)}"
+    )
 
 
 def load_tests_by_id(root: Path, test_ids: list[str]) -> list[unittest.TestCase]:
@@ -511,12 +534,7 @@ def run_discovered_tests(
             print("MODELING_QUALIFICATION_FAIL serial run omitted or duplicated test IDs", file=sys.stderr, flush=True)
             return 1
         counts = outcome_counts(result.outcomes)
-        print(
-            f"MODELING_TEST_RESULT tests_run={result.testsRun} passed={counts['passed']} "
-            f"skipped={counts['skipped']} failures={counts['failures']} errors={counts['errors']} "
-            f"outcome_sha256={outcome_digest(result.outcomes)}",
-            flush=True,
-        )
+        print(test_result_line(len(result.outcomes), counts, result.outcomes), flush=True)
         print(
             f"MODELING_WORKER_METRICS requested={jobs} effective=1 peak_workers=1 "
             f"runner_wall_seconds={elapsed:.3f}",
@@ -553,12 +571,7 @@ def run_discovered_tests(
         failures.append("results do not cover exact discovered test inventory")
     counts = outcome_counts(outcomes)
     runner_wall = time.perf_counter() - started
-    print(
-        f"MODELING_TEST_RESULT tests_run={len(outcomes)} passed={counts['passed']} "
-        f"skipped={counts['skipped']} failures={counts['failures']} errors={counts['errors']} "
-        f"outcome_sha256={outcome_digest(outcomes)}",
-        flush=True,
-    )
+    print(test_result_line(len(outcomes), counts, outcomes), flush=True)
     print(
         f"MODELING_WORKER_METRICS requested={jobs} effective={effective_jobs} peak_workers={effective_jobs} "
         f"runner_wall_seconds={runner_wall:.3f} serial_seconds={serial_seconds:.3f} "
@@ -568,7 +581,13 @@ def run_discovered_tests(
     )
     for failure in failures:
         print(f"MODELING_QUALIFICATION_FAIL {failure}", file=sys.stderr, flush=True)
-    return 0 if serial_result.wasSuccessful() and not failures and counts["failures"] == 0 and counts["errors"] == 0 else 1
+    return 0 if (
+        serial_result.wasSuccessful()
+        and not failures
+        and counts["failures"] == 0
+        and counts["errors"] == 0
+        and counts["unexpected_successes"] == 0
+    ) else 1
 
 
 def main(argv: list[str] | None = None) -> int:

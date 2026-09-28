@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 import os
@@ -58,6 +58,91 @@ class QualificationWorkerBudgetTests(unittest.TestCase):
         self.assertEqual(
             qualify.outcome_digest(error_result.outcomes),
             qualify.outcome_digest({error.id(): {"status": "error"}}),
+        )
+
+    def test_mixed_subtest_error_has_stable_error_precedence(self) -> None:
+        class MixedSubtestProbe(unittest.TestCase):
+            def __init__(self, method_name="test_mixed_subtests", *, reverse=False):
+                super().__init__(method_name)
+                self.reverse = reverse
+
+            def test_mixed_subtests(self):
+                exceptions = [AssertionError("assertion"), RuntimeError("runtime")]
+                if self.reverse:
+                    exceptions.reverse()
+                for exception in exceptions:
+                    with self.subTest(kind=type(exception).__name__):
+                        raise exception
+
+        for reverse in (False, True):
+            case = MixedSubtestProbe(reverse=reverse)
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                result = qualify.run_suite([case], verbosity=0)
+            self.assertEqual(result.outcomes[case.id()], {"status": "error"})
+            self.assertEqual(qualify.outcome_counts(result.outcomes)["errors"], 1)
+
+    def test_serial_result_reports_expected_failure_and_unexpected_success_counts(self):
+        class ExpectedFailure(unittest.TestCase):
+            @unittest.expectedFailure
+            def test_expected_failure(self):
+                self.fail("expected")
+
+        class UnexpectedSuccess(unittest.TestCase):
+            @unittest.expectedFailure
+            def test_unexpected_success(self):
+                pass
+
+        cases = [
+            ExpectedFailure("test_expected_failure"),
+            UnexpectedSuccess("test_unexpected_success"),
+        ]
+        with redirect_stdout(io.StringIO()) as output, redirect_stderr(io.StringIO()):
+            status = qualify.run_discovered_tests(cases, 1, ROOT)
+
+        self.assertEqual(status, 1)
+        self.assertIn(
+            "MODELING_TEST_RESULT tests_run=2 passed=0 skipped=0 failures=0 errors=0 "
+            "expected_failures=1 unexpected_successes=1",
+            output.getvalue(),
+        )
+
+    def test_parallel_result_reports_expected_failure_and_unexpected_success_counts(self):
+        class ExpectedFailure(unittest.TestCase):
+            def test_expected_failure(self):
+                pass
+
+        class UnexpectedSuccess(unittest.TestCase):
+            def test_unexpected_success(self):
+                pass
+
+        cases = [
+            ExpectedFailure("test_expected_failure"),
+            UnexpectedSuccess("test_unexpected_success"),
+        ]
+        outcomes = {
+            cases[0].id(): {"status": "expected-failure"},
+            cases[1].id(): {"status": "unexpected-success"},
+        }
+        metrics = {
+            "runner_wall_seconds": 0.01,
+            "slowest_shard_seconds": 0.01,
+            "worker_seconds": 0.02,
+            "estimated_idle_worker_seconds": 0.0,
+        }
+        with (
+            patch.object(qualify, "classify_inventory", return_value=([case.id() for case in cases], [])),
+            patch.object(qualify, "MEASURED_EFFECTIVE_WORKER_CAP", 4),
+            patch.object(qualify, "run_parallel_shards", return_value=(outcomes, [], metrics)),
+            redirect_stdout(io.StringIO()) as output,
+            redirect_stderr(io.StringIO()),
+        ):
+            status = qualify.run_discovered_tests(cases, 2, ROOT)
+
+        self.assertEqual(status, 1)
+        self.assertIn(
+            "MODELING_TEST_RESULT tests_run=2 passed=0 skipped=0 failures=0 errors=0 "
+            "expected_failures=1 unexpected_successes=1",
+            output.getvalue(),
         )
 
     def test_jobs_must_be_positive_and_default_to_serial(self) -> None:
