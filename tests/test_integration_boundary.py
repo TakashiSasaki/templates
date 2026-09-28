@@ -52,11 +52,13 @@ class BoundaryTests(unittest.TestCase):
   self.assertEqual(validation['outputs']['integration_ref'],'${{ steps.integration.outputs.integration_ref }}')
   self.assertEqual(validation['outputs']['producer_ref'],"${{ github.event_name == 'workflow_dispatch' && steps.manual.outputs.producer_ref || steps.integration.outputs.integration_ref }}")
   self.assertEqual(validation['outputs']['composition_ref'],"${{ github.event_name == 'workflow_dispatch' && steps.manual.outputs.composition_ref || steps.payload.outputs.composition_ref }}")
+  self.assertEqual(validation['outputs']['policy_ref'],"${{ github.event_name == 'workflow_dispatch' && steps.manual.outputs.policy_ref || steps.payload.outputs.policy_ref }}")
+  self.assertEqual(validation['outputs']['modeling_ref'],"${{ github.event_name == 'workflow_dispatch' && steps.manual.outputs.modeling_ref || steps.payload.outputs.modeling_ref }}")
   self.assertNotIn('client_payload.producer_ref',text)
   self.assertNotIn('client_payload.controller_ref',text)
 
   caller=workflow['jobs']['integration_controller']
-  self.assertEqual(caller['uses'],'TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@5aaf7409299cae00a33cab740f8755ff91f353ed')
+  self.assertEqual(caller['uses'],'TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@ce0f2d2e4f3d6524aa6818e2f38c33850dcbebfb')
   self.assertEqual(caller['with']['producer_ref'],'${{ needs.validate_event.outputs.producer_ref }}')
   self.assertEqual(caller['with']['composition_ref'],'${{ needs.validate_event.outputs.composition_ref || \'\' }}')
   self.assertEqual(caller['with']['policy_ref'],'${{ needs.validate_event.outputs.policy_ref || \'\' }}')
@@ -74,10 +76,20 @@ class BoundaryTests(unittest.TestCase):
   match=re.search(r"python3 - <<'PY' >> \"\$GITHUB_OUTPUT\"\n(.*?)\nPY\n",manual_step['run'],re.S)
   self.assertIsNotNone(match)
   validator=match.group(1)
-  environment={**os.environ,'PRODUCER_REF':'f'*40,'COMPOSITION_REF':'','POLICY_REF':'','MODELING_REF':''}
+  environment={**os.environ,'PRODUCER_REF':'f'*40,'COMPOSITION_REF':'a'*40,'POLICY_REF':'b'*40,'MODELING_REF':'c'*40}
   valid=subprocess.run([sys.executable,'-c',validator],capture_output=True,text=True,env=environment)
   self.assertEqual(valid.returncode,0,valid.stderr)
   self.assertIn(f'producer_ref={"f"*40}',valid.stdout)
+  for field in ('COMPOSITION_REF','POLICY_REF','MODELING_REF'):
+   self.assertIn(f'{field.lower()}={environment[field]}',valid.stdout)
+
+  for field in ('COMPOSITION_REF','POLICY_REF','MODELING_REF'):
+   environment[field]=''
+  valid=subprocess.run([sys.executable,'-c',validator],capture_output=True,text=True,env=environment)
+  self.assertEqual(valid.returncode,0,valid.stderr)
+  for field in ('COMPOSITION_REF','POLICY_REF','MODELING_REF'):
+   self.assertIn(f'{field.lower()}=',valid.stdout)
+
   self.assertIn('composition_ref=',valid.stdout)
   environment['PRODUCER_REF']='F'*40
   invalid=subprocess.run([sys.executable,'-c',validator],capture_output=True,text=True,env=environment)
@@ -88,6 +100,40 @@ class BoundaryTests(unittest.TestCase):
   environment['PRODUCER_REF']='f'*40
   environment['COMPOSITION_REF']='a'*39
   invalid=subprocess.run([sys.executable,'-c',validator],capture_output=True,text=True,env=environment)
+  self.assertNotEqual(invalid.returncode,0)
+
+  payload_step=next(step for step in validation['steps'] if step.get('id')=='payload')
+  match=re.search(r"python3 - <<'PY' >> \"\$GITHUB_OUTPUT\"\n(.*?)\nPY\n",payload_step['run'],re.S)
+  self.assertIsNotNone(match)
+  payload_validator=match.group(1)
+  provider_workflows={
+   'modeling':('Modeling qualification','.github/workflows/modeling-ci.yml'),
+   'composition':('Composition Integration compatibility','.github/workflows/reference-consumer-publication.yml'),
+   'policy':('Policy Integration compatibility','.github/workflows/integration-compatibility.yml'),
+  }
+  provider_revision='d'*40
+  for provider,(workflow_name,workflow_path) in provider_workflows.items():
+   payload={
+    'provider':provider,
+    'provider_revision':provider_revision,
+    'provider_qualification_run_id':'12345',
+    'provider_qualification_attempt':'1',
+    'qualification_workflow_head':'e'*40,
+    'qualification_workflow_name':workflow_name,
+    'qualification_workflow_event':'push',
+    'qualification_workflow_path':workflow_path,
+   }
+   valid=subprocess.run(
+    [sys.executable,'-c',payload_validator],capture_output=True,text=True,
+    env={**os.environ,'PAYLOAD':json.dumps(payload)},
+   )
+   self.assertEqual(valid.returncode,0,valid.stderr)
+   self.assertIn(f'{provider}_ref={provider_revision}',valid.stdout)
+  payload['controller_ref']='f'*40
+  invalid=subprocess.run(
+   [sys.executable,'-c',payload_validator],capture_output=True,text=True,
+   env={**os.environ,'PAYLOAD':json.dumps(payload)},
+  )
   self.assertNotEqual(invalid.returncode,0)
 
   for forbidden in ('qualify_integration.py','render_candidate_source_lock.py','publication-sources.json','actions/deploy-pages@'):

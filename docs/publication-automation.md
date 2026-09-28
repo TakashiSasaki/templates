@@ -147,10 +147,20 @@ alone is not a `NO_CHANGE`; identity equality is the no-op criterion.
 The source-controlled path is the following. It is a read-only map for
 maintainers; it does not authorize a dispatch or a setting change.
 
+The Site caller pins Integration workflow `ce0f2d2e4f3d6524aa6818e2f38c33850dcbebfb`,
+which landed through PR #1066 after workflow-provenance remediation. Its
+schema-2 intent separates the top-level run provenance from the reusable
+Integration implementation provenance. Independent exact-head review verified
+both Site `workflow_dispatch` and provider `repository_dispatch` paths. The
+Site pin selects the reusable workflow implementation; `controller_ref`
+continues to come from `PUBLICATION_CONTROLLER_REVISION`, which is a separate
+trust pin. Integration automation still stops at its deterministic PR review
+boundary and does not approve or merge that PR.
+
 | Event | Current code | Result and next boundary |
 |---|---|---|
 | Provider push qualification | `modeling-ci.yml`, `reference-consumer-publication.yml`, and `integration-compatibility.yml` | The provider qualifies its exact pushed SHA, then sends `publication.provider-qualified` with run/attempt/workflow identity. A provider check or added file is not publication. |
-| Provider event received | Site default-branch `provider-publication-dispatch.yml` | Site validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `5aaf7409299cae00a33cab740f8755ff91f353ed`. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
+| Provider event received | Site default-branch `provider-publication-dispatch.yml` | Site validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `ce0f2d2e4f3d6524aa6818e2f38c33850dcbebfb`. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
 | Manual Integration reconciliation | Site default-branch `provider-publication-dispatch.yml` | The operator supplies one exact lowercase `producer_ref`; optional provider overrides remain empty to use the committed Integration selection. Site validates and forwards those values, takes `controller_ref` from the repository trust variable, and delegates to the same pinned Integration workflow. The Site adapter adds no qualification, promotion, or lock-update semantics. |
 | Integration candidate | `integration-reconcile.yml` | Exact producer/provider qualification, trusted-controller rebuild, artifact binding, and receipt verification produce a report. The source fallback is `shadow`; live repository variables and credentials are external. Only separately authorized `adoption-only` or `auto-publish` can create or reconcile the deterministic `automation/publication-*` lock PR. Automation stops at the PR, pending independent exact-head review and separate human merge authorization. |
 | Integration merge | `integration-promotion-notify.yml` | After independent review and authorized landing, a merged `automation/publication-*` PR is requalified and its trusted receipt is checked before `publication.integration-promoted` is sent to Site. The notification is a candidate handoff, not Site adoption or deployment. |
