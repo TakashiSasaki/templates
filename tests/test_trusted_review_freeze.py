@@ -372,6 +372,48 @@ def test_protected_view_rejects_writable_mount(tmp_path: Path) -> None:
         freeze.require_protected_view(role)
 
 
+def test_protected_view_rejects_writable_backing_alias(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    view = tmp_path / "protected" / "review_bundle"
+    backing = tmp_path / "materialized" / "review_bundle"
+    view.mkdir(parents=True)
+    backing.mkdir(parents=True)
+    monkeypatch.setattr(
+        freeze.os,
+        "statvfs",
+        lambda _path: SimpleNamespace(f_flag=getattr(freeze.os, "ST_RDONLY", 1)),
+    )
+    monkeypatch.setattr(
+        freeze,
+        "_readonly_mount",
+        lambda path, _mountinfo=None: Path(path) != backing,
+    )
+    monkeypatch.setattr(freeze.os.path, "samefile", lambda _left, _right: True)
+
+    with pytest.raises(freeze.TrustedFreezeError, match="read-only filesystem"):
+        freeze.require_protected_view(view, backing_path=backing)
+
+
+def test_protected_view_requires_the_declared_backing_alias(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    view = tmp_path / "protected" / "review_bundle"
+    backing = tmp_path / "materialized" / "review_bundle"
+    view.mkdir(parents=True)
+    backing.mkdir(parents=True)
+    monkeypatch.setattr(
+        freeze.os,
+        "statvfs",
+        lambda _path: SimpleNamespace(f_flag=getattr(freeze.os, "ST_RDONLY", 1)),
+    )
+    monkeypatch.setattr(freeze, "_readonly_mount", lambda _path, _mountinfo=None: True)
+    monkeypatch.setattr(freeze.os.path, "samefile", lambda _left, _right: False)
+
+    with pytest.raises(freeze.TrustedFreezeError, match="declared backing tree"):
+        freeze.require_protected_view(view, backing_path=backing)
+
+
 def test_readonly_mount_parser_uses_most_specific_mount(tmp_path: Path) -> None:
     role = tmp_path / "root" / "authority"
     role.mkdir(parents=True)

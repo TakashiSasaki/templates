@@ -45,10 +45,14 @@ objects fail closed.
 
 The reviewer executes the exact attested OCI image by digest with a read-only
 root filesystem and no network, added capabilities, privileged mode, Docker
-socket, or writable authority mount. The proposed head is supplied only as a
-separate read-only data input and is never executed. Local copies and caches are
-not authorities. A writable workspace followed only by digest checks is not an
-acceptable substitute for the protected execution view.
+socket, or writable authority mount. Each materialized role backing tree and
+each exposed role view must be mounted read-only. A read-only bind view over a
+writable backing directory does not qualify; the verifier checks both mount
+points and confirms the view aliases its declared backing tree. The proposed
+head is supplied only as a separate read-only data input and is never executed.
+Local copies and caches are not authorities. A writable workspace followed
+only by digest checks is not an acceptable substitute for the protected
+execution view.
 
 ## Submission and merge boundary
 
