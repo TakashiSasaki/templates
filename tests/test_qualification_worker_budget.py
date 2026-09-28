@@ -208,7 +208,14 @@ class QualificationWorkerBudgetTests(unittest.TestCase):
         self.assertEqual(set(parallel) | set(serial), set(all_ids))
         self.assertFalse(set(parallel) & set(serial))
         self.assertEqual(len(all_ids), len(set(all_ids)))
-        self.assertTrue(all(test_id.startswith("test_qualification_worker_budget.") for test_id in serial))
+        manifest_modules = set(qualify.load_parallel_module_manifest(ROOT))
+        unreviewed_ids = {
+            case.id()
+            for case in cases
+            if case.__class__.__module__.rsplit(".", 1)[-1] not in manifest_modules
+        }
+        self.assertTrue(unreviewed_ids)
+        self.assertTrue(unreviewed_ids.issubset(set(serial)))
         self.assertEqual(len(parallel), 68)
 
     def test_changed_module_fingerprint_fails_closed_to_serial(self) -> None:
