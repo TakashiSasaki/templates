@@ -8,6 +8,10 @@
 - [Source policy](source-policy.md) — intake, rights, provenance, and external-reference boundaries.
 - [Intake procedure](intake.md) — how a new information resource enters this authority.
 
+## External-model studies
+
+- [Open Knowledge Format study](studies/open-knowledge-format/index.md) - Preserves evidence-scoped OKF questions, specification gaps, and progressive-discovery design interpretations.
+
 ## Provider publication maintenance
 
 - [Publication catalog](publication-catalog.json) - Defines the exact provider-owned reader documents and machine assets.
