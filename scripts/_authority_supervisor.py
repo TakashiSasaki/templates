@@ -239,6 +239,35 @@ def _install_stop_handlers() -> None:
             signal.signal(signum, _request_stop)
 
 
+def _force_cleanup_after_lifecycle_error(
+    process: subprocess.Popen[bytes], *, subreaper_enabled: bool
+) -> None:
+    """Best-effort kill and reap before reporting a lifecycle failure."""
+
+    try:
+        _signal_authority_group(process.pid, signal.SIGKILL)
+    except OSError:
+        pass
+    try:
+        process.kill()
+    except OSError:
+        pass
+    try:
+        process.wait(timeout=REAP_GRACE_SECONDS)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    if subreaper_enabled:
+        try:
+            _signal_adopted_children(signal.SIGKILL, REAP_GRACE_SECONDS)
+        except Exception:
+            pass
+        try:
+            _wait_for_children(REAP_GRACE_SECONDS)
+        except Exception:
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
     global _STOP_REQUESTED
     _STOP_REQUESTED = False
@@ -291,16 +320,19 @@ def main(argv: list[str] | None = None) -> int:
             allow_natural_exit=not _STOP_REQUESTED,
         )
     except BaseException as exc:
-        print(f"authority lifecycle failed: {exc}", file=sys.stderr)
-        _signal_authority_group(process.pid, signal.SIGKILL)
+        _force_cleanup_after_lifecycle_error(
+            process, subreaper_enabled=subreaper_enabled
+        )
         try:
-            process.kill()
-            process.wait(timeout=REAP_GRACE_SECONDS)
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-        if subreaper_enabled:
-            _signal_adopted_children(signal.SIGKILL, REAP_GRACE_SECONDS)
-            _wait_for_children(REAP_GRACE_SECONDS)
+            print(f"authority lifecycle failed: {exc}", file=sys.stderr)
+        except (OSError, ValueError):
+            # This process may have been asked to stop after its parent closed
+            # the reporting pipes. Cleanup is already attempted, so preserve
+            # the explicit failure code even when its diagnostic cannot be sent.
+            try:
+                sys.stderr = open(os.devnull, "w", encoding="utf-8")
+            except OSError:
+                pass
         return 125
     if not cleanup_complete:
         print(
