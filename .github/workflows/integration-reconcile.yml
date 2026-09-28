@@ -508,7 +508,7 @@ jobs:
           esac
       - name: Revalidate the live target before every privileged PR action
         env:
-          BRANCH: automation/publication-$IDEMPOTENCY_KEY
+          BRANCH: automation/publication-${{ needs.controller.outputs.idempotency_key }}
           EXPECTED_RUN_REPOSITORY: ${{ github.repository }}
           EXPECTED_RUN_ID: ${{ github.run_id }}
           EXPECTED_RUN_ATTEMPT: ${{ github.run_attempt }}
