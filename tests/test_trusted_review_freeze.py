@@ -29,7 +29,7 @@ def run_identity() -> ActionsRunIdentity:
         repository="TakashiSasaki/templates",
         repository_id=REPO_ID,
         run_id="73124",
-        run_attempt=2,
+        run_attempt=1,
         event="workflow_dispatch",
         ref="refs/heads/site",
         workflow_ref=(
@@ -37,6 +37,8 @@ def run_identity() -> ActionsRunIdentity:
         ),
         workflow_sha=WORKFLOW_SHA,
         source_sha=SOURCE_SHA,
+        actor="maintainer",
+        actor_id="9001",
     )
 
 
@@ -59,7 +61,7 @@ def evidence() -> dict[str, Any]:
             "workflow_sha": WORKFLOW_SHA,
             "source_sha": SOURCE_SHA,
             "run_id": "73124",
-            "run_attempt": 2,
+            "run_attempt": 1,
             "event": "workflow_dispatch",
         },
         "target": {
@@ -221,7 +223,7 @@ def verified_attestation(subject_sha256: str) -> dict[str, Any]:
         "sourceRepositoryOwnerIdentifier": OWNER_ID,
         "runnerEnvironment": "github-hosted",
         "runInvocationURI": (
-            "https://github.com/TakashiSasaki/templates/actions/runs/73124/attempts/2"
+            "https://github.com/TakashiSasaki/templates/actions/runs/73124/attempts/1"
         ),
     }
     return {
