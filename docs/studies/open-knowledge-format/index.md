@@ -9,3 +9,8 @@
 - [Implementation gaps](implementation-gaps.md) - Records twelve specification, sample, and implementation distinctions with eight bounded probes.
 - [Source register](sources.md) - Identifies pinned upstream sources and non-normative community proposals.
 - [Baseline observation](observation-2026-09-28.json) - Stores dated source identities, discussion states, question coverage, and probe observations.
+
+## Evolution and reproduction
+
+- [Revisit protocol](evolution.md) - Defines how to compare later editions and discussions without erasing earlier uncertainty.
+- [Optional probe replay](probe_reference.py) - Replays bounded implementation observations against independently trusted exact upstream blobs.
