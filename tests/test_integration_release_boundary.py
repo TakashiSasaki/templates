@@ -120,7 +120,10 @@ class ReleaseBoundaryTests(unittest.TestCase):
         step = next(step for step in job['steps'] if step.get('name') == 'Revalidate the live target before every privileged PR action')
         script = step['run']
 
-        self.assertEqual(step['env']['BRANCH'], 'automation/publication-$IDEMPOTENCY_KEY')
+        self.assertEqual(
+            step['env']['BRANCH'],
+            'automation/publication-${{ needs.controller.outputs.idempotency_key }}',
+        )
         self.assertIn('gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH"', script)
         self.assertIn('open_pr_numbers()', script)
         self.assertIn('verify_existing "$existing"', script)
