@@ -230,6 +230,23 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', notify)
         self.assertNotIn('reconciliation_implementation', notify)
 
+    def test_fail_closed_path_previews_schema_two_provenance_without_upload_or_pr(self):
+        reconcile = yaml.safe_load((ROOT / '.github/workflows/integration-reconcile.yml').read_text())
+        controller_steps = reconcile['jobs']['controller']['steps']
+        classify = next(step for step in controller_steps if step.get('name') == 'Classify the guarded reconciliation transaction')
+        preview = next(step for step in controller_steps if step.get('name') == 'Validate schema-2 provenance without authorizing mutations')
+        build = next(step for step in controller_steps if step.get('name') == 'Build the deterministic trusted promotion intent')
+
+        self.assertIn('reason_code=', classify['run'])
+        self.assertIn("outputs.classification == 'NOT_ELIGIBLE'", preview['if'])
+        self.assertIn("outputs.reason_code == 'AUTHORIZATION_NOT_GRANTED'", preview['if'])
+        self.assertIn("outputs.reason_code == 'KILL_SWITCH_ACTIVE'", preview['if'])
+        self.assertIn('publication_promotion_intent.py preview', preview['run'])
+        self.assertIn('--github-summary "$GITHUB_STEP_SUMMARY"', preview['run'])
+        self.assertNotIn('upload-artifact', preview.get('uses', ''))
+        self.assertNotIn('gh pr create', preview['run'])
+        self.assertIn("steps.reconcile.outputs.classification == 'AUTO_PROCESSABLE'", build['if'])
+
     def test_bundle_receipt_uses_github_workflow_path_shape(self):
         for name, expected_count in (
             ('integration-reconcile.yml', 2),
