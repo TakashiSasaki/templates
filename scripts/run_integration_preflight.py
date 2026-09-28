@@ -327,8 +327,15 @@ def run_suite(
         verbosity=verbosity, discovered_cases=cases
     ).run(unittest.TestSuite(cases))
     if emit_durations:
+        durations = list(result.test_durations)
+        measured_ids = {test_id for test_id, _duration in durations}
+        durations.extend(
+            (test_id, 0.0)
+            for test_id in result.outcomes
+            if test_id not in measured_ids
+        )
         for test_id, duration in sorted(
-            result.test_durations, key=lambda item: (-item[1], item[0])
+            durations, key=lambda item: (-item[1], item[0])
         ):
             print(
                 "INTEGRATION_TEST_CASE_DURATION "

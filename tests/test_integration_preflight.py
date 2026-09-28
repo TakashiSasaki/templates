@@ -186,6 +186,38 @@ class IntegrationPreflightTests(unittest.TestCase):
         ]
         self.assertEqual(duration_ids, [outer_case.id()])
 
+    def test_fixture_skips_emit_zero_duration_for_each_discovered_id(self) -> None:
+        class SkippedClass(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise unittest.SkipTest("controlled class fixture skip")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        cases = [SkippedClass("test_one"), SkippedClass("test_two")]
+        test_ids = [case.id() for case in cases]
+        output = io.StringIO()
+        with (
+            patch.object(preflight, "classify_test_inventory", return_value=([], test_ids)),
+            redirect_stdout(output),
+        ):
+            status = preflight.run_discovered_tests(
+                cases, jobs=1, verbosity=0, emit_durations=True
+            )
+
+        duration_records = [
+            json.loads(line.removeprefix("INTEGRATION_TEST_CASE_DURATION "))
+            for line in output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(status, 0)
+        self.assertEqual({record["test_id"] for record in duration_records}, set(test_ids))
+        self.assertTrue(all(record["duration_seconds"] == 0 for record in duration_records))
+
     def test_class_fixture_errors_account_every_discovered_id_in_serial_results(self) -> None:
         for fixture_name in ("setUpClass", "tearDownClass"):
             with self.subTest(fixture=fixture_name):
