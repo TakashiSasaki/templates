@@ -200,12 +200,33 @@ class InventoryTextTestResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.outcomes: dict[str, dict[str, str]] = {}
+        self.discovered_cases: tuple[unittest.TestCase, ...] = ()
 
     def _record(self, test: unittest.TestCase, status: str, reason: str | None = None) -> None:
+        self._record_id(test.id(), status, reason)
+
+    def _record_id(self, test_id: str, status: str, reason: str | None = None) -> None:
         value = {"status": status}
         if reason is not None:
             value["reason"] = str(reason)
-        self.outcomes[test.id()] = value
+        self.outcomes[test_id] = value
+
+    def _fixture_skip_test_ids(self, fixture_id: str) -> tuple[str, ...] | None:
+        if fixture_id.startswith("setUpModule (") and fixture_id.endswith(")"):
+            module = fixture_id[len("setUpModule (") : -1]
+            return tuple(
+                case.id()
+                for case in self.discovered_cases
+                if case.__class__.__module__ == module
+            )
+        if fixture_id.startswith("setUpClass (") and fixture_id.endswith(")"):
+            target = fixture_id[len("setUpClass (") : -1]
+            return tuple(
+                case.id()
+                for case in self.discovered_cases
+                if f"{case.__class__.__module__}.{case.__class__.__qualname__}" == target
+            )
+        return None
 
     def addSuccess(self, test):
         super().addSuccess(test)
@@ -213,6 +234,14 @@ class InventoryTextTestResult(unittest.TextTestResult):
 
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
+        fixture_test_ids = self._fixture_skip_test_ids(test.id())
+        if fixture_test_ids is not None:
+            if fixture_test_ids:
+                for test_id in fixture_test_ids:
+                    self._record_id(test_id, "skipped", reason)
+            else:
+                self._record(test, "skipped", reason)
+            return
         self._record(getattr(test, "test_case", test), "skipped", reason)
 
     def addFailure(self, test, err):
@@ -240,9 +269,20 @@ class InventoryTextTestResult(unittest.TextTestResult):
 class InventoryTextTestRunner(unittest.TextTestRunner):
     resultclass = InventoryTextTestResult
 
+    def __init__(self, *args, discovered_cases: list[unittest.TestCase], **kwargs):
+        super().__init__(*args, **kwargs)
+        self.discovered_cases = tuple(discovered_cases)
+
+    def _makeResult(self):
+        result = super()._makeResult()
+        result.discovered_cases = self.discovered_cases
+        return result
+
 
 def run_suite(cases: list[unittest.TestCase], verbosity: int) -> InventoryTextTestResult:
-    return InventoryTextTestRunner(verbosity=verbosity).run(unittest.TestSuite(cases))
+    return InventoryTextTestRunner(
+        verbosity=verbosity, discovered_cases=cases
+    ).run(unittest.TestSuite(cases))
 
 
 def outcome_digest(outcomes: dict[str, dict[str, str]]) -> str:
@@ -323,11 +363,11 @@ def run_shard_worker(manifest_path: Path) -> int:
         "shard_index": manifest["shard_index"],
         "ran_ids": sorted(result.outcomes),
         "outcomes": result.outcomes,
-        "tests_run": result.testsRun,
+        "tests_run": len(result.outcomes),
         "outcome_sha256": outcome_digest(result.outcomes),
     }
     result_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
-    if result.testsRun != len(shard_ids) or sorted(result.outcomes) != sorted(shard_ids):
+    if len(result.outcomes) != len(shard_ids) or sorted(result.outcomes) != sorted(shard_ids):
         return 1
     return 0 if result.wasSuccessful() else 1
 
@@ -462,7 +502,7 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
             return 1
         counts = summarize_outcomes(result.outcomes)
         print(
-            f"INTEGRATION_TEST_RESULT tests_run={result.testsRun} passed={counts['passed']} "
+            f"INTEGRATION_TEST_RESULT tests_run={len(result.outcomes)} passed={counts['passed']} "
             f"skipped={counts['skipped']} failures={counts['failures']} errors={counts['errors']} "
             f"outcome_sha256={outcome_digest(result.outcomes)}",
             flush=True,
