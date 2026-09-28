@@ -60,3 +60,59 @@ The full qualification aggregator verifies the eleven actual required DAG jobs r
 than treating a workflow shell or skipped job as acceptance. Browser acceptance is
 provided by the applicable Playwright workflows; there is no empty Python browser
 suite.
+
+## Service Worker update wait: measured case
+
+The translation warning browser check in
+`scripts/check_stale_translation_runtime.py`
+replaces its locally served Service Worker and waits for `controllerchange` to
+verify that the new worker controls the existing page. The page's
+`assets/javascripts/pwa.js` also calls `register()`, sends a
+`templates:get-current-freshness-state` message, and calls `update()` after page
+load. An offline cached reload followed immediately by the check's explicit
+update can overlap that page-owned update.
+
+The exact-head CI runs on 2026-09-28 showed:
+
+| Evidence | Before page-update settlement | After page-update settlement |
+|---|---:|---:|
+| Run | [36435967154](https://github.com/TakashiSasaki/templates/actions/runs/36435967154) | [36440431857](https://github.com/TakashiSasaki/templates/actions/runs/36440431857) |
+| Page-owned update settlement | Unobserved | 2.087 s |
+| `controllerchange` wait | 299.991 s | 0.102 s |
+| Translation warning browser step | 314 s | 15 s |
+| Browser `check` job | 7 min 12 s | 2 min 22 s |
+
+The runs tested exact Site heads
+`88f64e9c3dcdbae8c4fe408207aeb2a163b35a97` and
+`efd544a28dc94774c21dc41ab494a1f494766324`, respectively, with system
+Chrome 153. The new run saved its lifecycle JSON and trace in the
+`mobile-visual-1079` artifact.
+
+The older run found and installed the new worker in about 2.4 seconds;
+`skipWaiting()` settled in milliseconds. Instrumented Service Worker event
+promises and browser requests also settled promptly. CDP showed the old worker
+stop, restart for a `message` event, and remain running until the new worker
+began activating about 300 seconds later. That observation does **not** identify
+which browser-side request remained in flight. Chromium defines a default
+[five-minute Service Worker request timeout](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/service_worker/service_worker_version.h#824),
+but the matching duration alone does not prove this specific request hit it;
+the evidence does not support a five-minute cache lifetime or a stuck
+`waitUntil()` promise.
+
+Same-artifact local comparisons with Chromium 149 narrowed the test race:
+waiting for `load` alone still took 299.985 seconds, and adding one second still
+took 300.013 seconds. Suppressing the page's freshness query reduced the wait to
+0.036 seconds, but that was a diagnostic experiment. Waiting instead for the
+page's own `register()` and `update()` promises to settle reduced it to 0.133
+seconds while preserving the query and all ten acceptance checks. The committed
+checker uses that observable settlement condition; its page-only probe returns
+the native API results unchanged and is absent from the published Site artifact.
+
+For a future update delay, compare the exact Pages artifact and browser version,
+then record `updatefound`, install, `skipWaiting()`, waiting, activation,
+`controllerchange`, old-worker status, event/promise settlement, and page-owned
+registration/update timing separately. The checker writes these observations to
+`translation-status.json` and a Playwright trace in the `mobile-visual` CI
+artifact. Attach the CDP `ServiceWorker` domain to the page target; a
+browser-level CDP session may not expose it. Preserve the takeover assertion and
+normal page messages in the final check.
