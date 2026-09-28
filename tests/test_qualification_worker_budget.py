@@ -40,6 +40,59 @@ class QualificationWorkerBudgetTests(unittest.TestCase):
             {case.id(): {"status": "skipped", "reason": "not available"} for case in cases},
         )
 
+    def test_fixture_skipped_shard_succeeds_with_exact_outcomes(self) -> None:
+        class SkippedClass(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise unittest.SkipTest("not available")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        cases = [SkippedClass("test_one"), SkippedClass("test_two")]
+        test_ids = [case.id() for case in cases]
+        with tempfile.TemporaryDirectory(prefix="modeling-fixture-skip-shard-") as directory:
+            root = Path(directory)
+            manifest_path = root / "manifest.json"
+            result_path = root / "result.json"
+            manifest_path.write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "inventory_ids": test_ids,
+                    "shard_ids": test_ids,
+                    "shard_index": 0,
+                    "shard_count": 1,
+                    "result_path": str(result_path),
+                    "head_sha": "",
+                }),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+            with (
+                patch.object(qualify, "load_tests_by_id", return_value=cases),
+                redirect_stdout(output),
+                redirect_stderr(io.StringIO()),
+            ):
+                status = qualify.run_shard_worker(manifest_path)
+
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+            duration_records = [
+                json.loads(line.removeprefix("MODELING_TEST_CASE_DURATION "))
+                for line in output.getvalue().splitlines()
+                if line.startswith("MODELING_TEST_CASE_DURATION ")
+            ]
+
+        self.assertEqual(status, 0)
+        self.assertEqual(result["tests_run"], 0)
+        self.assertEqual(result["ran_ids"], sorted(test_ids))
+        self.assertEqual(
+            {record["test_id"] for record in duration_records}, set(test_ids)
+        )
+        self.assertTrue(all(record["duration_seconds"] == 0 for record in duration_records))
+
     def test_duration_records_are_opt_in_for_top_level_inventory_runs(self) -> None:
         class Probe(unittest.TestCase):
             def test_duration_one(self):

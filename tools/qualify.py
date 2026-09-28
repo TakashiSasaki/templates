@@ -320,8 +320,15 @@ def run_suite(
         verbosity=verbosity, discovered_cases=cases
     ).run(unittest.TestSuite(cases))
     if emit_durations:
+        durations = list(result.test_durations)
+        measured_ids = {test_id for test_id, _duration in durations}
+        durations.extend(
+            (test_id, 0.0)
+            for test_id in result.outcomes
+            if test_id not in measured_ids
+        )
         for test_id, duration in sorted(
-            result.test_durations, key=lambda item: (-item[1], item[0])
+            durations, key=lambda item: (-item[1], item[0])
         ):
             print(
                 "MODELING_TEST_CASE_DURATION "
@@ -440,7 +447,7 @@ def run_shard_worker(manifest_path: Path) -> int:
         "outcome_sha256": outcome_digest(result.outcomes),
     }
     result_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
-    if result.testsRun != len(shard_ids) or sorted(result.outcomes) != sorted(shard_ids):
+    if sorted(result.outcomes) != sorted(shard_ids):
         return 1
     return 0 if result.wasSuccessful() else 1
 
