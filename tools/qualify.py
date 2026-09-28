@@ -283,7 +283,12 @@ class InventoryTextTestResult(unittest.TextTestResult):
 
     def addError(self, test, err):
         super().addError(test, err)
-        self._record(test, "error")
+        fixture_test_ids = self._fixture_test_ids(test.id())
+        if fixture_test_ids:
+            for test_id in fixture_test_ids:
+                self._record_id(test_id, "error")
+            return
+        self._record(getattr(test, "test_case", test), "error")
 
     def addExpectedFailure(self, test, err):
         super().addExpectedFailure(test, err)

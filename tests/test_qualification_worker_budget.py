@@ -9,6 +9,7 @@ import shutil
 import sys
 from threading import Barrier, Lock
 import tempfile
+from types import ModuleType
 import unittest
 from unittest.mock import patch
 
@@ -92,6 +93,93 @@ class QualificationWorkerBudgetTests(unittest.TestCase):
             {record["test_id"] for record in duration_records}, set(test_ids)
         )
         self.assertTrue(all(record["duration_seconds"] == 0 for record in duration_records))
+
+    def test_fixture_error_shards_preserve_exact_discovered_ids(self) -> None:
+        class ClassFixtureError(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise RuntimeError("class setup failed")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        module_name = "modeling_fixture_error_probe"
+        module = ModuleType(module_name)
+
+        def set_up_module():
+            raise RuntimeError("module setup failed")
+
+        module.setUpModule = set_up_module
+        sys.modules[module_name] = module
+        ModuleFixtureError = type(
+            "ModuleFixtureError",
+            (unittest.TestCase,),
+            {
+                "__module__": module_name,
+                "test_one": lambda self: None,
+                "test_two": lambda self: None,
+            },
+        )
+
+        try:
+            for label, cases in (
+                (
+                    "class",
+                    [ClassFixtureError("test_one"), ClassFixtureError("test_two")],
+                ),
+                (
+                    "module",
+                    [ModuleFixtureError("test_one"), ModuleFixtureError("test_two")],
+                ),
+            ):
+                with self.subTest(fixture=label), tempfile.TemporaryDirectory(
+                    prefix=f"modeling-{label}-fixture-error-shard-"
+                ) as directory:
+                    root = Path(directory)
+                    test_ids = [case.id() for case in cases]
+                    manifest_path = root / "manifest.json"
+                    result_path = root / "result.json"
+                    manifest_path.write_text(
+                        json.dumps({
+                            "schema_version": 1,
+                            "inventory_ids": test_ids,
+                            "shard_ids": test_ids,
+                            "shard_index": 0,
+                            "shard_count": 1,
+                            "result_path": str(result_path),
+                            "head_sha": "",
+                        }),
+                        encoding="utf-8",
+                    )
+                    output = io.StringIO()
+                    with (
+                        patch.object(qualify, "load_tests_by_id", return_value=cases),
+                        redirect_stdout(output),
+                        redirect_stderr(io.StringIO()),
+                    ):
+                        status = qualify.run_shard_worker(manifest_path)
+
+                    result = json.loads(result_path.read_text(encoding="utf-8"))
+                    duration_ids = {
+                        json.loads(line.removeprefix("MODELING_TEST_CASE_DURATION "))[
+                            "test_id"
+                        ]
+                        for line in output.getvalue().splitlines()
+                        if line.startswith("MODELING_TEST_CASE_DURATION ")
+                    }
+                    self.assertEqual(status, 1)
+                    self.assertEqual(result["tests_run"], 0)
+                    self.assertEqual(result["ran_ids"], sorted(test_ids))
+                    self.assertEqual(
+                        result["outcomes"],
+                        {test_id: {"status": "error"} for test_id in test_ids},
+                    )
+                    self.assertEqual(duration_ids, set(test_ids))
+        finally:
+            sys.modules.pop(module_name, None)
 
     def test_duration_records_are_opt_in_for_top_level_inventory_runs(self) -> None:
         class Probe(unittest.TestCase):
