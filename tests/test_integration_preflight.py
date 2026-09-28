@@ -134,6 +134,26 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertIn("tests_run=2 passed=0 skipped=2 failures=0 errors=0", output.getvalue())
         self.assertNotIn("omitted test IDs", output.getvalue())
 
+    def test_duration_records_are_emitted_only_for_explicit_inventory_runs(self) -> None:
+        class Probe(unittest.TestCase):
+            def test_duration(self):
+                pass
+
+        case = Probe("test_duration")
+        with redirect_stdout(io.StringIO()) as nested_output:
+            preflight.run_suite([case], verbosity=0)
+        self.assertNotIn("INTEGRATION_TEST_CASE_DURATION", nested_output.getvalue())
+
+        with redirect_stdout(io.StringIO()) as inventory_output:
+            preflight.run_suite([case], verbosity=0, emit_durations=True)
+        duration_records = [
+            line.removeprefix("INTEGRATION_TEST_CASE_DURATION ")
+            for line in inventory_output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(len(duration_records), 1)
+        self.assertEqual(json.loads(duration_records[0])["test_id"], case.id())
+
     def test_class_fixture_errors_account_every_discovered_id_in_serial_results(self) -> None:
         for fixture_name in ("setUpClass", "tearDownClass"):
             with self.subTest(fixture=fixture_name):

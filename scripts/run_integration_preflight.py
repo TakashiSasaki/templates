@@ -320,22 +320,25 @@ class InventoryTextTestRunner(unittest.TextTestRunner):
         return result
 
 
-def run_suite(cases: list[unittest.TestCase], verbosity: int) -> InventoryTextTestResult:
+def run_suite(
+    cases: list[unittest.TestCase], verbosity: int, *, emit_durations: bool = False
+) -> InventoryTextTestResult:
     result = InventoryTextTestRunner(
         verbosity=verbosity, discovered_cases=cases
     ).run(unittest.TestSuite(cases))
-    for test_id, duration in sorted(
-        result.test_durations, key=lambda item: (-item[1], item[0])
-    ):
-        print(
-            "INTEGRATION_TEST_CASE_DURATION "
-            + json.dumps(
-                {"test_id": test_id, "duration_seconds": round(duration, 9)},
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-            flush=True,
-        )
+    if emit_durations:
+        for test_id, duration in sorted(
+            result.test_durations, key=lambda item: (-item[1], item[0])
+        ):
+            print(
+                "INTEGRATION_TEST_CASE_DURATION "
+                + json.dumps(
+                    {"test_id": test_id, "duration_seconds": round(duration, 9)},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                flush=True,
+            )
     return result
 
 
@@ -409,7 +412,7 @@ def run_shard_worker(manifest_path: Path) -> int:
         f"tests={len(shard_ids)} ids_sha256={test_id_digest(shard_ids)}",
         flush=True,
     )
-    result = run_suite(cases, 2)
+    result = run_suite(cases, 2, emit_durations=True)
     result_path = Path(manifest["result_path"])
     if result_path.parent.resolve() != manifest_path.parent.resolve():
         raise PreflightFailure("Integration shard result must stay beside its private manifest")
@@ -549,7 +552,7 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
         mode = "serial-baseline" if jobs == 1 else "serial-fail-closed"
         print(f"INTEGRATION_WORKERS requested={jobs} effective=1 mode={mode}", flush=True)
         started = time.perf_counter()
-        result = run_suite(cases, verbosity)
+        result = run_suite(cases, verbosity, emit_durations=True)
         wall = time.perf_counter() - started
         if set(result.outcomes) != set(inventory_ids):
             print("INTEGRATION_TEST_FAIL serial run omitted test IDs", file=sys.stderr)
@@ -581,7 +584,7 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
     serial_started = time.perf_counter()
     serial_cases = [case for case in cases if case.id() in set(serial_ids)]
     print(f"INTEGRATION_SERIAL_EXCLUSIVE_START tests={len(serial_cases)}", flush=True)
-    serial_result = run_suite(serial_cases, verbosity)
+    serial_result = run_suite(serial_cases, verbosity, emit_durations=True)
     serial_seconds = time.perf_counter() - serial_started
     outcomes = dict(parallel_outcomes)
     for test_id, outcome in serial_result.outcomes.items():
