@@ -211,10 +211,17 @@ def effective_focused_jobs(requested_jobs: int) -> int:
     return min(requested_jobs, max(1, len(PARALLEL_FOCUSED_TESTS)))
 
 
-def effective_full_test_jobs(requested_jobs: int) -> int:
+def effective_full_test_jobs(
+    requested_jobs: int, *, schedulable_modules: int | None = None
+) -> int:
     if requested_jobs < 1:
         raise ValueError("jobs must be at least 1")
-    return min(requested_jobs, max(1, len(PARALLEL_FOCUSED_TESTS)))
+    worker_cap = (
+        len(PARALLEL_FOCUSED_TESTS)
+        if schedulable_modules is None
+        else schedulable_modules
+    )
+    return min(requested_jobs, max(1, worker_cap))
 
 
 def effective_runner_jobs(
@@ -514,7 +521,12 @@ def check_focused_tests(jobs: int = DEFAULT_JOBS) -> None:
 
 def check_tests(jobs: int = DEFAULT_JOBS) -> None:
     partition = classify_full_test_inventory(collect_full_test_inventory())
-    effective_jobs = min(jobs, max(1, len(partition.parallel)))
+    parallel_modules = {
+        node_id.split("::", maxsplit=1)[0] for node_id in partition.parallel
+    }
+    effective_jobs = effective_full_test_jobs(
+        jobs, schedulable_modules=len(parallel_modules)
+    )
     print(
         "POLICY_TEST_INVENTORY "
         f"discovered={len(partition.discovered)} parallel={len(partition.parallel)} "
