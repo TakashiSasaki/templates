@@ -50,6 +50,8 @@ This is the maintainer route for the `policy` authority itself; the adoption
 commands above are for a separate product repository. The repository-wide map and
 publication-chain entry point are maintained by Site in the [templates maintainer
 onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
+For task-oriented routes to consumer use, shared-rule authorship, provider maintenance,
+and validation, use [Policy authority navigation](index.md).
 Confirm the checked-out branch is `policy`, capture its full `HEAD` and dirty/
 untracked state, and read [AGENTS.md](AGENTS.md), the applicable files under
 `repository-policy/`, and the local [orchestration skill](skills/orchestrate-repository-change/SKILL.md)

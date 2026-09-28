@@ -8,6 +8,12 @@
 - [Contributing](CONTRIBUTING.md) - Defines canonical contribution, validation, and source-ownership expectations.
 - [Policy documentation](docs/index.md) - Contains provider, consumer, shared-policy, architecture, adoption, release, and operational documentation.
 
+## Choose a route
+
+- [Use Policy in a product repository](docs/consumer/index.md) - Find adoption, profile-selection, and managed-operation guidance for consumers.
+- [Author shared rules](docs/policy-authoring.md) - Locate the shared `policy/` corpus and distinguish it from repository-local policy.
+- [Maintain the Policy provider](docs/provider/index.md) - Find provider lifecycle guidance; repository-only maintenance rules are under [repository policy](repository-policy/index.md).
+
 ## Shared policy and selectable behavior
 
 - [Shared policy corpus](policy/index.md) - Contains canonical reusable policy rules grouped by operating concern.
