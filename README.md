@@ -60,6 +60,17 @@ python3 tools/qualify.py
 
 The checker validates both administrative schemas, all records and collection references, ownership, edition/distribution references, scoped provenance, local artifact hashes, and byte-for-byte freshness of generated outputs. It is not an external schema validator or an entailment engine.
 
+`tools/qualify.py` accepts `--jobs N` as the maximum unittest worker budget,
+defaults to `1`, and caps effective workers at the measured limit of `4`.
+`--jobs 1` is the serial debugging baseline; use `--expected-head SHA` for an
+exact, clean-commit qualification.
+Projection, distribution, and progressive-discovery checks remain ordered before
+the test stage. Only test modules whose source and exact discovered test IDs match
+the reviewed manifest can run in deterministic Python `unittest` shards; new or
+changed tests stay in the serial lane. The worker option does not replace Modeling's
+discovery or validation authority with a shared cross-language runner. Record the
+full Modeling SHA with serial and parallel qualification results.
+
 ## Lifecycle boundary
 
 No existing authority history is imported. No Composition, Policy, Integration, or Site contract is transferred here. Integration adoption, Site publication, and deployment are **not enabled** by creating this authority. Model releases and downstream adoption remain separate explicit decisions.
