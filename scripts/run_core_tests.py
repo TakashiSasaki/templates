@@ -423,6 +423,7 @@ def run_shard_worker(
     suite_name: str,
     verbosity: int,
     cases: list[unittest.TestCase],
+    emit_durations: bool = False,
 ) -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     required = {
@@ -477,7 +478,7 @@ def run_shard_worker(
         f"inventory_sha256={test_id_digest(inventory_ids)}",
         flush=True,
     )
-    result = run_suite(selected_cases, verbosity, emit_durations=True)
+    result = run_suite(selected_cases, verbosity, emit_durations=emit_durations)
     outcomes = result.outcomes
     result_path = Path(manifest["result_path"])
     if result_path.parent.resolve() != manifest_path.parent.resolve():
@@ -732,6 +733,7 @@ def run_tests(
     tests_dir: Path | None = None,
     jobs: int = 1,
     worker_manifest: Path | None = None,
+    emit_durations: bool = False,
 ) -> int:
     if jobs < 1:
         raise ValueError("jobs must be an integer of at least 1")
@@ -769,6 +771,7 @@ def run_tests(
             suite_name=suite_name,
             verbosity=verbosity,
             cases=cases,
+            emit_durations=emit_durations,
         )
 
     parallel_ids, serial_ids = classify_test_inventory(
@@ -800,7 +803,7 @@ def run_tests(
             f"measured_cap={MEASURED_EFFECTIVE_WORKER_CAP}",
             flush=True,
         )
-        result = run_suite(cases, verbosity, emit_durations=True)
+        result = run_suite(cases, verbosity, emit_durations=emit_durations)
         runner_wall = time.perf_counter() - runner_started
         outcomes = result.outcomes
         failures = []
@@ -860,7 +863,9 @@ def run_tests(
         f"SITE_SERIAL_EXCLUSIVE_START suite={suite_name} tests={len(serial_cases)}",
         flush=True,
     )
-    serial_result = run_suite(serial_cases, verbosity, emit_durations=True)
+    serial_result = run_suite(
+        serial_cases, verbosity, emit_durations=emit_durations
+    )
     serial_seconds = time.perf_counter() - serial_started
     outcomes = dict(parallel_outcomes)
     for test_id, outcome in serial_result.outcomes.items():
@@ -970,6 +975,7 @@ def main(argv: list[str] | None = None) -> int:
         tests_dir=args.worker_tests_dir,
         jobs=args.jobs,
         worker_manifest=args.worker_manifest,
+        emit_durations=True,
     )
 
 

@@ -34,22 +34,31 @@ class RunCoreTestsContractTests(unittest.TestCase):
     def test_duration_records_are_scoped_to_the_top_level_inventory(self) -> None:
         class NestedRunnerProbe(unittest.TestCase):
             def test_outer_inventory_case(self):
-                class SyntheticProbe(unittest.TestCase):
-                    def test_nested_helper_case(self):
-                        pass
-
-                run_suite([SyntheticProbe("test_nested_helper_case")], verbosity=0)
+                run_tests("core", verbosity=0, jobs=1)
 
         case = NestedRunnerProbe("test_outer_inventory_case")
+        nested_case = type(
+            "SyntheticProbe",
+            (unittest.TestCase,),
+            {"test_nested_helper_case": lambda self: None},
+        )("test_nested_helper_case")
+        suites = iter(
+            (
+                unittest.TestSuite([case]),
+                unittest.TestSuite([nested_case]),
+            )
+        )
         output = io.StringIO()
         with (
             patch(
                 "scripts.run_core_tests.load_test_suite",
-                return_value=unittest.TestSuite([case]),
+                side_effect=lambda **_kwargs: next(suites),
             ),
             patch("sys.stdout", output),
         ):
-            self.assertEqual(run_tests("core", verbosity=0, jobs=1), 0)
+            self.assertEqual(
+                run_tests("core", verbosity=0, jobs=1, emit_durations=True), 0
+            )
 
         duration_records = [
             json.loads(line.removeprefix("SITE_TEST_CASE_DURATION "))
