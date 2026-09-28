@@ -567,6 +567,40 @@ def test_timeout_result_surfaces_supervisor_cleanup_failure(
     )
 
 
+def test_timeout_reports_incomplete_cleanup_when_supervisor_is_signal_killed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    _create_mock_authority(repo_root, "integration")
+
+    class SignalKilledSupervisor:
+        pid = 4242
+        returncode = -signal.SIGKILL
+
+        def terminate(self) -> None:
+            pass
+
+        def communicate(self, *, timeout: float) -> tuple[str, str]:
+            assert timeout == orchestrator_module.SUPERVISOR_CLEANUP_TIMEOUT_SECONDS
+            return "", ""
+
+    supervisor = SignalKilledSupervisor()
+    monkeypatch.setattr(orchestrator_module, "_get_git_head", lambda _path: FAKE_SHA)
+    monkeypatch.setattr(
+        orchestrator_module.subprocess, "Popen", lambda *_args, **_kwargs: supervisor
+    )
+
+    result = run_single_preflight(
+        authority="integration", repo_root=repo_root, timeout=0
+    )
+
+    assert result.status == "TIMEOUT"
+    assert (
+        "authority supervisor did not complete bounded descendant cleanup"
+        in result.failure_excerpt
+    )
+
+
 def test_pipe_error_result_surfaces_supervisor_cleanup_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

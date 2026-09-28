@@ -233,7 +233,13 @@ def _stop_authority_supervisor(
         stdout, stderr = process.communicate(
             timeout=SUPERVISOR_CLEANUP_TIMEOUT_SECONDS
         )
-        return stdout, stderr, process.returncode is not None and process.returncode != 125
+        return (
+            stdout,
+            stderr,
+            process.returncode is not None
+            and process.returncode >= 0
+            and process.returncode != 125,
+        )
     except subprocess.TimeoutExpired as timeout_error:
         stdout = _decode_captured_output(timeout_error.output)
         stderr = _decode_captured_output(timeout_error.stderr)
