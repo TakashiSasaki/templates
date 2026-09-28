@@ -154,6 +154,38 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertEqual(len(duration_records), 1)
         self.assertEqual(json.loads(duration_records[0])["test_id"], case.id())
 
+    def test_nested_discovered_run_does_not_emit_sibling_duration_records(self) -> None:
+        class NestedInventoryProbe(unittest.TestCase):
+            def test_outer_inventory(self):
+                class NestedProbe(unittest.TestCase):
+                    def test_nested_inventory(self):
+                        pass
+
+                self.assertEqual(
+                    preflight.run_discovered_tests(
+                        [NestedProbe("test_nested_inventory")], jobs=1, verbosity=0
+                    ),
+                    0,
+                )
+
+        outer_case = NestedInventoryProbe("test_outer_inventory")
+        with redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(
+                preflight.run_discovered_tests(
+                    [outer_case], jobs=1, verbosity=0, emit_durations=True
+                ),
+                0,
+            )
+
+        duration_ids = [
+            json.loads(line.removeprefix("INTEGRATION_TEST_CASE_DURATION "))[
+                "test_id"
+            ]
+            for line in output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(duration_ids, [outer_case.id()])
+
     def test_class_fixture_errors_account_every_discovered_id_in_serial_results(self) -> None:
         for fixture_name in ("setUpClass", "tearDownClass"):
             with self.subTest(fixture=fixture_name):

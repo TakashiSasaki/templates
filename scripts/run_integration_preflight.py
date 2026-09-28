@@ -385,7 +385,9 @@ def child_environment() -> dict[str, str]:
     return environment
 
 
-def run_shard_worker(manifest_path: Path) -> int:
+def run_shard_worker(
+    manifest_path: Path, *, emit_durations: bool = False
+) -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     required = {"schema_version", "inventory_ids", "shard_ids", "shard_index", "shard_count", "result_path"}
     if not isinstance(manifest, dict) or set(manifest) != required or manifest["schema_version"] != 1:
@@ -412,7 +414,7 @@ def run_shard_worker(manifest_path: Path) -> int:
         f"tests={len(shard_ids)} ids_sha256={test_id_digest(shard_ids)}",
         flush=True,
     )
-    result = run_suite(cases, 2, emit_durations=True)
+    result = run_suite(cases, 2, emit_durations=emit_durations)
     result_path = Path(manifest["result_path"])
     if result_path.parent.resolve() != manifest_path.parent.resolve():
         raise PreflightFailure("Integration shard result must stay beside its private manifest")
@@ -534,7 +536,13 @@ def run_parallel_shards(
     }
 
 
-def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: int = 2) -> int:
+def run_discovered_tests(
+    cases: list[unittest.TestCase],
+    jobs: int,
+    verbosity: int = 2,
+    *,
+    emit_durations: bool = False,
+) -> int:
     if jobs < 1:
         raise ValueError("jobs must be an integer of at least 1")
     inventory_ids = [case.id() for case in cases]
@@ -552,7 +560,7 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
         mode = "serial-baseline" if jobs == 1 else "serial-fail-closed"
         print(f"INTEGRATION_WORKERS requested={jobs} effective=1 mode={mode}", flush=True)
         started = time.perf_counter()
-        result = run_suite(cases, verbosity, emit_durations=True)
+        result = run_suite(cases, verbosity, emit_durations=emit_durations)
         wall = time.perf_counter() - started
         if set(result.outcomes) != set(inventory_ids):
             print("INTEGRATION_TEST_FAIL serial run omitted test IDs", file=sys.stderr)
@@ -584,7 +592,9 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
     serial_started = time.perf_counter()
     serial_cases = [case for case in cases if case.id() in set(serial_ids)]
     print(f"INTEGRATION_SERIAL_EXCLUSIVE_START tests={len(serial_cases)}", flush=True)
-    serial_result = run_suite(serial_cases, verbosity, emit_durations=True)
+    serial_result = run_suite(
+        serial_cases, verbosity, emit_durations=emit_durations
+    )
     serial_seconds = time.perf_counter() - serial_started
     outcomes = dict(parallel_outcomes)
     for test_id, outcome in serial_result.outcomes.items():
@@ -646,14 +656,21 @@ def sanitize_preflight_environment() -> None:
     sys.dont_write_bytecode = True
 
 
-def run_fast(expected_head: str | None, jobs: int = 2) -> None:
+def run_fast(
+    expected_head: str | None,
+    jobs: int = 2,
+    *,
+    emit_durations: bool = False,
+) -> None:
     sanitize_preflight_environment()
     require_exact_head(expected_head)
     run([str(PYTHON), "-m", "compileall", "-q", "integration", "publication_bundle", "ci_artifacts", "scripts", "tests"])
     run(command("scripts/check_python_dependencies.py"))
     cases = discover_test_cases()
     validate_discovery(cases)
-    if run_discovered_tests(cases, jobs, verbosity=2) != 0:
+    if run_discovered_tests(
+        cases, jobs, verbosity=2, emit_durations=emit_durations
+    ) != 0:
         raise PreflightFailure("Integration unittest discovery returned failures")
 
 
@@ -696,9 +713,11 @@ def fixture_round_trip() -> None:
             raise PreflightFailure("local Publication Bundle pack/extract round trip changed the manifest")
 
 
-def run_ready(expected_head: str, jobs: int = 2) -> None:
+def run_ready(
+    expected_head: str, jobs: int = 2, *, emit_durations: bool = False
+) -> None:
     require_clean_tree()
-    run_fast(expected_head, jobs)
+    run_fast(expected_head, jobs, emit_durations=emit_durations)
     validate_publication_lock()
     validate_producer_identity(expected_head)
     fixture_round_trip()
@@ -823,7 +842,12 @@ def prepare_provider_checkouts(
     }
 
 
-def run_providers(args: argparse.Namespace, expected_head: str) -> None:
+def run_providers(
+    args: argparse.Namespace,
+    expected_head: str,
+    *,
+    emit_durations: bool = False,
+) -> None:
     composition_root = args.composition_root.resolve()
     policy_root = args.policy_root.resolve()
     composition_revision = exact_revision(args.composition_revision, "Composition revision")
@@ -833,7 +857,7 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
     if (modeling_root is None) != (modeling_revision is None):
         raise PreflightFailure("Modeling root and revision must be supplied together")
     require_clean_tree()
-    run_fast(expected_head, args.jobs)
+    run_fast(expected_head, args.jobs, emit_durations=emit_durations)
     validate_publication_lock()
     validate_producer_identity(expected_head)
     resolve_producer = importlib.import_module("scripts.resolve_producer_checkout")
@@ -932,15 +956,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.worker_manifest is not None:
             if args.profile != "fast" or args.jobs != 1:
                 raise PreflightFailure("private shard workers require fast profile and --jobs 1")
-            return run_shard_worker(args.worker_manifest)
+            return run_shard_worker(args.worker_manifest, emit_durations=True)
         if args.profile == "fast":
-            run_fast(args.expected_head, args.jobs)
+            run_fast(args.expected_head, args.jobs, emit_durations=True)
         else:
             if not args.expected_head:
                 raise PreflightFailure(f"{args.profile} requires --expected-head")
             expected_head = exact_revision(args.expected_head, "expected head")
             if args.profile == "ready":
-                run_ready(expected_head, args.jobs)
+                run_ready(expected_head, args.jobs, emit_durations=True)
             else:
                 required = (
                     args.composition_root,
@@ -950,7 +974,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 if any(value is None for value in required):
                     raise PreflightFailure("providers requires explicit Composition and Policy roots and revisions")
-                run_providers(args, expected_head)
+                run_providers(args, expected_head, emit_durations=True)
         print(f"INTEGRATION_PREFLIGHT_PASS profile={args.profile}", flush=True)
         return 0
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
