@@ -68,6 +68,34 @@ class RunCoreTestsContractTests(unittest.TestCase):
         self.assertEqual(len(duration_records), 1)
         self.assertEqual(duration_records[0]["test_id"], case.id())
 
+    def test_fixture_skips_emit_zero_duration_for_each_discovered_id(self) -> None:
+        class SkippedClass(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise unittest.SkipTest("controlled class setup skip")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        cases = [SkippedClass("test_one"), SkippedClass("test_two")]
+        output = io.StringIO()
+        with patch("sys.stdout", output):
+            result = run_suite(cases, verbosity=0, emit_durations=True)
+
+        duration_records = [
+            json.loads(line.removeprefix("SITE_TEST_CASE_DURATION "))
+            for line in output.getvalue().splitlines()
+            if line.startswith("SITE_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(
+            {record["test_id"] for record in duration_records},
+            {case.id() for case in cases},
+        )
+        self.assertTrue(all(record["duration_seconds"] == 0 for record in duration_records))
+
     def _assert_serial_fixture_outcomes(
         self,
         cases: list[unittest.TestCase],
