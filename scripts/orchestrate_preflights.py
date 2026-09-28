@@ -411,9 +411,15 @@ def run_single_preflight(
 
     start_time = time.monotonic()
     log_file_path: Path | None = None
+    log_write_error: str | None = None
     if log_dir:
-        log_dir.mkdir(parents=True, exist_ok=True)
         log_file_path = log_dir / f"{authority}.log"
+        try:
+            log_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            log_write_error = (
+                f"failed to create authority log directory {log_dir}: {exc}"
+            )
 
     proc: subprocess.Popen[str] | None = None
     stdout = ""
@@ -498,12 +504,16 @@ def run_single_preflight(
     if cleanup_failure:
         full_output += f"PROCESS CLEANUP\n{cleanup_failure}\n"
 
-    log_write_error: str | None = None
     if log_file_path:
         try:
             log_file_path.write_text(full_output, encoding="utf-8")
         except OSError as exc:
-            log_write_error = f"failed to write authority log {log_file_path}: {exc}"
+            write_error = f"failed to write authority log {log_file_path}: {exc}"
+            log_write_error = (
+                f"{log_write_error}; {write_error}"
+                if log_write_error
+                else write_error
+            )
 
     if coordinator_interrupted:
         failure = "coordinator interrupted; authority supervisor cleanup was requested"

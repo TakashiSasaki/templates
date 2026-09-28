@@ -405,6 +405,33 @@ def test_log_write_failure_is_normalized_as_authority_failure(
     assert "controlled full filesystem" in result.failure_excerpt
 
 
+def test_log_directory_creation_failure_is_aggregated_for_each_authority(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "workspace"
+    _create_mock_authority(repo_root, "policy")
+    _create_mock_authority(repo_root, "composition")
+    log_dir = tmp_path / "logs"
+    log_dir.write_text("not a directory", encoding="utf-8")
+
+    result = orchestrate_preflights(
+        authorities=["policy", "composition"],
+        repo_root=repo_root,
+        global_jobs=2,
+        log_dir=log_dir,
+    )
+
+    assert result["overall_status"] == "FAILED"
+    assert [item["authority"] for item in result["authorities"]] == [
+        "policy",
+        "composition",
+    ]
+    for item in result["authorities"]:
+        assert item["status"] == "FAIL"
+        assert "failed to create authority log directory" in item["failure_excerpt"]
+        assert "failed to write authority log" in item["failure_excerpt"]
+
+
 @pytest.mark.skipif(os.name != "posix", reason="requires POSIX supervisor signal handling")
 def test_coordinator_sigterm_stops_supervisor_and_authority_tree(
     tmp_path: Path,
