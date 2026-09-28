@@ -211,6 +211,23 @@ class InventoryTextTestResult(unittest.TextTestResult):
         super().__init__(*args, **kwargs)
         self.outcomes: dict[str, dict[str, str]] = {}
         self.discovered_cases: tuple[unittest.TestCase, ...] = ()
+        self.test_durations: list[tuple[str, float]] = []
+        self._started_ns: dict[int, int] = {}
+
+    def startTest(self, test: unittest.TestCase) -> None:
+        super().startTest(test)
+        self._started_ns[id(test)] = time.perf_counter_ns()
+
+    def stopTest(self, test: unittest.TestCase) -> None:
+        started_ns = self._started_ns.pop(id(test), None)
+        if started_ns is not None:
+            self.test_durations.append(
+                (
+                    test.id(),
+                    max(0.0, (time.perf_counter_ns() - started_ns) / 1_000_000_000),
+                )
+            )
+        super().stopTest(test)
 
     def _record(self, test: unittest.TestCase, status: str, reason: str | None = None) -> None:
         self._record_id(test.id(), status, reason)
@@ -304,9 +321,22 @@ class InventoryTextTestRunner(unittest.TextTestRunner):
 
 
 def run_suite(cases: list[unittest.TestCase], verbosity: int) -> InventoryTextTestResult:
-    return InventoryTextTestRunner(
+    result = InventoryTextTestRunner(
         verbosity=verbosity, discovered_cases=cases
     ).run(unittest.TestSuite(cases))
+    for test_id, duration in sorted(
+        result.test_durations, key=lambda item: (-item[1], item[0])
+    ):
+        print(
+            "INTEGRATION_TEST_CASE_DURATION "
+            + json.dumps(
+                {"test_id": test_id, "duration_seconds": round(duration, 9)},
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            flush=True,
+        )
+    return result
 
 
 def outcome_digest(outcomes: dict[str, dict[str, str]]) -> str:
