@@ -59,7 +59,10 @@
                 "source_sha",
                 "run_id",
                 "run_attempt",
-                "event"
+                "event",
+                "actor_id",
+                "actor_login",
+                "job"
             ],
             "properties": {
                 "digest": {
@@ -96,6 +99,17 @@
                 },
                 "event": {
                     "const": "workflow_dispatch"
+                },
+                "actor_id": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                },
+                "actor_login": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9-]{1,39}$"
+                },
+                "job": {
+                    "const": "bootstrap"
                 }
             }
         },

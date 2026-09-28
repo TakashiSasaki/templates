@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GitHub Actions role freeze evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider", "object", "attestation", "target", "role"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider": {"const": "github-actions-ghcr-role"},
+    "object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "manifest_digest", "media_type"],
+      "properties": {
+        "repository": {"const": "ghcr.io/takashisasaki/templates/trusted-review-authority"},
+        "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "media_type": {"const": "application/vnd.oci.image.manifest.v1+json"}
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issuer", "repository_id", "owner_id", "workflow_ref", "workflow_sha", "source_sha", "run_id", "run_attempt", "event", "actor_id", "actor_login", "job"],
+      "properties": {
+        "issuer": {"const": "https://token.actions.githubusercontent.com"},
+        "repository_id": {"const": "1315875002"},
+        "owner_id": {"const": "556958"},
+        "workflow_ref": {"type": "string", "minLength": 1},
+        "workflow_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "source_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "run_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "run_attempt": {"const": 1},
+        "event": {"const": "workflow_dispatch"},
+        "actor_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "actor_login": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,39}$"},
+        "job": {"const": "bootstrap"}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_id", "repository_name", "pull_request_id", "pull_request_node_id", "pull_request_number", "base_sha", "base_tree", "head_sha", "head_tree", "observation_sha256"],
+      "properties": {
+        "repository_id": {"const": "1315875002"},
+        "repository_name": {"const": "TakashiSasaki/templates"},
+        "pull_request_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "pull_request_node_id": {"type": "string", "minLength": 1},
+        "pull_request_number": {"type": "integer", "minimum": 1},
+        "base_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "base_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "head_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "head_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "observation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path", "inventory_sha256", "identity"],
+      "properties": {
+        "name": {"enum": ["bootstrap_run_image", "trusted_base_snapshot", "runtime_image", "review_bundle"]},
+        "path": {"type": "string", "pattern": "^roles/(bootstrap_run_image|trusted_base_snapshot|runtime_image|review_bundle)$"},
+        "inventory_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "identity": {"type": "object", "minProperties": 1}
+      }
+    }
+  }
+}

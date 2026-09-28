@@ -39,6 +39,7 @@ def run_identity() -> ActionsRunIdentity:
         source_sha=SOURCE_SHA,
         actor="maintainer",
         actor_id="9001",
+        job="bootstrap",
     )
 
 
@@ -63,6 +64,9 @@ def evidence() -> dict[str, Any]:
             "run_id": "73124",
             "run_attempt": 1,
             "event": "workflow_dispatch",
+            "actor_id": "9001",
+            "actor_login": "maintainer",
+            "job": "bootstrap",
         },
         "target": {
             "repository_id": REPO_ID,
@@ -123,6 +127,55 @@ def evidence() -> dict[str, Any]:
             "before_use": "PASS",
             "after_use": "PASS",
             "verifier": freeze.GitHubActionsOciFreezeVerifier.name,
+        },
+    }
+
+
+def role_evidence(
+    *,
+    role: str = "trusted_base_snapshot",
+    target_pr_id: str = "81001",
+    manifest_digest: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "provider": "github-actions-ghcr-role",
+        "object": {
+            "repository": freeze.OCI_REPOSITORY,
+            "manifest_digest": manifest_digest or f"sha256:{IMAGE_SHA}",
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+        },
+        "attestation": {
+            "issuer": "https://token.actions.githubusercontent.com",
+            "repository_id": REPO_ID,
+            "owner_id": OWNER_ID,
+            "workflow_ref": run_identity().workflow_ref,
+            "workflow_sha": WORKFLOW_SHA,
+            "source_sha": SOURCE_SHA,
+            "run_id": "73124",
+            "run_attempt": 1,
+            "event": "workflow_dispatch",
+            "actor_id": "9001",
+            "actor_login": "maintainer",
+            "job": "bootstrap",
+        },
+        "target": {
+            "repository_id": REPO_ID,
+            "repository_name": "TakashiSasaki/templates",
+            "pull_request_id": target_pr_id,
+            "pull_request_node_id": "PR_kwDOExample",
+            "pull_request_number": 97,
+            "base_sha": BASE_SHA,
+            "base_tree": BASE_TREE,
+            "head_sha": HEAD_SHA,
+            "head_tree": HEAD_TREE,
+            "observation_sha256": OBSERVATION_SHA,
+        },
+        "role": {
+            "name": role,
+            "path": f"roles/{role}",
+            "inventory_sha256": "6" * 64,
+            "identity": {"base_sha": BASE_SHA, "base_tree": BASE_TREE},
         },
     }
 
@@ -249,6 +302,145 @@ def test_valid_schema_and_duplicate_json_key_rejection(tmp_path: Path) -> None:
     path.write_text('{"schema_version":1,"schema_version":1}')
     with pytest.raises(freeze.TrustedFreezeError, match="duplicate JSON key"):
         freeze.load_freeze_evidence(path)
+
+
+def test_role_freeze_evidence_is_strict_and_attested_for_exact_role(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    role = "trusted_base_snapshot"
+    document = role_evidence(role=role)
+    freeze.validate_role_freeze_evidence(document)
+    evidence_path = tmp_path / "role-freeze.json"
+    evidence_path.write_text(json.dumps(document, sort_keys=True, separators=(",", ":")))
+
+    source = tmp_path / "source" / "trusted-base-snapshot"
+    source.mkdir(parents=True)
+    (source / "base.txt").write_text("trusted base")
+    protected_root = tmp_path / "protected"
+    protected = protected_root / "roles" / role
+    protected.mkdir(parents=True)
+    (protected / "base.txt").write_text("trusted base")
+    monkeypatch.setenv("TRUSTED_REVIEW_PROTECTED_ROOT", str(protected_root))
+    monkeypatch.setattr(freeze, "require_protected_view", lambda *_args, **_kwargs: None)
+
+    expected_target = {
+        "repository": {"id": REPO_ID, "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {
+            "id": "81001",
+            "node_id": "PR_kwDOExample",
+            "number": 97,
+            "base_ref_oid": BASE_SHA,
+            "base_tree": BASE_TREE,
+            "head_ref_oid": HEAD_SHA,
+            "head_tree": HEAD_TREE,
+        },
+        "provider_observation": {"observation_sha256": OBSERVATION_SHA},
+    }
+    adapter = freeze.GitHubActionsRoleFreezeVerifier(
+        evidence_path,
+        expected_target,
+        token="test-token",
+        run_identity=run_identity(),
+        runner=Runner(),
+    )
+    inventory = freeze._inventory_digest(source)
+    doc = adapter.document
+    doc["role"]["inventory_sha256"] = inventory
+    evidence_path.write_text(json.dumps(doc, sort_keys=True, separators=(",", ":")))
+    adapter = freeze.GitHubActionsRoleFreezeVerifier(
+        evidence_path,
+        expected_target,
+        token="test-token",
+        run_identity=run_identity(),
+        runner=Runner(),
+    )
+    marker = handoff_freeze_marker(adapter)
+    actual = adapter.verify_freeze(
+        role,
+        source,
+        marker,
+        expected_inventory_sha256=inventory,
+        expected_identity={"base_sha": BASE_SHA, "base_tree": BASE_TREE},
+    )
+    assert actual == protected
+
+
+def handoff_freeze_marker(adapter: Any) -> Any:
+    from scripts.prepare_trusted_review_handoff import FreezeBoundaryType, FreezeEvidence
+
+    return FreezeEvidence(
+        boundary_type=FreezeBoundaryType.DEPLOYMENT_ESTABLISHED,
+        mechanism=f"{adapter.name}:{adapter.document['object']['manifest_digest']}",
+        evidence_status="authenticated",
+        attestation_sha256=adapter.sha256,
+    )
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        (lambda value: value["role"].update(name="review_bundle"), "different artifact role"),
+        (
+            lambda value: value["target"].update(pull_request_id="81002"),
+            "another repository or pull request",
+        ),
+        (lambda value: value["attestation"].update(actor_id="9002"), "workflow identity"),
+        (
+            lambda value: value["object"].update(manifest_digest="sha256:" + "f" * 64),
+            "subject digest",
+        ),
+    ],
+)
+def test_role_freeze_evidence_rejects_role_target_actor_and_digest_replay(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    change,
+    message: str,
+) -> None:
+    document = role_evidence()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "base.txt").write_text("trusted base")
+    inventory = freeze._inventory_digest(source)
+    document["role"]["inventory_sha256"] = inventory
+    change(document)
+    evidence_path = tmp_path / "role-freeze.json"
+    evidence_path.write_text(json.dumps(document, sort_keys=True, separators=(",", ":")))
+    protected_root = tmp_path / "protected"
+    protected = protected_root / "roles" / "trusted_base_snapshot"
+    protected.mkdir(parents=True)
+    (protected / "base.txt").write_text("trusted base")
+    monkeypatch.setenv("TRUSTED_REVIEW_PROTECTED_ROOT", str(protected_root))
+    monkeypatch.setattr(freeze, "require_protected_view", lambda *_args, **_kwargs: None)
+    expected_target = {
+        "repository": {"id": REPO_ID, "name_with_owner": "TakashiSasaki/templates"},
+        "pull_request": {
+            "id": "81001",
+            "node_id": "PR_kwDOExample",
+            "number": 97,
+            "base_ref_oid": BASE_SHA,
+            "base_tree": BASE_TREE,
+            "head_ref_oid": HEAD_SHA,
+            "head_tree": HEAD_TREE,
+        },
+        "provider_observation": {"observation_sha256": OBSERVATION_SHA},
+    }
+    adapter = freeze.GitHubActionsRoleFreezeVerifier(
+        evidence_path,
+        expected_target,
+        token="test-token",
+        run_identity=run_identity(),
+        runner=Runner(),
+    )
+    marker = handoff_freeze_marker(adapter)
+    with pytest.raises(freeze.TrustedFreezeError, match=message):
+        adapter.verify_freeze(
+            "trusted_base_snapshot",
+            source,
+            marker,
+            expected_inventory_sha256=inventory,
+            expected_identity={"base_sha": BASE_SHA, "base_tree": BASE_TREE},
+        )
 
 
 @pytest.mark.parametrize(

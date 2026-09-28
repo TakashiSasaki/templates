@@ -1,0 +1,339 @@
+name: Trusted review bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to prepare for independent review.
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trusted-review-bootstrap-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    if: github.repository_id == '1315875002' && github.ref == 'refs/heads/site'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+      attestations: write
+      packages: write
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      TRUSTED_REVIEW_ACTOR_LOGIN: ${{ github.actor }}
+      TRUSTED_REVIEW_ACTOR_ID: ${{ github.actor_id }}
+      WORK_ROOT: ${{ runner.temp }}/trusted-review
+      ROLE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/role-protected
+      AGGREGATE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected
+      OCI_REPOSITORY: ghcr.io/takashisasaki/templates/trusted-review-authority
+
+    steps:
+      - name: Check out the trusted workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install the trusted workflow runtime dependencies
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK_ROOT"
+          python3 -m venv "$WORK_ROOT/venv"
+          "$WORK_ROOT/venv/bin/python" -m pip install \
+            --disable-pip-version-check --no-deps -r requirements-runtime.lock
+          mkdir -p "$WORK_ROOT/evidence" "$WORK_ROOT/output"
+
+      - name: Observe the pull request through the authenticated GitHub API
+        id: observation
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_actions.py \
+            observe --pr-number "$PR_NUMBER" --output "$WORK_ROOT/provider-observation.json"
+
+      - name: Attest the authenticated provider observation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ runner.temp }}/trusted-review/provider-observation.json
+
+      - name: Verify the observation and initialize from the exact target base
+        id: initialize
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            initialize \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --output-root "$WORK_ROOT/authority" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Materialize the bootstrap image candidate
+        env:
+          TARGET_BASE: ${{ steps.initialize.outputs.target_base }}
+          TARGET_HEAD: ${{ steps.initialize.outputs.target_head }}
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            prepare-stage \
+            --expect-role bootstrap_run_image \
+            --object-repository "$WORK_ROOT/authority/objects.git" \
+            --base "$TARGET_BASE" \
+            --head "$TARGET_HEAD" \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --installed-skill "$WORK_ROOT/authority/installed/agent-policy" \
+            --installation-attestation "$WORK_ROOT/authority/installation-attestation.json" \
+            --work-dir "$WORK_ROOT/authority/work" \
+            --state-file "$WORK_ROOT/authority/handoff-state.json"
+
+      - name: Freeze the bootstrap image
+        uses: ./.github/actions/trusted-review-freeze-role
+        with:
+          role: bootstrap_run_image
+          state: ${{ runner.temp }}/trusted-review/authority/handoff-state.json
+          observation: ${{ runner.temp }}/trusted-review/provider-observation.json
+          installation-attestation: ${{ runner.temp }}/trusted-review/authority/installation-attestation.json
+          work-root: ${{ runner.temp }}/trusted-review
+
+      - name: Materialize the exact trusted-base snapshot candidate
+        env:
+          TARGET_BASE: ${{ steps.initialize.outputs.target_base }}
+          TARGET_HEAD: ${{ steps.initialize.outputs.target_head }}
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            prepare-stage \
+            --expect-role trusted_base_snapshot \
+            --object-repository "$WORK_ROOT/authority/objects.git" \
+            --base "$TARGET_BASE" \
+            --head "$TARGET_HEAD" \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --installed-skill "$WORK_ROOT/authority/installed/agent-policy" \
+            --installation-attestation "$WORK_ROOT/authority/installation-attestation.json" \
+            --work-dir "$WORK_ROOT/authority/work" \
+            --state-file "$WORK_ROOT/authority/handoff-state.json" \
+            --role-freeze-evidence "$WORK_ROOT/evidence/bootstrap_run_image.json"
+
+      - name: Freeze the trusted-base snapshot
+        uses: ./.github/actions/trusted-review-freeze-role
+        with:
+          role: trusted_base_snapshot
+          state: ${{ runner.temp }}/trusted-review/authority/handoff-state.json
+          observation: ${{ runner.temp }}/trusted-review/provider-observation.json
+          installation-attestation: ${{ runner.temp }}/trusted-review/authority/installation-attestation.json
+          work-root: ${{ runner.temp }}/trusted-review
+
+      - name: Materialize the runtime image candidate
+        env:
+          TARGET_BASE: ${{ steps.initialize.outputs.target_base }}
+          TARGET_HEAD: ${{ steps.initialize.outputs.target_head }}
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            prepare-stage \
+            --expect-role runtime_image \
+            --object-repository "$WORK_ROOT/authority/objects.git" \
+            --base "$TARGET_BASE" \
+            --head "$TARGET_HEAD" \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --installed-skill "$WORK_ROOT/authority/installed/agent-policy" \
+            --installation-attestation "$WORK_ROOT/authority/installation-attestation.json" \
+            --work-dir "$WORK_ROOT/authority/work" \
+            --state-file "$WORK_ROOT/authority/handoff-state.json" \
+            --role-freeze-evidence "$WORK_ROOT/evidence/trusted_base_snapshot.json"
+
+      - name: Freeze the runtime image
+        uses: ./.github/actions/trusted-review-freeze-role
+        with:
+          role: runtime_image
+          state: ${{ runner.temp }}/trusted-review/authority/handoff-state.json
+          observation: ${{ runner.temp }}/trusted-review/provider-observation.json
+          installation-attestation: ${{ runner.temp }}/trusted-review/authority/installation-attestation.json
+          work-root: ${{ runner.temp }}/trusted-review
+
+      - name: Materialize the trusted review bundle candidate
+        env:
+          TARGET_BASE: ${{ steps.initialize.outputs.target_base }}
+          TARGET_HEAD: ${{ steps.initialize.outputs.target_head }}
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            prepare-stage \
+            --expect-role review_bundle \
+            --object-repository "$WORK_ROOT/authority/objects.git" \
+            --base "$TARGET_BASE" \
+            --head "$TARGET_HEAD" \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --installed-skill "$WORK_ROOT/authority/installed/agent-policy" \
+            --installation-attestation "$WORK_ROOT/authority/installation-attestation.json" \
+            --work-dir "$WORK_ROOT/authority/work" \
+            --state-file "$WORK_ROOT/authority/handoff-state.json" \
+            --role-freeze-evidence "$WORK_ROOT/evidence/runtime_image.json"
+
+      - name: Freeze the trusted review bundle
+        uses: ./.github/actions/trusted-review-freeze-role
+        with:
+          role: review_bundle
+          state: ${{ runner.temp }}/trusted-review/authority/handoff-state.json
+          observation: ${{ runner.temp }}/trusted-review/provider-observation.json
+          installation-attestation: ${{ runner.temp }}/trusted-review/authority/installation-attestation.json
+          work-root: ${{ runner.temp }}/trusted-review
+
+      - name: Build the aggregate authority image from protected role views
+        id: aggregate
+        env:
+          TRUSTED_REVIEW_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/role-protected
+        run: |
+          set -euo pipefail
+          context="$WORK_ROOT/aggregate-context"
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            stage-aggregate-context \
+            --state "$WORK_ROOT/authority/handoff-state.json" \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --installation-attestation "$WORK_ROOT/authority/installation-attestation.json" \
+            --role-evidence-dir "$WORK_ROOT/evidence" \
+            --output "$context"
+          tag="trusted-review-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}-aggregate"
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            --sbom=false \
+            --output "type=image,oci-mediatypes=true,name=${OCI_REPOSITORY}:${tag},push=true" \
+            --metadata-file "$WORK_ROOT/metadata/aggregate.json" \
+            "$context"
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            metadata-digest \
+            --metadata "$WORK_ROOT/metadata/aggregate.json" \
+            --github-output "$GITHUB_OUTPUT"
+          digest="$(sed -n 's/^digest=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            verify-manifest --manifest-digest "$digest"
+
+      - name: Attest the aggregate authority image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ghcr.io/takashisasaki/templates/trusted-review-authority
+          subject-digest: ${{ steps.aggregate.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Protect the final attested authority image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MANIFEST_DIGEST: ${{ steps.aggregate.outputs.digest }}
+          TRUSTED_REVIEW_AGGREGATE_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected
+          TRUSTED_REVIEW_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/role-protected
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            protect-aggregate \
+            --state "$WORK_ROOT/authority/handoff-state.json" \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --installation-attestation "$WORK_ROOT/authority/installation-attestation.json" \
+            --role-evidence-dir "$WORK_ROOT/evidence" \
+            --manifest-digest "$MANIFEST_DIGEST"
+
+      - name: Record post-freeze protected-view verification
+        env:
+          MANIFEST_DIGEST: ${{ steps.aggregate.outputs.digest }}
+          TRUSTED_REVIEW_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            write-aggregate-evidence \
+            --state "$WORK_ROOT/authority/handoff-state.json" \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --installation-attestation "$WORK_ROOT/authority/installation-attestation.json" \
+            --role-evidence-dir "$WORK_ROOT/evidence" \
+            --manifest-digest "$MANIFEST_DIGEST" \
+            --output "$WORK_ROOT/evidence/freeze-evidence.json"
+
+      - name: Attest the exact aggregate freeze evidence bytes
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ runner.temp }}/trusted-review/evidence/freeze-evidence.json
+
+      - name: Generate the authenticated bootstrap handoff and reviewer packet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          TARGET_BASE: ${{ steps.initialize.outputs.target_base }}
+          TARGET_HEAD: ${{ steps.initialize.outputs.target_head }}
+          TRUSTED_REVIEW_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            prepare-stage \
+            --object-repository "$WORK_ROOT/authority/objects.git" \
+            --base "$TARGET_BASE" \
+            --head "$TARGET_HEAD" \
+            --observation "$WORK_ROOT/provider-observation.json" \
+            --installed-skill "$WORK_ROOT/authority/installed/agent-policy" \
+            --installation-attestation "$WORK_ROOT/authority/installation-attestation.json" \
+            --work-dir "$WORK_ROOT/authority/work" \
+            --state-file "$WORK_ROOT/authority/handoff-state.json" \
+            --role-freeze-evidence "$WORK_ROOT/evidence/review_bundle.json" \
+            --freeze-evidence "$WORK_ROOT/evidence/freeze-evidence.json" \
+            --output-handoff "$WORK_ROOT/output/handoff.json" \
+            --output-packet "$WORK_ROOT/output/reviewer-packet.txt"
+
+      - name: Independently verify the generated handoff with the production path
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          TRUSTED_REVIEW_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/prepare_trusted_review_handoff.py \
+            verify \
+            --handoff "$WORK_ROOT/output/handoff.json" \
+            --check-locators \
+            --require-authenticated-provider \
+            --provider-observation "$WORK_ROOT/provider-observation.json" \
+            --freeze-evidence "$WORK_ROOT/evidence/freeze-evidence.json"
+
+      - name: Attest the generated handoff bytes
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ runner.temp }}/trusted-review/output/handoff.json
+
+      - name: Attest the generated reviewer packet bytes
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ runner.temp }}/trusted-review/output/reviewer-packet.txt
+
+      - name: Verify both output-file attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            verify-attested-file --path "$WORK_ROOT/output/handoff.json"
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            verify-attested-file --path "$WORK_ROOT/output/reviewer-packet.txt"
+
+      - name: Upload the review handoff packet
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trusted-review-${{ steps.initialize.outputs.target_pr }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/trusted-review/output/handoff.json
+            ${{ runner.temp }}/trusted-review/output/reviewer-packet.txt
+            ${{ runner.temp }}/trusted-review/provider-observation.json
+            ${{ runner.temp }}/trusted-review/evidence/freeze-evidence.json
+          if-no-files-found: error
+          retention-days: 14

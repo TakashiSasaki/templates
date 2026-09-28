@@ -1,0 +1,127 @@
+name: Freeze one trusted-review role
+description: Publish, attest, retrieve, and protect one role by GHCR OCI digest.
+inputs:
+  role:
+    description: Fixed role name from the trusted bootstrap workflow.
+    required: true
+  state:
+    description: Trusted local bootstrap state file.
+    required: true
+  observation:
+    description: Attested provider observation bytes.
+    required: true
+  installation-attestation:
+    description: Exact-base installer output attestation.
+    required: true
+  work-root:
+    description: Per-run trusted-review workspace.
+    required: true
+outputs:
+  manifest-digest:
+    description: Immutable GHCR OCI manifest digest for this role.
+    value: ${{ steps.digest.outputs.digest }}
+runs:
+  using: composite
+  steps:
+    - name: Create role OCI build context
+      shell: bash
+      env:
+        ROLE: ${{ inputs.role }}
+        STATE: ${{ inputs.state }}
+        WORK_ROOT: ${{ inputs.work-root }}
+      run: |
+        set -euo pipefail
+        context="$WORK_ROOT/contexts/$ROLE"
+        mkdir -p "$WORK_ROOT/contexts" "$WORK_ROOT/evidence"
+        "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+          stage-role-context --state "$STATE" --role "$ROLE" --output "$context"
+
+    - name: Authenticate to GHCR with the run-scoped token
+      shell: bash
+      env:
+        GHCR_USER: ${{ github.actor }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+
+    - name: Publish the role OCI object
+      id: digest
+      shell: bash
+      env:
+        ROLE: ${{ inputs.role }}
+        WORK_ROOT: ${{ inputs.work-root }}
+        OCI_REPOSITORY: ghcr.io/takashisasaki/templates/trusted-review-authority
+      run: |
+        set -euo pipefail
+        case "$ROLE" in
+          bootstrap_run_image|trusted_base_snapshot|runtime_image|review_bundle) ;;
+          *) exit 1 ;;
+        esac
+        metadata="$WORK_ROOT/metadata/$ROLE.json"
+        mkdir -p "$WORK_ROOT/metadata"
+        tag="trusted-review-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}-${ROLE}"
+        docker buildx build \
+          --platform linux/amd64 \
+          --provenance=false \
+          --sbom=false \
+          --output "type=image,oci-mediatypes=true,name=${OCI_REPOSITORY}:${tag},push=true" \
+          --metadata-file "$metadata" \
+          "$WORK_ROOT/contexts/$ROLE"
+        "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+          metadata-digest --metadata "$metadata" --github-output "$GITHUB_OUTPUT"
+        digest="$(sed -n 's/^digest=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+        "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+          verify-manifest --manifest-digest "$digest"
+
+    - name: Create attested role evidence
+      shell: bash
+      env:
+        ROLE: ${{ inputs.role }}
+        STATE: ${{ inputs.state }}
+        OBSERVATION: ${{ inputs.observation }}
+        INSTALLATION_ATTESTATION: ${{ inputs.installation-attestation }}
+        WORK_ROOT: ${{ inputs.work-root }}
+        MANIFEST_DIGEST: ${{ steps.digest.outputs.digest }}
+      run: |
+        set -euo pipefail
+        "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+          write-role-evidence \
+          --state "$STATE" \
+          --observation "$OBSERVATION" \
+          --installation-attestation "$INSTALLATION_ATTESTATION" \
+          --role "$ROLE" \
+          --manifest-digest "$MANIFEST_DIGEST" \
+          --output "$WORK_ROOT/evidence/$ROLE.json"
+
+    - name: Attest the immutable role image
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+      with:
+        subject-name: ghcr.io/takashisasaki/templates/trusted-review-authority
+        subject-digest: ${{ steps.digest.outputs.digest }}
+        push-to-registry: true
+        create-storage-record: false
+
+    - name: Attest the exact role evidence bytes
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+      with:
+        subject-path: ${{ inputs.work-root }}/evidence/${{ inputs.role }}.json
+
+    - name: Materialize and protect the attested role image
+      shell: bash
+      env:
+        STATE: ${{ inputs.state }}
+        OBSERVATION: ${{ inputs.observation }}
+        INSTALLATION_ATTESTATION: ${{ inputs.installation-attestation }}
+        WORK_ROOT: ${{ inputs.work-root }}
+        EVIDENCE: ${{ inputs.work-root }}/evidence/${{ inputs.role }}.json
+        GH_TOKEN: ${{ github.token }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+          protect-role \
+          --state "$STATE" \
+          --observation "$OBSERVATION" \
+          --installation-attestation "$INSTALLATION_ATTESTATION" \
+          --evidence "$EVIDENCE"
