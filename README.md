@@ -43,6 +43,8 @@ This is the maintainer route for Integration, not a Site-adoption command. The
 repository-wide task map and the connected publication runbook are in Site's
 [templates maintainer onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md)
 and [publication automation handoff](https://github.com/TakashiSasaki/templates/blob/site/docs/publication-automation.md).
+For task-oriented routes to provider selection, Bundle contracts, qualification,
+and release guidance, use [Integration authority navigation](index.md).
 Confirm the checked-out branch is `integration`, capture its full `HEAD` and
 dirty/untracked state, then read [AUTHORITY.md](AUTHORITY.md), [RELEASE.md](RELEASE.md),
 the local [maintenance skill](.agents/skills/integration-publication-maintenance/SKILL.md),
