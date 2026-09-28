@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Barrier
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -17,6 +18,81 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class IntegrationPreflightTests(unittest.TestCase):
+    def test_class_fixture_skip_accounts_every_discovered_id(self) -> None:
+        class SkippedClass(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise unittest.SkipTest("controlled class fixture skip")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        cases = [SkippedClass("test_one"), SkippedClass("test_two")]
+        test_ids = [case.id() for case in cases]
+        with (
+            patch.object(preflight, "classify_test_inventory", return_value=([], test_ids)),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            status = preflight.run_discovered_tests(cases, jobs=2, verbosity=0)
+
+        self.assertEqual(status, 0)
+        self.assertIn("tests_run=2 passed=0 skipped=2 failures=0 errors=0", output.getvalue())
+        self.assertNotIn("omitted test IDs", output.getvalue())
+
+    def test_module_fixture_skip_preserves_worker_inventory(self) -> None:
+        module_name = "test_integration_module_fixture_skip"
+        with TemporaryDirectory(prefix="integration-module-fixture-skip-") as directory:
+            root = Path(directory)
+            tests_dir = root / "tests"
+            tests_dir.mkdir()
+            (tests_dir / f"{module_name}.py").write_text(
+                "import unittest\n"
+                "def setUpModule():\n"
+                "    raise unittest.SkipTest('controlled module fixture skip')\n"
+                "class ModuleFixtureCase(unittest.TestCase):\n"
+                "    def test_one(self): pass\n"
+                "    def test_two(self): pass\n",
+                encoding="utf-8",
+            )
+            test_ids = [
+                f"{module_name}.ModuleFixtureCase.test_one",
+                f"{module_name}.ModuleFixtureCase.test_two",
+            ]
+            result_path = root / "result.json"
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "inventory_ids": test_ids,
+                        "shard_ids": test_ids,
+                        "shard_index": 0,
+                        "shard_count": 1,
+                        "result_path": str(result_path),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            original_path = sys.path.copy()
+            try:
+                with patch.object(preflight, "ROOT", root):
+                    status = preflight.run_shard_worker(manifest_path)
+                payload = json.loads(result_path.read_text(encoding="utf-8"))
+            finally:
+                sys.modules.pop(module_name, None)
+                sys.path[:] = original_path
+
+        self.assertEqual(status, 0)
+        self.assertEqual(payload["tests_run"], 2)
+        self.assertEqual(payload["ran_ids"], sorted(test_ids))
+        self.assertEqual(
+            {outcome["status"] for outcome in payload["outcomes"].values()},
+            {"skipped"},
+        )
+
     def test_skipped_subtest_keeps_the_discovered_parent_id(self) -> None:
         class Probe(unittest.TestCase):
             def test_skipped_subtest(self):
@@ -139,7 +215,6 @@ class IntegrationPreflightTests(unittest.TestCase):
                 (tests_dir / f"{module}.py").write_text("# fixture module\n", encoding="utf-8")
 
             reviewed_source = (tests_dir / "test_reviewed.py").read_bytes()
-            changed_source = (tests_dir / "test_changed.py").read_bytes()
             manifest_path = root / "parallel-modules.json"
             manifest_path.write_text(
                 json.dumps(
