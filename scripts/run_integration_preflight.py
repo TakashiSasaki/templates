@@ -213,7 +213,7 @@ class InventoryTextTestResult(unittest.TextTestResult):
 
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
-        self._record(test, "skipped", reason)
+        self._record(getattr(test, "test_case", test), "skipped", reason)
 
     def addFailure(self, test, err):
         super().addFailure(test, err)
@@ -448,7 +448,8 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
         f"parallel_sha256={test_id_digest(parallel_ids)} serial_sha256={test_id_digest(serial_ids)}",
         flush=True,
     )
-    effective_jobs = min(jobs, len(parallel_ids)) if jobs > 1 else 1
+    schedulable_modules = {test_module_name(test_id) for test_id in parallel_ids}
+    effective_jobs = min(jobs, len(schedulable_modules)) if jobs > 1 else 1
     if effective_jobs < 2:
         effective_jobs = 1
         mode = "serial-baseline" if jobs == 1 else "serial-fail-closed"
