@@ -24,6 +24,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 
 GITHUB_API = "https://api.github.com"
@@ -60,6 +63,7 @@ class ActionsRunIdentity:
     source_sha: str
     actor: str
     actor_id: str
+    job: str
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> ActionsRunIdentity:
@@ -75,6 +79,7 @@ class ActionsRunIdentity:
         source_sha = values.get("GITHUB_SHA", "")
         actor = values.get("TRUSTED_REVIEW_ACTOR_LOGIN", "")
         actor_id = values.get("TRUSTED_REVIEW_ACTOR_ID", "")
+        job = values.get("GITHUB_JOB", "")
 
         if repository != REPOSITORY:
             raise TrustedObservationError("workflow repository identity is not trusted")
@@ -102,6 +107,8 @@ class ActionsRunIdentity:
             raise TrustedObservationError("trusted workflow actor login is missing or invalid")
         if not DECIMAL_ID.fullmatch(actor_id):
             raise TrustedObservationError("trusted workflow actor ID is missing or invalid")
+        if job != "bootstrap":
+            raise TrustedObservationError("trusted workflow job identity is not the bootstrap job")
 
         return cls(
             repository=repository,
@@ -115,6 +122,7 @@ class ActionsRunIdentity:
             source_sha=source_sha,
             actor=actor,
             actor_id=actor_id,
+            job=job,
         )
 
 
@@ -260,6 +268,7 @@ class GitHubApi:
                 "source_sha": run.source_sha,
                 "actor_id": run.actor_id,
                 "actor_login": run.actor,
+                "job": run.job,
             },
         }
 
@@ -451,6 +460,8 @@ class GitHubActionsObservationVerifier:
             raise TrustedObservationError(
                 "provider observation dispatch actor does not match current workflow actor"
             )
+        if producer.get("job") != run.job:
+            raise TrustedObservationError("provider observation job identity is mismatched")
 
         api_document = self.api.observe(document["pull_request"]["number"], run)
         if _observation_identity(api_document) != _observation_identity(document):
@@ -531,6 +542,7 @@ def _observation_identity(document: dict[str, Any]) -> tuple[Any, ...]:
         document["producer"]["source_sha"],
         document["producer"]["actor_id"],
         document["producer"]["actor_login"],
+        document["producer"]["job"],
         pull["author_id"],
         pull["author_login"],
     )

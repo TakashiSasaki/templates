@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TakashiSasaki/templates/schemas/trusted-review-local-view.schema.json",
+  "title": "Trusted review reviewer-local view session",
+  "description": "Ephemeral filesystem locators derived from a durable attested handoff. Never upload this document with the portable handoff packet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "handoff_sha256",
+    "provider_observation_sha256",
+    "freeze_evidence_sha256",
+    "object",
+    "roles",
+    "locators",
+    "backing_locators",
+    "installed_skill_root"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "handoff_sha256": { "$ref": "#/$defs/sha256" },
+    "provider_observation_sha256": { "$ref": "#/$defs/sha256" },
+    "freeze_evidence_sha256": { "$ref": "#/$defs/sha256" },
+    "object": {
+      "type": "object",
+      "required": ["repository", "manifest_digest"],
+      "properties": {
+        "registry": { "type": "string" },
+        "repository": { "type": "string", "minLength": 1 },
+        "manifest_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "media_type": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "inventory_sha256", "identity_sha256"],
+        "properties": {
+          "role": {
+            "enum": [
+              "bootstrap_run_image",
+              "trusted_base_snapshot",
+              "runtime_image",
+              "review_bundle"
+            ]
+          },
+          "inventory_sha256": { "$ref": "#/$defs/sha256" },
+          "identity_sha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "locators": { "$ref": "#/$defs/rolePaths" },
+    "backing_locators": { "$ref": "#/$defs/rolePaths" },
+    "installed_skill_root": { "$ref": "#/$defs/absolutePath" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "absolutePath": { "type": "string", "pattern": "^/[^\u0000]*$" },
+    "rolePaths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap_run_image",
+        "trusted_base_snapshot",
+        "runtime_image",
+        "review_bundle"
+      ],
+      "properties": {
+        "bootstrap_run_image": { "$ref": "#/$defs/absolutePath" },
+        "trusted_base_snapshot": { "$ref": "#/$defs/absolutePath" },
+        "runtime_image": { "$ref": "#/$defs/absolutePath" },
+        "review_bundle": { "$ref": "#/$defs/absolutePath" }
+      }
+    }
+  }
+}

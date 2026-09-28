@@ -36,6 +36,7 @@ def run_identity() -> actions.ActionsRunIdentity:
         source_sha="f" * 40,
         actor="maintainer",
         actor_id="9001",
+        job="bootstrap",
     )
 
 
@@ -70,6 +71,7 @@ def observation(run: actions.ActionsRunIdentity | None = None) -> dict[str, Any]
             "source_sha": identity.source_sha,
             "actor_id": identity.actor_id,
             "actor_login": identity.actor,
+            "job": identity.job,
         },
     }
 
@@ -335,6 +337,7 @@ def test_observation_replay_from_another_run_is_rejected(tmp_path: Path) -> None
         source_sha="f" * 40,
         actor="maintainer",
         actor_id="9001",
+        job="bootstrap",
     )
     doc = observation(old_run)
     provider = actions.provider_identity(doc, actions.canonical_observation_bytes(doc))
@@ -374,6 +377,7 @@ def test_attestation_command_failure_is_not_converted_to_authentication(tmp_path
         ("TRUSTED_REVIEW_ACTOR_LOGIN", "bad/login"),
         ("TRUSTED_REVIEW_ACTOR_LOGIN", "github-actions[app]"),
         ("TRUSTED_REVIEW_ACTOR_ID", "invalid"),
+        ("GITHUB_JOB", "another-job"),
     ],
 )
 def test_workflow_identity_drift_fails_closed(field: str, value: str) -> None:
@@ -389,6 +393,7 @@ def test_workflow_identity_drift_fails_closed(field: str, value: str) -> None:
         "GITHUB_SHA": "f" * 40,
         "TRUSTED_REVIEW_ACTOR_LOGIN": "maintainer",
         "TRUSTED_REVIEW_ACTOR_ID": "9001",
+        "GITHUB_JOB": "bootstrap",
     }
     env[field] = value
     with pytest.raises(actions.TrustedObservationError):
@@ -539,7 +544,7 @@ def test_observation_schema_rejects_noncanonical_bot_login_forms(
         actions.validate_observation(document)
 
 
-def test_workflow_identity_accepts_github_app_actor_login() -> None:
+def test_workflow_identity_accepts_github_bot_actor_login() -> None:
     env = {
         "GITHUB_REPOSITORY": actions.REPOSITORY,
         "GITHUB_REPOSITORY_ID": REPO_ID,
@@ -552,6 +557,7 @@ def test_workflow_identity_accepts_github_app_actor_login() -> None:
         "GITHUB_SHA": "f" * 40,
         "TRUSTED_REVIEW_ACTOR_LOGIN": "github-actions[bot]",
         "TRUSTED_REVIEW_ACTOR_ID": "9001",
+        "GITHUB_JOB": "bootstrap",
     }
 
     identity = actions.ActionsRunIdentity.from_env(env)

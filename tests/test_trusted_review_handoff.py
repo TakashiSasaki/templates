@@ -15,6 +15,7 @@ import yaml
 
 from scripts import prepare_trusted_review_handoff as handoff_module
 from scripts import trusted_review_actions as actions
+from scripts import trusted_review_freeze_provider as freeze_provider
 from scripts.prepare_trusted_review_handoff import (
     STATUS_CANONICAL_BLOCKED_PROVIDER,
     STATUS_FREEZE_BLOCKED,
@@ -60,7 +61,7 @@ def make_valid_handoff_dict(*, simulated_boundary: bool = True) -> dict[str, Any
     fe_status = "authenticated"
     mechanism = "simulated_test_mount" if simulated_boundary else "container_read_only_bind_mount"
 
-    return {
+    handoff = {
         "schema_version": 1,
         "handoff_type": "AUTHENTICATED_IMMUTABLE_REVIEW_BOOTSTRAP_HANDOFF",
         "target": {
@@ -246,11 +247,59 @@ def make_valid_handoff_dict(*, simulated_boundary: bool = True) -> dict[str, Any
             "review_bundle": "/var/run/review-bundle",
         },
     }
+    if not simulated_boundary:
+        handoff.pop("locators")
+        handoff.pop("backing_locators")
+    return handoff
 
 
 def test_valid_handoff_passes_verification() -> None:
     data = make_valid_handoff_dict()
     verify_handoff(data, allow_simulated_boundary=True, check_locators=False)
+
+
+def test_durable_handoff_survives_producer_view_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    handoff = make_valid_handoff_dict(simulated_boundary=False)
+    output = tmp_path / "output" / "handoff.json"
+    output.parent.mkdir()
+    original = json.dumps(handoff, sort_keys=True).encode("utf-8")
+    output.write_bytes(original)
+
+    role_root = tmp_path / "role-protected"
+    aggregate_root = tmp_path / "aggregate-protected"
+    aggregate_backing_root = tmp_path / ".aggregate-protected.materialized"
+    mounts: set[Path] = set()
+    for root, backing_root in (
+        (role_root, role_root / ".materialized"),
+        (aggregate_root, aggregate_backing_root),
+    ):
+        for role in freeze_provider.ROLE_NAMES:
+            for mountpoint in (root / "roles" / role, backing_root / role):
+                mountpoint.mkdir(parents=True)
+                (mountpoint / "authority.txt").write_text("authority", encoding="utf-8")
+                mounts.add(mountpoint)
+
+    monkeypatch.setattr(freeze_provider, "_is_mountpoint", lambda path: path in mounts)
+
+    def unmount(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        mountpoint = Path(command[-1])
+        assert command[:2] == ["sudo", "umount"]
+        assert mountpoint in mounts
+        mounts.remove(mountpoint)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    freeze_provider.cleanup_producer_views(role_root, aggregate_root, runner=unmount)
+
+    assert not mounts
+    assert not role_root.exists()
+    assert not aggregate_root.exists()
+    assert not aggregate_backing_root.exists()
+    assert output.read_bytes() == original
+    verify_handoff(
+        json.loads(output.read_bytes()), allow_simulated_boundary=True, check_locators=False
+    )
 
 
 @pytest.mark.parametrize("missing_key", list(handoff_module.REQUIRED_TOP_LEVEL_KEYS))
@@ -272,6 +321,18 @@ def test_handoff_rejects_wrong_schema_version() -> None:
     data = make_valid_handoff_dict()
     data["schema_version"] = 999
     with pytest.raises(ValueError, match="unsupported handoff schema version"):
+        verify_handoff(data)
+
+
+def test_handoff_requires_policy_base_ref() -> None:
+    data = make_valid_handoff_dict()
+    del data["target"]["pull_request"]["base_ref_name"]
+    with pytest.raises(ValueError, match="missing base_ref_name"):
+        verify_handoff(data)
+
+    data = make_valid_handoff_dict()
+    data["target"]["pull_request"]["base_ref_name"] = "site"
+    with pytest.raises(ValueError, match="base_ref_name must be policy"):
         verify_handoff(data)
 
 
@@ -497,7 +558,11 @@ def setup_mock_environment(
         provider_id = {
             "name": "github",
             "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
-            "pull_request": {"id": "PR_kwDOTm6ous8AAAABFJDI8g", "number": 1031},
+            "pull_request": {
+                "id": "PR_kwDOTm6ous8AAAABFJDI8g",
+                "number": 1031,
+                "base_ref_name": "policy",
+            },
             "observation_evidence": {
                 "source": "simulated_test_adapter",
                 "evidence_status": "authenticated",
@@ -510,7 +575,11 @@ def setup_mock_environment(
         provider_id = {
             "name": "github",
             "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
-            "pull_request": {"id": "PR_kwDOTm6ous8AAAABFJDI8g", "number": 1031},
+            "pull_request": {
+                "id": "PR_kwDOTm6ous8AAAABFJDI8g",
+                "number": 1031,
+                "base_ref_name": "policy",
+            },
             "observation_evidence": {
                 "source": "caller_declared",
                 "evidence_status": "declared",
@@ -1003,7 +1072,7 @@ def test_full_pipeline_end_to_end_simulated(
     )
     assert res["status"] == handoff_module.STATUS_HANDOFF_READY
     assert res["phase"] == Phase.HANDOFF_FINALIZED.value
-    verify_handoff(res["handoff"], allow_simulated_boundary=True, check_locators=True)
+    verify_handoff(res["handoff"], allow_simulated_boundary=True, check_locators=False)
 
 
 # ---------------------------------------------------------------------------
@@ -2163,19 +2232,22 @@ def test_actions_observation_verifier_supports_canonical_cli_verify_contract(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     handoff = make_valid_handoff_dict(simulated_boundary=False)
-    run = actions.ActionsRunIdentity(
-        repository=actions.REPOSITORY,
-        repository_id="1315875002",
-        run_id="73124",
-        run_attempt=1,
-        event="workflow_dispatch",
-        ref=actions.DEFAULT_REF,
-        workflow_ref=actions.WORKFLOW_REF,
-        workflow_sha="a" * 40,
-        source_sha="f" * 40,
-        actor="maintainer",
-        actor_id="9001",
-    )
+    run_fields = {
+        "repository": actions.REPOSITORY,
+        "repository_id": "1315875002",
+        "run_id": "73124",
+        "run_attempt": 1,
+        "event": "workflow_dispatch",
+        "ref": actions.DEFAULT_REF,
+        "workflow_ref": actions.WORKFLOW_REF,
+        "workflow_sha": "a" * 40,
+        "source_sha": "f" * 40,
+        "actor": "maintainer",
+        "actor_id": "9001",
+    }
+    if "job" in actions.ActionsRunIdentity.__dataclass_fields__:
+        run_fields["job"] = "bootstrap"
+    run = actions.ActionsRunIdentity(**run_fields)
     document = {
         "schema_version": 1,
         "provider": "github",
@@ -2210,6 +2282,8 @@ def test_actions_observation_verifier_supports_canonical_cli_verify_contract(
             "actor_login": run.actor,
         },
     }
+    if "job" in actions.ActionsRunIdentity.__dataclass_fields__:
+        document["producer"]["job"] = run.job
     actions.validate_observation(document)
     observation_path = tmp_path / "actions-observation.json"
     raw_observation = actions.canonical_observation_bytes(document)

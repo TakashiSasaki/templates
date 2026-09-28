@@ -15,12 +15,24 @@ from jsonschema import Draft202012Validator, ValidationError
 
 try:
     from scripts.trusted_review_actions import (
+        CERT_IDENTITY,
+        DEFAULT_REF,
+        OIDC_ISSUER,
+        OWNER_ID,
+        REPOSITORY,
+        SIGNER_WORKFLOW,
         ActionsRunIdentity,
         TrustedObservationError,
         _verify_attestation_claims,
     )
 except ImportError:
     from trusted_review_actions import (
+        CERT_IDENTITY,
+        DEFAULT_REF,
+        OIDC_ISSUER,
+        OWNER_ID,
+        REPOSITORY,
+        SIGNER_WORKFLOW,
         ActionsRunIdentity,
         TrustedObservationError,
         _verify_attestation_claims,
@@ -30,6 +42,9 @@ GH_EXECUTABLE = "/usr/bin/gh"
 OCI_REPOSITORY = "ghcr.io/takashisasaki/templates/trusted-review-authority"
 FREEZE_SCHEMA = (
     Path(__file__).resolve().parents[1] / "schemas/trusted-review-freeze-evidence.schema.json"
+)
+ROLE_FREEZE_SCHEMA = (
+    Path(__file__).resolve().parents[1] / "schemas/trusted-review-role-freeze-evidence.schema.json"
 )
 ROLE_TO_SECTION = {
     "bootstrap_run_image": "frozen_bootstrap_image",
@@ -234,6 +249,14 @@ class GitHubActionsOciFreezeVerifier:
         meta = handoff.get("freeze_evidence")
         if not isinstance(meta, dict) or meta.get("sha256") != self.sha256:
             raise TrustedFreezeError("freeze-evidence bytes do not match the handoff digest")
+        expected_summary = {
+            "object": self.document["object"],
+            "attestation": self.document["attestation"],
+            "target": self.document["target"],
+            "roles": self.document["roles"],
+        }
+        if any(meta.get(key) != value for key, value in expected_summary.items()):
+            raise TrustedFreezeError("freeze-evidence identity summary does not match exact bytes")
         self._verify_evidence_attestation()
         self.bind_handoff(handoff)
         self._verify_target(handoff)
@@ -248,18 +271,20 @@ class GitHubActionsOciFreezeVerifier:
             raise TrustedFreezeError(f"freeze role inventory mismatch: {role}")
         if record.get("identity") != self._expected_role_identity(role):
             raise TrustedFreezeError(f"freeze role identity mismatch: {role}")
-        locator_key = SECTION_TO_LOCATOR[role]
-        locators = getattr(self, "_handoff_locators", None)
-        if locators is None:
-            raise TrustedFreezeError("freeze verifier has not been bound to handoff locators")
-        backing_locators = getattr(self, "_handoff_backing_locators", None)
-        if backing_locators is None:
-            raise TrustedFreezeError("freeze verifier has not been bound to backing locators")
-        if locator_key not in locators or locator_key not in backing_locators:
-            raise TrustedFreezeError(f"freeze verifier is missing role locators: {role}")
-        role_path = Path(locators[locator_key])
-        backing_path = Path(backing_locators[locator_key])
-        self._verify_role_view(role, role_path, backing_path, record)
+        locators = self._handoff_locators
+        backing_locators = self._handoff_backing_locators
+        if locators is not None or backing_locators is not None:
+            if locators is None or backing_locators is None:
+                raise TrustedFreezeError("local protected view is missing its backing locators")
+            locator_key = SECTION_TO_LOCATOR[role]
+            if locator_key not in locators or locator_key not in backing_locators:
+                raise TrustedFreezeError(f"local protected view is missing role {role}")
+            self._verify_role_view(
+                role,
+                Path(locators[locator_key]),
+                Path(backing_locators[locator_key]),
+                record,
+            )
         self._verified_roles.add(role)
 
     def _expected_role_identity(self, role: str) -> dict[str, Any]:
@@ -299,10 +324,8 @@ class GitHubActionsOciFreezeVerifier:
 
     def bind_handoff(self, handoff: dict[str, Any]) -> None:
         locators = handoff.get("locators")
-        if not isinstance(locators, dict):
-            raise TrustedFreezeError("handoff locators are missing")
         backing_locators = handoff.get("backing_locators")
-        self._handoff_locators = dict(locators)
+        self._handoff_locators = dict(locators) if isinstance(locators, dict) else None
         self._handoff_backing_locators = (
             dict(backing_locators) if isinstance(backing_locators, dict) else None
         )
@@ -314,22 +337,25 @@ class GitHubActionsOciFreezeVerifier:
             raise TrustedFreezeError("all four freeze roles were not verified before use")
         locators = self._handoff_locators
         backing_locators = self._handoff_backing_locators
-        if backing_locators is None:
-            raise TrustedFreezeError("local protected view is missing its backing locators")
-        if (
-            handoff.get("locators") != locators
-            or handoff.get("backing_locators") != backing_locators
-        ):
-            raise TrustedFreezeError("local protected view locators changed during verification")
-        for role, locator_key in SECTION_TO_LOCATOR.items():
-            if locator_key not in locators or locator_key not in backing_locators:
-                raise TrustedFreezeError(f"local protected view is missing role {role}")
-            self._verify_role_view(
-                role,
-                Path(locators[locator_key]),
-                Path(backing_locators[locator_key]),
-                self._role_record(role),
-            )
+        if locators is not None or backing_locators is not None:
+            if locators is None or backing_locators is None:
+                raise TrustedFreezeError("local protected view is missing its backing locators")
+            if (
+                handoff.get("locators") != locators
+                or handoff.get("backing_locators") != backing_locators
+            ):
+                raise TrustedFreezeError(
+                    "local protected view locators changed during verification"
+                )
+            for role, locator_key in SECTION_TO_LOCATOR.items():
+                if locator_key not in locators or locator_key not in backing_locators:
+                    raise TrustedFreezeError(f"local protected view is missing role {role}")
+                self._verify_role_view(
+                    role,
+                    Path(locators[locator_key]),
+                    Path(backing_locators[locator_key]),
+                    self._role_record(role),
+                )
 
     def _require_unchanged_evidence(self) -> None:
         try:
@@ -351,6 +377,7 @@ class GitHubActionsOciFreezeVerifier:
             "pull_request_id": pull.get("id"),
             "pull_request_node_id": pull.get("node_id"),
             "pull_request_number": pull.get("number"),
+            "base_ref_name": pull.get("base_ref_name"),
             "base_sha": pull.get("base_ref_oid"),
             "base_tree": pull.get("base_tree"),
             "head_sha": pull.get("head_ref_oid"),
@@ -364,14 +391,18 @@ class GitHubActionsOciFreezeVerifier:
             raise TrustedFreezeError("freeze evidence belongs to another repository")
         attestation = self.document["attestation"]
         if (
-            attestation["issuer"] != "https://token.actions.githubusercontent.com"
+            attestation["issuer"] != OIDC_ISSUER
             or attestation["repository_id"] != self.run_identity.repository_id
+            or attestation["owner_id"] != OWNER_ID
             or attestation["workflow_ref"] != self.run_identity.workflow_ref
             or attestation["workflow_sha"] != self.run_identity.workflow_sha
             or attestation["source_sha"] != self.run_identity.source_sha
             or attestation["run_id"] != self.run_identity.run_id
             or attestation["run_attempt"] != self.run_identity.run_attempt
             or attestation["event"] != self.run_identity.event
+            or attestation["actor_id"] != self.run_identity.actor_id
+            or attestation["actor_login"] != self.run_identity.actor
+            or attestation["job"] != self.run_identity.job
         ):
             raise TrustedFreezeError("freeze evidence workflow identity is stale or mismatched")
         if self.document["object"]["repository"] != OCI_REPOSITORY:
@@ -430,57 +461,286 @@ class GitHubActionsOciFreezeVerifier:
         *,
         use_oci_bundle: bool,
     ) -> None:
-        run = self.run_identity
-        command = [
-            self.gh_executable,
-            "attestation",
-            "verify",
+        _verify_subject_attestation(
             subject,
-            "--repo",
-            "TakashiSasaki/templates",
-            "--signer-workflow",
-            "TakashiSasaki/templates/.github/workflows/trusted-review-bootstrap.yml",
-            "--signer-digest",
-            run.workflow_sha,
-            "--source-ref",
-            "refs/heads/site",
-            "--source-digest",
-            run.source_sha,
-            "--cert-identity",
-            "https://github.com/TakashiSasaki/templates/.github/workflows/trusted-review-bootstrap.yml@refs/heads/site",
-            "--cert-oidc-issuer",
-            "https://token.actions.githubusercontent.com",
-            "--deny-self-hosted-runners",
-            "--format",
-            "json",
-        ]
-        if use_oci_bundle:
-            command.insert(4, "--bundle-from-oci")
-        try:
-            result = self.runner(command, check=True, capture_output=True, text=True, timeout=120)
-        except (OSError, subprocess.SubprocessError) as exc:
-            raise TrustedFreezeError("GitHub OCI Artifact Attestation verification failed") from exc
-        try:
-            results = json.loads(result.stdout)
-        except (TypeError, json.JSONDecodeError) as exc:
-            raise TrustedFreezeError("attestation verifier returned malformed JSON") from exc
-        if not isinstance(results, list) or len(results) != 1:
-            raise TrustedFreezeError("attestation verifier did not return exactly one result")
-        verification = (
-            results[0].get("verificationResult") if isinstance(results[0], dict) else None
+            subject_sha256,
+            run_identity=self.run_identity,
+            owner_id=self.document["attestation"]["owner_id"],
+            gh_executable=self.gh_executable,
+            runner=self.runner,
+            use_oci_bundle=use_oci_bundle,
         )
-        if not isinstance(verification, dict):
+
+
+def _verify_subject_attestation(
+    subject: str,
+    subject_sha256: str,
+    *,
+    run_identity: ActionsRunIdentity,
+    owner_id: str,
+    gh_executable: str,
+    runner: Callable[..., Any],
+    use_oci_bundle: bool,
+) -> None:
+    command = [
+        gh_executable,
+        "attestation",
+        "verify",
+        subject,
+        "--repo",
+        REPOSITORY,
+        "--signer-workflow",
+        SIGNER_WORKFLOW,
+        "--signer-digest",
+        run_identity.workflow_sha,
+        "--source-ref",
+        DEFAULT_REF,
+        "--source-digest",
+        run_identity.source_sha,
+        "--cert-identity",
+        CERT_IDENTITY,
+        "--cert-oidc-issuer",
+        OIDC_ISSUER,
+        "--deny-self-hosted-runners",
+        "--format",
+        "json",
+    ]
+    if use_oci_bundle:
+        command.insert(4, "--bundle-from-oci")
+    try:
+        result = runner(command, check=True, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise TrustedFreezeError("GitHub OCI Artifact Attestation verification failed") from exc
+    try:
+        results = json.loads(result.stdout)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise TrustedFreezeError("attestation verifier returned malformed JSON") from exc
+    if not isinstance(results, list):
+        raise TrustedFreezeError("attestation verifier returned a non-list result")
+    expected_run_uri = (
+        f"https://github.com/{run_identity.repository}/actions/runs/"
+        f"{run_identity.run_id}/attempts/{run_identity.run_attempt}"
+    )
+    matching_results: list[dict[str, Any]] = []
+    for item in results:
+        if not isinstance(item, dict):
             raise TrustedFreezeError("OCI attestation verification result is incomplete")
-        signature = verification.get("signature") or {}
-        certificate = signature.get("certificate") or {}
-        statement = verification.get("statement") or {}
+        verification = item.get("verificationResult")
+        signature = verification.get("signature") if isinstance(verification, dict) else None
+        certificate = signature.get("certificate") if isinstance(signature, dict) else None
+        if not isinstance(certificate, dict):
+            raise TrustedFreezeError("OCI attestation verification result is incomplete")
+        if certificate.get("runInvocationURI") == expected_run_uri:
+            matching_results.append(item)
+    if len(matching_results) != 1:
+        raise TrustedFreezeError(
+            "attestation verifier did not return exactly one result for this workflow run"
+        )
+    verification = matching_results[0]["verificationResult"]
+    signature = verification["signature"]
+    certificate = signature["certificate"]
+    statement = verification.get("statement")
+    try:
+        _verify_attestation_claims(
+            certificate,
+            statement,
+            run_identity,
+            subject_sha256,
+            owner_id,
+        )
+    except TrustedObservationError as exc:
+        raise TrustedFreezeError(str(exc)) from exc
+
+
+def validate_role_freeze_evidence(document: Any) -> None:
+    try:
+        schema = json.loads(ROLE_FREEZE_SCHEMA.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema).validate(document)
+    except OSError as exc:
+        raise TrustedFreezeError("role freeze-evidence schema is unavailable") from exc
+    except json.JSONDecodeError as exc:
+        raise TrustedFreezeError("role freeze-evidence schema is malformed") from exc
+    except ValidationError as exc:
+        path = ".".join(str(part) for part in exc.absolute_path) or "<root>"
+        raise TrustedFreezeError(f"role freeze evidence violates schema at {path}") from exc
+
+
+def load_role_freeze_evidence(path: Path) -> tuple[dict[str, Any], bytes, str]:
+    try:
+        raw = path.read_bytes()
+        document = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise TrustedFreezeError("role freeze evidence is unavailable or malformed") from exc
+    if not isinstance(document, dict):
+        raise TrustedFreezeError("role freeze evidence must be a JSON object")
+    validate_role_freeze_evidence(document)
+    return document, raw, hashlib.sha256(raw).hexdigest()
+
+
+class GitHubActionsRoleFreezeVerifier:
+    """Verify one Actions-attested GHCR role before the staged bootstrap consumes it."""
+
+    name = "github-actions-ghcr-role-v1"
+
+    def __init__(
+        self,
+        evidence_path: Path,
+        expected_target: dict[str, Any],
+        *,
+        token: str | None = None,
+        run_identity: ActionsRunIdentity | None = None,
+        gh_executable: str = GH_EXECUTABLE,
+        runner: Callable[..., Any] = subprocess.run,
+        mountinfo_reader: Callable[[], str] | None = None,
+    ) -> None:
+        self.evidence_path = evidence_path.expanduser().resolve()
+        self.token = token if token is not None else os.environ.get("GH_TOKEN", "")
+        if not self.token:
+            raise TrustedFreezeError("GH_TOKEN is required to verify the role attestation")
+        self.run_identity = run_identity or ActionsRunIdentity.from_env()
+        self.gh_executable = gh_executable
+        self.runner = runner
+        self.mountinfo_reader = mountinfo_reader
         try:
-            _verify_attestation_claims(
-                certificate,
-                statement,
-                run,
-                subject_sha256,
-                self.document["attestation"]["owner_id"],
+            self.document, self.raw_bytes, self.sha256 = load_role_freeze_evidence(
+                self.evidence_path
             )
-        except TrustedObservationError as exc:
-            raise TrustedFreezeError(str(exc)) from exc
+        except TrustedFreezeError:
+            raise
+        self.expected_target = expected_target
+        self.production_capable = (
+            token is None
+            and run_identity is None
+            and gh_executable == GH_EXECUTABLE
+            and runner is subprocess.run
+            and mountinfo_reader is None
+        )
+
+    def verify_freeze(
+        self,
+        target: str,
+        path: Path,
+        freeze_evidence: Any,
+        *,
+        expected_inventory_sha256: str,
+        backing_path: Path | None = None,
+        expected_identity: dict[str, Any],
+    ) -> Path:
+        role = self.document["role"]
+        if target != role["name"]:
+            raise TrustedFreezeError("role freeze evidence is for a different artifact role")
+        if role["inventory_sha256"] != expected_inventory_sha256:
+            raise TrustedFreezeError(
+                "role freeze evidence inventory does not match materialized bytes"
+            )
+        if role["identity"] != expected_identity:
+            raise TrustedFreezeError("role freeze evidence identity does not match trusted state")
+        if (
+            freeze_evidence.boundary_type.value != "deployment_established"
+            or freeze_evidence.mechanism
+            != f"{self.name}:{self.document['object']['manifest_digest']}"
+            or freeze_evidence.attestation_sha256 != self.sha256
+        ):
+            raise TrustedFreezeError("recorded role freeze marker does not match attested evidence")
+        if self.document["target"] != self._target_from_provider(self.expected_target):
+            raise TrustedFreezeError(
+                "role freeze evidence belongs to another repository or pull request"
+            )
+        self._verify_run_identity()
+        object_digest = self.document["object"]["manifest_digest"]
+        _verify_subject_attestation(
+            f"oci://{OCI_REPOSITORY}@{object_digest}",
+            object_digest.removeprefix("sha256:"),
+            run_identity=self.run_identity,
+            owner_id=self.document["attestation"]["owner_id"],
+            gh_executable=self.gh_executable,
+            runner=self.runner,
+            use_oci_bundle=True,
+        )
+        _verify_subject_attestation(
+            str(self.evidence_path),
+            self.sha256,
+            run_identity=self.run_identity,
+            owner_id=self.document["attestation"]["owner_id"],
+            gh_executable=self.gh_executable,
+            runner=self.runner,
+            use_oci_bundle=False,
+        )
+        if _inventory_digest(path) != expected_inventory_sha256:
+            raise TrustedFreezeError("materialized role changed before freeze verification")
+        protected_root_raw = os.environ.get("TRUSTED_REVIEW_PROTECTED_ROOT", "")
+        if not protected_root_raw:
+            raise TrustedFreezeError("read-only protected role mount root is missing")
+        protected = Path(protected_root_raw).expanduser().resolve() / "roles" / target
+        if backing_path is None:
+            backing_path = (
+                Path(protected_root_raw).expanduser().resolve() / ".materialized" / target
+            )
+        if self.document["role"]["path"] != f"roles/{target}":
+            raise TrustedFreezeError("role image path does not match its artifact role")
+        mountinfo = self.mountinfo_reader() if self.mountinfo_reader is not None else None
+        require_protected_view(
+            protected,
+            backing_path=backing_path,
+            mountinfo=mountinfo,
+        )
+        if _inventory_digest(protected) != expected_inventory_sha256:
+            raise TrustedFreezeError("protected role bytes differ from the authenticated inventory")
+        if _inventory_digest(backing_path) != expected_inventory_sha256:
+            raise TrustedFreezeError(
+                "protected role backing bytes differ from the authenticated inventory"
+            )
+        self._require_unchanged_evidence()
+        return protected
+
+    def _verify_run_identity(self) -> None:
+        attestation = self.document["attestation"]
+        run = self.run_identity
+        expected = {
+            "issuer": OIDC_ISSUER,
+            "repository_id": run.repository_id,
+            "owner_id": OWNER_ID,
+            "workflow_ref": run.workflow_ref,
+            "workflow_sha": run.workflow_sha,
+            "source_sha": run.source_sha,
+            "run_id": run.run_id,
+            "run_attempt": run.run_attempt,
+            "event": run.event,
+            "actor_id": run.actor_id,
+            "actor_login": run.actor,
+            "job": run.job,
+        }
+        if attestation != expected:
+            raise TrustedFreezeError(
+                "role freeze evidence workflow identity is stale or mismatched"
+            )
+
+    @staticmethod
+    def _target_from_provider(identity: dict[str, Any]) -> dict[str, Any]:
+        repo = identity["repository"]
+        pull = identity["pull_request"]
+        observation = identity["provider_observation"]
+        return {
+            "repository_id": repo["id"],
+            "repository_name": repo["name_with_owner"],
+            "pull_request_id": pull["id"],
+            "pull_request_node_id": pull["node_id"],
+            "pull_request_number": pull["number"],
+            "base_ref_name": pull["base_ref_name"],
+            "base_sha": pull["base_ref_oid"],
+            "base_tree": pull["base_tree"],
+            "head_sha": pull["head_ref_oid"],
+            "head_tree": pull["head_tree"],
+            "observation_sha256": observation["observation_sha256"],
+        }
+
+    def _require_unchanged_evidence(self) -> None:
+        try:
+            current = self.evidence_path.read_bytes()
+        except OSError as exc:
+            raise TrustedFreezeError(
+                "role freeze evidence changed or disappeared during use"
+            ) from exc
+        if hashlib.sha256(current).hexdigest() != self.sha256:
+            raise TrustedFreezeError("role freeze evidence bytes changed during use")
