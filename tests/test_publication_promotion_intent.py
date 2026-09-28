@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -14,6 +15,7 @@ from scripts.publication_promotion_intent import (
     verify_merged_pr_intent,
     verify_merged_pr_provenance,
     verify_premerge_intent,
+    verify_target_intent,
 )
 from scripts.resolve_publication_sources import render_source_lock
 
@@ -51,6 +53,74 @@ IDEMPOTENCY = _idempotency_key(
     QUALIFICATION_INPUTS,
     {"controller_revision": CONTROLLER, "policy_revision": POLICY},
 )
+REPOSITORY = "TakashiSasaki/templates"
+RECONCILIATION_PATH = ".github/workflows/integration-reconcile.yml"
+SITE_DISPATCH_PATH = ".github/workflows/provider-publication-dispatch.yml"
+SITE_HEAD = "3e4c9a0cbbde2e6fa2e83d53e34614e44b060b60"
+SITE_RECONCILIATION_SHA = "5aaf7409299cae00a33cab740f8755ff91f353ed"
+OBSERVED_PRODUCER = "9831ddcb90a98a727401303bf5e5d391fb2d2f01"
+OBSERVED_POLICY_PIN = "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
+OBSERVED_COMPOSITION = "d4d0e35485ea0c2030e902f462374f6fb8f8588a"
+OBSERVED_MODELING = "202afe0206d673b2e2195a2df271d76862f9323a"
+OBSERVED_BUNDLE_IDENTITY = "169ac2c58e6b49788ac3a79903e9002c639d22ee2fa12d6c3bc349db99d59dc8"
+OBSERVED_BUNDLE_CONTENT = "278b359096053a670a74a39cebf1efe285c99602bee4df08322ef0ae4d46d441"
+OBSERVED_BUNDLE_ARTIFACT = {
+    "id": 10932459512,
+    "digest": "sha256:9032520e6c481b95fab06bd8fb07fcd996a5bdd1180b15743add2760d5fd4d2c",
+    "name": f"publication-bundle-{OBSERVED_BUNDLE_IDENTITY}-1-reconciliation",
+}
+OBSERVED_QUALIFICATION_ARTIFACT = {
+    "id": 10932866361,
+    "digest": "sha256:64d4ea1b2eda1618b578810dbd5a1fb0015fe19d4e969896b51ddf12f1bd103a",
+    "name": f"publication-compatibility-{OBSERVED_BUNDLE_IDENTITY}-1-reconciliation",
+}
+
+
+def _direct_run_context(producer: str, *, event: str = "workflow_dispatch") -> dict:
+    return {
+        "repository": REPOSITORY,
+        "workflow_run_id": 100,
+        "workflow_attempt": 1,
+        "workflow_head": producer,
+        "workflow_name": "Reconcile Integration publication candidate",
+        "workflow_event": event,
+        "run_workflow_path": RECONCILIATION_PATH,
+    }
+
+
+def _direct_reconciliation_implementation(producer: str) -> dict:
+    return {
+        "workflow_repository": REPOSITORY,
+        "workflow_file_path": RECONCILIATION_PATH,
+        "workflow_ref": f"{REPOSITORY}/{RECONCILIATION_PATH}@refs/heads/integration",
+        "workflow_sha": producer,
+    }
+
+
+def _observed_site_run_context(*, event: str = "workflow_dispatch") -> dict:
+    return {
+        "repository": REPOSITORY,
+        "workflow_run_id": 36322246692,
+        "workflow_attempt": 1,
+        "workflow_head": SITE_HEAD,
+        "workflow_name": "Dispatch provider qualification to Integration",
+        "workflow_event": event,
+        "run_workflow_path": SITE_DISPATCH_PATH,
+    }
+
+
+def _observed_reconciliation_implementation() -> dict:
+    workflow_ref = (
+        f"{REPOSITORY}/{RECONCILIATION_PATH}@{SITE_RECONCILIATION_SHA}"
+    )
+    return {
+        "workflow_repository": REPOSITORY,
+        "workflow_file_path": RECONCILIATION_PATH,
+        "workflow_ref": workflow_ref,
+        "workflow_sha": SITE_RECONCILIATION_SHA,
+    }
+
+
 def _write_json(path: Path, value: dict) -> bytes:
     encoded = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
     path.write_bytes(encoded)
@@ -58,16 +128,39 @@ def _write_json(path: Path, value: dict) -> bytes:
 
 
 class PublicationPromotionIntentTests(unittest.TestCase):
-    def _fixture(self, root: Path, producer: str):
-        lock_bytes = render_source_lock({
+    def _fixture(
+        self,
+        root: Path,
+        producer: str,
+        *,
+        run_context: dict | None = None,
+        providers: dict | None = None,
+        trusted_controller: str = CONTROLLER,
+        trusted_policy: str = POLICY,
+        bundle_identity: str = BUNDLE_IDENTITY,
+        bundle_content: str = BUNDLE_CONTENT,
+        bundle_artifact: dict | None = None,
+        report_input_changes: dict | None = None,
+        report_trust_changes: dict | None = None,
+        verified_input_changes: dict | None = None,
+        verification_changes: dict | None = None,
+    ):
+        run_context = run_context or _direct_run_context(producer)
+        providers = providers or {
             "modeling": MODELING,
             "composition": COMPOSITION,
             "policy": PROVIDER_POLICY,
-        })
+        }
+        lock_bytes = render_source_lock(providers)
         current = root / "current-lock.json"
         candidate = root / "candidate-lock.json"
         current.write_bytes(lock_bytes)
         candidate.write_bytes(lock_bytes)
+        bundle_artifact = bundle_artifact or {
+            "id": 101,
+            "digest": "sha256:" + "8" * 64,
+            "name": f"publication-bundle-{bundle_identity}-{run_context['workflow_attempt']}-reconciliation",
+        }
         source = {
             "schema_version": 1,
             "boundary": "provider-to-integration",
@@ -75,39 +168,42 @@ class PublicationPromotionIntentTests(unittest.TestCase):
             "classification": "NOT_ELIGIBLE",
             "inputs": {
                 "integration_revision": producer,
-                "modeling_revision": MODELING,
-                "composition_revision": COMPOSITION,
-                "policy_revision": PROVIDER_POLICY,
+                "modeling_revision": providers["modeling"],
+                "composition_revision": providers["composition"],
+                "policy_revision": providers["policy"],
                 "bundle_schema": "4",
-                "bundle_identity": BUNDLE_IDENTITY,
-                "bundle_content_digest": BUNDLE_CONTENT,
+                "bundle_identity": bundle_identity,
+                "bundle_content_digest": bundle_content,
             },
             "trusted": {
-                "controller_revision": CONTROLLER,
-                "policy_revision": POLICY,
+                "controller_revision": trusted_controller,
+                "policy_revision": trusted_policy,
             },
             "checks": {"required": ["producer"], "results": {"producer": "passed"}},
             "evidence_refs": ["workflow://reconciliation"],
         }
+        source["inputs"].update(report_input_changes or {})
+        source["trusted"].update(report_trust_changes or {})
         source["idempotency_key"] = _idempotency_key(source["inputs"], source["trusted"])
         source_path = root / "source-report.json"
         source_bytes = _write_json(source_path, source)
         verified = copy.deepcopy(source)
+        verified["inputs"].update(verified_input_changes or {})
         verified["verification"] = {
             "schema_version": 1,
-            "verifier_revision": CONTROLLER,
+            "verifier_revision": trusted_controller,
             "source_report_digest": _digest(source_bytes),
-            "workflow_run_id": 100,
-            "workflow_attempt": 1,
-            "workflow_head": producer,
-            "workflow_name": "Reconcile Integration publication candidate",
-            "workflow_event": "workflow_dispatch",
-            "workflow_path": ".github/workflows/integration-reconcile.yml",
-            "artifact_id": 101,
-            "artifact_digest": "sha256:" + "8" * 64,
-            "artifact_name": f"publication-bundle-{BUNDLE_IDENTITY}-1-reconciliation",
-            "bundle_identity": BUNDLE_IDENTITY,
-            "bundle_content_digest": BUNDLE_CONTENT,
+            "workflow_run_id": run_context["workflow_run_id"],
+            "workflow_attempt": run_context["workflow_attempt"],
+            "workflow_head": run_context["workflow_head"],
+            "workflow_name": run_context["workflow_name"],
+            "workflow_event": run_context["workflow_event"],
+            "workflow_path": run_context["run_workflow_path"],
+            "artifact_id": bundle_artifact["id"],
+            "artifact_digest": bundle_artifact["digest"],
+            "artifact_name": bundle_artifact["name"],
+            "bundle_identity": bundle_identity,
+            "bundle_content_digest": bundle_content,
             "trusted_checks": {
                 "report-shape": "passed",
                 "bundle-contract": "passed",
@@ -116,6 +212,7 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                 "identity-binding": "passed",
             },
         }
+        verified["verification"].update(verification_changes or {})
         verified_path = root / "verified-report.json"
         _write_json(verified_path, verified)
         reconciliation = {
@@ -132,8 +229,49 @@ class PublicationPromotionIntentTests(unittest.TestCase):
         _write_json(reconciliation_path, reconciliation)
         return current, candidate, source_path, verified_path, reconciliation_path
 
-    def _build(self, root: Path, producer: str):
-        current, candidate, source, verified, reconciliation = self._fixture(root, producer)
+    def _build(
+        self,
+        root: Path,
+        producer: str,
+        *,
+        run_context: dict | None = None,
+        reconciliation_implementation: dict | None = None,
+        providers: dict | None = None,
+        trusted_controller: str = CONTROLLER,
+        trusted_policy: str = POLICY,
+        bundle_identity: str = BUNDLE_IDENTITY,
+        bundle_content: str = BUNDLE_CONTENT,
+        bundle_artifact: dict | None = None,
+        qualification_artifact: dict | None = None,
+        report_input_changes: dict | None = None,
+        report_trust_changes: dict | None = None,
+        verified_input_changes: dict | None = None,
+        verification_changes: dict | None = None,
+    ):
+        run_context = run_context or _direct_run_context(producer)
+        reconciliation_implementation = reconciliation_implementation or _direct_reconciliation_implementation(
+            run_context["workflow_head"]
+        )
+        current, candidate, source, verified, reconciliation = self._fixture(
+            root,
+            producer,
+            run_context=run_context,
+            providers=providers,
+            trusted_controller=trusted_controller,
+            trusted_policy=trusted_policy,
+            bundle_identity=bundle_identity,
+            bundle_content=bundle_content,
+            bundle_artifact=bundle_artifact,
+            report_input_changes=report_input_changes,
+            report_trust_changes=report_trust_changes,
+            verified_input_changes=verified_input_changes,
+            verification_changes=verification_changes,
+        )
+        qualification_artifact = qualification_artifact or {
+            "id": 102,
+            "digest": "sha256:" + "9" * 64,
+            "name": f"publication-compatibility-{bundle_identity}-{run_context['workflow_attempt']}-reconciliation",
+        }
         intent = build_intent(
             current=current,
             candidate=candidate,
@@ -143,13 +281,11 @@ class PublicationPromotionIntentTests(unittest.TestCase):
             producer_revision=producer,
             consumer_base_revision=producer,
             expected_current_lock_digest=_digest(current.read_bytes()),
-            qualification_artifact={
-                "id": 102,
-                "digest": "sha256:" + "9" * 64,
-                "name": f"publication-compatibility-{BUNDLE_IDENTITY}-1-reconciliation",
-            },
-            trusted_controller_revision=CONTROLLER,
-            trusted_policy_revision=POLICY,
+            qualification_artifact=qualification_artifact,
+            trusted_controller_revision=trusted_controller,
+            trusted_policy_revision=trusted_policy,
+            runtime_run_context=run_context,
+            reconciliation_implementation=reconciliation_implementation,
         )
         return current, candidate, intent
 
@@ -341,6 +477,8 @@ class PublicationPromotionIntentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             producer = "a" * 40
+            run_context = _direct_run_context(producer)
+            implementation = _direct_reconciliation_implementation(producer)
             current, candidate, intent = self._build(root, producer)
             self.assertFalse(intent["lock_update_required"])
             self.assertEqual(intent["base_lock_digest"], intent["selected_lock_digest"])
@@ -349,7 +487,6 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                 "modeling": MODELING,
                 "policy": PROVIDER_POLICY,
             })
-
             intent_path = root / "publication-promotion-intent.json"
             intent_bytes = _write_json(intent_path, intent)
             verified = verify_premerge_intent(
@@ -360,6 +497,8 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                 trusted_controller_revision=CONTROLLER,
                 trusted_policy_revision=POLICY,
                 branch=f"automation/publication-{IDEMPOTENCY}",
+                runtime_run_context=run_context,
+                reconciliation_implementation=implementation,
                 expected_intent_digest=_digest(intent_bytes),
             )
             self.assertEqual(verified["idempotency_key"], IDEMPOTENCY)
@@ -373,6 +512,8 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                     trusted_controller_revision=CONTROLLER,
                     trusted_policy_revision=POLICY,
                     branch="automation/publication-" + "0" * 64,
+                    runtime_run_context=run_context,
+                    reconciliation_implementation=implementation,
                 )
 
             intent["idempotency_key"] = "0" * 64
@@ -386,6 +527,8 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                     trusted_controller_revision=CONTROLLER,
                     trusted_policy_revision=POLICY,
                     branch=f"automation/publication-{'0' * 64}",
+                    runtime_run_context=run_context,
+                    reconciliation_implementation=implementation,
                 )
 
             intent["idempotency_key"] = IDEMPOTENCY
@@ -404,7 +547,431 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                     trusted_controller_revision=CONTROLLER,
                     trusted_policy_revision=POLICY,
                     branch=f"automation/publication-{IDEMPOTENCY}",
+                    runtime_run_context=run_context,
+                    reconciliation_implementation=implementation,
                 )
+
+    def test_observed_site_reusable_topology_builds_and_verifies_intent(self):
+        # The pre-fix builder compared the caller's run path directly to the
+        # reusable implementation path and rejected this otherwise trusted run.
+        run_context = _observed_site_run_context()
+        implementation = _observed_reconciliation_implementation()
+        providers = {
+            "modeling": OBSERVED_MODELING,
+            "composition": OBSERVED_COMPOSITION,
+            "policy": OBSERVED_POLICY_PIN,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current, candidate, intent = self._build(
+                root,
+                OBSERVED_PRODUCER,
+                run_context=run_context,
+                reconciliation_implementation=implementation,
+                providers=providers,
+                trusted_controller=OBSERVED_PRODUCER,
+                trusted_policy=OBSERVED_POLICY_PIN,
+                bundle_identity=OBSERVED_BUNDLE_IDENTITY,
+                bundle_content=OBSERVED_BUNDLE_CONTENT,
+                bundle_artifact=OBSERVED_BUNDLE_ARTIFACT,
+                qualification_artifact=OBSERVED_QUALIFICATION_ARTIFACT,
+            )
+            self.assertEqual(intent["run_provenance"]["invocation_mode"], "site-reusable")
+            self.assertEqual(
+                intent["run_provenance"]["run_workflow_path"],
+                SITE_DISPATCH_PATH,
+            )
+            self.assertEqual(
+                intent["reconciliation_implementation"]["workflow_file_path"],
+                RECONCILIATION_PATH,
+            )
+            self.assertFalse(intent["lock_update_required"])
+
+            for field, value in (
+                ("workflow_run_id", run_context["workflow_run_id"] + 1),
+                ("workflow_attempt", run_context["workflow_attempt"] + 1),
+                ("workflow_head", "4" * 40),
+                ("workflow_name", "Unrelated workflow"),
+                ("workflow_event", "repository_dispatch"),
+                ("workflow_path", RECONCILIATION_PATH),
+            ):
+                with self.subTest(trusted_receipt=field), tempfile.TemporaryDirectory() as mismatch_dir:
+                    with self.assertRaises(ValueError):
+                        self._build(
+                            Path(mismatch_dir),
+                            OBSERVED_PRODUCER,
+                            run_context=run_context,
+                            reconciliation_implementation=implementation,
+                            providers=providers,
+                            trusted_controller=OBSERVED_PRODUCER,
+                            trusted_policy=OBSERVED_POLICY_PIN,
+                            bundle_identity=OBSERVED_BUNDLE_IDENTITY,
+                            bundle_content=OBSERVED_BUNDLE_CONTENT,
+                            bundle_artifact=OBSERVED_BUNDLE_ARTIFACT,
+                            qualification_artifact=OBSERVED_QUALIFICATION_ARTIFACT,
+                            verification_changes={field: value},
+                        )
+
+            intent_path = root / "publication-promotion-intent.json"
+            encoded = _write_json(intent_path, intent)
+            verified = verify_premerge_intent(
+                intent_path=intent_path,
+                base_lock=current,
+                selected_lock=candidate,
+                consumer_base_revision=OBSERVED_PRODUCER,
+                trusted_controller_revision=OBSERVED_PRODUCER,
+                trusted_policy_revision=OBSERVED_POLICY_PIN,
+                branch=f"automation/publication-{intent['idempotency_key']}",
+                runtime_run_context=run_context,
+                reconciliation_implementation=implementation,
+                expected_intent_digest=_digest(encoded),
+            )
+            self.assertEqual(verified["run_provenance"], intent["run_provenance"])
+            targeted = verify_target_intent(
+                intent_path=intent_path,
+                runtime_run_context=run_context,
+                reconciliation_implementation=implementation,
+                expected_intent_digest=_digest(encoded),
+            )
+            self.assertEqual(targeted["reconciliation_implementation"], implementation)
+
+            changed_run_contexts = []
+            for field, value in (
+                ("repository", "attacker/templates"),
+                ("workflow_run_id", run_context["workflow_run_id"] + 1),
+                ("workflow_attempt", run_context["workflow_attempt"] + 1),
+                ("workflow_head", "4" * 40),
+                ("workflow_name", "Unrelated workflow"),
+                ("workflow_event", "repository_dispatch"),
+                ("run_workflow_path", ".github/workflows/integration-qualification.yml"),
+            ):
+                changed = copy.deepcopy(run_context)
+                changed[field] = value
+                changed_run_contexts.append((field, changed))
+            for field, changed in changed_run_contexts:
+                with self.subTest(run_provenance=field), self.assertRaises(ValueError):
+                    verify_target_intent(
+                        intent_path=intent_path,
+                        runtime_run_context=changed,
+                        reconciliation_implementation=implementation,
+                    )
+
+            changed_implementations = []
+            for field, value in (
+                ("workflow_repository", "attacker/templates"),
+                ("workflow_file_path", ".github/workflows/other.yml"),
+                ("workflow_sha", "0" * 40),
+                (
+                    "workflow_ref",
+                    f"{REPOSITORY}/{RECONCILIATION_PATH}@refs/heads/integration",
+                ),
+            ):
+                changed = copy.deepcopy(implementation)
+                changed[field] = value
+                changed_implementations.append((field, changed))
+            for field, changed in changed_implementations:
+                with self.subTest(reconciliation_implementation=field), self.assertRaises(ValueError):
+                    verify_target_intent(
+                        intent_path=intent_path,
+                        runtime_run_context=run_context,
+                        reconciliation_implementation=changed,
+                    )
+
+            with self.assertRaisesRegex(ValueError, "incomplete or malformed"):
+                verify_target_intent(
+                    intent_path=intent_path,
+                    runtime_run_context={
+                        key: value for key, value in run_context.items()
+                        if key != "run_workflow_path"
+                    },
+                    reconciliation_implementation=implementation,
+                )
+            with self.assertRaisesRegex(ValueError, "incomplete or malformed"):
+                verify_target_intent(
+                    intent_path=intent_path,
+                    runtime_run_context=run_context,
+                    reconciliation_implementation={
+                        key: value for key, value in implementation.items()
+                        if key != "workflow_sha"
+                    },
+                )
+
+            tampered = copy.deepcopy(intent)
+            tampered["run_provenance"]["workflow_head"] = SITE_RECONCILIATION_SHA
+            _write_json(intent_path, tampered)
+            with self.assertRaises(ValueError):
+                verify_target_intent(
+                    intent_path=intent_path,
+                    runtime_run_context=run_context,
+                    reconciliation_implementation=implementation,
+                    expected_intent_digest=_digest(encoded),
+                )
+
+    def test_fail_closed_preview_exercises_schema_two_provenance_without_writing_intent(self):
+        run_context = _observed_site_run_context()
+        implementation = _observed_reconciliation_implementation()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current, candidate, source, verified, reconciliation = self._fixture(
+                root,
+                OBSERVED_PRODUCER,
+                run_context=run_context,
+                trusted_controller=OBSERVED_PRODUCER,
+                trusted_policy=OBSERVED_POLICY_PIN,
+                bundle_identity=OBSERVED_BUNDLE_IDENTITY,
+                bundle_content=OBSERVED_BUNDLE_CONTENT,
+            )
+            report = json.loads(reconciliation.read_text(encoding="utf-8"))
+            report.update({
+                "classification": "NOT_ELIGIBLE",
+                "reason_codes": ["KILL_SWITCH_ACTIVE"],
+                "allowed_mutations": [],
+            })
+            _write_json(reconciliation, report)
+            qualification_artifact = {
+                "id": 102,
+                "digest": "sha256:" + "9" * 64,
+                "name": f"publication-compatibility-{OBSERVED_BUNDLE_IDENTITY}-1-reconciliation",
+            }
+            summary = root / "summary.md"
+            command = [
+                sys.executable,
+                str(Path(__file__).resolve().parents[1] / "scripts" / "publication_promotion_intent.py"),
+                "preview",
+                "--current", str(current),
+                "--candidate", str(candidate),
+                "--source-report", str(source),
+                "--verified-report", str(verified),
+                "--reconciliation-report", str(reconciliation),
+                "--producer-revision", OBSERVED_PRODUCER,
+                "--consumer-base-revision", OBSERVED_PRODUCER,
+                "--expected-current-lock-digest", _digest(current.read_bytes()),
+                "--qualification-artifact-id", str(qualification_artifact["id"]),
+                "--qualification-artifact-digest", qualification_artifact["digest"],
+                "--qualification-artifact-name", qualification_artifact["name"],
+                "--trusted-controller-revision", OBSERVED_PRODUCER,
+                "--trusted-policy-revision", OBSERVED_POLICY_PIN,
+                "--run-repository", run_context["repository"],
+                "--run-id", str(run_context["workflow_run_id"]),
+                "--run-attempt", str(run_context["workflow_attempt"]),
+                "--run-head", run_context["workflow_head"],
+                "--run-workflow-name", run_context["workflow_name"],
+                "--run-event", run_context["workflow_event"],
+                "--run-workflow-path", run_context["run_workflow_path"],
+                "--reconciliation-workflow-repository", implementation["workflow_repository"],
+                "--reconciliation-workflow-file-path", implementation["workflow_file_path"],
+                "--reconciliation-workflow-ref", implementation["workflow_ref"],
+                "--reconciliation-workflow-sha", implementation["workflow_sha"],
+                "--github-summary", str(summary),
+            ]
+
+            failed_closed_build = copy.deepcopy(report)
+            with self.assertRaisesRegex(ValueError, "not authorized"):
+                build_intent(
+                    current=current,
+                    candidate=candidate,
+                    source_report=source,
+                    verified_report=verified,
+                    reconciliation_report=reconciliation,
+                    producer_revision=OBSERVED_PRODUCER,
+                    consumer_base_revision=OBSERVED_PRODUCER,
+                    expected_current_lock_digest=_digest(current.read_bytes()),
+                    qualification_artifact=qualification_artifact,
+                    trusted_controller_revision=OBSERVED_PRODUCER,
+                    trusted_policy_revision=OBSERVED_POLICY_PIN,
+                    runtime_run_context=run_context,
+                    reconciliation_implementation=implementation,
+                )
+
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("schema_version=2", result.stdout)
+            self.assertIn("preview_only=true", result.stdout)
+            summary_text = summary.read_text(encoding="utf-8")
+            self.assertIn('"schema_version": 2', summary_text)
+            self.assertIn('"invocation_mode": "site-reusable"', summary_text)
+            self.assertIn('"run_workflow_path": ".github/workflows/provider-publication-dispatch.yml"', summary_text)
+            self.assertIn('"workflow_file_path": ".github/workflows/integration-reconcile.yml"', summary_text)
+            self.assertIn(f'"workflow_sha": "{implementation["workflow_sha"]}"', summary_text)
+            self.assertFalse((root / "publication-promotion-intent.json").exists())
+
+            failed_closed_build["reason_codes"] = ["QUALIFICATION_FAILED"]
+            failed_closed_build["allowed_mutations"] = []
+            _write_json(reconciliation, failed_closed_build)
+            rejected = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("intentional fail-closed", rejected.stderr)
+
+    def test_site_provider_repository_dispatch_builds_verifies_and_preserves_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, base = self._new_git_repo(directory)
+            run_context = _observed_site_run_context(event="repository_dispatch")
+            implementation = _observed_reconciliation_implementation()
+            current, candidate, intent = self._build(
+                Path(directory),
+                base,
+                run_context=run_context,
+                reconciliation_implementation=implementation,
+            )
+
+            self.assertEqual(intent["schema_version"], 2)
+            self.assertEqual(intent["run_provenance"]["workflow_event"], "repository_dispatch")
+            self.assertEqual(intent["run_provenance"]["run_workflow_path"], SITE_DISPATCH_PATH)
+            self.assertEqual(
+                intent["reconciliation_implementation"]["workflow_file_path"],
+                RECONCILIATION_PATH,
+            )
+            self.assertEqual(
+                intent["reconciliation_implementation"]["workflow_ref"],
+                f"{REPOSITORY}/{RECONCILIATION_PATH}@{SITE_RECONCILIATION_SHA}",
+            )
+            self.assertEqual(
+                intent["reconciliation_implementation"]["workflow_sha"],
+                SITE_RECONCILIATION_SHA,
+            )
+
+            intent_path = root / "publication-promotion-intent.json"
+            encoded = _write_json(intent_path, intent)
+            branch = f"automation/publication-{intent['idempotency_key']}"
+            verified = verify_premerge_intent(
+                intent_path=intent_path,
+                base_lock=current,
+                selected_lock=candidate,
+                consumer_base_revision=base,
+                trusted_controller_revision=CONTROLLER,
+                trusted_policy_revision=POLICY,
+                branch=branch,
+                runtime_run_context=run_context,
+                reconciliation_implementation=implementation,
+                expected_intent_digest=_digest(encoded),
+            )
+            self.assertEqual(verified["run_provenance"]["workflow_event"], "repository_dispatch")
+
+            targeted = verify_target_intent(
+                intent_path=intent_path,
+                runtime_run_context=run_context,
+                reconciliation_implementation=implementation,
+                expected_intent_digest=_digest(encoded),
+            )
+            self.assertEqual(targeted["run_provenance"]["workflow_event"], "repository_dispatch")
+
+            merged_revision = self._merge_intent(root, base, encoded)
+            merged = verify_merged_intent(
+                repository_root=root,
+                merged_revision=merged_revision,
+                trusted_controller_revision=CONTROLLER,
+                trusted_policy_revision=POLICY,
+                branch=branch,
+            )
+            self.assertEqual(merged["run_provenance"]["workflow_event"], "repository_dispatch")
+
+            unsupported_run_context = copy.deepcopy(run_context)
+            unsupported_run_context["workflow_event"] = "push"
+            with self.assertRaisesRegex(ValueError, "workflow event is not supported"):
+                unsupported_root = Path(directory) / "unsupported-event"
+                unsupported_root.mkdir()
+                self._build(
+                    unsupported_root,
+                    base,
+                    run_context=unsupported_run_context,
+                    reconciliation_implementation=implementation,
+                )
+
+    def test_direct_workflow_dispatch_and_repository_dispatch_build_and_verify(self):
+        producer = "a" * 40
+        for event in ("workflow_dispatch", "repository_dispatch"):
+            with self.subTest(event=event), tempfile.TemporaryDirectory() as directory:
+                run_context = _direct_run_context(producer, event=event)
+                implementation = _direct_reconciliation_implementation(producer)
+                current, candidate, intent = self._build(
+                    Path(directory),
+                    producer,
+                    run_context=run_context,
+                    reconciliation_implementation=implementation,
+                )
+                intent_path = Path(directory) / "publication-promotion-intent.json"
+                encoded = _write_json(intent_path, intent)
+                verified = verify_premerge_intent(
+                    intent_path=intent_path,
+                    base_lock=current,
+                    selected_lock=candidate,
+                    consumer_base_revision=producer,
+                    trusted_controller_revision=CONTROLLER,
+                    trusted_policy_revision=POLICY,
+                    branch=f"automation/publication-{intent['idempotency_key']}",
+                    runtime_run_context=run_context,
+                    reconciliation_implementation=implementation,
+                    expected_intent_digest=_digest(encoded),
+                )
+                self.assertEqual(verified["run_provenance"]["invocation_mode"], "direct")
+                self.assertEqual(
+                    verify_target_intent(
+                        intent_path=intent_path,
+                        runtime_run_context=run_context,
+                        reconciliation_implementation=implementation,
+                        expected_intent_digest=_digest(encoded),
+                    ),
+                    intent,
+                )
+
+    def test_source_verified_and_trusted_input_disagreements_are_rejected(self):
+        cases = (
+            (
+                "source and verified report disagreement",
+                {"verified_input_changes": {"policy_revision": "0" * 40}},
+                "source and verified qualification inputs disagree",
+            ),
+            (
+                "wrong producer",
+                {"report_input_changes": {"integration_revision": "0" * 40}},
+                "qualification producer does not match",
+            ),
+            (
+                "wrong Bundle identity",
+                {"report_input_changes": {"bundle_identity": "0" * 64}},
+                "Bundle identity differs",
+            ),
+            (
+                "wrong Bundle digest",
+                {"report_input_changes": {"bundle_content_digest": "0" * 64}},
+                "Bundle content digest differs",
+            ),
+            (
+                "wrong controller pin",
+                {"report_trust_changes": {"controller_revision": "0" * 40}},
+                "controller identity does not match",
+            ),
+            (
+                "wrong Policy pin",
+                {"report_trust_changes": {"policy_revision": "0" * 40}},
+                "Policy identity does not match",
+            ),
+        )
+        for label, changes, error in cases:
+            with self.subTest(binding=label), tempfile.TemporaryDirectory() as directory:
+                with self.assertRaisesRegex(ValueError, error):
+                    self._build(Path(directory), "a" * 40, **changes)
+
+        invalid_artifacts = (
+            (
+                "qualification artifact digest",
+                {"id": 102, "digest": "invalid", "name": f"publication-compatibility-{BUNDLE_IDENTITY}-1-reconciliation"},
+                "digest is malformed",
+            ),
+            (
+                "qualification artifact namespace",
+                {"id": 102, "digest": "sha256:" + "9" * 64, "name": "unrelated-artifact"},
+                "outside the reconciliation namespace",
+            ),
+        )
+        for label, artifact, error in invalid_artifacts:
+            with self.subTest(binding=label), tempfile.TemporaryDirectory() as directory:
+                with self.assertRaisesRegex(ValueError, error):
+                    self._build(
+                        Path(directory),
+                        "a" * 40,
+                        qualification_artifact=artifact,
+                    )
 
     def test_merged_marker_requires_exact_base_lock_and_trust_pins(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -500,7 +1067,7 @@ class PublicationPromotionIntentTests(unittest.TestCase):
             self.assertEqual(result, intent)
 
             tampered = copy.deepcopy(intent)
-            tampered["qualification"]["workflow_name"] = "tampered worktree copy"
+            tampered["run_provenance"]["workflow_name"] = "tampered worktree copy"
             (root / "publication-promotion-intent.json").write_bytes(
                 (json.dumps(tampered, indent=2, sort_keys=True) + "\n").encode()
             )
@@ -512,7 +1079,7 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                 trusted_policy_revision=POLICY,
                 branch=branch,
             )
-            self.assertEqual(result["qualification"]["workflow_name"], intent["qualification"]["workflow_name"])
+            self.assertEqual(result["run_provenance"]["workflow_name"], intent["run_provenance"]["workflow_name"])
             self.assertNotEqual((root / "publication-promotion-intent.json").read_bytes(), intent_bytes)
 
     def test_merged_intent_rejects_the_symlink_exploit(self):
