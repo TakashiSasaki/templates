@@ -1362,6 +1362,7 @@ def test_provider_recognized_adapter_accepted() -> None:
     }
     validated = validate_provider_identity(
         prov_data,
+        allow_test_provider=True,
         provider_adapter=MockGitHubProviderAdapter(),
     )
     obs = validated["observation_evidence"]
@@ -2635,7 +2636,7 @@ def test_freeze_verification_rejects_partial_coverage(tmp_path: Path, omitted_se
 def test_positive_canonical_freeze_evidence_acceptance(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """14. Positive canonical case: exact identity binding accepts authentic evidence."""
+    """Legacy JSON cannot enter production even when its fields are internally consistent."""
     handoff, obs_file, fe_file, h_file = setup_verified_fixtures(tmp_path)
 
     prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
@@ -2660,9 +2661,9 @@ def test_positive_canonical_freeze_evidence_acceptance(
             "--require-authenticated-provider",
         ]
     )
-    assert exit_code == 0
+    assert exit_code != 0
     captured = capsys.readouterr()
-    assert handoff_module.STATUS_HANDOFF_VERIFIED in captured.out
+    assert "legacy observation JSON is not authenticated" in captured.err
 
 
 def test_provider_observation_verifier_rejects_missing_digest(tmp_path: Path) -> None:
