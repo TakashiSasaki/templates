@@ -43,6 +43,7 @@ SIGNER_WORKFLOW = f"{REPOSITORY}/{WORKFLOW_PATH}"
 CERT_IDENTITY = f"https://github.com/{REPOSITORY}/{WORKFLOW_PATH}@{DEFAULT_REF}"
 SHA1 = re.compile(r"^[0-9a-f]{40}$")
 DECIMAL_ID = re.compile(r"^[1-9][0-9]*$")
+GITHUB_LOGIN = re.compile(r"^[A-Za-z0-9-]{1,39}(?:\[bot\])?$")
 
 
 class TrustedObservationError(ValueError):
@@ -102,7 +103,7 @@ class ActionsRunIdentity:
             raise TrustedObservationError("trusted workflow SHA is missing or invalid")
         if not SHA1.fullmatch(source_sha):
             raise TrustedObservationError("workflow source SHA is missing or invalid")
-        if not re.fullmatch(r"[A-Za-z0-9-]{1,39}", actor):
+        if not GITHUB_LOGIN.fullmatch(actor):
             raise TrustedObservationError("trusted workflow actor login is missing or invalid")
         if not DECIMAL_ID.fullmatch(actor_id):
             raise TrustedObservationError("trusted workflow actor ID is missing or invalid")

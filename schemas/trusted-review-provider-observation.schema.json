@@ -30,7 +30,7 @@
                 "node_id": {"type": "string", "minLength": 1},
                 "number": {"type": "integer", "minimum": 1},
                 "author_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
-                "author_login": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,39}$"},
+                "author_login": {"$ref": "#/$defs/githubLogin"},
                 "base": {"$ref": "#/$defs/policyBaseCommit"},
                 "head": {"$ref": "#/$defs/commit"}}},
         "observation": {
@@ -66,9 +66,10 @@
                 "workflow_sha": {"$ref": "#/$defs/sha1"},
                 "source_sha": {"$ref": "#/$defs/sha1"},
                 "actor_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
-                "actor_login": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,39}$"},
+                "actor_login": {"$ref": "#/$defs/githubLogin"},
                 "job": {"const": "bootstrap"}}}},
     "$defs": {
+        "githubLogin": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,39}(?:\\[bot\\])?$"},
         "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
         "policyBaseCommit": {
             "type": "object",
