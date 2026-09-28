@@ -133,6 +133,102 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertIn("tests_run=2 passed=0 skipped=2 failures=0 errors=0", output.getvalue())
         self.assertNotIn("omitted test IDs", output.getvalue())
 
+    def test_class_fixture_errors_account_every_discovered_id_in_serial_results(self) -> None:
+        for fixture_name in ("setUpClass", "tearDownClass"):
+            with self.subTest(fixture=fixture_name):
+                def fail_fixture(cls):
+                    raise RuntimeError("controlled class fixture error")
+
+                attributes = {
+                    "__module__": __name__,
+                    "test_one": lambda self: None,
+                    "test_two": lambda self: None,
+                    fixture_name: classmethod(fail_fixture),
+                }
+                failing_class = type("ClassFixtureErrorProbe", (unittest.TestCase,), attributes)
+                cases = [failing_class("test_one"), failing_class("test_two")]
+                test_ids = [case.id() for case in cases]
+
+                with redirect_stderr(io.StringIO()):
+                    result = preflight.run_suite(cases, verbosity=0)
+                self.assertEqual(
+                    result.outcomes,
+                    {test_id: {"status": "error"} for test_id in test_ids},
+                )
+
+                with (
+                    patch.object(
+                        preflight,
+                        "classify_test_inventory",
+                        return_value=([], test_ids),
+                    ),
+                    redirect_stdout(io.StringIO()) as output,
+                    redirect_stderr(io.StringIO()),
+                ):
+                    status = preflight.run_discovered_tests(cases, jobs=1, verbosity=0)
+
+                self.assertEqual(status, 1)
+                self.assertIn(
+                    "INTEGRATION_TEST_RESULT tests_run=2 passed=0 skipped=0 failures=0 errors=2",
+                    output.getvalue(),
+                )
+
+    def test_module_fixture_errors_preserve_every_shard_id(self) -> None:
+        with TemporaryDirectory(prefix="integration-module-fixture-error-") as directory:
+            root = Path(directory)
+            tests_dir = root / "tests"
+            tests_dir.mkdir()
+            for fixture_name in ("setUpModule", "tearDownModule"):
+                module_name = f"test_integration_{fixture_name}_failure"
+                (tests_dir / f"{module_name}.py").write_text(
+                    "import unittest\n"
+                    f"def {fixture_name}():\n"
+                    "    raise RuntimeError('controlled module fixture error')\n"
+                    "class ModuleFixtureErrorProbe(unittest.TestCase):\n"
+                    "    def test_one(self): pass\n"
+                    "    def test_two(self): pass\n",
+                    encoding="utf-8",
+                )
+                test_ids = [
+                    f"{module_name}.ModuleFixtureErrorProbe.test_one",
+                    f"{module_name}.ModuleFixtureErrorProbe.test_two",
+                ]
+                result_path = root / f"{fixture_name}-result.json"
+                manifest_path = root / f"{fixture_name}-manifest.json"
+                manifest_path.write_text(
+                    json.dumps(
+                        {
+                            "schema_version": 1,
+                            "inventory_ids": test_ids,
+                            "shard_ids": test_ids,
+                            "shard_index": 0,
+                            "shard_count": 1,
+                            "result_path": str(result_path),
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                original_path = sys.path.copy()
+                try:
+                    with (
+                        patch.object(preflight, "ROOT", root),
+                        redirect_stdout(io.StringIO()),
+                        redirect_stderr(io.StringIO()),
+                    ):
+                        status = preflight.run_shard_worker(manifest_path)
+                    payload = json.loads(result_path.read_text(encoding="utf-8"))
+                finally:
+                    sys.modules.pop(module_name, None)
+                    sys.path[:] = original_path
+
+                with self.subTest(fixture=fixture_name):
+                    self.assertEqual(status, 1)
+                    self.assertEqual(payload["ran_ids"], sorted(test_ids))
+                    self.assertEqual(
+                        payload["outcomes"],
+                        {test_id: {"status": "error"} for test_id in test_ids},
+                    )
+
     def test_teardown_class_skip_does_not_add_a_synthetic_test_id(self) -> None:
         class TeardownSkippedClass(unittest.TestCase):
             def test_case_passed_before_teardown(self):
