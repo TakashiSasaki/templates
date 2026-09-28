@@ -142,26 +142,33 @@ workflow run/attempt, and artifact ID/digest. A candidate result made with a
 different producer or merged Site SHA is not silently reused. Content equality
 alone is not a `NO_CHANGE`; identity equality is the no-op criterion.
 
-## Current event and PR chain
+## Current candidate event and PR chain
 
 The source-controlled path is the following. It is a read-only map for
 maintainers; it does not authorize a dispatch or a setting change.
 
-The Site caller pins Integration workflow `ce0f2d2e4f3d6524aa6818e2f38c33850dcbebfb`,
-which landed through PR #1066 after workflow-provenance remediation. Its
-schema-2 intent separates the top-level run provenance from the reusable
-Integration implementation provenance. Independent exact-head review verified
-both Site `workflow_dispatch` and provider `repository_dispatch` paths. The
-Site pin selects the reusable workflow implementation; `controller_ref`
-continues to come from `PUBLICATION_CONTROLLER_REVISION`, which is a separate
-trust pin. Integration automation still stops at its deterministic PR review
-boundary and does not approve or merge that PR.
+The candidate Site caller revision is
+`84bb21957f1df7b3d33fb412087b10c21d4553fb`, landed in Integration through PR
+#1071 after adding fail-closed, in-memory schema-2 provenance preview and
+validation. That preview writes no intent files or artifacts and does not enter
+the mutation job. This revision is proposed by the Site repin PR; it is not yet
+the live default-branch caller. Until a later coordinated rollout, the live Site
+caller and `PUBLICATION_CONTROLLER_REVISION` remain pinned to
+`ce0f2d2e4f3d6524aa6818e2f38c33850dcbebfb`. The Site pin selects the reusable
+workflow implementation; `controller_ref` continues to come from
+`PUBLICATION_CONTROLLER_REVISION`, which is a separate trust pin.
+
+The new fail-closed runtime qualification has not been performed because it
+requires both live pins to advance together. Controlled activation has not
+resumed. Integration publication automation still stops at its deterministic
+publication-PR review boundary and does not approve or merge the publication
+PR.
 
 | Event | Current code | Result and next boundary |
 |---|---|---|
 | Provider push qualification | `modeling-ci.yml`, `reference-consumer-publication.yml`, and `integration-compatibility.yml` | The provider qualifies its exact pushed SHA, then sends `publication.provider-qualified` with run/attempt/workflow identity. A provider check or added file is not publication. |
-| Provider event received | Site default-branch `provider-publication-dispatch.yml` | Site validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `ce0f2d2e4f3d6524aa6818e2f38c33850dcbebfb`. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
-| Manual Integration reconciliation | Site default-branch `provider-publication-dispatch.yml` | The operator supplies one exact lowercase `producer_ref`; optional provider overrides remain empty to use the committed Integration selection. Site validates and forwards those values, takes `controller_ref` from the repository trust variable, and delegates to the same pinned Integration workflow. The Site adapter adds no qualification, promotion, or lock-update semantics. |
+| Provider event received | Site caller candidate `provider-publication-dispatch.yml` | The candidate validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `84bb21957f1df7b3d33fb412087b10c21d4553fb`. The live default-branch caller remains pinned to `ce0f2d2e4f3d6524aa6818e2f38c33850dcbebfb` until this Site PR lands. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
+| Manual Integration reconciliation | Site caller candidate `provider-publication-dispatch.yml` | The candidate accepts one exact lowercase `producer_ref`; optional provider overrides remain empty to use the committed Integration selection. Site validates and forwards those values, takes `controller_ref` from the repository trust variable, and delegates to the same candidate Integration workflow. The Site adapter adds no qualification, promotion, or lock-update semantics. |
 | Integration candidate | `integration-reconcile.yml` | Exact producer/provider qualification, trusted-controller rebuild, artifact binding, and receipt verification produce a report. The source fallback is `shadow`; live repository variables and credentials are external. Only separately authorized `adoption-only` or `auto-publish` can create or reconcile the deterministic `automation/publication-*` lock PR. Automation stops at the PR, pending independent exact-head review and separate human merge authorization. |
 | Integration merge | `integration-promotion-notify.yml` | After independent review and authorized landing, a merged `automation/publication-*` PR is requalified and its trusted receipt is checked before `publication.integration-promoted` is sent to Site. The notification is a candidate handoff, not Site adoption or deployment. |
 | Site candidate | `publication-reconcile.yml` | Site acquires the exact Bundle/receipt and runs Site qualification. Only an externally authorized automatic mode can create or reconcile the idempotent `automation/site-publication-*` lock PR. The controller stops there; it does not approve, request auto-merge, or merge. Independent exact-head review and separate human merge authorization follow. |
