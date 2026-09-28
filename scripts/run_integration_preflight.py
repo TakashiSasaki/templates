@@ -519,6 +519,8 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
         print(
             f"INTEGRATION_TEST_RESULT tests_run={len(result.outcomes)} passed={counts['passed']} "
             f"skipped={counts['skipped']} failures={counts['failures']} errors={counts['errors']} "
+            f"expected_failures={counts['expected_failures']} "
+            f"unexpected_successes={counts['unexpected_successes']} "
             f"outcome_sha256={outcome_digest(result.outcomes)}",
             flush=True,
         )
@@ -554,6 +556,8 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
     print(
         f"INTEGRATION_TEST_RESULT tests_run={len(outcomes)} passed={counts['passed']} "
         f"skipped={counts['skipped']} failures={counts['failures']} errors={counts['errors']} "
+        f"expected_failures={counts['expected_failures']} "
+        f"unexpected_successes={counts['unexpected_successes']} "
         f"outcome_sha256={outcome_digest(outcomes)}",
         flush=True,
     )
@@ -566,7 +570,15 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
     )
     for failure in failures:
         print(f"INTEGRATION_TEST_FAIL {failure}", file=sys.stderr, flush=True)
-    return 0 if serial_result.wasSuccessful() and not failures and counts["failures"] == 0 and counts["errors"] == 0 else 1
+    return (
+        0
+        if serial_result.wasSuccessful()
+        and not failures
+        and counts["failures"] == 0
+        and counts["errors"] == 0
+        and counts["unexpected_successes"] == 0
+        else 1
+    )
 
 
 def positive_jobs(value: str) -> int:
