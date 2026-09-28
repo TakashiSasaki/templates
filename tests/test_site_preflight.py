@@ -277,7 +277,7 @@ class SitePreflightTests(unittest.TestCase):
                     os.environ,
                     {
                         "NODE_OPTIONS": (
-                            '"--test-concurrency"=8 '
+                            '"--test-concurrency"=8 --test_concurrency=9 '
                             f'--require="{hook}" --test-concurrency=auto '
                             "--trace-warnings"
                         )
