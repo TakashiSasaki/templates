@@ -142,6 +142,9 @@ _SERVICE_WORKER_DIAGNOSTIC_PRELUDE = r"""const SITE_PWA_DIAGNOSTIC_ROLLOUT = __S
           worker_elapsed_ms: Math.round(performance.now() * 10) / 10,
           ...extra,
         };
+        if (type === "message") {
+          observation.message_type = String(event.data?.type || "");
+        }
         if (request) {
           observation.request_method = request.method;
           observation.request_url = request.url;
@@ -197,6 +200,52 @@ _SERVICE_WORKER_DIAGNOSTIC_PRELUDE = r"""const SITE_PWA_DIAGNOSTIC_ROLLOUT = __S
 
     return addEventListener(type, observedListener, options);
   };
+})();
+"""
+
+
+# Observe the page's automatic offline registration/update before the explicit
+# rollout probe. Keep native method results unchanged for the page under test.
+_PAGE_UPDATE_DIAGNOSTIC_PRELUDE = r"""(() => {
+  const state = window.__sitePwaPageUpdate = {
+    register_started: 0,
+    register_pending: 0,
+    register_fulfilled: 0,
+    register_rejected: 0,
+    update_started: 0,
+    update_pending: 0,
+    update_fulfilled: 0,
+    update_rejected: 0,
+  };
+  for (const [prototype, name] of [
+    [ServiceWorkerContainer.prototype, "register"],
+    [ServiceWorkerRegistration.prototype, "update"],
+  ]) {
+    const original = prototype[name];
+    prototype[name] = function(...args) {
+      state[name + "_started"]++;
+      state[name + "_pending"]++;
+      let result;
+      try {
+        result = original.apply(this, args);
+      } catch (error) {
+        state[name + "_pending"]--;
+        state[name + "_rejected"]++;
+        throw error;
+      }
+      Promise.resolve(result).then(
+        () => setTimeout(() => {
+          state[name + "_pending"]--;
+          state[name + "_fulfilled"]++;
+        }, 0),
+        () => setTimeout(() => {
+          state[name + "_pending"]--;
+          state[name + "_rejected"]++;
+        }, 0),
+      );
+      return result;
+    };
+  }
 })();
 """
 
@@ -862,10 +911,38 @@ def run(site, bundle, output=None):
         )
         _run_phase(
             evidence,
-            "navigation.offline_cached_reload.domcontentloaded",
-            lambda: page.reload(wait_until="domcontentloaded"),
+            "browser.observe_page_service_worker_update",
+            lambda: page.add_init_script(script=_PAGE_UPDATE_DIAGNOSTIC_PRELUDE),
+        )
+        _run_phase(
+            evidence,
+            "navigation.offline_cached_reload.load",
+            lambda: page.reload(wait_until="load"),
         )
         warning("offline-cached-reload")
+        _run_phase(
+            evidence,
+            "service_worker.wait_for_page_update_settlement",
+            lambda: page.wait_for_function(
+                """() => {
+                    const state = window.__sitePwaPageUpdate;
+                    return state && state.register_started > 0 &&
+                        state.register_pending === 0 &&
+                        (state.register_rejected > 0 ||
+                         (state.update_started > 0 && state.update_pending === 0));
+                }""",
+                timeout=30000,
+            ),
+        )
+        evidence["page_service_worker_update"] = _run_phase(
+            evidence,
+            "service_worker.capture_page_update_settlement",
+            lambda: page.evaluate("({...window.__sitePwaPageUpdate})"),
+        )
+        _log({
+            "kind": "page_service_worker_update_settlement",
+            "state": evidence["page_service_worker_update"],
+        })
         _run_phase(
             evidence,
             "network.set_online.before_worker_update",
