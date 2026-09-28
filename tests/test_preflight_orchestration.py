@@ -434,11 +434,18 @@ def test_direct_child_enumeration_uses_standard_proc_stat_records(
             encoding="ascii",
         )
 
+    non_ascii_pid = 804
+    non_ascii_process_dir = proc_root / str(non_ascii_pid)
+    non_ascii_process_dir.mkdir()
+    (non_ascii_process_dir / "stat").write_bytes(
+        b"804 (worker \xff with bytes) S 700 1 1 0 0\n"
+    )
+
     assert not (proc_root / "801" / "task" / "801" / "children").exists()
     assert _authority_supervisor._direct_child_pids(
         proc_root=proc_root,
         parent_pid=expected_parent,
-    ) == (801, 803)
+    ) == (801, 803, non_ascii_pid)
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")

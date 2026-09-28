@@ -76,7 +76,12 @@ def _direct_child_pids(
             try:
                 if entry.stat().st_uid != effective_uid:
                     continue
-                stat_record = (entry / "stat").read_text(encoding="ascii")
+                # The parenthesized ``comm`` field is arbitrary process-name
+                # bytes. Preserve them losslessly while decoding the ASCII
+                # fields that follow it.
+                stat_record = (entry / "stat").read_bytes().decode(
+                    "ascii", errors="surrogateescape"
+                )
             except (FileNotFoundError, ProcessLookupError):
                 # A process can exit between enumerating its PID and reading it.
                 continue
