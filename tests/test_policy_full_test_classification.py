@@ -147,6 +147,7 @@ def test_full_worker_count_is_bounded_and_jobs_one_is_serial() -> None:
     for requested in (1, 2, 4, 16):
         assert 1 <= effective_full_test_jobs(requested) <= requested
     assert effective_full_test_jobs(1) == 1
+    assert effective_full_test_jobs(100, schedulable_modules=2) == 2
 
 
 def test_jobs_one_runs_full_suite_without_partition_or_xdist() -> None:
@@ -194,6 +195,43 @@ def test_parallel_full_suite_phases_respect_classification_barriers() -> None:
         ("parallel", ("parallel-1",), 2, 1),
         ("serial", ("serial-1",), 2, 1),
         ("exclusive", ("exclusive-1",), 2, 1),
+    ]
+
+
+def test_full_xdist_budget_is_capped_by_schedulable_modules() -> None:
+    parallel = (
+        "tests/test_alpha.py::test_one",
+        "tests/test_alpha.py::test_two",
+        "tests/test_beta.py::test_one",
+        "tests/test_beta.py::test_two",
+    )
+    partition = PolicyTestPartition(
+        discovered=parallel,
+        parallel=parallel,
+        serial=(),
+        exclusive=(),
+        fallback_modules=(),
+    )
+    calls: list[tuple[str, tuple[str, ...], int, int]] = []
+    with (
+        patch(
+            "scripts.run_policy_preflight.collect_full_test_inventory",
+            return_value=partition.discovered,
+        ),
+        patch("scripts.run_policy_preflight.classify_full_test_inventory", return_value=partition),
+        patch(
+            "scripts.run_policy_preflight.run_pytest_subset",
+            side_effect=lambda name, ids, requested, effective: calls.append(
+                (name, tuple(ids), requested, effective)
+            ),
+        ),
+    ):
+        check_tests(jobs=100)
+
+    assert calls == [
+        ("parallel", parallel, 100, 2),
+        ("serial", (), 100, 2),
+        ("exclusive", (), 100, 2),
     ]
 
 
