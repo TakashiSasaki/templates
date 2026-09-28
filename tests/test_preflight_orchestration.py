@@ -9,6 +9,7 @@ import threading
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import Mock
 
 import pytest
 
@@ -17,6 +18,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts import _authority_supervisor  # noqa: E402
+from scripts import orchestrate_preflights as orchestrator_module  # noqa: E402
 from scripts.orchestrate_preflights import (  # noqa: E402
     ALL_AUTHORITIES,
     MAX_SUMMARY_BYTES,
@@ -376,6 +378,71 @@ def test_preflight_timeout_handling(tmp_path: Path) -> None:
     assert res.status == "TIMEOUT"
     assert res.exit_code is None
     assert "timeout limit" in res.failure_excerpt
+
+
+def test_supervisor_cleanup_exit_code_reports_cleanup_failure() -> None:
+    class CompletedSupervisor:
+        returncode = 125
+
+        def terminate(self) -> None:
+            pass
+
+        def communicate(self, *, timeout: float) -> tuple[str, str]:
+            assert timeout == orchestrator_module.SUPERVISOR_CLEANUP_TIMEOUT_SECONDS
+            return "supervisor output", "cleanup failed"
+
+    stdout, stderr, cleanup_complete = orchestrator_module._stop_authority_supervisor(
+        CompletedSupervisor()
+    )
+
+    assert stdout == "supervisor output"
+    assert stderr == "cleanup failed"
+    assert not cleanup_complete
+
+
+def test_windows_supervisor_uses_control_break_and_private_process_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(orchestrator_module.os, "name", "nt")
+    monkeypatch.setattr(
+        orchestrator_module.subprocess,
+        "CREATE_NEW_PROCESS_GROUP",
+        512,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        orchestrator_module.signal, "CTRL_BREAK_EVENT", 1, raising=False
+    )
+    process = Mock()
+    process.returncode = 124
+    process.communicate.return_value = ("", "")
+
+    assert orchestrator_module._supervisor_process_options() == {
+        "creationflags": 512
+    }
+    _, _, cleanup_complete = orchestrator_module._stop_authority_supervisor(
+        process
+    )
+
+    process.send_signal.assert_called_once_with(1)
+    process.terminate.assert_not_called()
+    assert cleanup_complete
+
+
+def test_supervisor_installs_windows_break_handler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registered: dict[int, object] = {}
+    monkeypatch.setattr(_authority_supervisor.signal, "SIGBREAK", 21, raising=False)
+    monkeypatch.setattr(
+        _authority_supervisor.signal,
+        "signal",
+        lambda signum, handler: registered.__setitem__(signum, handler),
+    )
+
+    _authority_supervisor._install_stop_handlers()
+
+    assert registered[21] is _authority_supervisor._request_stop
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")

@@ -319,9 +319,11 @@ the supervisor's private child ownership prevents concurrent authorities from
 reaping one another's processes. Other POSIX systems terminate and wait for the
 invocation process group, but cannot provide the same subreaper guarantee for
 detached grandchildren; cleanup of those descendants is best effort. On
-Windows, the supervisor can terminate and wait for the direct authority child,
-but descendant cleanup is best effort because this runner has no equivalent
-process-group or child-subreaper contract there.
+Windows, the coordinator requests cleanup with a control-break event to the
+supervisor's private process group. The supervisor handles that event, waits
+for the direct authority child to terminate, and uses a bounded force-kill
+fallback if needed. Descendant cleanup remains best effort because this runner
+has no equivalent process-group or child-subreaper contract there.
 
 ### Automation boundaries and operation taxonomy
 

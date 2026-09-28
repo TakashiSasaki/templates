@@ -125,21 +125,32 @@ def _decode_captured_output(value: bytes | str | None) -> str:
     return value
 
 
+def _supervisor_process_options() -> dict[str, bool | int]:
+    if os.name == "posix":
+        return {"start_new_session": True}
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {}
+
+
 def _stop_authority_supervisor(
     process: subprocess.Popen[str],
 ) -> tuple[str, str, bool]:
     """Ask the per-invocation supervisor to finalize, with a bounded fallback."""
 
     try:
-        process.terminate()
-    except ProcessLookupError:
+        if os.name == "nt":
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            process.terminate()
+    except (OSError, ValueError):
         pass
 
     try:
         stdout, stderr = process.communicate(
             timeout=SUPERVISOR_CLEANUP_TIMEOUT_SECONDS
         )
-        return stdout, stderr, True
+        return stdout, stderr, process.returncode is not None and process.returncode != 125
     except subprocess.TimeoutExpired as timeout_error:
         stdout = _decode_captured_output(timeout_error.output)
         stderr = _decode_captured_output(timeout_error.stderr)
@@ -307,7 +318,7 @@ def run_single_preflight(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            start_new_session=os.name == "posix",
+            **_supervisor_process_options(),
         )
         try:
             stdout, stderr = proc.communicate(timeout=timeout)

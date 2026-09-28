@@ -232,6 +232,13 @@ def _request_stop(_signum: int, _frame: object) -> None:
     _STOP_REQUESTED = True
 
 
+def _install_stop_handlers() -> None:
+    for name in ("SIGTERM", "SIGINT", "SIGBREAK"):
+        signum = getattr(signal, name, None)
+        if signum is not None:
+            signal.signal(signum, _request_stop)
+
+
 def main(argv: list[str] | None = None) -> int:
     global _STOP_REQUESTED
     _STOP_REQUESTED = False
@@ -247,8 +254,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if argv is None:
-        signal.signal(signal.SIGTERM, _request_stop)
-        signal.signal(signal.SIGINT, _request_stop)
+        _install_stop_handlers()
 
     try:
         subreaper_enabled = _enable_linux_child_subreaper()
