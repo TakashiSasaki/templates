@@ -47,6 +47,12 @@ class SitePreflightTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("unrecognized arguments", result.stderr)
 
+    def test_jobs_must_be_at_least_one(self):
+        self.assertEqual(preflight.parse_args(["fast", "--jobs", "1"]).jobs, 1)
+        for value in ("0", "-1", "many"):
+            with self.subTest(value=value), self.assertRaises(SystemExit):
+                preflight.parse_args(["fast", "--jobs", value])
+
     def test_exact_head_guard_precedes_validation(self):
         with patch.object(
             preflight.subprocess,
@@ -222,6 +228,77 @@ class SitePreflightTests(unittest.TestCase):
         with patch.object(preflight, "NODE_TESTS", ()):
             with self.assertRaisesRegex(RuntimeError, "no Composition Playground"):
                 preflight.run_node()
+
+    def test_node_runner_rejects_zero_worker_allocation(self):
+        with self.assertRaisesRegex(ValueError, "at least 1"):
+            preflight.run_node(0)
+
+    def test_node_runner_preserves_unrelated_options_and_pins_worker_budget(self):
+        with patch.dict(
+            os.environ,
+            {
+                "NODE_OPTIONS": (
+                    "--max-old-space-size=2048 --test-concurrency=auto "
+                    "--trace-warnings --test-concurrency 6"
+                )
+            },
+        ), patch.object(preflight, "_run") as run:
+            preflight.run_node(1)
+        command = run.call_args.args[0]
+        self.assertEqual(command[:3], ["node", "--test", "--test-concurrency=1"])
+        self.assertEqual(command[3:], list(preflight.NODE_TESTS))
+        child_environment = run.call_args.kwargs["env"]
+        self.assertEqual(
+            child_environment["NODE_OPTIONS"],
+            "--max-old-space-size=2048 --trace-warnings",
+        )
+
+    def test_node_runner_preserves_quoted_require_path_and_removes_quoted_option_name(self):
+        with TemporaryDirectory(prefix="site node options ") as temporary:
+            directory = Path(temporary) / "space dir"
+            directory.mkdir()
+            hook = directory / "node hook.cjs"
+            test_file = directory / "node options test.mjs"
+            hook.write_text(
+                "process.env.SITE_NODE_OPTIONS_HOOK_LOADED = 'yes';\n",
+                encoding="utf-8",
+            )
+            test_file.write_text(
+                "import assert from 'node:assert/strict';\n"
+                "import test from 'node:test';\n"
+                "test('quoted NODE_OPTIONS path survives sanitation', () => {\n"
+                "  assert.equal(process.env.SITE_NODE_OPTIONS_HOOK_LOADED, 'yes');\n"
+                "  assert.doesNotMatch(process.env.NODE_OPTIONS ?? '', /--test-concurrency/);\n"
+                "});\n",
+                encoding="utf-8",
+            )
+            with (
+                patch.dict(
+                    os.environ,
+                    {
+                        "NODE_OPTIONS": (
+                            '"--test-concurrency"=8 --test_concurrency=9 '
+                            f'--require="{hook}" --test-concurrency=auto '
+                            "--trace-warnings"
+                        )
+                    },
+                ),
+                patch.object(preflight, "NODE_TESTS", (str(test_file),)),
+            ):
+                preflight.run_node(1)
+
+    def test_node_worker_count_is_capped_to_discovered_files(self):
+        with patch.object(preflight, "NODE_TESTS", ("tests/one.test.mjs", "tests/two.test.mjs")), patch.object(
+            preflight, "_run"
+        ) as run:
+            preflight.run_node(8)
+        self.assertIn("--test-concurrency=2", run.call_args.args[0])
+
+    def test_run_check_passes_site_allocation_to_node(self):
+        args = preflight.parse_args(["source-ready", "--jobs", "2"])
+        with patch.object(preflight, "run_node") as run_node:
+            preflight.run_check("node", args)
+        run_node.assert_called_once_with(2)
 
     def test_registry_is_the_single_playground_node_inventory(self):
         self.assertEqual(preflight.NODE_TESTS, playground_node_tests(ROOT))

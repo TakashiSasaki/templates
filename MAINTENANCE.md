@@ -26,6 +26,21 @@ source-ready gate from a clean checkout:
 
 `SITE_HEAD=$(git rev-parse HEAD) && python scripts/run_site_preflight.py source-ready --expected-head "$SITE_HEAD"`
 
+Add `--jobs N` to cap test workers owned by this Site preflight. The default is
+2; `--jobs 1` runs the serial debugging baseline. In this first runner stage,
+the Playground's native `node --test` file concurrency receives that explicit
+limit while Python and other checks remain serial. Inherited Node test
+concurrency options are removed from `NODE_OPTIONS`, while unrelated options
+are preserved with their Node-compatible double-quoted values. The explicit
+runner limit prevents an inherited setting from raising effective concurrency.
+A cross-authority coordinator's `--jobs` is a larger shared budget that it
+divides among authority-local runners; invoking this Site command directly
+treats it as the entire Site-local budget. The shared worker-budget contract
+documents the safety classes and allocation rules. Python `unittest` and Node
+remain separate execution domains because the Node tests load the shipped
+Composition Playground JavaScript directly and exercise its URL, rendering,
+event, fetch, clipboard and async behavior.
+
 This runs the complete classified Python core suite, every cheap Playground
 Node test, Site-owned declaration/contract checks, static Python dependency
 boundary checks for each CI requirements input. It deliberately does not run

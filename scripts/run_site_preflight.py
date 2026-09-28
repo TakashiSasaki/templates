@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -50,8 +51,8 @@ PROFILES = {
 }
 
 
-def _run(command: list[str]) -> None:
-    subprocess.run(command, cwd=ROOT, check=True)
+def _run(command: list[str], *, env: dict[str, str] | None = None) -> None:
+    subprocess.run(command, cwd=ROOT, check=True, env=env)
 
 
 def _git_output(arguments: list[str]) -> tuple[str, ...]:
@@ -147,10 +148,91 @@ def run_core() -> None:
     _run([sys.executable, "scripts/run_core_tests.py", "--suite", "core"])
 
 
-def run_node() -> None:
+def sanitize_node_options_for_worker_budget(environment: dict[str, str]) -> None:
+    value = environment.get("NODE_OPTIONS")
+    if value is None:
+        return
+
+    # Node's NODE_OPTIONS parser uses double quotes to group values containing
+    # spaces. Keep each original token's spelling so rebuilding this variable
+    # does not replace Node-compatible double quotes with shell single quotes.
+    tokens: list[str] = []
+    token_start: int | None = None
+    in_double_quotes = False
+    escaped = False
+    for index, character in enumerate(value):
+        if token_start is None:
+            if character.isspace():
+                continue
+            token_start = index
+        if escaped:
+            escaped = False
+            continue
+        if in_double_quotes and character == "\\":
+            escaped = True
+            continue
+        if character == '"':
+            in_double_quotes = not in_double_quotes
+            continue
+        if character.isspace() and not in_double_quotes:
+            tokens.append(value[token_start:index])
+            token_start = None
+    if in_double_quotes or escaped:
+        raise ValueError("NODE_OPTIONS contains an unterminated double-quoted value")
+    if token_start is not None:
+        tokens.append(value[token_start:])
+
+    sanitized: list[str] = []
+    removed = False
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        option_name = token.partition("=")[0].replace('"', "").replace("_", "-")
+        if option_name == "--test-concurrency":
+            removed = True
+            if "=" in token:
+                index += 1
+                continue
+            index += 1
+            next_option = (
+                tokens[index].partition("=")[0].replace('"', "").replace("_", "-")
+                if index < len(tokens)
+                else ""
+            )
+            if index < len(tokens) and not next_option.startswith("--"):
+                index += 1
+            continue
+        sanitized.append(token)
+        index += 1
+    if removed:
+        if sanitized:
+            environment["NODE_OPTIONS"] = " ".join(sanitized)
+        else:
+            environment.pop("NODE_OPTIONS", None)
+        print(
+            "SITE_ENV_SANITIZED variable=NODE_OPTIONS option=--test-concurrency "
+            "runner=site-node reason=explicit-worker-budget",
+            flush=True,
+        )
+
+
+def run_node(jobs: int = 1) -> None:
+    if jobs < 1:
+        raise ValueError("Site Node worker budget must be at least 1")
     if not NODE_TESTS:
         raise RuntimeError("no Composition Playground Node tests were found")
-    _run(["node", "--test", *NODE_TESTS])
+    effective_jobs = min(jobs, len(NODE_TESTS))
+    environment = os.environ.copy()
+    sanitize_node_options_for_worker_budget(environment)
+    print(
+        f"SITE_WORKERS requested={jobs} effective={effective_jobs} "
+        "runner=site-node mode=node-test",
+        flush=True,
+    )
+    _run(
+        ["node", "--test", f"--test-concurrency={effective_jobs}", *NODE_TESTS],
+        env=environment,
+    )
 
 
 def run_site_contracts() -> None:
@@ -212,7 +294,7 @@ def run_check(check: str, args: argparse.Namespace) -> None:
     elif check == "core":
         run_core()
     elif check == "node":
-        run_node()
+        run_node(args.jobs)
     elif check == "site-contracts":
         run_site_contracts()
     elif check == "dependency-boundary":
@@ -243,7 +325,17 @@ def run_check(check: str, args: argparse.Namespace) -> None:
         raise RuntimeError(f"unsupported local check: {check}")
 
 
-def main(argv: list[str] | None = None) -> int:
+def positive_jobs(value: str) -> int:
+    try:
+        jobs = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("jobs must be an integer of at least 1") from exc
+    if jobs < 1:
+        raise argparse.ArgumentTypeError("jobs must be an integer of at least 1")
+    return jobs
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "profile",
@@ -260,6 +352,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--site-root", type=Path)
     parser.add_argument("--changed-paths", type=Path)
     parser.add_argument("--base-ref", default="HEAD^", help="base used for L0 changed-path checks")
+    parser.add_argument(
+        "--jobs",
+        type=positive_jobs,
+        default=2,
+        metavar="N",
+        help="maximum worker processes assigned to this Site runner (default: 2)",
+    )
+    return parser
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    return build_parser().parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv)
     try:
         head = "".join(_git_output(["rev-parse", "HEAD"]))
@@ -270,6 +378,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.profile == "artifact-local":
             _require_artifact_inputs(args)
         checks = args.check or PROFILES[args.profile]
+        effective_jobs = min(args.jobs, len(NODE_TESTS)) if "node" in checks and NODE_TESTS else 1
+        print(
+            f"SITE_PREFLIGHT_WORKERS profile={args.profile} requested={args.jobs} "
+            f"effective={effective_jobs} runner=site-preflight",
+            flush=True,
+        )
         for check in checks:
             run_check(check, args)
     except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as exc:
