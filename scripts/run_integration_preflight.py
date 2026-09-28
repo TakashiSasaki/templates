@@ -212,6 +212,8 @@ class InventoryTextTestResult(unittest.TextTestResult):
         self.outcomes[test_id] = value
 
     def _fixture_skip_test_ids(self, fixture_id: str) -> tuple[str, ...] | None:
+        if fixture_id.startswith(("tearDownModule (", "tearDownClass (")) and fixture_id.endswith(")"):
+            return ()
         if fixture_id.startswith("setUpModule (") and fixture_id.endswith(")"):
             module = fixture_id[len("setUpModule (") : -1]
             return tuple(
@@ -239,7 +241,7 @@ class InventoryTextTestResult(unittest.TextTestResult):
             if fixture_test_ids:
                 for test_id in fixture_test_ids:
                     self._record_id(test_id, "skipped", reason)
-            else:
+            elif not test.id().startswith(("tearDownModule (", "tearDownClass (")):
                 self._record(test, "skipped", reason)
             return
         self._record(getattr(test, "test_case", test), "skipped", reason)
