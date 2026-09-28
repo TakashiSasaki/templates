@@ -6,8 +6,9 @@ import io
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from threading import Barrier
+from threading import Barrier, Lock
 import sys
+import time
 from types import ModuleType
 import unittest
 from unittest.mock import patch
@@ -132,6 +133,90 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("tests_run=2 passed=0 skipped=2 failures=0 errors=0", output.getvalue())
         self.assertNotIn("omitted test IDs", output.getvalue())
+
+    def test_duration_records_are_emitted_only_for_explicit_inventory_runs(self) -> None:
+        class Probe(unittest.TestCase):
+            def test_duration(self):
+                pass
+
+        case = Probe("test_duration")
+        with redirect_stdout(io.StringIO()) as nested_output:
+            preflight.run_suite([case], verbosity=0)
+        self.assertNotIn("INTEGRATION_TEST_CASE_DURATION", nested_output.getvalue())
+
+        with redirect_stdout(io.StringIO()) as inventory_output:
+            preflight.run_suite([case], verbosity=0, emit_durations=True)
+        duration_records = [
+            line.removeprefix("INTEGRATION_TEST_CASE_DURATION ")
+            for line in inventory_output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(len(duration_records), 1)
+        self.assertEqual(json.loads(duration_records[0])["test_id"], case.id())
+
+    def test_nested_discovered_run_does_not_emit_sibling_duration_records(self) -> None:
+        class NestedInventoryProbe(unittest.TestCase):
+            def test_outer_inventory(self):
+                class NestedProbe(unittest.TestCase):
+                    def test_nested_inventory(self):
+                        pass
+
+                self.assertEqual(
+                    preflight.run_discovered_tests(
+                        [NestedProbe("test_nested_inventory")], jobs=1, verbosity=0
+                    ),
+                    0,
+                )
+
+        outer_case = NestedInventoryProbe("test_outer_inventory")
+        with redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(
+                preflight.run_discovered_tests(
+                    [outer_case], jobs=1, verbosity=0, emit_durations=True
+                ),
+                0,
+            )
+
+        duration_ids = [
+            json.loads(line.removeprefix("INTEGRATION_TEST_CASE_DURATION "))[
+                "test_id"
+            ]
+            for line in output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(duration_ids, [outer_case.id()])
+
+    def test_fixture_skips_emit_zero_duration_for_each_discovered_id(self) -> None:
+        class SkippedClass(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise unittest.SkipTest("controlled class fixture skip")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        cases = [SkippedClass("test_one"), SkippedClass("test_two")]
+        test_ids = [case.id() for case in cases]
+        output = io.StringIO()
+        with (
+            patch.object(preflight, "classify_test_inventory", return_value=([], test_ids)),
+            redirect_stdout(output),
+        ):
+            status = preflight.run_discovered_tests(
+                cases, jobs=1, verbosity=0, emit_durations=True
+            )
+
+        duration_records = [
+            json.loads(line.removeprefix("INTEGRATION_TEST_CASE_DURATION "))
+            for line in output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(status, 0)
+        self.assertEqual({record["test_id"] for record in duration_records}, set(test_ids))
+        self.assertTrue(all(record["duration_seconds"] == 0 for record in duration_records))
 
     def test_class_fixture_errors_account_every_discovered_id_in_serial_results(self) -> None:
         for fixture_name in ("setUpClass", "tearDownClass"):
@@ -658,6 +743,107 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertIn('git", "clone", "--quiet", "--shared"', source)
         self.assertIn("materialized-provider-inputs", source)
         self.assertIn("must be clean before materialization", source)
+
+    def test_provider_preparation_respects_budget_and_uses_distinct_targets(self) -> None:
+        barrier = Barrier(2)
+        lock = Lock()
+        state = {"active": 0, "peak": 0, "calls": 0}
+
+        def fake_clone(_source, _revision, target, _label):
+            with lock:
+                state["calls"] += 1
+                ordinal = state["calls"]
+                state["active"] += 1
+                state["peak"] = max(state["peak"], state["active"])
+            if ordinal <= 2:
+                barrier.wait(timeout=5)
+            with lock:
+                state["active"] -= 1
+            return target
+
+        providers = [
+            (name, Path(f"/provider/{name}"), "a" * 40)
+            for name in ("composition", "policy", "modeling")
+        ]
+        with patch.object(preflight, "clone_provider_for_materialization", side_effect=fake_clone):
+            prepared = preflight.prepare_provider_checkouts(providers, Path("/materialized"), jobs=2)
+        self.assertEqual(state["calls"], 3)
+        self.assertEqual(state["peak"], 2)
+        self.assertEqual(set(prepared), {"composition", "policy", "modeling"})
+        self.assertEqual(len(set(prepared.values())), 3)
+
+    def test_provider_metrics_report_observed_peak_below_configured_cap(self) -> None:
+        from concurrent.futures import ThreadPoolExecutor as RealThreadPoolExecutor
+
+        providers = [
+            (name, Path(f"/provider/{name}"), "a" * 40)
+            for name in ("composition", "policy", "modeling")
+        ]
+
+        def single_worker_executor(*, max_workers, thread_name_prefix):
+            self.assertEqual(max_workers, 3)
+            return RealThreadPoolExecutor(max_workers=1, thread_name_prefix=thread_name_prefix)
+
+        with (
+            patch.object(preflight, "clone_provider_for_materialization", side_effect=lambda _s, _r, target, _l: target),
+            patch.object(preflight, "ThreadPoolExecutor", side_effect=single_worker_executor),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            prepared = preflight.prepare_provider_checkouts(
+                providers, Path("/materialized"), jobs=3
+            )
+
+        self.assertEqual(set(prepared), {"composition", "policy", "modeling"})
+        metrics = next(
+            line
+            for line in output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_PROVIDER_METRICS ")
+        )
+        self.assertIn("requested=3 effective=3", metrics)
+        self.assertIn("peak_workers=1", metrics)
+
+    def test_provider_preparation_failure_waits_for_other_workers(self) -> None:
+        barrier = Barrier(2)
+        lock = Lock()
+        state = {"calls": 0}
+
+        def fake_clone(_source, _revision, target, label):
+            with lock:
+                state["calls"] += 1
+                ordinal = state["calls"]
+            if ordinal <= 2:
+                barrier.wait(timeout=5)
+            if label.startswith("policy"):
+                time.sleep(0.05)
+                raise RuntimeError("controlled clone failure")
+            return target
+
+        providers = [
+            (name, Path(f"/provider/{name}"), "a" * 40)
+            for name in ("composition", "policy", "modeling")
+        ]
+        with patch.object(preflight, "clone_provider_for_materialization", side_effect=fake_clone):
+            with redirect_stdout(io.StringIO()) as output:
+                with self.assertRaisesRegex(preflight.PreflightFailure, "controlled clone failure"):
+                    preflight.prepare_provider_checkouts(providers, Path("/materialized"), jobs=2)
+        self.assertEqual(state["calls"], 3)
+        metrics = next(
+            line
+            for line in output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_PROVIDER_METRICS ")
+        )
+        worker_seconds = float(
+            next(field.split("=", 1)[1] for field in metrics.split() if field.startswith("worker_seconds="))
+        )
+        slowest_worker_seconds = float(
+            next(
+                field.split("=", 1)[1]
+                for field in metrics.split()
+                if field.startswith("slowest_worker_seconds=")
+            )
+        )
+        self.assertGreaterEqual(worker_seconds, 0.04)
+        self.assertGreaterEqual(slowest_worker_seconds, 0.04)
 
 
     def test_discovery_fails_if_a_test_import_is_not_represented(self) -> None:

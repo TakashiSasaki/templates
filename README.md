@@ -64,8 +64,9 @@ process. Higher values use stable test-module shards only for modules whose sour
 and discovered test IDs match the reviewed manifest; new or changed tests stay in
 the serial lane until reviewed. The serial lane runs after all shards complete, so
 it cannot overlap process-parallel tests. Provider preparation has its own stage
-budget; later shared publication generation, Bundle packing, extraction, and
-verification remain behind their existing dependency barriers. This keeps
+budget, capped by the number of independent exact provider checkouts. Clones use
+separate temporary targets and finish before shared publication generation starts.
+Bundle packing, extraction, and verification remain behind their existing dependency barriers. This keeps
 Integration on Python `unittest` and its own discovery authority rather than
 replacing it with a cross-authority runner. Qualification records the exact
 Integration SHA, requested/effective workers, inventory digest, and outcome digest;

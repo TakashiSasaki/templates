@@ -15,6 +15,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from threading import Lock
 import time
 import unittest
 import zipfile
@@ -210,6 +211,23 @@ class InventoryTextTestResult(unittest.TextTestResult):
         super().__init__(*args, **kwargs)
         self.outcomes: dict[str, dict[str, str]] = {}
         self.discovered_cases: tuple[unittest.TestCase, ...] = ()
+        self.test_durations: list[tuple[str, float]] = []
+        self._started_ns: dict[int, int] = {}
+
+    def startTest(self, test: unittest.TestCase) -> None:
+        super().startTest(test)
+        self._started_ns[id(test)] = time.perf_counter_ns()
+
+    def stopTest(self, test: unittest.TestCase) -> None:
+        started_ns = self._started_ns.pop(id(test), None)
+        if started_ns is not None:
+            self.test_durations.append(
+                (
+                    test.id(),
+                    max(0.0, (time.perf_counter_ns() - started_ns) / 1_000_000_000),
+                )
+            )
+        super().stopTest(test)
 
     def _record(self, test: unittest.TestCase, status: str, reason: str | None = None) -> None:
         self._record_id(test.id(), status, reason)
@@ -302,10 +320,33 @@ class InventoryTextTestRunner(unittest.TextTestRunner):
         return result
 
 
-def run_suite(cases: list[unittest.TestCase], verbosity: int) -> InventoryTextTestResult:
-    return InventoryTextTestRunner(
+def run_suite(
+    cases: list[unittest.TestCase], verbosity: int, *, emit_durations: bool = False
+) -> InventoryTextTestResult:
+    result = InventoryTextTestRunner(
         verbosity=verbosity, discovered_cases=cases
     ).run(unittest.TestSuite(cases))
+    if emit_durations:
+        durations = list(result.test_durations)
+        measured_ids = {test_id for test_id, _duration in durations}
+        durations.extend(
+            (test_id, 0.0)
+            for test_id in result.outcomes
+            if test_id not in measured_ids
+        )
+        for test_id, duration in sorted(
+            durations, key=lambda item: (-item[1], item[0])
+        ):
+            print(
+                "INTEGRATION_TEST_CASE_DURATION "
+                + json.dumps(
+                    {"test_id": test_id, "duration_seconds": round(duration, 9)},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                flush=True,
+            )
+    return result
 
 
 def outcome_digest(outcomes: dict[str, dict[str, str]]) -> str:
@@ -351,7 +392,9 @@ def child_environment() -> dict[str, str]:
     return environment
 
 
-def run_shard_worker(manifest_path: Path) -> int:
+def run_shard_worker(
+    manifest_path: Path, *, emit_durations: bool = False
+) -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     required = {"schema_version", "inventory_ids", "shard_ids", "shard_index", "shard_count", "result_path"}
     if not isinstance(manifest, dict) or set(manifest) != required or manifest["schema_version"] != 1:
@@ -378,7 +421,7 @@ def run_shard_worker(manifest_path: Path) -> int:
         f"tests={len(shard_ids)} ids_sha256={test_id_digest(shard_ids)}",
         flush=True,
     )
-    result = run_suite(cases, 2)
+    result = run_suite(cases, 2, emit_durations=emit_durations)
     result_path = Path(manifest["result_path"])
     if result_path.parent.resolve() != manifest_path.parent.resolve():
         raise PreflightFailure("Integration shard result must stay beside its private manifest")
@@ -500,7 +543,13 @@ def run_parallel_shards(
     }
 
 
-def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: int = 2) -> int:
+def run_discovered_tests(
+    cases: list[unittest.TestCase],
+    jobs: int,
+    verbosity: int = 2,
+    *,
+    emit_durations: bool = False,
+) -> int:
     if jobs < 1:
         raise ValueError("jobs must be an integer of at least 1")
     inventory_ids = [case.id() for case in cases]
@@ -518,7 +567,7 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
         mode = "serial-baseline" if jobs == 1 else "serial-fail-closed"
         print(f"INTEGRATION_WORKERS requested={jobs} effective=1 mode={mode}", flush=True)
         started = time.perf_counter()
-        result = run_suite(cases, verbosity)
+        result = run_suite(cases, verbosity, emit_durations=emit_durations)
         wall = time.perf_counter() - started
         if set(result.outcomes) != set(inventory_ids):
             print("INTEGRATION_TEST_FAIL serial run omitted test IDs", file=sys.stderr)
@@ -550,7 +599,9 @@ def run_discovered_tests(cases: list[unittest.TestCase], jobs: int, verbosity: i
     serial_started = time.perf_counter()
     serial_cases = [case for case in cases if case.id() in set(serial_ids)]
     print(f"INTEGRATION_SERIAL_EXCLUSIVE_START tests={len(serial_cases)}", flush=True)
-    serial_result = run_suite(serial_cases, verbosity)
+    serial_result = run_suite(
+        serial_cases, verbosity, emit_durations=emit_durations
+    )
     serial_seconds = time.perf_counter() - serial_started
     outcomes = dict(parallel_outcomes)
     for test_id, outcome in serial_result.outcomes.items():
@@ -612,14 +663,21 @@ def sanitize_preflight_environment() -> None:
     sys.dont_write_bytecode = True
 
 
-def run_fast(expected_head: str | None, jobs: int = 2) -> None:
+def run_fast(
+    expected_head: str | None,
+    jobs: int = 2,
+    *,
+    emit_durations: bool = False,
+) -> None:
     sanitize_preflight_environment()
     require_exact_head(expected_head)
     run([str(PYTHON), "-m", "compileall", "-q", "integration", "publication_bundle", "ci_artifacts", "scripts", "tests"])
     run(command("scripts/check_python_dependencies.py"))
     cases = discover_test_cases()
     validate_discovery(cases)
-    if run_discovered_tests(cases, jobs, verbosity=2) != 0:
+    if run_discovered_tests(
+        cases, jobs, verbosity=2, emit_durations=emit_durations
+    ) != 0:
         raise PreflightFailure("Integration unittest discovery returned failures")
 
 
@@ -662,9 +720,11 @@ def fixture_round_trip() -> None:
             raise PreflightFailure("local Publication Bundle pack/extract round trip changed the manifest")
 
 
-def run_ready(expected_head: str, jobs: int = 2) -> None:
+def run_ready(
+    expected_head: str, jobs: int = 2, *, emit_durations: bool = False
+) -> None:
     require_clean_tree()
-    run_fast(expected_head, jobs)
+    run_fast(expected_head, jobs, emit_durations=emit_durations)
     validate_publication_lock()
     validate_producer_identity(expected_head)
     fixture_round_trip()
@@ -698,7 +758,103 @@ def clone_provider_for_materialization(
     return target
 
 
-def run_providers(args: argparse.Namespace, expected_head: str) -> None:
+def prepare_provider_checkouts(
+    providers: list[tuple[str, Path, str]],
+    materialized_root: Path,
+    jobs: int,
+) -> dict[str, Path]:
+    if jobs < 1:
+        raise ValueError("jobs must be an integer of at least 1")
+    if len({name for name, _root, _revision in providers}) != len(providers):
+        raise PreflightFailure("provider preparation contains duplicate names")
+    effective_jobs = min(jobs, len(providers))
+    if effective_jobs < 1:
+        raise PreflightFailure("provider preparation requires at least one provider")
+    print(
+        f"INTEGRATION_PROVIDER_WORKERS requested={jobs} effective={effective_jobs} "
+        "mode=isolated-provider-clones",
+        flush=True,
+    )
+    started = time.perf_counter()
+    metrics_lock = Lock()
+    active_workers = 0
+    peak_workers = 0
+
+    def prepare(
+        name: str, source: Path, revision: str
+    ) -> tuple[Path | None, float, Exception | None]:
+        nonlocal active_workers, peak_workers
+        with metrics_lock:
+            active_workers += 1
+            peak_workers = max(peak_workers, active_workers)
+        worker_started = time.perf_counter()
+        target = materialized_root / name
+        try:
+            path = clone_provider_for_materialization(
+                source, revision, target, f"{name} materialization"
+            )
+        except Exception as exc:
+            return None, time.perf_counter() - worker_started, exc
+        else:
+            return path, time.perf_counter() - worker_started, None
+        finally:
+            with metrics_lock:
+                active_workers -= 1
+
+    results: dict[str, tuple[Path | None, float, Exception | None]] = {}
+    failures: list[str] = []
+    with ThreadPoolExecutor(max_workers=effective_jobs, thread_name_prefix="integration-provider-prep") as executor:
+        futures = {
+            executor.submit(prepare, name, root, revision): name
+            for name, root, revision in providers
+        }
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                results[name] = future.result()
+            except Exception as exc:
+                failures.append(f"{name}: {type(exc).__name__}: {exc}")
+
+    wall = time.perf_counter() - started
+    total_worker_seconds = sum(seconds for _path, seconds, _error in results.values())
+    slowest_worker_seconds = max(
+        (seconds for _path, seconds, _error in results.values()), default=0.0
+    )
+    for name in sorted(results):
+        path, elapsed, error = results[name]
+        if error is not None:
+            failures.append(f"{name}: {type(error).__name__}: {error}")
+            continue
+        if path is None:
+            failures.append(f"{name}: provider preparation returned no checkout")
+            continue
+        print(
+            f"INTEGRATION_PROVIDER_PREPARED name={name} worker_seconds={elapsed:.3f} "
+            f"target={path}",
+            flush=True,
+        )
+    print(
+        f"INTEGRATION_PROVIDER_METRICS requested={jobs} effective={effective_jobs} "
+        f"peak_workers={peak_workers} wall_seconds={wall:.3f} slowest_worker_seconds={slowest_worker_seconds:.3f} "
+        f"worker_seconds={total_worker_seconds:.3f} "
+        f"estimated_idle_worker_seconds={max(0.0, effective_jobs * wall - total_worker_seconds):.3f}",
+        flush=True,
+    )
+    if failures:
+        raise PreflightFailure("provider preparation failed: " + "; ".join(sorted(failures)))
+    return {
+        name: path
+        for name, (path, _seconds, error) in results.items()
+        if path is not None and error is None
+    }
+
+
+def run_providers(
+    args: argparse.Namespace,
+    expected_head: str,
+    *,
+    emit_durations: bool = False,
+) -> None:
     composition_root = args.composition_root.resolve()
     policy_root = args.policy_root.resolve()
     composition_revision = exact_revision(args.composition_revision, "Composition revision")
@@ -708,7 +864,7 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
     if (modeling_root is None) != (modeling_revision is None):
         raise PreflightFailure("Modeling root and revision must be supplied together")
     require_clean_tree()
-    run_fast(expected_head, args.jobs)
+    run_fast(expected_head, args.jobs, emit_durations=emit_durations)
     validate_publication_lock()
     validate_producer_identity(expected_head)
     resolve_producer = importlib.import_module("scripts.resolve_producer_checkout")
@@ -725,26 +881,16 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
     with tempfile.TemporaryDirectory(prefix="integration-preflight-providers-") as directory:
         materialized_root = Path(directory) / "materialized-provider-inputs"
         materialized_root.mkdir()
-        materialized_composition = clone_provider_for_materialization(
-            composition_root,
-            composition_revision,
-            materialized_root / "composition",
-            "Composition materialization",
-        )
-        materialized_policy = clone_provider_for_materialization(
-            policy_root,
-            policy_revision,
-            materialized_root / "policy",
-            "Policy materialization",
-        )
-        materialized_modeling = None
+        providers = [
+            ("composition", composition_root, composition_revision),
+            ("policy", policy_root, policy_revision),
+        ]
         if modeling_root is not None:
-            materialized_modeling = clone_provider_for_materialization(
-                modeling_root,
-                modeling_revision,
-                materialized_root / "modeling",
-                "Modeling materialization",
-            )
+            providers.append(("modeling", modeling_root, modeling_revision))
+        materialized = prepare_provider_checkouts(providers, materialized_root, args.jobs)
+        materialized_composition = materialized["composition"]
+        materialized_policy = materialized["policy"]
+        materialized_modeling = materialized.get("modeling")
         materialization = [
             "scripts/materialize_publication_assets.py",
             "--publication", f"composition={materialized_composition}",
@@ -817,15 +963,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.worker_manifest is not None:
             if args.profile != "fast" or args.jobs != 1:
                 raise PreflightFailure("private shard workers require fast profile and --jobs 1")
-            return run_shard_worker(args.worker_manifest)
+            return run_shard_worker(args.worker_manifest, emit_durations=True)
         if args.profile == "fast":
-            run_fast(args.expected_head, args.jobs)
+            run_fast(args.expected_head, args.jobs, emit_durations=True)
         else:
             if not args.expected_head:
                 raise PreflightFailure(f"{args.profile} requires --expected-head")
             expected_head = exact_revision(args.expected_head, "expected head")
             if args.profile == "ready":
-                run_ready(expected_head, args.jobs)
+                run_ready(expected_head, args.jobs, emit_durations=True)
             else:
                 required = (
                     args.composition_root,
@@ -835,7 +981,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 if any(value is None for value in required):
                     raise PreflightFailure("providers requires explicit Composition and Policy roots and revisions")
-                run_providers(args, expected_head)
+                run_providers(args, expected_head, emit_durations=True)
         print(f"INTEGRATION_PREFLIGHT_PASS profile={args.profile}", flush=True)
         return 0
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
