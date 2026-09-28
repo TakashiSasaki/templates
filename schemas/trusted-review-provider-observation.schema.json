@@ -11,16 +11,18 @@
     "repository": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "name_with_owner"],
-      "properties": {"id": {"type": "string", "pattern": "^[1-9][0-9]*$"}, "name_with_owner": {"type": "string", "minLength": 3}}
+      "properties": {"id": {"const": "1315875002"}, "name_with_owner": {"const": "TakashiSasaki/templates"}}
     },
     "pull_request": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "node_id", "number", "base", "head"],
+      "required": ["id", "node_id", "number", "author_id", "author_login", "base", "head"],
       "properties": {
         "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
         "node_id": {"type": "string", "minLength": 1},
         "number": {"type": "integer", "minimum": 1},
-        "base": {"$ref": "#/$defs/commit"},
+        "author_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "author_login": {"$ref": "#/$defs/githubLogin"},
+        "base": {"$ref": "#/$defs/policyBaseCommit"},
         "head": {"$ref": "#/$defs/commit"}
       }
     },
@@ -28,7 +30,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["retrieved_at", "api_origin", "run_id", "run_attempt", "event"],
       "properties": {
-        "retrieved_at": {"type": "string", "format": "date-time"},
+        "retrieved_at": {"type": "string", "format": "date-time", "pattern": "Z$"},
         "api_origin": {"const": "https://api.github.com"},
         "run_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
         "run_attempt": {"type": "integer", "minimum": 1},
@@ -37,20 +39,35 @@
     },
     "producer": {
       "type": "object", "additionalProperties": false,
-      "required": ["issuer", "repository_id", "owner_id", "workflow_ref", "workflow_sha", "job_workflow_ref", "job_workflow_sha"],
+      "required": ["issuer", "repository_id", "owner_id", "workflow_ref", "workflow_sha", "source_sha", "actor_id", "actor_login"],
       "properties": {
         "issuer": {"const": "https://token.actions.githubusercontent.com"},
-        "repository_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
-        "owner_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
-        "workflow_ref": {"type": "string", "minLength": 1},
+        "repository_id": {"const": "1315875002"},
+        "owner_id": {"const": "556958"},
+        "workflow_ref": {"const": "TakashiSasaki/templates/.github/workflows/trusted-review-bootstrap.yml@refs/heads/site"},
         "workflow_sha": {"$ref": "#/$defs/sha1"},
-        "job_workflow_ref": {"type": "string", "minLength": 1},
-        "job_workflow_sha": {"$ref": "#/$defs/sha1"}
+        "source_sha": {"$ref": "#/$defs/sha1"},
+        "actor_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "actor_login": {"$ref": "#/$defs/githubLogin"}
       }
     }
   },
   "$defs": {
+    "githubLogin": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9-]{1,39}(?:\\[bot\\])?$"
+    },
     "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "policyBaseCommit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "sha", "tree"],
+      "properties": {
+        "ref": {"const": "policy"},
+        "sha": {"$ref": "#/$defs/sha1"},
+        "tree": {"$ref": "#/$defs/sha1"}
+      }
+    },
     "commit": {
       "type": "object", "additionalProperties": false,
       "required": ["sha", "tree"],

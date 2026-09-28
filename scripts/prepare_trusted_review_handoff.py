@@ -28,6 +28,27 @@ from typing import Any
 
 import yaml
 
+try:
+    from scripts.trusted_review_actions import (
+        GitHubActionsObservationVerifier,
+    )
+    from scripts.trusted_review_actions import (
+        provider_identity as actions_provider_identity,
+    )
+    from scripts.trusted_review_actions import (
+        validate_observation as validate_actions_observation,
+    )
+except ImportError:
+    from trusted_review_actions import (
+        GitHubActionsObservationVerifier,
+    )
+    from trusted_review_actions import (
+        provider_identity as actions_provider_identity,
+    )
+    from trusted_review_actions import (
+        validate_observation as validate_actions_observation,
+    )
+
 sys.dont_write_bytecode = True
 
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -77,6 +98,7 @@ RECOGNIZED_PROVIDER_SOURCES = frozenset(
         "caller_declared",
         "unauthenticated_observation",
         "github_authenticated_adapter",
+        "github_artifact_attestation",
         "simulated_test_adapter",
     }
 )
@@ -400,24 +422,31 @@ def validate_provider_identity(
             final_auth = True
             verifier = str(evidence.get("verifier") or "simulated_test_adapter")
         elif src == "github_authenticated_adapter":
-            if not claimed_auth or claimed_status == EvidenceStatus.DECLARED.value:
-                final_status = EvidenceStatus.DECLARED.value
-                final_auth = False
-                verifier = None
-            elif provider_adapter is not None:
-                verifier_name = provider_adapter.verify(data)
+            if allow_test_provider:
+                if provider_adapter is not None:
+                    verifier = str(provider_adapter.verify(data))
+                else:
+                    verifier = str(evidence.get("verifier") or "test_github_adapter")
                 final_status = EvidenceStatus.AUTHENTICATED.value
                 final_auth = True
-                verifier = verifier_name
-            elif allow_test_provider:
-                final_status = EvidenceStatus.AUTHENTICATED.value
-                final_auth = True
-                verifier = str(evidence.get("verifier") or "test_github_adapter")
             else:
                 raise ValueError(
                     "provider observation cannot self-assert authenticated "
                     "status without trusted provider adapter"
                 )
+        elif src == "github_artifact_attestation":
+            if (
+                type(provider_adapter) is not GitHubActionsObservationVerifier
+                or not getattr(provider_adapter, "production_capable", False)
+            ):
+                raise ValueError(
+                    "GitHub observation attestation cannot self-assert authenticated "
+                    "status without the production GitHub Actions verifier"
+                )
+            verifier_name = provider_adapter.verify(data)
+            final_status = EvidenceStatus.AUTHENTICATED.value
+            final_auth = True
+            verifier = str(verifier_name)
         else:
             final_status = EvidenceStatus.DECLARED.value
             final_auth = False
@@ -878,6 +907,7 @@ class HandoffOrchestrator:
         _test_installer_bytes: bytes | None = None,
         _test_freeze_adapter: Any = None,
         _test_provider_adapter: Any = None,
+        provider_adapter: Any = None,
     ) -> None:
         self.work_dir = work_dir.expanduser().resolve()
         self.work_dir.mkdir(parents=True, exist_ok=True)
@@ -887,11 +917,19 @@ class HandoffOrchestrator:
         self._test_installer_module = _test_installer_module
         self._test_installer_bytes = _test_installer_bytes
         self._test_freeze_adapter = _test_freeze_adapter
+        if provider_adapter is not None and _test_provider_adapter is not None:
+            raise ValueError("production and test provider adapters cannot be combined")
+        if provider_adapter is not None and (
+            type(provider_adapter) is not GitHubActionsObservationVerifier
+            or not getattr(provider_adapter, "production_capable", False)
+        ):
+            raise ValueError("production provider adapter must be the built-in Actions verifier")
         self._test_provider_adapter = _test_provider_adapter
+        self.provider_adapter = provider_adapter or _test_provider_adapter
         self.provider_identity = validate_provider_identity(
             provider_identity,
-            allow_test_provider=simulate_freeze_for_test,
-            provider_adapter=_test_provider_adapter,
+            allow_test_provider=(simulate_freeze_for_test or _test_provider_adapter is not None),
+            provider_adapter=self.provider_adapter,
         )
         self.installed_skill_root = installed_skill_root.expanduser().resolve()
         self.installation_attestation_path = installation_attestation_path.expanduser().resolve()
@@ -909,6 +947,21 @@ class HandoffOrchestrator:
         require_no_symlink_components(self.installation_attestation_path)
 
         self.base_tree = resolve_base_tree(self.git_bin, self.object_repository, self.base_commit)
+        if (
+            self.provider_identity.get("observation_evidence", {}).get("source")
+            == "github_artifact_attestation"
+        ):
+            observed_pr = self.provider_identity.get("pull_request", {})
+            if observed_pr.get("base_ref_oid") != self.base_commit:
+                raise ValueError(
+                    "requested base commit does not match authenticated provider observation"
+                )
+            if observed_pr.get("base_tree") != self.base_tree:
+                raise ValueError(
+                    "requested base tree does not match authenticated provider observation"
+                )
+            if self.proposed_head != observed_pr.get("head_ref_oid"):
+                raise ValueError("requested head does not match authenticated provider observation")
 
         if self.state_file.is_file():
             self.state = load_and_verify_state(self.state_file)
@@ -1659,7 +1712,7 @@ class HandoffOrchestrator:
                 allow_simulated_boundary=self.simulate_freeze_for_test,
                 check_locators=True,
                 require_authenticated_provider=not self.simulate_freeze_for_test,
-                provider_adapter=self._test_provider_adapter,
+                provider_adapter=self.provider_adapter,
                 freeze_adapter=self._test_freeze_adapter,
                 _test_installer_module=self._test_installer_module,
             )
@@ -1712,6 +1765,7 @@ class HandoffOrchestrator:
             },
             "pull_request": {
                 "id": target_pr.get("id"),
+                "node_id": target_pr.get("node_id"),
                 "number": target_pr.get("number"),
                 "base_ref_name": target_pr.get("base_ref_name", "policy"),
                 "base_ref_oid": self.base_commit,
@@ -2407,6 +2461,7 @@ def prepare_handoff(
     _test_installer_bytes: bytes | None = None,
     _test_freeze_adapter: Any = None,
     _test_provider_adapter: Any = None,
+    provider_adapter: Any = None,
 ) -> dict[str, Any]:
     orchestrator = HandoffOrchestrator(
         work_dir=work_dir,
@@ -2423,6 +2478,7 @@ def prepare_handoff(
         _test_installer_bytes=_test_installer_bytes,
         _test_freeze_adapter=_test_freeze_adapter,
         _test_provider_adapter=_test_provider_adapter,
+        provider_adapter=provider_adapter,
     )
     return orchestrator.run_to_freeze_or_complete()
 
@@ -2592,7 +2648,23 @@ def main(argv: list[str] | None = None) -> int:
             data = json.loads(args.handoff.read_text(encoding="utf-8"))
             prov_adapter = None
             if args.provider_observation:
-                prov_adapter = ExternalObservationProviderVerifier(args.provider_observation)
+                observation_bytes = args.provider_observation.read_bytes()
+                observation_data = json.loads(observation_bytes)
+                is_actions_observation = (
+                    isinstance(observation_data, dict)
+                    and observation_data.get("schema_version") == 1
+                    and observation_data.get("provider") == "github"
+                )
+                if is_actions_observation:
+                    validate_actions_observation(observation_data)
+                    prov_adapter = GitHubActionsObservationVerifier(args.provider_observation)
+                elif not args.allow_simulated_boundary:
+                    raise ValueError(
+                        "production verification requires an attested GitHub Actions observation; "
+                        "legacy observation JSON is not authenticated"
+                    )
+                else:
+                    prov_adapter = ExternalObservationProviderVerifier(args.provider_observation)
             freeze_adapter = None
             if getattr(args, "freeze_evidence", None):
                 freeze_adapter = ExternalDeploymentFreezeVerifier(args.freeze_evidence)
@@ -2611,12 +2683,24 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     # Prepare command
+    actions_provider_adapter = None
     if args.provider_observation:
-        obs_data = json.loads(args.provider_observation.read_text(encoding="utf-8"))
-        provider_id = validate_provider_identity(
-            obs_data,
-            allow_test_provider=args.simulate_freeze_for_test,
+        observation_bytes = args.provider_observation.read_bytes()
+        obs_data = json.loads(observation_bytes)
+        is_actions_observation = (
+            isinstance(obs_data, dict)
+            and obs_data.get("schema_version") == 1
+            and obs_data.get("provider") == "github"
         )
+        if is_actions_observation:
+            validate_actions_observation(obs_data)
+            actions_provider_adapter = GitHubActionsObservationVerifier(args.provider_observation)
+            provider_id = actions_provider_identity(obs_data, observation_bytes)
+        else:
+            provider_id = validate_provider_identity(
+                obs_data,
+                allow_test_provider=args.simulate_freeze_for_test,
+            )
     else:
         if not (args.repo_id and args.repo_name and args.pr_id and args.pr_number):
             print("Missing provider identification arguments", file=sys.stderr)
@@ -2645,6 +2729,7 @@ def main(argv: list[str] | None = None) -> int:
             state_file=args.state_file,
             proposed_head=args.head,
             simulate_freeze_for_test=args.simulate_freeze_for_test,
+            provider_adapter=actions_provider_adapter,
         )
 
         if args.freeze_evidence:

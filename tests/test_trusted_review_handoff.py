@@ -14,6 +14,7 @@ import pytest
 import yaml
 
 from scripts import prepare_trusted_review_handoff as handoff_module
+from scripts import trusted_review_actions as actions
 from scripts.prepare_trusted_review_handoff import (
     STATUS_CANONICAL_BLOCKED_PROVIDER,
     STATUS_FREEZE_BLOCKED,
@@ -1362,6 +1363,7 @@ def test_provider_recognized_adapter_accepted() -> None:
     }
     validated = validate_provider_identity(
         prov_data,
+        allow_test_provider=True,
         provider_adapter=MockGitHubProviderAdapter(),
     )
     obs = validated["observation_evidence"]
@@ -2149,6 +2151,133 @@ def setup_verified_fixtures(
     return handoff, obs_file, fe_file, handoff_file
 
 
+def test_actions_observation_verifier_supports_canonical_cli_verify_contract(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    handoff = make_valid_handoff_dict(simulated_boundary=False)
+    run = actions.ActionsRunIdentity(
+        repository=actions.REPOSITORY,
+        repository_id="1315875002",
+        run_id="73124",
+        run_attempt=1,
+        event="workflow_dispatch",
+        ref=actions.DEFAULT_REF,
+        workflow_ref=actions.WORKFLOW_REF,
+        workflow_sha="a" * 40,
+        source_sha="f" * 40,
+        actor="maintainer",
+        actor_id="9001",
+    )
+    document = {
+        "schema_version": 1,
+        "provider": "github",
+        "repository": {
+            "id": run.repository_id,
+            "name_with_owner": actions.REPOSITORY,
+        },
+        "pull_request": {
+            "id": "81001",
+            "node_id": "PR_kwDOExample",
+            "number": 97,
+            "author_id": "9002",
+            "author_login": "contributor",
+            "base": {"ref": "policy", "sha": "b" * 40, "tree": "c" * 40},
+            "head": {"sha": "d" * 40, "tree": "e" * 40},
+        },
+        "observation": {
+            "retrieved_at": "2026-09-28T00:00:00Z",
+            "api_origin": actions.GITHUB_API,
+            "run_id": run.run_id,
+            "run_attempt": run.run_attempt,
+            "event": run.event,
+        },
+        "producer": {
+            "issuer": actions.OIDC_ISSUER,
+            "repository_id": run.repository_id,
+            "owner_id": "556958",
+            "workflow_ref": run.workflow_ref,
+            "workflow_sha": run.workflow_sha,
+            "source_sha": run.source_sha,
+            "actor_id": run.actor_id,
+            "actor_login": run.actor,
+        },
+    }
+    actions.validate_observation(document)
+    observation_path = tmp_path / "actions-observation.json"
+    raw_observation = actions.canonical_observation_bytes(document)
+    observation_path.write_bytes(raw_observation)
+    provider_identity = actions.provider_identity(document, raw_observation)
+    handoff["target"] = {
+        "provider": provider_identity["name"],
+        "repository": provider_identity["repository"],
+        "pull_request": provider_identity["pull_request"],
+    }
+    handoff["provider_observation"] = provider_identity["provider_observation"]
+    handoff["frozen_trusted_base"]["revision"] = "b" * 40
+    handoff["frozen_trusted_base"]["tree"] = "c" * 40
+
+    freeze_path = tmp_path / "freeze-evidence.json"
+    if hasattr(handoff_module, "GitHubActionsOciFreezeVerifier"):
+        freeze_bytes = json.dumps(
+            {"schema_version": 1, "provider": "github-actions-ghcr"}, sort_keys=True
+        ).encode()
+        freeze_path.write_bytes(freeze_bytes)
+        handoff["freeze_evidence"] = {"sha256": hashlib.sha256(freeze_bytes).hexdigest()}
+
+        class TestOciFreezeVerifier:
+            production_capable = True
+
+            def __init__(self, _path: Path) -> None:
+                pass
+
+            def verify_document_digest(self, _handoff: dict[str, Any]) -> None:
+                pass
+
+            def verify(self, _section: str, _entry: dict[str, Any]) -> None:
+                pass
+
+        monkeypatch.setattr(handoff_module, "GitHubActionsOciFreezeVerifier", TestOciFreezeVerifier)
+    else:
+        freeze_evidence = make_valid_freeze_evidence_dict(handoff)
+        bind_freeze_evidence_to_handoff(handoff, freeze_evidence, freeze_path)
+    handoff_path = tmp_path / "actions-handoff.json"
+    handoff_path.write_text(json.dumps(handoff, indent=2), encoding="utf-8")
+
+    verifier = object.__new__(actions.GitHubActionsObservationVerifier)
+    received: dict[str, Any] = {}
+
+    def verify_target(target: dict[str, Any], observation: dict[str, Any]) -> str:
+        received["target"] = target
+        received["observation"] = observation
+        return actions.GitHubActionsObservationVerifier.name
+
+    monkeypatch.setattr(verifier, "verify_target", verify_target)
+    monkeypatch.setattr(
+        handoff_module,
+        "GitHubActionsObservationVerifier",
+        lambda _path: verifier,
+    )
+
+    exit_code = handoff_module.main(
+        [
+            "verify",
+            "--handoff",
+            str(handoff_path),
+            "--provider-observation",
+            str(observation_path),
+            "--freeze-evidence",
+            str(freeze_path),
+            "--require-authenticated-provider",
+        ]
+    )
+
+    assert exit_code == 0
+    assert received == {
+        "target": handoff["target"],
+        "observation": handoff["provider_observation"],
+    }
+
+
 @pytest.mark.parametrize("stub_content", [{"result": "PASS"}, {"status": "PASS"}])
 def test_freeze_verification_rejects_generic_pass(
     tmp_path: Path, stub_content: dict[str, Any]
@@ -2635,7 +2764,7 @@ def test_freeze_verification_rejects_partial_coverage(tmp_path: Path, omitted_se
 def test_positive_canonical_freeze_evidence_acceptance(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """14. Positive canonical case: exact identity binding accepts authentic evidence."""
+    """Legacy JSON cannot enter production even when its fields are internally consistent."""
     handoff, obs_file, fe_file, h_file = setup_verified_fixtures(tmp_path)
 
     prov_adapter = handoff_module.ExternalObservationProviderVerifier(obs_file)
@@ -2660,9 +2789,9 @@ def test_positive_canonical_freeze_evidence_acceptance(
             "--require-authenticated-provider",
         ]
     )
-    assert exit_code == 0
+    assert exit_code != 0
     captured = capsys.readouterr()
-    assert handoff_module.STATUS_HANDOFF_VERIFIED in captured.out
+    assert "legacy observation JSON is not authenticated" in captured.err
 
 
 def test_provider_observation_verifier_rejects_missing_digest(tmp_path: Path) -> None:
