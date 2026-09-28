@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Exercise generated translation warnings through navigation and real PWA cache."""
+
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from functools import partial
-from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 import argparse
@@ -9,83 +12,633 @@ import json
 import sys
 import threading
 import time
-if __package__ in (None,''):sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+import traceback
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from publication_bundle.paths import public_path
-from site_renderer.bundle import load_lock,validate_locked
+from site_renderer.bundle import load_lock, validate_locked
 
 
-def run(site,bundle,output=None):
-    lock=load_lock(Path(__file__).resolve().parents[1]/'integration-source.json')
-    identity=validate_locked(bundle,lock)
-    records=json.loads((bundle/'translation-availability.json').read_text())['records']
-    stale=next(r for r in records if r['status']=='stale' and r['language']=='ja')
-    current=next(r for r in records if r['status']=='current' and r['language']=='ja')
-    missing=next(r for r in records if r['status']=='missing' and r['language']=='ja')
-    stale_route=public_path('ja/'+stale['canonical_destination'])
-    current_route=public_path('ja/'+current['canonical_destination'])
-    missing_route=public_path('ja/'+missing['canonical_destination'])
-    canonical_route=public_path(stale['canonical_destination'])
-    assert not (site/missing_route.lstrip('/')/'index.html').exists(),'missing translation route fabricated'
-    state={'worker':1,'delay':0}
-    class Handler(SimpleHTTPRequestHandler):
-        def log_message(self,*args):pass
-        def do_GET(self):
-            path=urlsplit(self.path).path
-            if path==stale_route and state['delay']:time.sleep(state['delay'])
-            if path=='/service-worker.js':
-                body=(site/'service-worker.js').read_bytes()+f"\n// acceptance rollout {state['worker']}\n".encode()
-                self.send_response(200);self.send_header('Content-Type','text/javascript');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
-            # Serve the same artifact under a loopback origin; only anchor origins
-            # change so real language links remain inside the test deployment.
-            relative=path.lstrip('/')+('index.html' if path.endswith('/') else '')
-            candidate=(site/relative).resolve()
-            if candidate.is_relative_to(site.resolve()) and candidate.is_file() and candidate.suffix=='.html':
-                body=candidate.read_text().replace('href="https://templates.moukaeritai.work/','href="'+base+'/').encode()
-                self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
-            super().do_GET()
-    server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(site)))
-    base=f'http://127.0.0.1:{server.server_port}'
-    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-    from playwright.sync_api import sync_playwright
-    evidence={'integration':identity['producer']['revision'],'bundle_identity':identity['identity'],'stale_route':stale_route,'current_route':current_route,'missing_route':missing_route,'checks':[]}
+def _utc_now():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _log(event):
+    print(
+        "SITE_PWA_DIAGNOSTIC "
+        + json.dumps(event, ensure_ascii=False, sort_keys=True),
+        flush=True,
+    )
+
+
+@contextmanager
+def _phase(evidence, name):
+    started = time.monotonic()
+    record = {"name": name, "started_at": _utc_now(), "status": "running"}
+    evidence["phases"].append(record)
+    _log({"kind": "phase", **record})
     try:
-        with sync_playwright() as pw:
-            browser=pw.chromium.launch(channel="chrome", headless=True)
-            context=browser.new_context(viewport={'width':390,'height':844})
-            page=context.new_page()
-            def warning(label):
-                box=page.locator('.translation-stale-warning');box.wait_for(state='visible')
-                assert box.count()==1 and box.get_attribute('role')=='note'
-                assert box.get_attribute('aria-labelledby')=='translation-stale-title'
-                assert '非正本' in box.inner_text() and '英語正本が変更' in box.inner_text()
-                assert urlsplit(box.locator('a').get_attribute('href')).path==canonical_route
-                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'),'warning causes horizontal overflow'
-                evidence['checks'].append(label)
-            page.goto(base+stale_route,wait_until='networkidle');warning('online')
-            page.wait_for_function('navigator.serviceWorker.controller !== null',timeout=30000)
-            page.reload(wait_until='networkidle');warning('reload')
-            page.locator('.translation-switcher a[hreflang="en"]').click();page.wait_for_url(base+canonical_route)
-            assert page.locator('.translation-stale-warning').count()==0
-            page.locator('.translation-switcher a[hreflang="ja"]').click();page.wait_for_url(base+stale_route);warning('language-switch')
-            page.go_back();page.wait_for_url(base+canonical_route)
-            page.go_forward();page.wait_for_url(base+stale_route);warning('back-forward')
-            page.goto(base+current_route,wait_until='networkidle');assert page.locator('.translation-stale-warning').count()==0
-            assert page.locator('.translation-switcher').count()==1;evidence['checks'].append('current-without-warning')
-            page.goto(base+stale_route,wait_until='networkidle');warning('return-to-stale')
-            page.wait_for_function("""async route => {const cache=await caches.open('templates-portal-documents-v1');return !!(await cache.match(new URL(route,location.origin).href));}""",arg=stale_route,timeout=30000)
-            context.set_offline(True);page.reload(wait_until='domcontentloaded');warning('offline-cached-reload')
-            context.set_offline(False)
-            state['worker']=2
-            page.evaluate("""async () => {const reg=await navigator.serviceWorker.ready; await new Promise(async resolve=>{navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true});await reg.update();});}""")
-            page.reload(wait_until='networkidle');warning('worker-update')
-            state['delay']=1.0;page.reload(wait_until='domcontentloaded');warning('slow-network-convergence')
-            context.set_offline(True);page.reload(wait_until='domcontentloaded');warning('offline-after-worker-update')
-            context.set_offline(False);browser.close()
+        yield
+    except BaseException as exc:
+        record.update(
+            status="failed",
+            ended_at=_utc_now(),
+            duration_seconds=round(time.monotonic() - started, 3),
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        _log({"kind": "phase", **record})
+        raise
+    else:
+        record.update(
+            status="passed",
+            ended_at=_utc_now(),
+            duration_seconds=round(time.monotonic() - started, 3),
+        )
+        _log({"kind": "phase", **record})
+
+
+def _diagnostic_error(evidence, operation, exc):
+    record = {
+        "operation": operation,
+        "error_type": type(exc).__name__,
+        "error": str(exc),
+    }
+    evidence["diagnostic_errors"].append(record)
+    _log({"kind": "diagnostic_error", **record})
+
+
+def _attach_browser_diagnostics(context, page, evidence, run_started):
+    requests = {}
+
+    def event(kind, **details):
+        record = {
+            "kind": kind,
+            "elapsed_seconds": round(time.monotonic() - run_started, 3),
+            **details,
+        }
+        evidence["browser_events"].append(record)
+        _log(record)
+
+    def on_request(request):
+        now = time.monotonic()
+        record = {
+            "method": request.method,
+            "url": request.url,
+            "resource_type": request.resource_type,
+            "started_elapsed_seconds": round(now - run_started, 3),
+            "status": None,
+            "response_elapsed_seconds": None,
+            "duration_seconds": None,
+            "failure": None,
+        }
+        requests[id(request)] = (now, record)
+        evidence["network_requests"].append(record)
+        event(
+            "browser_request",
+            method=record["method"],
+            url=record["url"],
+            resource_type=record["resource_type"],
+        )
+
+    def on_response(response):
+        request = response.request
+        started, record = requests.get(id(request), (time.monotonic(), None))
+        if record is not None:
+            record["status"] = response.status
+            record["response_elapsed_seconds"] = round(
+                time.monotonic() - run_started, 3
+            )
+        event(
+            "browser_response",
+            method=request.method,
+            url=response.url,
+            status=response.status,
+            request_elapsed_seconds=round(time.monotonic() - started, 3),
+        )
+
+    def on_request_finished(request):
+        started, record = requests.pop(
+            id(request), (time.monotonic(), None)
+        )
+        duration = round(time.monotonic() - started, 3)
+        if record is not None:
+            record["duration_seconds"] = duration
+        event(
+            "browser_request_finished",
+            method=request.method,
+            url=request.url,
+            duration_seconds=duration,
+        )
+
+    def on_request_failed(request):
+        started, record = requests.pop(
+            id(request), (time.monotonic(), None)
+        )
+        duration = round(time.monotonic() - started, 3)
+        failure = request.failure
+        if record is not None:
+            record["duration_seconds"] = duration
+            record["failure"] = failure
+        event(
+            "browser_request_failed",
+            method=request.method,
+            url=request.url,
+            duration_seconds=duration,
+            failure=failure,
+        )
+
+    context.on("request", on_request)
+    context.on("response", on_response)
+    context.on("requestfinished", on_request_finished)
+    context.on("requestfailed", on_request_failed)
+    context.on(
+        "serviceworker",
+        lambda worker: event("service_worker", url=worker.url),
+    )
+    page.on(
+        "console",
+        lambda message: event(
+            "browser_console",
+            message_type=message.type,
+            text=message.text,
+        )
+        if message.type in ("warning", "error")
+        else None,
+    )
+    page.on(
+        "pageerror",
+        lambda error: event("browser_page_error", error=str(error)),
+    )
+
+
+def _run_phase(evidence, name, action):
+    with _phase(evidence, name):
+        return action()
+
+
+def _assert(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
+def run(site, bundle, output=None):
+    run_started = time.monotonic()
+    evidence = {
+        "status": "running",
+        "started_at": _utc_now(),
+        "phases": [],
+        "browser_events": [],
+        "network_requests": [],
+        "server_requests": [],
+        "diagnostic_errors": [],
+        "checks": [],
+    }
+    trace_path = (
+        output.with_name("translation-runtime-trace.zip") if output else None
+    )
+    evidence["trace"] = {
+        "status": "not_requested" if trace_path is None else "pending",
+        "path": trace_path.name if trace_path else None,
+    }
+    server = None
+    thread = None
+    server_started = False
+    playwright = None
+    browser = None
+    context = None
+    trace_started = False
+    server_event_lock = threading.Lock()
+
+    try:
+        with _phase(evidence, "bundle.validate"):
+            lock = load_lock(Path(__file__).resolve().parents[1] / "integration-source.json")
+            identity = validate_locked(bundle, lock)
+            evidence.update(
+                integration=identity["producer"]["revision"],
+                bundle_identity=identity["identity"],
+            )
+            records = json.loads(
+                (bundle / "translation-availability.json").read_text()
+            )["records"]
+            stale = next(
+                r
+                for r in records
+                if r["status"] == "stale" and r["language"] == "ja"
+            )
+            current = next(
+                r
+                for r in records
+                if r["status"] == "current" and r["language"] == "ja"
+            )
+            missing = next(
+                r
+                for r in records
+                if r["status"] == "missing" and r["language"] == "ja"
+            )
+            stale_route = public_path("ja/" + stale["canonical_destination"])
+            current_route = public_path("ja/" + current["canonical_destination"])
+            missing_route = public_path("ja/" + missing["canonical_destination"])
+            canonical_route = public_path(stale["canonical_destination"])
+            evidence.update(
+                stale_route=stale_route,
+                current_route=current_route,
+                missing_route=missing_route,
+                canonical_route=canonical_route,
+            )
+            assert not (site / missing_route.lstrip("/") / "index.html").exists(), (
+                "missing translation route fabricated"
+            )
+
+        state = {"worker": 1, "delay": 0}
+        base_holder = {}
+
+        class Handler(SimpleHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def log_request(self, code="-", size="-"):
+                self._diagnostic_status = code
+
+            def do_GET(self):
+                started = time.monotonic()
+                self._diagnostic_status = None
+                error = None
+                try:
+                    self._handle_get()
+                except BaseException as exc:
+                    error = {"type": type(exc).__name__, "message": str(exc)}
+                    raise
+                finally:
+                    record = {
+                        "method": "GET",
+                        "path": urlsplit(self.path).path,
+                        "status": self._diagnostic_status,
+                        "duration_seconds": round(time.monotonic() - started, 3),
+                    }
+                    if error is not None:
+                        record["error"] = error
+                    with server_event_lock:
+                        evidence["server_requests"].append(record)
+                    _log({"kind": "server_request", **record})
+
+            def _handle_get(self):
+                path = urlsplit(self.path).path
+                if path == stale_route and state["delay"]:
+                    time.sleep(state["delay"])
+                if path == "/service-worker.js":
+                    body = (site / "service-worker.js").read_bytes() + (
+                        f"\n// acceptance rollout {state['worker']}\n".encode()
+                    )
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/javascript")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                # Serve the same artifact under a loopback origin; only anchor origins
+                # change so real language links remain inside the test deployment.
+                relative = path.lstrip("/") + ("index.html" if path.endswith("/") else "")
+                candidate = (site / relative).resolve()
+                if (
+                    candidate.is_relative_to(site.resolve())
+                    and candidate.is_file()
+                    and candidate.suffix == ".html"
+                ):
+                    body = candidate.read_text().replace(
+                        'href="https://templates.moukaeritai.work/',
+                        'href="' + base_holder["base"] + "/",
+                    ).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                super().do_GET()
+
+        with _phase(evidence, "http_server.start"):
+            server = ThreadingHTTPServer(
+                ("127.0.0.1", 0), partial(Handler, directory=str(site))
+            )
+            base = f"http://127.0.0.1:{server.server_port}"
+            base_holder["base"] = base
+            evidence["origin"] = base
+            thread = threading.Thread(
+                target=server.serve_forever, daemon=True
+            )
+            thread.start()
+            server_started = True
+
+        with _phase(evidence, "playwright.controller.start"):
+            from playwright.sync_api import sync_playwright
+
+            playwright = sync_playwright().start()
+
+        with _phase(evidence, "browser.launch.system_chrome"):
+            browser = playwright.chromium.launch(channel="chrome", headless=True)
+            evidence["browser_version"] = browser.version
+
+        with _phase(evidence, "browser.context.create"):
+            context = browser.new_context(viewport={"width": 390, "height": 844})
+
+        with _phase(evidence, "browser.page.create"):
+            page = context.new_page()
+
+        _attach_browser_diagnostics(context, page, evidence, run_started)
+
+        if trace_path is not None:
+            with _phase(evidence, "browser.trace.start"):
+                trace_path.parent.mkdir(parents=True, exist_ok=True)
+                context.tracing.start(
+                    screenshots=False,
+                    snapshots=True,
+                    sources=False,
+                )
+                trace_started = True
+                evidence["trace"]["status"] = "recording"
+
+        def warning(label):
+            with _phase(evidence, "assert_warning." + label):
+                box = page.locator(".translation-stale-warning")
+                box.wait_for(state="visible")
+                assert box.count() == 1 and box.get_attribute("role") == "note"
+                assert (
+                    box.get_attribute("aria-labelledby")
+                    == "translation-stale-title"
+                )
+                assert "非正本" in box.inner_text() and "英語正本が変更" in box.inner_text()
+                assert (
+                    urlsplit(box.locator("a").get_attribute("href")).path
+                    == canonical_route
+                )
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= innerWidth + 1"
+                ), "warning causes horizontal overflow"
+                evidence["checks"].append(label)
+
+        _run_phase(
+            evidence,
+            "navigation.initial_stale.wait_networkidle",
+            lambda: page.goto(base + stale_route, wait_until="networkidle"),
+        )
+        warning("online")
+        _run_phase(
+            evidence,
+            "service_worker.wait_for_controller",
+            lambda: page.wait_for_function(
+                "navigator.serviceWorker.controller !== null", timeout=30000
+            ),
+        )
+        _run_phase(
+            evidence,
+            "navigation.reload_stale.wait_networkidle",
+            lambda: page.reload(wait_until="networkidle"),
+        )
+        warning("reload")
+        _run_phase(
+            evidence,
+            "navigation.language_switch_to_english.click",
+            lambda: page.locator(
+                '.translation-switcher a[hreflang="en"]'
+            ).click(),
+        )
+        _run_phase(
+            evidence,
+            "navigation.language_switch_to_english.wait_for_url",
+            lambda: page.wait_for_url(base + canonical_route),
+        )
+        _run_phase(
+            evidence,
+            "assert_warning.absent_on_canonical_english",
+            lambda: _assert(
+                page.locator(".translation-stale-warning").count() == 0,
+                "stale warning on canonical route",
+            ),
+        )
+        _run_phase(
+            evidence,
+            "navigation.language_switch_to_japanese.click",
+            lambda: page.locator(
+                '.translation-switcher a[hreflang="ja"]'
+            ).click(),
+        )
+        _run_phase(
+            evidence,
+            "navigation.language_switch_to_japanese.wait_for_url",
+            lambda: page.wait_for_url(base + stale_route),
+        )
+        warning("language-switch")
+        _run_phase(evidence, "navigation.history.back", page.go_back)
+        _run_phase(
+            evidence,
+            "navigation.history.back.wait_for_url",
+            lambda: page.wait_for_url(base + canonical_route),
+        )
+        _run_phase(evidence, "navigation.history.forward", page.go_forward)
+        _run_phase(
+            evidence,
+            "navigation.history.forward.wait_for_url",
+            lambda: page.wait_for_url(base + stale_route),
+        )
+        warning("back-forward")
+
+        _run_phase(
+            evidence,
+            "navigation.current_translation.wait_networkidle",
+            lambda: page.goto(base + current_route, wait_until="networkidle"),
+        )
+        _run_phase(
+            evidence,
+            "assert_warning.absent_on_current_translation",
+            lambda: _assert(
+                page.locator(".translation-stale-warning").count() == 0,
+                "stale warning on current route",
+            ),
+        )
+        _run_phase(
+            evidence,
+            "assert.language_switcher_on_current_translation",
+            lambda: _assert(
+                page.locator(".translation-switcher").count() == 1,
+                "translation switcher missing",
+            ),
+        )
+        evidence["checks"].append("current-without-warning")
+
+        _run_phase(
+            evidence,
+            "navigation.return_to_stale.wait_networkidle",
+            lambda: page.goto(base + stale_route, wait_until="networkidle"),
+        )
+        warning("return-to-stale")
+        _run_phase(
+            evidence,
+            "service_worker.wait_for_cached_stale_document",
+            lambda: page.wait_for_function(
+                """async route => {
+                    const cache = await caches.open('templates-portal-documents-v1');
+                    return !!(await cache.match(new URL(route, location.origin).href));
+                }""",
+                arg=stale_route,
+                timeout=30000,
+            ),
+        )
+        _run_phase(
+            evidence,
+            "network.set_offline.before_cached_reload",
+            lambda: context.set_offline(True),
+        )
+        _run_phase(
+            evidence,
+            "navigation.offline_cached_reload.domcontentloaded",
+            lambda: page.reload(wait_until="domcontentloaded"),
+        )
+        warning("offline-cached-reload")
+        _run_phase(
+            evidence,
+            "network.set_online.before_worker_update",
+            lambda: context.set_offline(False),
+        )
+        _run_phase(
+            evidence,
+            "state.set_worker_rollout_2",
+            lambda: state.update(worker=2),
+        )
+        _run_phase(
+            evidence,
+            "service_worker.update_and_wait_for_controllerchange",
+            lambda: page.evaluate(
+                """async () => {
+                    const reg = await navigator.serviceWorker.ready;
+                    await new Promise(async resolve => {
+                        navigator.serviceWorker.addEventListener('controllerchange', resolve, {once: true});
+                        await reg.update();
+                    });
+                }"""
+            ),
+        )
+        _run_phase(
+            evidence,
+            "navigation.after_worker_update.wait_networkidle",
+            lambda: page.reload(wait_until="networkidle"),
+        )
+        warning("worker-update")
+
+        _run_phase(
+            evidence,
+            "state.set_slow_network_delay",
+            lambda: state.update(delay=1.0),
+        )
+        _run_phase(
+            evidence,
+            "navigation.slow_network_convergence.domcontentloaded",
+            lambda: page.reload(wait_until="domcontentloaded"),
+        )
+        warning("slow-network-convergence")
+        _run_phase(
+            evidence,
+            "network.set_offline.after_worker_update",
+            lambda: context.set_offline(True),
+        )
+        _run_phase(
+            evidence,
+            "navigation.offline_after_worker_update.domcontentloaded",
+            lambda: page.reload(wait_until="domcontentloaded"),
+        )
+        warning("offline-after-worker-update")
+        _run_phase(
+            evidence,
+            "network.restore_online_before_cleanup",
+            lambda: context.set_offline(False),
+        )
+    except BaseException as exc:
+        evidence["status"] = "failed"
+        evidence["error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc),
+            "traceback": traceback.format_exc(),
+        }
+        raise
     finally:
-        server.shutdown();server.server_close();thread.join(timeout=5)
-    if output:output.parent.mkdir(parents=True,exist_ok=True);output.write_text(json.dumps(evidence,indent=2)+'\n')
+        if trace_started and context is not None:
+            try:
+                with _phase(evidence, "browser.trace.stop"):
+                    context.tracing.stop(path=str(trace_path))
+                evidence["trace"]["status"] = "saved"
+            except Exception as exc:
+                evidence["trace"]["status"] = "failed"
+                _diagnostic_error(evidence, "browser.trace.stop", exc)
+        if browser is not None:
+            try:
+                with _phase(evidence, "browser.close"):
+                    browser.close()
+            except Exception as exc:
+                _diagnostic_error(evidence, "browser.close", exc)
+        if playwright is not None:
+            try:
+                with _phase(evidence, "playwright.controller.stop"):
+                    playwright.stop()
+            except Exception as exc:
+                _diagnostic_error(evidence, "playwright.controller.stop", exc)
+        if server is not None:
+            try:
+                with _phase(evidence, "http_server.stop"):
+                    if server_started:
+                        server.shutdown()
+                    server.server_close()
+                    if server_started and thread is not None:
+                        thread.join(timeout=5)
+                        if thread.is_alive():
+                            raise RuntimeError("local HTTP server thread did not stop")
+            except Exception as exc:
+                _diagnostic_error(evidence, "http_server.stop", exc)
+        if evidence["status"] == "running":
+            evidence["status"] = "passed"
+        evidence["ended_at"] = _utc_now()
+        evidence["duration_seconds"] = round(time.monotonic() - run_started, 3)
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(evidence, indent=2, ensure_ascii=False) + "\n")
+        _log(
+            {
+                "kind": "result",
+                "status": evidence["status"],
+                "duration_seconds": evidence["duration_seconds"],
+                "completed_checks": evidence["checks"],
+                "phase_count": len(evidence["phases"]),
+                "network_request_count": len(evidence["network_requests"]),
+                "server_request_count": len(evidence["server_requests"]),
+                "trace_status": evidence["trace"]["status"],
+            }
+        )
+
     return evidence
 
-if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--site-root',type=Path,required=True);p.add_argument('--bundle',type=Path,required=True);p.add_argument('--output',type=Path)
-    a=p.parse_args();print(json.dumps(run(a.site_root.resolve(),a.bundle.resolve(),a.output)))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--site-root", type=Path, required=True)
+    parser.add_argument("--bundle", type=Path, required=True)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+    result = run(args.site_root.resolve(), args.bundle.resolve(), args.output)
+    # Keep the existing concise stdout JSON contract; detailed evidence is written
+    # to --output and emitted as individual SITE_PWA_DIAGNOSTIC log records.
+    print(
+        json.dumps(
+            {
+                key: result[key]
+                for key in (
+                    "integration",
+                    "bundle_identity",
+                    "stale_route",
+                    "current_route",
+                    "missing_route",
+                    "checks",
+                )
+            }
+        )
+    )
