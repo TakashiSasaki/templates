@@ -50,6 +50,31 @@ Each authority's qualification entrypoint remains responsible for its own
 inventory and results. The coordinator may start, bound, log, and aggregate
 those commands, but it cannot redefine their test semantics.
 
+## Timeout cleanup
+
+On POSIX, each authority command starts in its own session and process group.
+On timeout, the coordinator sends `SIGTERM` to that group while draining both
+captured output streams for at most one second, then sends `SIGKILL` and drains
+the direct authority process. The result remains `TIMEOUT`; successful runs do
+not enter the termination path.
+
+On Linux, while coordinator-owned commands are active, the coordinator
+temporarily uses `PR_SET_CHILD_SUBREAPER`. Orphaned descendants that remain in
+the authority process group are reparented to the coordinator and waited for
+after the direct authority process is reaped. This prevents those descendants
+from accumulating as zombies under PID 1 in containers that do not promptly
+reap orphans. If the Linux kernel does not expose this subreaper capability, the
+coordinator fails before launching the authority command. It does not poll
+`/proc` or use timing sleeps.
+
+Other POSIX systems do not expose a portable subreaper API through Python. The
+coordinator signals their authority process group and reaps the direct child;
+the operating system's init process owns orphaned grandchildren. Descendants
+that create a new session or process group are outside this process-group
+cleanup contract on every platform. The termination grace is bounded at one
+second; after `SIGKILL`, final process exit and reaping depend on the operating
+system scheduling the killed processes.
+
 ## Parallel-safety classes
 
 - `parallel/process`: read-only source, process-local environment or monkeypatch

@@ -11,14 +11,17 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import ctypes
 import json
 import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -62,6 +65,12 @@ CANONICAL_CONFIGS: dict[str, dict[str, Any]] = {
 
 ALL_AUTHORITIES = tuple(CANONICAL_CONFIGS.keys())
 
+_PR_SET_CHILD_SUBREAPER = 36
+_PR_GET_CHILD_SUBREAPER = 37
+_SUBREAPER_LOCK = threading.Lock()
+_SUBREAPER_USERS = 0
+_SUBREAPER_ENABLED_BY_US = False
+
 
 @dataclass
 class AuthorityRunResult:
@@ -86,6 +95,8 @@ def allocate_worker_batches(
     if global_jobs < 1:
         raise ValueError(f"jobs must be at least 1, got {global_jobs}")
     selected = tuple(authorities)
+    if not selected:
+        raise ValueError("at least one authority must be selected")
     if len(selected) != len(set(selected)):
         raise ValueError("authority selection contains duplicates")
 
@@ -103,8 +114,98 @@ def allocate_worker_batches(
     return tuple(batches)
 
 
-def _terminate_process_tree(process: subprocess.Popen[str]) -> tuple[str, str]:
-    """Terminate and reap an authority process and any nested workers."""
+def _linux_subreaper_enabled(enabled: bool | None = None) -> bool:
+    """Read or update this process's Linux child-subreaper setting."""
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    prctl = libc.prctl
+    prctl.restype = ctypes.c_int
+    if enabled is None:
+        value = ctypes.c_int()
+        result = prctl(_PR_GET_CHILD_SUBREAPER, ctypes.byref(value), 0, 0, 0)
+    else:
+        result = prctl(_PR_SET_CHILD_SUBREAPER, int(enabled), 0, 0, 0)
+    if result != 0:
+        error_number = ctypes.get_errno()
+        raise OSError(error_number, os.strerror(error_number))
+    return bool(value.value) if enabled is None else enabled
+
+
+@contextmanager
+def _linux_child_subreaper_scope() -> Iterator[bool]:
+    """Adopt orphaned descendants while coordinator-owned commands are active.
+
+    Linux has no per-process-group subreaper setting, so concurrent commands
+    share this short-lived process setting.  Only children that orphan while
+    the scope is active can be adopted; callers reap them by their unique
+    coordinator-created process group before leaving the scope.
+    """
+
+    global _SUBREAPER_USERS, _SUBREAPER_ENABLED_BY_US
+
+    if sys.platform != "linux":
+        yield False
+        return
+
+    manages_orphans = False
+    with _SUBREAPER_LOCK:
+        if _SUBREAPER_USERS == 0:
+            try:
+                already_enabled = _linux_subreaper_enabled()
+                _SUBREAPER_ENABLED_BY_US = not already_enabled
+                if _SUBREAPER_ENABLED_BY_US:
+                    _linux_subreaper_enabled(True)
+                manages_orphans = True
+            except OSError as exc:
+                _SUBREAPER_ENABLED_BY_US = False
+                raise RuntimeError(
+                    "Linux child-subreaper support is required for safe preflight cleanup"
+                ) from exc
+        else:
+            manages_orphans = True
+        if manages_orphans:
+            _SUBREAPER_USERS += 1
+
+    try:
+        yield manages_orphans
+    finally:
+        if manages_orphans:
+            with _SUBREAPER_LOCK:
+                _SUBREAPER_USERS -= 1
+                if _SUBREAPER_USERS == 0 and _SUBREAPER_ENABLED_BY_US:
+                    try:
+                        _linux_subreaper_enabled(False)
+                    except OSError:
+                        # Keep cleanup best-effort if the host rejects reset.
+                        pass
+                    _SUBREAPER_ENABLED_BY_US = False
+
+
+def _reap_process_group_children(process_group_id: int) -> None:
+    """Wait for orphaned Linux descendants adopted from one authority group."""
+
+    while True:
+        try:
+            child_pid, _ = os.waitpid(-process_group_id, 0)
+        except ChildProcessError:
+            return
+        except InterruptedError:
+            continue
+        if child_pid == 0:
+            continue
+
+
+def _terminate_process_tree(
+    process: subprocess.Popen[str], *, reap_descendants: bool = False
+) -> tuple[str, str]:
+    """Terminate an authority process group and reap owned descendants.
+
+    ``communicate`` drains both captured streams throughout shutdown.  The
+    process group gets a one-second TERM grace, followed by KILL.  On Linux,
+    callers that enabled subreaper ownership then wait for adopted children
+    from this unique process group; elsewhere only the direct child is
+    waitable by the coordinator.
+    """
 
     try:
         if os.name == "posix":
@@ -115,16 +216,24 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> tuple[str, str]:
         pass
 
     try:
-        return process.communicate(timeout=1.0)
+        stdout, stderr = process.communicate(timeout=1.0)
     except subprocess.TimeoutExpired:
-        try:
-            if os.name == "posix":
-                os.killpg(process.pid, signal.SIGKILL)
-            else:
-                process.kill()
-        except ProcessLookupError:
-            pass
-        return process.communicate()
+        stdout = stderr = None
+
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGKILL)
+        elif process.poll() is None:
+            process.kill()
+    except ProcessLookupError:
+        pass
+
+    if stdout is None or stderr is None:
+        stdout, stderr = process.communicate()
+
+    if os.name == "posix" and reap_descendants:
+        _reap_process_group_children(process.pid)
+    return stdout, stderr
 
 
 def _get_git_head(worktree: Path) -> str | None:
@@ -252,58 +361,61 @@ def run_single_preflight(
         log_file_path = log_dir / f"{authority}.log"
 
     try:
-        proc = subprocess.Popen(
-            cmd,
-            cwd=worktree,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            start_new_session=os.name == "posix",
-        )
-        try:
-            stdout, stderr = proc.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            stdout, stderr = _terminate_process_tree(proc)
-            elapsed = round(time.monotonic() - start_time, 2)
-            full_output = (
-                f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
-                f"TIMEOUT after {timeout} seconds\n"
+        with _linux_child_subreaper_scope() as reap_descendants:
+            proc = subprocess.Popen(
+                cmd,
+                cwd=worktree,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                start_new_session=os.name == "posix",
             )
+            try:
+                stdout, stderr = proc.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                stdout, stderr = _terminate_process_tree(
+                    proc, reap_descendants=reap_descendants
+                )
+                elapsed = round(time.monotonic() - start_time, 2)
+                full_output = (
+                    f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
+                    f"TIMEOUT after {timeout} seconds\n"
+                )
+                if log_file_path:
+                    log_file_path.write_text(full_output, encoding="utf-8")
+                return AuthorityRunResult(
+                    authority=authority,
+                    status="TIMEOUT",
+                    head_sha=actual_head,
+                    command=cmd,
+                    working_directory=str(worktree),
+                    elapsed_seconds=elapsed,
+                    exit_code=None,
+                    allocated_workers=allocated_workers,
+                    allocation_batch=allocation_batch,
+                    log_file=str(log_file_path) if log_file_path else None,
+                    failure_excerpt=f"execution exceeded {timeout}s timeout limit",
+                )
+            elapsed = round(time.monotonic() - start_time, 2)
+            full_output = f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
+
             if log_file_path:
                 log_file_path.write_text(full_output, encoding="utf-8")
-            return AuthorityRunResult(
-                authority=authority,
-                status="TIMEOUT",
-                head_sha=actual_head,
-                command=cmd,
-                working_directory=str(worktree),
-                elapsed_seconds=elapsed,
-                exit_code=None,
-                allocated_workers=allocated_workers,
-                allocation_batch=allocation_batch,
-                log_file=str(log_file_path) if log_file_path else None,
-                failure_excerpt=f"execution exceeded {timeout}s timeout limit",
-            )
-        elapsed = round(time.monotonic() - start_time, 2)
-        full_output = f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
 
-        if log_file_path:
-            log_file_path.write_text(full_output, encoding="utf-8")
+            if proc.returncode == 0:
+                return AuthorityRunResult(
+                    authority=authority,
+                    status="PASS",
+                    head_sha=actual_head,
+                    command=cmd,
+                    working_directory=str(worktree),
+                    elapsed_seconds=elapsed,
+                    exit_code=0,
+                    allocated_workers=allocated_workers,
+                    allocation_batch=allocation_batch,
+                    log_file=str(log_file_path) if log_file_path else None,
+                )
 
-        if proc.returncode == 0:
-            return AuthorityRunResult(
-                authority=authority,
-                status="PASS",
-                head_sha=actual_head,
-                command=cmd,
-                working_directory=str(worktree),
-                elapsed_seconds=elapsed,
-                exit_code=0,
-                allocated_workers=allocated_workers,
-                allocation_batch=allocation_batch,
-                log_file=str(log_file_path) if log_file_path else None,
-            )
-        else:
             # Extract concise failure excerpt (last ~10 lines of stderr/stdout)
             combined = stderr.strip() or stdout.strip()
             lines = combined.splitlines()
@@ -351,6 +463,15 @@ def orchestrate_preflights(
     if global_jobs < 1:
         raise ValueError(f"jobs must be at least 1, got {global_jobs}")
     selected_authorities = list(ALL_AUTHORITIES if authorities is None else authorities)
+    if not selected_authorities:
+        raise ValueError("at least one authority must be selected")
+    unknown_authorities = [
+        authority
+        for authority in selected_authorities
+        if authority not in CANONICAL_CONFIGS
+    ]
+    if unknown_authorities:
+        raise ValueError(f"unknown authority selection: {unknown_authorities}")
     allocation_batches = allocate_worker_batches(selected_authorities, global_jobs)
     root = (repo_root or Path.cwd()).resolve()
     invocation_id = uuid.uuid4().hex
@@ -407,7 +528,7 @@ def orchestrate_preflights(
 
     # Classify overall status
     statuses = {r.status for r in results}
-    if all(s == "PASS" for s in statuses):
+    if results and all(s == "PASS" for s in statuses):
         overall_status = "PASSED"
     elif any(s in ("FAIL", "TIMEOUT") for s in statuses):
         overall_status = "FAILED"
@@ -520,6 +641,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    unknown_authorities = [
+        authority
+        for authority in args.authorities
+        if authority not in CANONICAL_CONFIGS
+    ]
+    if unknown_authorities:
+        parser.error(f"unknown authority selection: {unknown_authorities}")
+
     if args.jobs < 1:
         parser.error(f"--jobs must be at least 1, got {args.jobs}")
 
@@ -530,7 +659,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     res = orchestrate_preflights(
-        authorities=args.authorities or None,
+        authorities=args.authorities,
         repo_root=args.repo_root,
         expected_heads=expected_heads,
         timeout=args.timeout,

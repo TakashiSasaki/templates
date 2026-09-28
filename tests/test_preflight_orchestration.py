@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import ctypes
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
-import time
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.orchestrate_preflights import (  # noqa: E402
+    ALL_AUTHORITIES,
     MAX_SUMMARY_BYTES,
     AuthorityRunResult,
     allocate_worker_batches,
@@ -24,6 +26,88 @@ from scripts.orchestrate_preflights import (  # noqa: E402
 )
 
 FAKE_SHA = "1234567890abcdef1234567890abcdef12345678"
+
+
+def _temporary_linux_subreaper():
+    if sys.platform != "linux":
+        pytest.skip("nested descendant reaping is guaranteed with Linux subreapers")
+    libc = ctypes.CDLL(None, use_errno=True)
+    prctl = libc.prctl
+    prctl.restype = ctypes.c_int
+    previous = ctypes.c_int()
+    if prctl(37, ctypes.byref(previous), 0, 0, 0) != 0:
+        pytest.skip("kernel does not expose PR_GET_CHILD_SUBREAPER")
+    if not previous.value and prctl(36, 1, 0, 0, 0) != 0:
+        pytest.skip("kernel does not allow PR_SET_CHILD_SUBREAPER")
+    return libc, bool(previous.value)
+
+
+def _restore_linux_subreaper(libc: ctypes.CDLL, previous: bool) -> None:
+    if not previous:
+        libc.prctl(36, 0, 0, 0, 0)
+
+
+def _pid_exists(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def _cleanup_test_process_group(process_group_id: int) -> None:
+    try:
+        os.killpg(process_group_id, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+    while True:
+        try:
+            os.waitpid(-process_group_id, 0)
+        except InterruptedError:
+            continue
+        except ChildProcessError:
+            return
+
+
+def _assert_nested_timeout_is_reaped(workspace: Path, tmp_path: Path) -> None:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    worktree = _create_mock_authority(workspace, "policy")
+    authority_pid_file = tmp_path / "authority.pid"
+    child_pid_file = tmp_path / "child.pid"
+    script = worktree / "scripts" / "run_policy_preflight.py"
+    script.write_text(
+        "import os, signal, subprocess, sys\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        f"open({str(authority_pid_file)!r}, 'w').write(str(os.getpid()))\n"
+        "child = subprocess.Popen([sys.executable, '-c', "
+        "'import signal; signal.signal(signal.SIGTERM, signal.SIG_IGN); signal.pause()'])\n"
+        f"open({str(child_pid_file)!r}, 'w').write(str(child.pid))\n"
+        "os.write(1, b'o' * 131072)\n"
+        "os.write(2, b'e' * 131072)\n"
+        "signal.pause()\n",
+        encoding="utf-8",
+    )
+
+    libc, previous_subreaper = _temporary_linux_subreaper()
+    authority_pid: int | None = None
+    try:
+        result = run_single_preflight(
+            authority="policy", repo_root=workspace, timeout=1.0
+        )
+
+        assert result.status == "TIMEOUT"
+        authority_pid = int(authority_pid_file.read_text(encoding="utf-8"))
+        child_pid = int(child_pid_file.read_text(encoding="utf-8"))
+        assert not _pid_exists(authority_pid)
+        assert not _pid_exists(child_pid)
+        with pytest.raises(ChildProcessError):
+            os.waitpid(-authority_pid, os.WNOHANG)
+    finally:
+        if authority_pid is None and authority_pid_file.exists():
+            authority_pid = int(authority_pid_file.read_text(encoding="utf-8"))
+        if authority_pid is not None:
+            _cleanup_test_process_group(authority_pid)
+        _restore_linux_subreaper(libc, previous_subreaper)
 
 
 def _create_mock_authority(
@@ -98,6 +182,17 @@ def test_single_successful_preflight(tmp_path: Path) -> None:
     assert res.allocated_workers == 1
 
 
+def test_empty_and_unknown_authority_selections_are_rejected(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="at least one authority"):
+        orchestrate_preflights(authorities=[], repo_root=tmp_path)
+    with pytest.raises(ValueError, match="at least one authority"):
+        allocate_worker_batches([], global_jobs=2)
+    with pytest.raises(ValueError, match="unknown authority selection"):
+        orchestrate_preflights(authorities=["invalid"], repo_root=tmp_path)
+
+
 def test_multiple_successful_preflights_serial(tmp_path: Path) -> None:
     repo_root = tmp_path / "workspace"
     _create_mock_authority(repo_root, "policy", exit_code=0, output_text="POLICY_PASS")
@@ -169,36 +264,41 @@ def test_preflight_timeout_handling(tmp_path: Path) -> None:
     assert "timeout limit" in res.failure_excerpt
 
 
-def test_timeout_terminates_nested_authority_processes(tmp_path: Path) -> None:
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
+def test_linux_preflight_fails_before_launch_without_subreaper_support(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo_root = tmp_path / "workspace"
     worktree = _create_mock_authority(repo_root, "policy")
-    child_pid_file = tmp_path / "child.pid"
-    script = worktree / "scripts" / "run_policy_preflight.py"
-    script.write_text(
-        "import signal, subprocess, sys, time\n"
-        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
-        "child = subprocess.Popen([sys.executable, '-c', "
-        "'import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)'])\n"
-        f"open({str(child_pid_file)!r}, 'w').write(str(child.pid))\n"
-        "time.sleep(30)\n",
+    started_file = tmp_path / "started"
+    (worktree / "scripts" / "run_policy_preflight.py").write_text(
+        f"from pathlib import Path; Path({str(started_file)!r}).write_text('yes')\n",
         encoding="utf-8",
     )
 
-    result = run_single_preflight(
-        authority="policy", repo_root=repo_root, timeout=0.2
-    )
+    def unavailable(*_: object) -> bool:
+        raise OSError("subreaper unavailable")
 
-    assert result.status == "TIMEOUT"
-    child_pid = int(child_pid_file.read_text(encoding="utf-8"))
-    deadline = time.monotonic() + 2.0
-    while time.monotonic() < deadline:
-        try:
-            os.kill(child_pid, 0)
-        except ProcessLookupError:
-            break
-        time.sleep(0.01)
-    else:
-        pytest.fail(f"nested child process {child_pid} survived authority timeout")
+    monkeypatch.setattr(
+        "scripts.orchestrate_preflights._linux_subreaper_enabled", unavailable
+    )
+    result = run_single_preflight(authority="policy", repo_root=repo_root)
+
+    assert result.status == "FAIL"
+    assert "child-subreaper support is required" in result.failure_excerpt
+    assert not started_file.exists()
+
+
+def test_timeout_terminates_nested_authority_processes(tmp_path: Path) -> None:
+    _assert_nested_timeout_is_reaped(tmp_path / "workspace", tmp_path)
+
+
+def test_repeated_timeout_runs_do_not_leak_child_processes(tmp_path: Path) -> None:
+    for run_number in range(3):
+        run_root = tmp_path / f"run-{run_number}"
+        _assert_nested_timeout_is_reaped(
+            run_root / "workspace", run_root / "processes"
+        )
 
 
 def test_static_worker_batches_never_exceed_global_budget() -> None:
@@ -381,6 +481,66 @@ def test_cli_execution_with_json_output(tmp_path: Path) -> None:
     assert data["authorities"][0]["authority"] == "policy"
     assert data["worker_budget"]["requested_jobs"] == 2
     assert data["worker_budget"]["max_active_allocated_workers"] == 2
+    assert data["schema_version"] == 2
+    assert data["kind"] == "preflight-orchestration-result"
+    assert data["is_validation_evidence_only"] is True
+    assert data["may_establish_acceptance"] is False
+    assert data["run_id"]
+    assert data["authorities"][0]["head_sha"]
+
+
+def test_api_and_cli_default_to_all_authorities(tmp_path: Path) -> None:
+    api_root = tmp_path / "api"
+    cli_root = tmp_path / "cli"
+    for repo_root in (api_root, cli_root):
+        for authority in ALL_AUTHORITIES:
+            _create_mock_authority(repo_root, authority, output_text=f"{authority}_OK")
+
+    api_result = orchestrate_preflights(repo_root=api_root, global_jobs=4)
+    assert api_result["overall_status"] == "PASSED"
+    assert [row["authority"] for row in api_result["authorities"]] == list(
+        ALL_AUTHORITIES
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "orchestrate_preflights.py"),
+            "--repo-root",
+            str(cli_root),
+            "--jobs",
+            "4",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"CLI failed: {proc.stderr}"
+    data = json.loads(proc.stdout)
+    assert data["overall_status"] == "PASSED"
+    assert [row["authority"] for row in data["authorities"]] == list(
+        ALL_AUTHORITIES
+    )
+    assert data["worker_budget"]["requested_jobs"] == 4
+
+
+def test_cli_rejects_invalid_or_blank_authority_names(tmp_path: Path) -> None:
+    for authority in ("invalid", ""):
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "orchestrate_preflights.py"),
+                authority,
+                "--repo-root",
+                str(tmp_path),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert proc.returncode == 2
+        assert "unknown authority selection" in proc.stderr
 
 
 def test_default_global_worker_budget_is_two(tmp_path: Path) -> None:
