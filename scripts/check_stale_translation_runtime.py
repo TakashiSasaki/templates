@@ -69,6 +69,96 @@ def _diagnostic_error(evidence, operation, exc):
     _log({"kind": "diagnostic_error", **record})
 
 
+# Injected only by this check's local server; it is not part of the Pages artifact.
+_SERVICE_WORKER_DIAGNOSTIC_PRELUDE = r"""const SITE_PWA_DIAGNOSTIC_ROLLOUT = __SITE_PWA_DIAGNOSTIC_ROLLOUT__;
+(() => {
+  const observedTypes = new Set(["activate", "fetch", "install", "message"]);
+  const addEventListener = self.addEventListener.bind(self);
+  let eventSequence = 0;
+  let promiseSequence = 0;
+
+  self.addEventListener = function(type, listener, options) {
+    if (!observedTypes.has(type) || typeof listener !== "function") {
+      return addEventListener(type, listener, options);
+    }
+
+    const observedListener = function(event) {
+      const eventId = ++eventSequence;
+      const request = event.request || null;
+      const log = (stage, extra = {}) => {
+        const observation = {
+          rollout: SITE_PWA_DIAGNOSTIC_ROLLOUT,
+          event_id: eventId,
+          event_type: type,
+          stage,
+          worker_elapsed_ms: Math.round(performance.now() * 10) / 10,
+          ...extra,
+        };
+        if (request) {
+          observation.request_method = request.method;
+          observation.request_url = request.url;
+          observation.request_mode = request.mode;
+          observation.request_destination = request.destination;
+        }
+        try {
+          console.debug("SITE_PWA_SW_EVENT " + JSON.stringify(observation));
+        } catch (_) {}
+      };
+      const trackPromise = (method, promise) => {
+        const promiseId = ++promiseSequence;
+        const startedAt = performance.now();
+        log(method + "_pending", {promise_id: promiseId});
+        return Promise.resolve(promise).then(
+          value => {
+            log(method + "_fulfilled", {
+              promise_id: promiseId,
+              duration_ms: Math.round((performance.now() - startedAt) * 10) / 10,
+            });
+            return value;
+          },
+          error => {
+            log(method + "_rejected", {
+              promise_id: promiseId,
+              duration_ms: Math.round((performance.now() - startedAt) * 10) / 10,
+              error_name: String(error?.name || "Error"),
+              error_message: String(error?.message || error).slice(0, 1000),
+            });
+            throw error;
+          },
+        );
+      };
+
+      log("dispatched");
+      for (const method of ["waitUntil", "respondWith"]) {
+        if (typeof event[method] !== "function") continue;
+        const originalMethod = event[method].bind(event);
+        event[method] = promise => originalMethod(trackPromise(method, promise));
+      }
+      try {
+        const result = listener.call(this, event);
+        log("handler_returned");
+        return result;
+      } catch (error) {
+        log("handler_threw", {
+          error_name: String(error?.name || "Error"),
+          error_message: String(error?.message || error).slice(0, 1000),
+        });
+        throw error;
+      }
+    };
+
+    return addEventListener(type, observedListener, options);
+  };
+})();
+"""
+
+
+def _service_worker_diagnostic_prelude(rollout):
+    return _SERVICE_WORKER_DIAGNOSTIC_PRELUDE.replace(
+        "__SITE_PWA_DIAGNOSTIC_ROLLOUT__", str(rollout)
+    ).encode("utf-8")
+
+
 def _attach_browser_diagnostics(context, page, evidence, run_started):
     requests = {}
 
@@ -83,10 +173,16 @@ def _attach_browser_diagnostics(context, page, evidence, run_started):
 
     def on_request(request):
         now = time.monotonic()
+        try:
+            service_worker = request.service_worker
+        except Exception:
+            service_worker = None
         record = {
             "method": request.method,
             "url": request.url,
             "resource_type": request.resource_type,
+            "initiator": "service_worker" if service_worker else "browser",
+            "service_worker_url": service_worker.url if service_worker else None,
             "started_elapsed_seconds": round(now - run_started, 3),
             "status": None,
             "response_elapsed_seconds": None,
@@ -100,6 +196,8 @@ def _attach_browser_diagnostics(context, page, evidence, run_started):
             method=record["method"],
             url=record["url"],
             resource_type=record["resource_type"],
+            initiator=record["initiator"],
+            service_worker_url=record["service_worker_url"],
         )
 
     def on_response(response):
@@ -153,10 +251,38 @@ def _attach_browser_diagnostics(context, page, evidence, run_started):
     context.on("response", on_response)
     context.on("requestfinished", on_request_finished)
     context.on("requestfailed", on_request_failed)
-    context.on(
-        "serviceworker",
-        lambda worker: event("service_worker", url=worker.url),
-    )
+    def on_service_worker(worker):
+        event("service_worker", url=worker.url)
+
+        def on_worker_console(message):
+            prefix = "SITE_PWA_SW_EVENT "
+            if message.text.startswith(prefix):
+                try:
+                    observation = json.loads(message.text[len(prefix) :])
+                except json.JSONDecodeError as exc:
+                    event(
+                        "service_worker_event_lifecycle_parse_error",
+                        url=worker.url,
+                        text=message.text,
+                        error=str(exc),
+                    )
+                else:
+                    event(
+                        "service_worker_event_lifecycle",
+                        url=worker.url,
+                        observation=observation,
+                    )
+            elif message.type in ("warning", "error"):
+                event(
+                    "service_worker_console",
+                    url=worker.url,
+                    message_type=message.type,
+                    text=message.text,
+                )
+
+        worker.on("console", on_worker_console)
+
+    context.on("serviceworker", on_service_worker)
     def on_console(message):
         prefix = "SITE_PWA_SW_UPDATE "
         if message.text.startswith(prefix):
@@ -418,7 +544,9 @@ def run(site, bundle, output=None):
                 if path == stale_route and state["delay"]:
                     time.sleep(state["delay"])
                 if path == "/service-worker.js":
-                    body = (site / "service-worker.js").read_bytes() + (
+                    body = _service_worker_diagnostic_prelude(
+                        state["worker"]
+                    ) + (site / "service-worker.js").read_bytes() + (
                         f"\n// acceptance rollout {state['worker']}\n".encode()
                     )
                     self.send_response(200)

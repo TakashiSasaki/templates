@@ -21,6 +21,19 @@ SPEC.loader.exec_module(RUNTIME_CHECK)
 
 
 class StaleTranslationRuntimeDiagnosticTests(unittest.TestCase):
+    def test_worker_prelude_traces_lifetime_promises_with_rollout_identity(self) -> None:
+        prelude = RUNTIME_CHECK._service_worker_diagnostic_prelude(2).decode(
+            "utf-8"
+        )
+
+        self.assertIn("const SITE_PWA_DIAGNOSTIC_ROLLOUT = 2;", prelude)
+        self.assertIn(
+            'new Set(["activate", "fetch", "install", "message"])', prelude
+        )
+        self.assertIn('method + "_pending"', prelude)
+        self.assertIn('"respondWith"', prelude)
+        self.assertIn("SITE_PWA_SW_EVENT ", prelude)
+
     def test_failure_writes_partial_evidence_and_phase_log(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "translation-status.json"
