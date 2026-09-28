@@ -146,6 +146,8 @@ def _stop_authority_supervisor(
     except (OSError, ValueError):
         pass
 
+    stdout = ""
+    stderr = ""
     try:
         stdout, stderr = process.communicate(
             timeout=SUPERVISOR_CLEANUP_TIMEOUT_SECONDS
@@ -154,6 +156,8 @@ def _stop_authority_supervisor(
     except subprocess.TimeoutExpired as timeout_error:
         stdout = _decode_captured_output(timeout_error.output)
         stderr = _decode_captured_output(timeout_error.stderr)
+    except Exception as exc:
+        stderr = f"supervisor cleanup communication failed: {exc}"
 
     try:
         if os.name == "posix":
@@ -162,7 +166,7 @@ def _stop_authority_supervisor(
             os.killpg(process.pid, signal.SIGKILL)
         else:
             process.kill()
-    except ProcessLookupError:
+    except (OSError, ValueError):
         pass
 
     try:
@@ -171,21 +175,25 @@ def _stop_authority_supervisor(
         )
         return final_stdout or stdout, final_stderr or stderr, False
     except subprocess.TimeoutExpired as kill_error:
-        for stream in (process.stdout, process.stderr):
-            if stream is not None:
-                try:
-                    stream.close()
-                except OSError:
-                    pass
-        try:
-            process.wait(timeout=SUPERVISOR_KILL_TIMEOUT_SECONDS)
-        except subprocess.TimeoutExpired:
-            pass
-        return (
-            _decode_captured_output(kill_error.output) or stdout,
-            _decode_captured_output(kill_error.stderr) or stderr,
-            False,
-        )
+        stdout = _decode_captured_output(kill_error.output) or stdout
+        stderr = _decode_captured_output(kill_error.stderr) or stderr
+    except Exception as exc:
+        detail = f"supervisor cleanup communication failed after kill: {exc}"
+        stderr = f"{stderr}\n{detail}".strip()
+
+    for stream in (process.stdout, process.stderr):
+        if stream is not None:
+            try:
+                stream.close()
+            except OSError:
+                pass
+    try:
+        process.wait(timeout=SUPERVISOR_KILL_TIMEOUT_SECONDS)
+    except Exception as exc:
+        detail = f"supervisor wait after kill failed: {exc}"
+        stderr = f"{stderr}\n{detail}".strip()
+
+    return stdout, stderr, False
 
 
 def run_single_preflight(

@@ -475,6 +475,59 @@ def test_pipe_error_result_surfaces_supervisor_cleanup_failure(
     )
 
 
+def test_pipe_errors_during_cleanup_force_supervisor_termination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    _create_mock_authority(repo_root, "integration")
+
+    class BrokenPipeSupervisor:
+        pid = 4242
+        returncode: int | None = None
+        communicate_calls = 0
+        wait_timeout: float | None = None
+        stdout = None
+        stderr = None
+
+        def terminate(self) -> None:
+            pass
+
+        def communicate(self, *, timeout: float) -> tuple[str, str]:
+            self.communicate_calls += 1
+            raise OSError(f"controlled pipe read error {self.communicate_calls}")
+
+        def wait(self, *, timeout: float) -> int:
+            self.wait_timeout = timeout
+            self.returncode = -signal.SIGKILL
+            return self.returncode
+
+    supervisor = BrokenPipeSupervisor()
+    killed_groups: list[tuple[int, int]] = []
+    monkeypatch.setattr(orchestrator_module, "_get_git_head", lambda _path: FAKE_SHA)
+    monkeypatch.setattr(
+        orchestrator_module.subprocess, "Popen", lambda *_args, **_kwargs: supervisor
+    )
+    monkeypatch.setattr(
+        orchestrator_module.os,
+        "killpg",
+        lambda process_group, signum: killed_groups.append((process_group, signum)),
+    )
+
+    result = run_single_preflight(
+        authority="integration", repo_root=repo_root, timeout=1
+    )
+
+    assert result.status == "FAIL"
+    assert "controlled pipe read error 1" in result.failure_excerpt
+    assert (
+        "authority supervisor did not complete bounded descendant cleanup"
+        in result.failure_excerpt
+    )
+    assert killed_groups == [(supervisor.pid, signal.SIGKILL)]
+    assert supervisor.communicate_calls == 3
+    assert supervisor.wait_timeout == orchestrator_module.SUPERVISOR_KILL_TIMEOUT_SECONDS
+
+
 def test_windows_supervisor_uses_control_break_and_private_process_group(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
