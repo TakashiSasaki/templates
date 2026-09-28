@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -25,9 +26,11 @@ try:
         extract_immutable_installer,
         git_run,
         load_and_verify_state,
+        portable_run_identity,
         require_full_sha,
         resolve_base_tree,
         save_state,
+        verify_handoff,
     )
     from scripts.trusted_review_actions import (
         OWNER_ID,
@@ -40,10 +43,12 @@ try:
         GH_EXECUTABLE,
         OCI_REPOSITORY,
         ROLE_TO_SECTION,
+        GitHubActionsOciFreezeVerifier,
         GitHubActionsRoleFreezeVerifier,
         TrustedFreezeError,
         _inventory_digest,
         _verify_subject_attestation,
+        load_freeze_evidence,
         load_role_freeze_evidence,
         require_protected_view,
     )
@@ -56,9 +61,11 @@ except ImportError:
         extract_immutable_installer,
         git_run,
         load_and_verify_state,
+        portable_run_identity,
         require_full_sha,
         resolve_base_tree,
         save_state,
+        verify_handoff,
     )
     from trusted_review_actions import (
         OWNER_ID,
@@ -71,10 +78,12 @@ except ImportError:
         GH_EXECUTABLE,
         OCI_REPOSITORY,
         ROLE_TO_SECTION,
+        GitHubActionsOciFreezeVerifier,
         GitHubActionsRoleFreezeVerifier,
         TrustedFreezeError,
         _inventory_digest,
         _verify_subject_attestation,
+        load_freeze_evidence,
         load_role_freeze_evidence,
         require_protected_view,
     )
@@ -82,6 +91,351 @@ except ImportError:
 ROLE_NAMES = tuple(ROLE_TO_SECTION)
 IMAGE_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
 REPOSITORY_URL = "https://github.com/TakashiSasaki/templates.git"
+OCI_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise TrustedFreezeError("duplicate JSON key in portable handoff input")
+        result[key] = value
+    return result
+
+
+def _read_json_object(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise TrustedFreezeError(f"{label} is unavailable or malformed") from exc
+    if not isinstance(value, dict):
+        raise TrustedFreezeError(f"{label} must be a JSON object")
+    return value, raw
+
+
+def _portable_local_view(
+    *,
+    handoff: dict[str, Any],
+    handoff_sha256: str,
+    freeze_evidence: dict[str, Any],
+    locators: dict[str, str],
+    backing_locators: dict[str, str],
+    installed_skill_root: str,
+) -> dict[str, Any]:
+    roles = []
+    for role in ROLE_NAMES:
+        entry = next(item for item in freeze_evidence["roles"] if item["role"] == role)
+        identity_bytes = json.dumps(
+            entry["identity"], sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        roles.append(
+            {
+                "role": role,
+                "inventory_sha256": entry["inventory_sha256"],
+                "identity_sha256": hashlib.sha256(identity_bytes).hexdigest(),
+            }
+        )
+    return {
+        "schema_version": 1,
+        "handoff_sha256": handoff_sha256,
+        "provider_observation_sha256": handoff["provider_observation"]["observation_sha256"],
+        "freeze_evidence_sha256": handoff["freeze_evidence"]["sha256"],
+        "object": freeze_evidence["object"],
+        "roles": roles,
+        "locators": locators,
+        "backing_locators": backing_locators,
+        "installed_skill_root": installed_skill_root,
+    }
+
+
+def _docker_login(token: str, *, actor: str, runner: Any) -> None:
+    if not token:
+        raise TrustedFreezeError("a GHCR read token is required to hydrate portable authority")
+    if not re.fullmatch(r"[A-Za-z0-9-]{1,39}", actor):
+        raise TrustedFreezeError("GHCR login actor is invalid")
+    try:
+        runner(
+            ["docker", "login", "ghcr.io", "--username", actor, "--password-stdin"],
+            input=f"{token}\n",
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise TrustedFreezeError("GHCR authentication failed for immutable authority pull") from exc
+
+
+def _mountinfo_path(value: str) -> str:
+    return (
+        value.replace("\\040", " ")
+        .replace("\\011", "\t")
+        .replace("\\012", "\n")
+        .replace("\\134", "\\")
+    )
+
+
+def _is_mountpoint(path: Path) -> bool:
+    try:
+        lines = Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise TrustedFreezeError("cannot inspect producer mount table for cleanup") from exc
+    expected = str(path.expanduser().absolute())
+    return any(
+        len(fields := line.split()) >= 6 and _mountinfo_path(fields[4]) == expected
+        for line in lines
+    )
+
+
+def cleanup_producer_views(
+    role_protected_root: Path,
+    aggregate_protected_root: Path,
+    *,
+    runner: Any | None = None,
+) -> None:
+    """Remove producer mount aliases before proving the portable handoff path."""
+    runner = runner or subprocess.run
+    role_root = role_protected_root.expanduser().absolute()
+    aggregate_root = aggregate_protected_root.expanduser().absolute()
+    if role_root.name != "role-protected" or aggregate_root.name != "aggregate-protected":
+        raise TrustedFreezeError(
+            "producer cleanup roots do not match the trusted workflow layout"
+        )
+    aggregate_materialized = aggregate_root.parent / f".{aggregate_root.name}.materialized"
+    roots = (role_root, aggregate_root, aggregate_materialized)
+    if any(root.is_symlink() or not root.is_dir() for root in roots):
+        raise TrustedFreezeError("producer protected-view roots are missing or unsafe")
+
+    mountpoints: list[Path] = []
+    for root, materialized in (
+        (role_root, role_root / ".materialized"),
+        (aggregate_root, aggregate_materialized),
+    ):
+        for role in reversed(ROLE_NAMES):
+            mountpoints.extend((root / "roles" / role, materialized / role))
+    for mountpoint in mountpoints:
+        if mountpoint.is_symlink() or not mountpoint.is_dir() or not _is_mountpoint(mountpoint):
+            raise TrustedFreezeError(f"producer protected-view mount is missing: {mountpoint}")
+
+    for mountpoint in mountpoints:
+        try:
+            runner(
+                ["sudo", "umount", str(mountpoint)],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise TrustedFreezeError(
+                "cannot remove producer-local protected authority mounts"
+            ) from exc
+
+    if any(_is_mountpoint(mountpoint) for mountpoint in mountpoints):
+        raise TrustedFreezeError("producer protected-view mounts remain after cleanup")
+    shutil.rmtree(role_root)
+    shutil.rmtree(aggregate_root)
+    shutil.rmtree(aggregate_materialized)
+    if any(root.exists() for root in roots):
+        raise TrustedFreezeError("producer protected-view paths remain after cleanup")
+
+
+def hydrate_handoff(
+    handoff_path: Path,
+    observation_path: Path,
+    freeze_evidence_path: Path,
+    output_root: Path,
+    output_local_view: Path,
+    *,
+    runner: Any | None = None,
+) -> None:
+    """Verify a portable handoff and materialize its digest-bound local views."""
+    runner = runner or subprocess.run
+    handoff, handoff_raw = _read_json_object(handoff_path, "durable handoff")
+    observation, observation_raw = _read_json_object(observation_path, "provider observation")
+    freeze_evidence, freeze_raw = _read_json_object(freeze_evidence_path, "freeze evidence")
+    if "locators" in handoff or "backing_locators" in handoff:
+        raise TrustedFreezeError("durable handoff contains producer-local filesystem paths")
+    validate_observation(observation)
+    document, evidence_raw, evidence_sha256 = load_freeze_evidence(freeze_evidence_path)
+    if evidence_raw != freeze_raw:
+        raise TrustedFreezeError("freeze evidence changed while it was being loaded")
+    if document != freeze_evidence:
+        raise TrustedFreezeError("freeze evidence parse is inconsistent")
+    if hashlib.sha256(observation_raw).hexdigest() != handoff.get("provider_observation", {}).get(
+        "observation_sha256"
+    ):
+        raise TrustedFreezeError("provider observation bytes do not match durable handoff")
+    handoff_sha256 = hashlib.sha256(handoff_raw).hexdigest()
+    run = portable_run_identity(observation, freeze_evidence)
+    api_token = os.environ.get("GITHUB_TOKEN", "")
+    gh_token = os.environ.get("GH_TOKEN", "")
+    if not api_token or not gh_token:
+        raise TrustedFreezeError("GITHUB_TOKEN and GH_TOKEN are required for portable verification")
+
+    handoff_digest = handoff_sha256
+    _verify_subject_attestation(
+        str(handoff_path.expanduser().resolve()),
+        handoff_digest,
+        run_identity=run,
+        owner_id=str(OWNER_ID),
+        gh_executable=GH_EXECUTABLE,
+        runner=runner,
+        use_oci_bundle=False,
+    )
+    provider_adapter = GitHubActionsObservationVerifier(
+        observation_path,
+        token=api_token,
+        run_identity=run,
+        runner=runner,
+    )
+    provider_adapter.verify_target(handoff["target"], handoff["provider_observation"])
+    freeze_adapter = GitHubActionsOciFreezeVerifier(
+        freeze_evidence_path,
+        token=gh_token,
+        run_identity=run,
+        runner=runner,
+    )
+    if freeze_adapter.sha256 != evidence_sha256:
+        raise TrustedFreezeError("freeze-evidence digest changed during portable verification")
+    freeze_adapter.verify_document_digest(handoff)
+    for section in ROLE_TO_SECTION.values():
+        freeze_adapter.verify(section, handoff[section])
+
+    object_record = freeze_evidence.get("object")
+    if not isinstance(object_record, dict):
+        raise TrustedFreezeError("freeze evidence does not identify an OCI object")
+    manifest_digest = object_record.get("manifest_digest")
+    if (
+        object_record.get("repository") != OCI_REPOSITORY
+        or not isinstance(manifest_digest, str)
+        or not OCI_DIGEST.fullmatch(manifest_digest)
+    ):
+        raise TrustedFreezeError("portable handoff must identify one exact OCI manifest digest")
+    object_ref = f"{OCI_REPOSITORY}@{manifest_digest}"
+    ghcr_actor = os.environ.get("GHCR_USERNAME") or os.environ.get("GITHUB_ACTOR", "")
+    _docker_login(gh_token, actor=ghcr_actor, runner=runner)
+    _verify_image_manifest(manifest_digest, runner=runner)
+
+    root = output_root.expanduser().absolute()
+    if root.exists() or root.is_symlink():
+        raise TrustedFreezeError("reviewer hydration root already exists")
+    for parent in reversed(root.parents):
+        if parent.is_symlink():
+            raise TrustedFreezeError("reviewer hydration root traverses a symbolic link")
+    local_path = output_local_view.expanduser().absolute()
+    if local_path.exists() or local_path.is_symlink():
+        raise TrustedFreezeError("reviewer local-view output already exists")
+    root.mkdir(parents=True)
+    materialized_root = root / ".materialized"
+    protected_root = root / "protected"
+    materialized_root.mkdir()
+    protected_roles_root = protected_root / "roles"
+    protected_roles_root.mkdir(parents=True)
+    container = ""
+    mounts: list[Path] = []
+    complete = False
+    locators: dict[str, str] = {}
+    backing_locators: dict[str, str] = {}
+    try:
+        runner(["docker", "pull", object_ref], check=True, capture_output=True, text=True)
+        container = runner(
+            ["docker", "create", object_ref], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        if not container:
+            raise TrustedFreezeError("Docker did not return the attested OCI container identity")
+        for role, section in ROLE_TO_SECTION.items():
+            record = freeze_adapter._role_record(role)
+            if record.get("path") != f"roles/{role}":
+                raise TrustedFreezeError(f"OCI role path does not match its identity: {role}")
+            backing = materialized_root / role
+            backing.mkdir()
+            target = protected_roles_root / role
+            target.mkdir()
+            runner(
+                ["docker", "cp", f"{container}:/roles/{role}/.", str(backing)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            expected_digest = handoff[section]["inventory_digest"]
+            if record["inventory_sha256"] != expected_digest:
+                raise TrustedFreezeError(f"OCI role inventory differs from durable handoff: {role}")
+            if _inventory_digest(backing) != expected_digest:
+                raise TrustedFreezeError(
+                    f"pulled OCI role bytes differ from frozen inventory: {role}"
+                )
+            runner(
+                ["sudo", "mount", "--bind", str(backing), str(backing)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            mounts.append(backing)
+            runner(
+                ["sudo", "mount", "-o", "remount,bind,ro", str(backing)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            require_protected_view(backing)
+            runner(
+                ["sudo", "mount", "--bind", str(backing), str(target)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            mounts.append(target)
+            runner(
+                ["sudo", "mount", "-o", "remount,bind,ro", str(target)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            require_protected_view(target, backing_path=backing)
+            if _inventory_digest(target) != expected_digest:
+                raise TrustedFreezeError(
+                    f"protected OCI role view changed during hydration: {role}"
+                )
+            locators[role] = str(target)
+            backing_locators[role] = str(backing)
+
+        local_view = _portable_local_view(
+            handoff=handoff,
+            handoff_sha256=handoff_sha256,
+            freeze_evidence=freeze_evidence,
+            locators=locators,
+            backing_locators=backing_locators,
+            installed_skill_root=locators["bootstrap_run_image"],
+        )
+        verify_handoff(
+            handoff,
+            check_locators=True,
+            require_authenticated_provider=True,
+            provider_adapter=provider_adapter,
+            freeze_adapter=freeze_adapter,
+            local_view=local_view,
+            handoff_sha256=handoff_sha256,
+        )
+        if (
+            handoff_path.read_bytes() != handoff_raw
+            or observation_path.read_bytes() != observation_raw
+        ):
+            raise TrustedFreezeError(
+                "portable handoff inputs changed during reviewer hydration"
+            )
+        if freeze_evidence_path.read_bytes() != freeze_raw:
+            raise TrustedFreezeError("freeze evidence changed during reviewer hydration")
+        _write_exclusive(local_path, local_view)
+        complete = True
+    finally:
+        if container:
+            runner(["docker", "rm", "--force", container], check=False, capture_output=True)
+        if not complete:
+            for mount in reversed(mounts):
+                runner(["sudo", "umount", str(mount)], check=False, capture_output=True)
+            shutil.rmtree(root, ignore_errors=True)
 
 
 def _verified_observation(
@@ -309,6 +663,20 @@ def _protect_aggregate(
             )
             if _inventory_digest(source) != state_entry["materialized_digest"]:
                 raise TrustedFreezeError(f"pulled aggregate OCI bytes do not match role {role}")
+            subprocess.run(
+                ["sudo", "mount", "--bind", str(source), str(source)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            mounted.append(source)
+            subprocess.run(
+                ["sudo", "mount", "-o", "remount,bind,ro", str(source)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            require_protected_view(source)
             target = aggregate_root / "roles" / role
             target.parent.mkdir(parents=True, exist_ok=True)
             target.mkdir()
@@ -325,10 +693,11 @@ def _protect_aggregate(
                 capture_output=True,
                 text=True,
             )
-            require_protected_view(target)
+            require_protected_view(target, backing_path=source)
             if _inventory_digest(target) != state_entry["materialized_digest"]:
                 raise TrustedFreezeError(f"aggregate protected role changed: {role}")
             state_entry["locator"] = str(target)
+            state_entry["backing_locator"] = str(source)
         save_state(state, state_path)
         complete = True
     finally:
@@ -357,14 +726,15 @@ def _metadata_digest(metadata_path: Path, github_output: Path) -> None:
     _append_github_output(github_output, {"digest": digest})
 
 
-def _verify_image_manifest(manifest_digest: str) -> None:
+def _verify_image_manifest(manifest_digest: str, *, runner: Any | None = None) -> None:
+    runner = runner or subprocess.run
     if (
         not manifest_digest.startswith("sha256:")
         or len(manifest_digest) != 71
         or any(ch not in "0123456789abcdef" for ch in manifest_digest.removeprefix("sha256:"))
     ):
         raise TrustedFreezeError("OCI manifest digest is missing or malformed")
-    result = subprocess.run(
+    result = runner(
         [
             "docker",
             "buildx",
@@ -657,7 +1027,10 @@ def _stage_aggregate_context(
         if not isinstance(entry, dict):
             raise TrustedFreezeError("aggregate freeze requires all four materialized roles")
         source = protected_root / "roles" / role
-        require_protected_view(source)
+        require_protected_view(
+            source,
+            backing_path=protected_root / ".materialized" / role,
+        )
         if _inventory_digest(source) != entry["materialized_digest"]:
             raise TrustedFreezeError(f"protected role inventory changed: {role}")
         shutil.copytree(source, payload / role, symlinks=True)
@@ -696,6 +1069,7 @@ def _verify_protected_role_evidence(
             Path(entry["locator"]),
             freeze_evidence,
             expected_inventory_sha256=entry["materialized_digest"],
+            backing_path=protected_root / ".materialized" / role,
             expected_identity=expected_freeze_role_identity(
                 role,
                 state,
@@ -789,7 +1163,7 @@ def _protect_role(
         raise TrustedFreezeError("role materialization source already exists")
     source.mkdir()
     created = ""
-    mounted = False
+    mounted: list[Path] = []
     complete = False
     try:
         subprocess.run(["docker", "pull", object_ref], check=True, capture_output=True, text=True)
@@ -814,12 +1188,26 @@ def _protect_role(
         protected.parent.mkdir(parents=True, exist_ok=True)
         protected.mkdir()
         subprocess.run(
+            ["sudo", "mount", "--bind", str(source), str(source)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        mounted.append(source)
+        subprocess.run(
+            ["sudo", "mount", "-o", "remount,bind,ro", str(source)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        require_protected_view(source)
+        subprocess.run(
             ["sudo", "mount", "--bind", str(source), str(protected)],
             check=True,
             capture_output=True,
             text=True,
         )
-        mounted = True
+        mounted.append(protected)
         subprocess.run(
             ["sudo", "mount", "-o", "remount,bind,ro", str(protected)],
             check=True,
@@ -840,6 +1228,7 @@ def _protect_role(
             Path(entry["locator"]),
             evidence,
             expected_inventory_sha256=expected_inventory,
+            backing_path=source,
             expected_identity=expected_freeze_role_identity(
                 role,
                 state,
@@ -850,10 +1239,11 @@ def _protect_role(
     finally:
         if created:
             subprocess.run(["docker", "rm", "--force", created], check=False, capture_output=True)
-        if not complete and mounted:
-            subprocess.run(["sudo", "umount", str(protected)], check=False, capture_output=True)
-        if not complete and protected.exists() and not protected.is_mount():
-            protected.rmdir()
+        if not complete:
+            for mount in reversed(mounted):
+                subprocess.run(["sudo", "umount", str(mount)], check=False, capture_output=True)
+            if protected.exists() and not protected.is_mount():
+                protected.rmdir()
         if not complete:
             shutil.rmtree(source, ignore_errors=True)
 
@@ -867,6 +1257,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     initialize.add_argument("--observation", type=Path, required=True)
     initialize.add_argument("--output-root", type=Path, required=True)
     initialize.add_argument("--github-output", type=Path, required=True)
+    sub.add_parser("login-ghcr", help="Authenticate Docker to GHCR without exposing the token.")
     metadata = sub.add_parser(
         "metadata-digest", help="Validate BuildKit metadata and emit its digest."
     )
@@ -929,6 +1320,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     aggregate_evidence.add_argument("--role-evidence-dir", type=Path, required=True)
     aggregate_evidence.add_argument("--manifest-digest", required=True)
     aggregate_evidence.add_argument("--output", type=Path, required=True)
+    cleanup = sub.add_parser(
+        "cleanup-producer-views",
+        help="Unmount and remove producer-local paths before portable handoff hydration.",
+    )
+    cleanup.add_argument("--role-protected-root", type=Path, required=True)
+    cleanup.add_argument("--aggregate-protected-root", type=Path, required=True)
+    hydrate = sub.add_parser(
+        "hydrate-handoff",
+        help="Verify a durable handoff and hydrate fresh read-only reviewer role views.",
+    )
+    hydrate.add_argument("--handoff", type=Path, required=True)
+    hydrate.add_argument("--provider-observation", type=Path, required=True)
+    hydrate.add_argument("--freeze-evidence", type=Path, required=True)
+    hydrate.add_argument("--output-root", type=Path, required=True)
+    hydrate.add_argument("--output-local-view", type=Path, required=True)
     return parser.parse_args(argv)
 
 
@@ -937,6 +1343,12 @@ def main(argv: list[str] | None = None) -> int:
         args = parse_args(argv)
         if args.command == "initialize":
             _initialize_from_observation(args.observation, args.output_root, args.github_output)
+        elif args.command == "login-ghcr":
+            token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+            actor = os.environ.get("GHCR_USERNAME") or os.environ.get("GITHUB_ACTOR", "")
+            _docker_login(token, actor=actor, runner=subprocess.run)
+        elif args.command == "cleanup-producer-views":
+            cleanup_producer_views(args.role_protected_root, args.aggregate_protected_root)
         elif args.command == "metadata-digest":
             _metadata_digest(args.metadata, args.github_output)
         elif args.command == "verify-manifest":
@@ -1015,6 +1427,14 @@ def main(argv: list[str] | None = None) -> int:
                 args.role_evidence_dir,
             )
             _write_exclusive(args.output, evidence)
+        elif args.command == "hydrate-handoff":
+            hydrate_handoff(
+                args.handoff,
+                args.provider_observation,
+                args.freeze_evidence,
+                args.output_root,
+                args.output_local_view,
+            )
         print("TRUSTED_REVIEW_FREEZE_PROVIDER_OK")
         return 0
     except (OSError, ValueError, subprocess.SubprocessError, KeyError) as exc:

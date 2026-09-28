@@ -30,9 +30,17 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import yaml
+from jsonschema import Draft202012Validator, ValidationError
 
 try:
     from scripts.trusted_review_actions import (
+        DEFAULT_REF,
+        OIDC_ISSUER,
+        OWNER_ID,
+        REPOSITORY,
+        REPOSITORY_ID,
+        WORKFLOW_REF,
+        ActionsRunIdentity,
         GitHubActionsObservationVerifier,
     )
     from scripts.trusted_review_actions import (
@@ -44,9 +52,17 @@ try:
     from scripts.trusted_review_freeze import (
         GitHubActionsOciFreezeVerifier,
         GitHubActionsRoleFreezeVerifier,
+        TrustedFreezeError,
     )
 except ImportError:
     from trusted_review_actions import (
+        DEFAULT_REF,
+        OIDC_ISSUER,
+        OWNER_ID,
+        REPOSITORY,
+        REPOSITORY_ID,
+        WORKFLOW_REF,
+        ActionsRunIdentity,
         GitHubActionsObservationVerifier,
     )
     from trusted_review_actions import (
@@ -58,6 +74,7 @@ except ImportError:
     from trusted_review_freeze import (
         GitHubActionsOciFreezeVerifier,
         GitHubActionsRoleFreezeVerifier,
+        TrustedFreezeError,
     )
 
 sys.dont_write_bytecode = True
@@ -69,6 +86,81 @@ HANDOFF_TYPE = "AUTHENTICATED_IMMUTABLE_REVIEW_BOOTSTRAP_HANDOFF"
 STATE_SCHEMA_VERSION = 1
 STATE_KIND = "trusted-review-handoff-state"
 SEMANTIC_RENDERER = "policy-context-md"
+LOCAL_VIEW_SCHEMA = (
+    Path(__file__).resolve().parents[1] / "schemas/trusted-review-local-view.schema.json"
+)
+
+
+def portable_run_identity(
+    observation: dict[str, Any], freeze_evidence: dict[str, Any]
+) -> ActionsRunIdentity:
+    """Reconstruct the producer identity from documents later checked by attestations."""
+    producer = observation.get("producer")
+    observed_run = observation.get("observation")
+    if not isinstance(producer, dict) or not isinstance(observed_run, dict):
+        raise TrustedFreezeError("portable observation is missing its producer run identity")
+    run_id = observed_run.get("run_id")
+    attempt = observed_run.get("run_attempt")
+    event = observed_run.get("event")
+    workflow_sha = producer.get("workflow_sha")
+    source_sha = producer.get("source_sha")
+    actor = producer.get("actor_login")
+    actor_id = producer.get("actor_id")
+    if (
+        producer.get("issuer") != OIDC_ISSUER
+        or producer.get("repository_id") != REPOSITORY_ID
+        or producer.get("owner_id") != OWNER_ID
+        or producer.get("workflow_ref") != WORKFLOW_REF
+        or event != "workflow_dispatch"
+        or not isinstance(attempt, int)
+        or isinstance(attempt, bool)
+        or attempt != 1
+        or producer.get("job") != "bootstrap"
+        or not isinstance(run_id, str)
+        or not re.fullmatch(r"[1-9][0-9]*", run_id)
+        or not isinstance(workflow_sha, str)
+        or not FULL_SHA.fullmatch(workflow_sha)
+        or not isinstance(source_sha, str)
+        or not FULL_SHA.fullmatch(source_sha)
+        or not isinstance(actor, str)
+        or not re.fullmatch(r"[A-Za-z0-9-]{1,39}", actor)
+        or not isinstance(actor_id, str)
+        or not re.fullmatch(r"[1-9][0-9]*", actor_id)
+    ):
+        raise TrustedFreezeError("portable producer run identity is stale or untrusted")
+    run = ActionsRunIdentity(
+        repository=REPOSITORY,
+        repository_id=REPOSITORY_ID,
+        run_id=run_id,
+        run_attempt=attempt,
+        event=event,
+        ref=DEFAULT_REF,
+        workflow_ref=WORKFLOW_REF,
+        workflow_sha=workflow_sha,
+        source_sha=source_sha,
+        actor=actor,
+        actor_id=actor_id,
+        job="bootstrap",
+    )
+    object_record = freeze_evidence.get("object") or {}
+    expected_attestation = {
+        "digest": object_record.get("manifest_digest"),
+        "issuer": OIDC_ISSUER,
+        "repository_id": run.repository_id,
+        "owner_id": OWNER_ID,
+        "workflow_ref": run.workflow_ref,
+        "workflow_sha": run.workflow_sha,
+        "source_sha": run.source_sha,
+        "run_id": run.run_id,
+        "run_attempt": run.run_attempt,
+        "event": run.event,
+        "actor_id": run.actor_id,
+        "actor_login": run.actor,
+        "job": run.job,
+    }
+    if freeze_evidence.get("attestation") != expected_attestation:
+        raise TrustedFreezeError("freeze evidence and provider observation name different runs")
+    return run
 
 STATUS_HANDOFF_READY = "AUTHENTICATED_BOOTSTRAP_HANDOFF_READY"
 STATUS_FREEZE_BLOCKED = "BOOTSTRAP_FREEZE_CAPABILITY_BLOCKED"
@@ -96,6 +188,13 @@ REQUIRED_TOP_LEVEL_KEYS = frozenset(
     }
 )
 OPTIONAL_TOP_LEVEL_KEYS = frozenset({"locators", "freeze_evidence"})
+LOCAL_VIEW_ROLE_SECTIONS = {
+    "bootstrap_run_image": "frozen_bootstrap_image",
+    "trusted_base_snapshot": "frozen_trusted_base",
+    "runtime_image": "frozen_runtime",
+    "review_bundle": "review_authority_bundle",
+}
+LOCAL_VIEW_ROLE_LOCATORS = {role: role for role in LOCAL_VIEW_ROLE_SECTIONS}
 
 
 class EvidenceStatus(StrEnum):
@@ -1303,9 +1402,21 @@ class HandoffOrchestrator:
             installation_attestation_path=self.installation_attestation_path,
         )
 
-    def record_freeze_evidence_document(self, evidence_sha256: str) -> None:
+    def record_freeze_evidence_document(
+        self,
+        evidence_sha256: str,
+        evidence_document: dict[str, Any],
+    ) -> None:
         fe_sha = require_sha256(evidence_sha256, "freeze_evidence.sha256")
-        self.state["freeze_evidence"] = {"sha256": fe_sha}
+        if not isinstance(evidence_document, dict):
+            raise ValueError("freeze evidence document must be an object")
+        self.state["freeze_evidence"] = {
+            "sha256": fe_sha,
+            "object": evidence_document.get("object"),
+            "attestation": evidence_document.get("attestation"),
+            "target": evidence_document.get("target"),
+            "roles": evidence_document.get("roles"),
+        }
         save_state(self.state, self.state_file)
 
     def _freeze_blocked_result(self, target: str, entry: dict[str, Any]) -> dict[str, Any]:
@@ -1800,7 +1911,7 @@ class HandoffOrchestrator:
             verify_handoff(
                 handoff,
                 allow_simulated_boundary=self.simulate_freeze_for_test,
-                check_locators=True,
+                check_locators=False,
                 require_authenticated_provider=not self.simulate_freeze_for_test,
                 provider_adapter=self.provider_adapter,
                 freeze_adapter=self.handoff_freeze_adapter,
@@ -2056,14 +2167,6 @@ class HandoffOrchestrator:
             "semantic": semantic_dict,
         }
 
-        locators = {
-            "installed_skill_root": str(self.installed_skill_root),
-            "bootstrap_run_image": b_entry["locator"],
-            "trusted_base_snapshot": s_entry["locator"],
-            "runtime_image": r_entry["locator"],
-            "review_bundle": k_entry["locator"],
-        }
-
         handoff_dict = {
             "schema_version": HANDOFF_SCHEMA_VERSION,
             "handoff_type": HANDOFF_TYPE,
@@ -2075,7 +2178,6 @@ class HandoffOrchestrator:
             "frozen_runtime": frozen_rt,
             "trusted_base_validation": tbv,
             "review_authority_bundle": review_bundle_obj,
-            "locators": locators,
         }
         if "freeze_evidence" in self.state:
             handoff_dict["freeze_evidence"] = self.state["freeze_evidence"]
@@ -2090,6 +2192,8 @@ def verify_handoff(
     require_authenticated_provider: bool = False,
     provider_adapter: Any | None = None,
     freeze_adapter: Any | None = None,
+    local_view: dict[str, Any] | None = None,
+    handoff_sha256: str | None = None,
     _test_installer_module: ModuleType | None = None,
 ) -> None:
     if not isinstance(handoff, dict):
@@ -2107,6 +2211,20 @@ def verify_handoff(
 
     if handoff["handoff_type"] != HANDOFF_TYPE:
         raise ValueError(f"unsupported handoff type: {handoff['handoff_type']}")
+
+    verification_handoff = handoff
+    if local_view is not None:
+        if not check_locators:
+            raise ValueError("reviewer local view requires --check-locators verification")
+        _validate_local_view(local_view, handoff, handoff_sha256)
+        verification_handoff = {
+            **handoff,
+            "locators": {
+                **local_view["locators"],
+                "installed_skill_root": local_view["installed_skill_root"],
+            },
+            "backing_locators": local_view["backing_locators"],
+        }
 
     # 1. Target validation
     target = handoff["target"]
@@ -2149,7 +2267,9 @@ def verify_handoff(
 
     if require_authenticated_provider or not allow_simulated_boundary:
         if provider_adapter is not None:
-            if hasattr(provider_adapter, "verify"):
+            if hasattr(provider_adapter, "verify_target"):
+                provider_adapter.verify_target(target, prov_obs)
+            elif hasattr(provider_adapter, "verify"):
                 provider_adapter.verify(target, prov_obs)
             elif hasattr(provider_adapter, "verify_provider"):
                 provider_adapter.verify_provider(target, prov_obs)
@@ -2170,7 +2290,7 @@ def verify_handoff(
     # 3. Freeze Evidence Document validation
     if freeze_adapter is not None:
         if hasattr(freeze_adapter, "verify_document_digest"):
-            freeze_adapter.verify_document_digest(handoff)
+            freeze_adapter.verify_document_digest(verification_handoff)
         elif hasattr(freeze_adapter, "sha256"):
             fe_meta = handoff.get("freeze_evidence")
             if not isinstance(fe_meta, dict) or "sha256" not in fe_meta:
@@ -2331,7 +2451,7 @@ def verify_handoff(
 
     # 6. Artifact-aware re-verification against locators
     if check_locators:
-        locators = handoff.get("locators")
+        locators = verification_handoff.get("locators")
         if not isinstance(locators, dict):
             raise ValueError("locators must be a dict")
         req_locators = {
@@ -2400,7 +2520,91 @@ def verify_handoff(
             raise ValueError(f"bundle {skill_rel} missing")
 
     if freeze_adapter is not None and hasattr(freeze_adapter, "verify_post_use"):
-        freeze_adapter.verify_post_use(handoff)
+        freeze_adapter.verify_post_use(verification_handoff)
+    if not allow_simulated_boundary and "locators" in handoff:
+        raise ValueError("durable production handoff must not contain producer-local locators")
+
+
+def _validate_local_view(
+    local_view: dict[str, Any],
+    handoff: dict[str, Any],
+    handoff_sha256: str | None,
+) -> None:
+    if not isinstance(local_view, dict):
+        raise ValueError("reviewer local view must be an object")
+    try:
+        schema = json.loads(LOCAL_VIEW_SCHEMA.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema).validate(local_view)
+    except OSError as exc:
+        raise ValueError("reviewer local-view schema is unavailable") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError("reviewer local-view schema is malformed") from exc
+    except ValidationError as exc:
+        raise ValueError("reviewer local view violates its schema") from exc
+    if handoff_sha256 is None:
+        raise ValueError("exact durable handoff bytes are required for local view verification")
+    require_sha256(handoff_sha256, "durable handoff SHA256")
+    if local_view.get("schema_version") != 1:
+        raise ValueError("unsupported reviewer local-view schema version")
+    if local_view.get("handoff_sha256") != handoff_sha256:
+        raise ValueError("reviewer local view is bound to different handoff bytes")
+    observation = handoff.get("provider_observation") or {}
+    if local_view.get("provider_observation_sha256") != observation.get("observation_sha256"):
+        raise ValueError("reviewer local view provider-observation binding does not match handoff")
+    freeze_meta = handoff.get("freeze_evidence")
+    if not isinstance(freeze_meta, dict):
+        raise ValueError("durable handoff is missing freeze-evidence identity")
+    if local_view.get("freeze_evidence_sha256") != freeze_meta.get("sha256"):
+        raise ValueError("reviewer local view freeze-evidence binding does not match handoff")
+    expected_object = freeze_meta.get("object")
+    if not isinstance(expected_object, dict) or local_view.get("object") != expected_object:
+        raise ValueError("reviewer local view OCI object does not match durable handoff")
+
+    evidence_roles = freeze_meta.get("roles")
+    if not isinstance(evidence_roles, list):
+        raise ValueError("durable handoff freeze-evidence roles are missing")
+    evidence_by_role = {
+        entry.get("role"): entry for entry in evidence_roles if isinstance(entry, dict)
+    }
+    if set(evidence_by_role) != set(LOCAL_VIEW_ROLE_SECTIONS):
+        raise ValueError("durable handoff must bind exactly four frozen roles")
+    session_roles = local_view.get("roles")
+    if not isinstance(session_roles, list) or len(session_roles) != len(LOCAL_VIEW_ROLE_SECTIONS):
+        raise ValueError("reviewer local view must bind exactly four role inventories")
+    session_by_role = {
+        entry.get("role"): entry for entry in session_roles if isinstance(entry, dict)
+    }
+    if set(session_by_role) != set(LOCAL_VIEW_ROLE_SECTIONS):
+        raise ValueError("reviewer local view role set is incomplete or duplicated")
+    for role, section in LOCAL_VIEW_ROLE_SECTIONS.items():
+        session = session_by_role[role]
+        durable_entry = evidence_by_role[role]
+        if session.get("inventory_sha256") != handoff[section].get("inventory_digest"):
+            raise ValueError(f"reviewer local view inventory does not match handoff role {role}")
+        identity_digest = sha256_bytes(
+            json.dumps(
+                durable_entry.get("identity"), sort_keys=True, separators=(",", ":")
+            ).encode()
+        )
+        if session.get("identity_sha256") != identity_digest:
+            raise ValueError(f"reviewer local view identity does not match frozen role {role}")
+        if durable_entry.get("inventory_sha256") != session.get("inventory_sha256"):
+            raise ValueError(f"reviewer local view inventory does not match frozen role {role}")
+
+    locators = local_view.get("locators")
+    backing_locators = local_view.get("backing_locators")
+    if not isinstance(locators, dict) or not isinstance(backing_locators, dict):
+        raise ValueError("reviewer local view is missing locators or backing locators")
+    role_locator_keys = set(LOCAL_VIEW_ROLE_LOCATORS.values())
+    if not role_locator_keys <= set(locators) or not role_locator_keys <= set(backing_locators):
+        raise ValueError("reviewer local view is missing a role locator or backing locator")
+    paths = [local_view.get("installed_skill_root")]
+    paths.extend(locators[key] for key in role_locator_keys)
+    paths.extend(backing_locators[key] for key in role_locator_keys)
+    for value in paths:
+        if not isinstance(value, str) or not value or not Path(value).is_absolute():
+            raise ValueError("reviewer local view paths must be absolute local paths")
 
 
 def check_drift(
@@ -2712,6 +2916,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Path to external freeze evidence JSON.",
     )
+    ver.add_argument(
+        "--local-view",
+        type=Path,
+        default=None,
+        help="Derived reviewer-local view session bound to the exact handoff bytes.",
+    )
 
     rf = sub.add_parser(
         "record-freeze", help="Record external freeze evidence for a pending artifact."
@@ -2786,11 +2996,31 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "verify":
         try:
-            data = json.loads(args.handoff.read_text(encoding="utf-8"))
-            prov_adapter = None
+            handoff_raw = args.handoff.read_bytes()
+            data = json.loads(handoff_raw)
+            local_view = (
+                json.loads(args.local_view.read_bytes()) if args.local_view is not None else None
+            )
+            observation_data = None
             if args.provider_observation:
-                observation_bytes = args.provider_observation.read_bytes()
-                observation_data = json.loads(observation_bytes)
+                observation_data = json.loads(args.provider_observation.read_bytes())
+            freeze_data = None
+            if args.freeze_evidence:
+                freeze_data = json.loads(args.freeze_evidence.read_bytes())
+            portable_run = (
+                portable_run_identity(observation_data, freeze_data)
+                if local_view is not None
+                and isinstance(observation_data, dict)
+                and isinstance(freeze_data, dict)
+                else None
+            )
+            if local_view is not None and portable_run is None:
+                raise ValueError(
+                    "portable local-view verification requires provider observation "
+                    "and freeze evidence"
+                )
+            prov_adapter = None
+            if args.provider_observation and observation_data is not None:
                 is_actions_observation = (
                     isinstance(observation_data, dict)
                     and observation_data.get("schema_version") == 1
@@ -2798,7 +3028,14 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 if is_actions_observation:
                     validate_actions_observation(observation_data)
-                    prov_adapter = GitHubActionsObservationVerifier(args.provider_observation)
+                    if portable_run is None:
+                        prov_adapter = GitHubActionsObservationVerifier(args.provider_observation)
+                    else:
+                        prov_adapter = GitHubActionsObservationVerifier(
+                            args.provider_observation,
+                            token=os.environ.get("GITHUB_TOKEN"),
+                            run_identity=portable_run,
+                        )
                 elif not args.allow_simulated_boundary:
                     raise ValueError(
                         "production verification requires an attested GitHub Actions observation; "
@@ -2807,16 +3044,22 @@ def main(argv: list[str] | None = None) -> int:
                 else:
                     prov_adapter = ExternalObservationProviderVerifier(args.provider_observation)
             freeze_adapter = None
-            if getattr(args, "freeze_evidence", None):
-                freeze_data = json.loads(args.freeze_evidence.read_bytes())
+            if args.freeze_evidence and freeze_data is not None:
                 is_actions_oci_evidence = (
                     isinstance(freeze_data, dict)
                     and freeze_data.get("schema_version") == 1
                     and freeze_data.get("provider") == "github-actions-ghcr"
                 )
                 if is_actions_oci_evidence:
-                    freeze_adapter = GitHubActionsOciFreezeVerifier(args.freeze_evidence)
-                    if not freeze_adapter.production_capable:
+                    if portable_run is None:
+                        freeze_adapter = GitHubActionsOciFreezeVerifier(args.freeze_evidence)
+                    else:
+                        freeze_adapter = GitHubActionsOciFreezeVerifier(
+                            args.freeze_evidence,
+                            token=os.environ.get("GH_TOKEN"),
+                            run_identity=portable_run,
+                        )
+                    if portable_run is None and not freeze_adapter.production_capable:
                         raise ValueError(
                             "OCI freeze verification requires the built-in Actions/GHCR verifier"
                         )
@@ -2834,6 +3077,8 @@ def main(argv: list[str] | None = None) -> int:
                 require_authenticated_provider=args.require_authenticated_provider,
                 provider_adapter=prov_adapter,
                 freeze_adapter=freeze_adapter,
+                local_view=local_view,
+                handoff_sha256=sha256_bytes(handoff_raw),
             )
             print(STATUS_HANDOFF_VERIFIED)
             return 0
@@ -2957,7 +3202,7 @@ def main(argv: list[str] | None = None) -> int:
                 target = fe_json["target"]
                 fe = FreezeEvidence.from_dict(fe_json)
                 orchestrator.record_freeze(target, fe)
-            orchestrator.record_freeze_evidence_document(fe_sha)
+            orchestrator.record_freeze_evidence_document(fe_sha, fe_json)
 
         result = orchestrator.run_to_freeze_or_complete()
     except Exception as exc:

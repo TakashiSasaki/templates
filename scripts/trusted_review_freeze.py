@@ -249,6 +249,14 @@ class GitHubActionsOciFreezeVerifier:
         meta = handoff.get("freeze_evidence")
         if not isinstance(meta, dict) or meta.get("sha256") != self.sha256:
             raise TrustedFreezeError("freeze-evidence bytes do not match the handoff digest")
+        expected_summary = {
+            "object": self.document["object"],
+            "attestation": self.document["attestation"],
+            "target": self.document["target"],
+            "roles": self.document["roles"],
+        }
+        if any(meta.get(key) != value for key, value in expected_summary.items()):
+            raise TrustedFreezeError("freeze-evidence identity summary does not match exact bytes")
         self._verify_evidence_attestation()
         self.bind_handoff(handoff)
         self._verify_target(handoff)
@@ -263,12 +271,6 @@ class GitHubActionsOciFreezeVerifier:
             raise TrustedFreezeError(f"freeze role inventory mismatch: {role}")
         if record.get("identity") != self._expected_role_identity(role):
             raise TrustedFreezeError(f"freeze role identity mismatch: {role}")
-        locator_key = SECTION_TO_LOCATOR[role]
-        locators = getattr(self, "_handoff_locators", None)
-        if locators is None:
-            raise TrustedFreezeError("freeze verifier has not been bound to handoff locators")
-        role_path = Path(locators[locator_key])
-        self._verify_role_view(role, role_path, record)
         self._verified_roles.add(role)
 
     def _expected_role_identity(self, role: str) -> dict[str, Any]:
@@ -308,18 +310,31 @@ class GitHubActionsOciFreezeVerifier:
 
     def bind_handoff(self, handoff: dict[str, Any]) -> None:
         locators = handoff.get("locators")
-        if not isinstance(locators, dict):
-            raise TrustedFreezeError("handoff locators are missing")
-        self._handoff_locators = locators
+        backing_locators = handoff.get("backing_locators")
+        self._handoff_locators = locators if isinstance(locators, dict) else None
+        self._handoff_backing_locators = (
+            backing_locators if isinstance(backing_locators, dict) else None
+        )
         self._bound_handoff = handoff
 
     def verify_post_use(self, handoff: dict[str, Any]) -> None:
         self._require_unchanged_evidence()
         if self._verified_roles != set(ROLE_TO_SECTION):
             raise TrustedFreezeError("all four freeze roles were not verified before use")
-        locators = handoff.get("locators") or {}
-        for role, locator_key in SECTION_TO_LOCATOR.items():
-            self._verify_role_view(role, Path(locators[locator_key]), self._role_record(role))
+        locators = self._handoff_locators
+        backing_locators = self._handoff_backing_locators
+        if locators is not None or backing_locators is not None:
+            if locators is None or backing_locators is None:
+                raise TrustedFreezeError("local protected view is missing its backing locators")
+            for role, locator_key in SECTION_TO_LOCATOR.items():
+                if locator_key not in locators or locator_key not in backing_locators:
+                    raise TrustedFreezeError(f"local protected view is missing role {role}")
+                self._verify_role_view(
+                    role,
+                    Path(locators[locator_key]),
+                    Path(backing_locators[locator_key]),
+                    self._role_record(role),
+                )
 
     def _require_unchanged_evidence(self) -> None:
         try:
@@ -379,11 +394,19 @@ class GitHubActionsOciFreezeVerifier:
             raise TrustedFreezeError(f"freeze evidence must contain exactly one {role} record")
         return records[0]
 
-    def _verify_role_view(self, role: str, path: Path, record: dict[str, Any]) -> None:
+    def _verify_role_view(
+        self,
+        role: str,
+        path: Path,
+        backing_path: Path,
+        record: dict[str, Any],
+    ) -> None:
         mountinfo = self.mountinfo_reader() if self.mountinfo_reader is not None else None
-        require_protected_view(path, mountinfo=mountinfo)
+        require_protected_view(path, backing_path=backing_path, mountinfo=mountinfo)
         if _inventory_digest(path) != record["inventory_sha256"]:
             raise TrustedFreezeError(f"post-freeze authority inventory changed: {role}")
+        if _inventory_digest(backing_path) != record["inventory_sha256"]:
+            raise TrustedFreezeError(f"post-freeze authority backing inventory changed: {role}")
         expected_rel = record["path"]
         if path.as_posix().rstrip("/").endswith(expected_rel) is False:
             raise TrustedFreezeError(f"authority locator does not match frozen role path: {role}")
@@ -562,6 +585,7 @@ class GitHubActionsRoleFreezeVerifier:
         freeze_evidence: Any,
         *,
         expected_inventory_sha256: str,
+        backing_path: Path | None = None,
         expected_identity: dict[str, Any],
     ) -> Path:
         role = self.document["role"]
@@ -610,12 +634,24 @@ class GitHubActionsRoleFreezeVerifier:
         if not protected_root_raw:
             raise TrustedFreezeError("read-only protected role mount root is missing")
         protected = Path(protected_root_raw).expanduser().resolve() / "roles" / target
+        if backing_path is None:
+            backing_path = (
+                Path(protected_root_raw).expanduser().resolve() / ".materialized" / target
+            )
         if self.document["role"]["path"] != f"roles/{target}":
             raise TrustedFreezeError("role image path does not match its artifact role")
         mountinfo = self.mountinfo_reader() if self.mountinfo_reader is not None else None
-        require_protected_view(protected, mountinfo=mountinfo)
+        require_protected_view(
+            protected,
+            backing_path=backing_path,
+            mountinfo=mountinfo,
+        )
         if _inventory_digest(protected) != expected_inventory_sha256:
             raise TrustedFreezeError("protected role bytes differ from the authenticated inventory")
+        if _inventory_digest(backing_path) != expected_inventory_sha256:
+            raise TrustedFreezeError(
+                "protected role backing bytes differ from the authenticated inventory"
+            )
         self._require_unchanged_evidence()
         return protected
 

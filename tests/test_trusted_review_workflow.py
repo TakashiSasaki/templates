@@ -60,6 +60,33 @@ def test_trusted_bootstrap_workflow_has_only_explicit_default_branch_dispatch() 
         encoding="utf-8"
     )
     assert '"--require-authenticated-provider"' in provider_source
+    initialize = source.index(
+        "name: Verify the observation and initialize from the exact target base"
+    )
+    login = source.index("name: Authenticate Docker to GHCR with the run-scoped token")
+    materialize = source.index("name: Materialize the bootstrap image candidate")
+    assert initialize < login < materialize
+
+
+def test_docker_login_reads_token_from_stdin() -> None:
+    seen: list[tuple[list[str], dict[str, object]]] = []
+
+    def run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        seen.append((command, kwargs))
+        return SimpleNamespace(stdout="")
+
+    provider._docker_login("secret-token", actor="maintainer", runner=run)
+    command, kwargs = seen[0]
+    assert command == [
+        "docker",
+        "login",
+        "ghcr.io",
+        "--username",
+        "maintainer",
+        "--password-stdin",
+    ]
+    assert kwargs["input"] == "secret-token\n"
+    assert "secret-token" not in " ".join(command)
 
 
 def test_all_external_actions_are_full_sha_pinned() -> None:
@@ -79,10 +106,17 @@ def test_final_aggregate_is_pulled_and_protected_before_evidence_is_attested() -
     handoff = workflow.index(
         "name: Generate the authenticated bootstrap handoff and reviewer packet"
     )
-    verify = workflow.index(
-        "name: Independently verify the generated handoff with the production path"
-    )
+    output_attest = workflow.index("name: Verify both output-file attestations")
+    destroy = workflow.index("name: Destroy producer-local protected authority paths")
+    verify = workflow.index("name: Hydrate and verify the durable handoff in a fresh reviewer root")
     assert image_attest < protect < evidence < evidence_attest < handoff < verify
+    assert output_attest < destroy < verify
+    assert "cleanup-producer-views" in workflow
+    assert "hydrate-handoff" in workflow
+    assert "--output-root \"$WORK_ROOT/fresh-reviewer\"" in workflow
+    assert "--local-view \"$WORK_ROOT/output/reviewer-local-view.json\"" in workflow
+    upload_step = workflow.split("name: Upload the review handoff packet", 1)[1]
+    assert "output/reviewer-local-view.json" not in upload_step
     assert '--manifest-digest "$MANIFEST_DIGEST"' in workflow
     assert '--freeze-evidence "$WORK_ROOT/evidence/freeze-evidence.json"' in workflow
 

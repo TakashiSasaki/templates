@@ -43,16 +43,35 @@ Post-freeze verification rechecks the OCI manifest and role inventories before
 and after use. Missing, expired, deleted, unverifiable, cross-role, or mismatched
 objects fail closed.
 
-The reviewer executes the exact attested OCI image by digest with a read-only
-root filesystem and no network, added capabilities, privileged mode, Docker
-socket, or writable authority mount. Each materialized role backing tree and
-each exposed role view must be mounted read-only. A read-only bind view over a
-writable backing directory does not qualify; the verifier checks both mount
-points and confirms the view aliases its declared backing tree. The proposed
-head is supplied only as a separate read-only data input and is never executed.
-Local copies and caches are not authorities. A writable workspace followed
-only by digest checks is not an acceptable substitute for the protected
-execution view.
+The bootstrap retrieves the exact attested OCI image by digest and extracts its
+roles; it does not execute the image as a reviewer container. Each materialized
+role backing tree and each exposed role view must be mounted read-only. A
+read-only bind view over a writable backing directory does not qualify; the
+verifier checks both mount points and confirms the view aliases its declared
+backing tree. The proposed head is supplied only as a separate read-only data
+input and is never executed. Local copies and caches are not authorities. A
+writable workspace followed only by digest checks is not an acceptable
+substitute for the protected role views.
+
+The durable handoff contains no producer-runner absolute paths. A reviewer on a
+fresh runner verifies the handoff, provider-observation, and freeze-evidence
+attestations against the original workflow run; rechecks the exact repository,
+pull request, base, and head through GitHub's API; and pulls the image only by
+its manifest digest. It validates the role inventories and semantic identities
+before materializing new backing trees and protected views. The resulting
+reviewer-local-view session binds the exact handoff digest, evidence digests,
+OCI identity, role identities, and local paths. It is ephemeral and is never
+uploaded with the durable handoff packet. The bootstrap workflow validates and
+prepares authority but does not run review analysis or establish a read-only
+container root filesystem, network isolation, or a sandboxed reviewer process.
+Any later analysis executor must consume only the verified protected paths,
+keep credentials outside analysis, and qualify process and network isolation
+separately before those properties can be claimed.
+
+The workflow's portability check first unmounts and deletes producer-local role
+paths, then hydrates into a different temporary root. This check is in the same
+workflow job; an independent later reviewer must run the hydrator with its own
+API and GHCR credentials against the uploaded durable files.
 
 ## Submission and merge boundary
 

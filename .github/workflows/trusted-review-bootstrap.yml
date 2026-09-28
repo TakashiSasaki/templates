@@ -80,6 +80,11 @@ jobs:
             --output-root "$WORK_ROOT/authority" \
             --github-output "$GITHUB_OUTPUT"
 
+      - name: Authenticate Docker to GHCR with the run-scoped token
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py login-ghcr
+
       - name: Materialize the bootstrap image candidate
         env:
           TARGET_BASE: ${{ steps.initialize.outputs.target_base }}
@@ -290,21 +295,6 @@ jobs:
             --output-handoff "$WORK_ROOT/output/handoff.json" \
             --output-packet "$WORK_ROOT/output/reviewer-packet.txt"
 
-      - name: Independently verify the generated handoff with the production path
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
-          TRUSTED_REVIEW_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected
-        run: |
-          set -euo pipefail
-          "$WORK_ROOT/venv/bin/python" -I scripts/prepare_trusted_review_handoff.py \
-            verify \
-            --handoff "$WORK_ROOT/output/handoff.json" \
-            --check-locators \
-            --require-authenticated-provider \
-            --provider-observation "$WORK_ROOT/provider-observation.json" \
-            --freeze-evidence "$WORK_ROOT/evidence/freeze-evidence.json"
-
       - name: Attest the generated handoff bytes
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
@@ -325,6 +315,36 @@ jobs:
             verify-attested-file --path "$WORK_ROOT/output/handoff.json"
           "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
             verify-attested-file --path "$WORK_ROOT/output/reviewer-packet.txt"
+
+      - name: Destroy producer-local protected authority paths
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            cleanup-producer-views \
+            --role-protected-root "$ROLE_PROTECTED_ROOT" \
+            --aggregate-protected-root "$AGGREGATE_PROTECTED_ROOT"
+
+      - name: Hydrate and verify the durable handoff in a fresh reviewer root
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          "$WORK_ROOT/venv/bin/python" -I scripts/trusted_review_freeze_provider.py \
+            hydrate-handoff \
+            --handoff "$WORK_ROOT/output/handoff.json" \
+            --provider-observation "$WORK_ROOT/provider-observation.json" \
+            --freeze-evidence "$WORK_ROOT/evidence/freeze-evidence.json" \
+            --output-root "$WORK_ROOT/fresh-reviewer" \
+            --output-local-view "$WORK_ROOT/output/reviewer-local-view.json"
+          "$WORK_ROOT/venv/bin/python" -I scripts/prepare_trusted_review_handoff.py \
+            verify \
+            --handoff "$WORK_ROOT/output/handoff.json" \
+            --local-view "$WORK_ROOT/output/reviewer-local-view.json" \
+            --check-locators \
+            --require-authenticated-provider \
+            --provider-observation "$WORK_ROOT/provider-observation.json" \
+            --freeze-evidence "$WORK_ROOT/evidence/freeze-evidence.json"
 
       - name: Upload the review handoff packet
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
