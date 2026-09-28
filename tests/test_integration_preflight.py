@@ -177,6 +177,96 @@ class IntegrationPreflightTests(unittest.TestCase):
             },
         )
 
+    def test_subtest_assertion_and_runtime_error_are_classified_separately(self) -> None:
+        class AssertionProbe(unittest.TestCase):
+            def test_subtest_assertion(self):
+                with self.subTest(case="assertion"):
+                    self.assertEqual(1, 2)
+
+        class ErrorProbe(unittest.TestCase):
+            def test_subtest_error(self):
+                with self.subTest(case="runtime"):
+                    raise RuntimeError("controlled non-assertion subtest error")
+
+        for case, expected in (
+            (AssertionProbe("test_subtest_assertion"), {"status": "failure"}),
+            (ErrorProbe("test_subtest_error"), {"status": "error"}),
+        ):
+            with redirect_stderr(io.StringIO()):
+                result = preflight.run_suite([case], verbosity=0)
+            self.assertEqual(result.outcomes, {case.id(): expected})
+
+    def test_subtest_runtime_error_is_classified_in_serial_and_worker_paths(self) -> None:
+        class SerialErrorProbe(unittest.TestCase):
+            def test_runtime_error(self):
+                with self.subTest(case="serial"):
+                    raise RuntimeError("controlled serial subtest error")
+
+        serial_case = SerialErrorProbe("test_runtime_error")
+        with (
+            patch.object(
+                preflight,
+                "classify_test_inventory",
+                return_value=([], [serial_case.id()]),
+            ),
+            redirect_stdout(io.StringIO()) as output,
+            redirect_stderr(io.StringIO()),
+        ):
+            serial_status = preflight.run_discovered_tests(
+                [serial_case], jobs=2, verbosity=0
+            )
+
+        self.assertEqual(serial_status, 1)
+        self.assertIn(
+            "tests_run=1 passed=0 skipped=0 failures=0 errors=1",
+            output.getvalue(),
+        )
+
+        module_name = "test_integration_worker_subtest_error"
+
+        def worker_test_runtime_error(self):
+            with self.subTest(case="worker"):
+                raise RuntimeError("controlled worker subtest error")
+
+        worker_case_type = type(
+            "WorkerErrorProbe",
+            (unittest.TestCase,),
+            {"__module__": module_name, "test_runtime_error": worker_test_runtime_error},
+        )
+        worker_case = worker_case_type("test_runtime_error")
+        test_ids = [worker_case.id()]
+        with TemporaryDirectory(prefix="integration-worker-subtest-error-") as directory:
+            root = Path(directory)
+            result_path = root / "result.json"
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "inventory_ids": test_ids,
+                        "shard_ids": test_ids,
+                        "shard_index": 0,
+                        "shard_count": 1,
+                        "result_path": str(result_path),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with (
+                patch.object(
+                    preflight,
+                    "load_test_cases_for_modules",
+                    return_value=[worker_case],
+                ),
+                redirect_stdout(io.StringIO()),
+                redirect_stderr(io.StringIO()),
+            ):
+                worker_status = preflight.run_shard_worker(manifest_path)
+            payload = json.loads(result_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(worker_status, 1)
+        self.assertEqual(payload["outcomes"], {worker_case.id(): {"status": "error"}})
+
     def test_parallel_worker_budget_is_capped_by_schedulable_modules(self) -> None:
         cases = []
         for module, method in (
