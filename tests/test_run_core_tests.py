@@ -104,13 +104,19 @@ class RunCoreTestsContractTests(unittest.TestCase):
             expected_exit=1,
         )
 
-    def _module_fixture_cases(self, module_name: str, exception: Exception):
+    def _module_fixture_cases(
+        self,
+        module_name: str,
+        exception: Exception,
+        *,
+        fixture_name: str = "setUpModule",
+    ):
         module = ModuleType(module_name)
 
-        def set_up_module():
+        def module_fixture():
             raise exception
 
-        module.setUpModule = set_up_module
+        setattr(module, fixture_name, module_fixture)
         case_type = type(
             "FixtureModuleCases",
             (unittest.TestCase,),
@@ -143,6 +149,42 @@ class RunCoreTestsContractTests(unittest.TestCase):
         module_name = "site_serial_module_setup_error"
         module, cases = self._module_fixture_cases(
             module_name, RuntimeError("controlled module setup error")
+        )
+        sys.modules[module_name] = module
+        try:
+            self._assert_serial_fixture_outcomes(
+                cases, status="error", expected_exit=1
+            )
+        finally:
+            sys.modules.pop(module_name, None)
+
+    def test_serial_class_teardown_error_accounts_every_discovered_id(self) -> None:
+        class BrokenTearDownClass(unittest.TestCase):
+            @classmethod
+            def tearDownClass(cls):
+                raise RuntimeError("controlled class teardown error")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        self._assert_serial_fixture_outcomes(
+            [
+                BrokenTearDownClass("test_one"),
+                BrokenTearDownClass("test_two"),
+            ],
+            status="error",
+            expected_exit=1,
+        )
+
+    def test_serial_module_teardown_error_accounts_every_discovered_id(self) -> None:
+        module_name = "site_serial_module_teardown_error"
+        module, cases = self._module_fixture_cases(
+            module_name,
+            RuntimeError("controlled module teardown error"),
+            fixture_name="tearDownModule",
         )
         sys.modules[module_name] = module
         try:

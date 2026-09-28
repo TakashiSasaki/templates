@@ -247,28 +247,28 @@ class InventoryTextTestResult(unittest.TextTestResult):
 
     def _fixture_outcome_test_ids(self, test) -> tuple[str, ...] | None:
         fixture_id = test.id()
-        if fixture_id.startswith("setUpModule (") and fixture_id.endswith(")"):
-            module = fixture_id[len("setUpModule (") : -1]
+        if fixture_id.startswith(("setUpModule (", "tearDownModule (")) and fixture_id.endswith(")"):
+            module = fixture_id.split(" (", 1)[1][:-1]
             return tuple(
                 case.id()
                 for case in self.discovered_cases
                 if case.__class__.__module__ == module
             )
-        if fixture_id.startswith("setUpClass (") and fixture_id.endswith(")"):
-            target = fixture_id[len("setUpClass (") : -1]
+        if fixture_id.startswith(("setUpClass (", "tearDownClass (")) and fixture_id.endswith(")"):
+            target = fixture_id.split(" (", 1)[1][:-1]
             return tuple(
                 case.id()
                 for case in self.discovered_cases
                 if case.id().rsplit(".", 1)[0] == target
             )
-        if fixture_id.startswith(("tearDownModule (", "tearDownClass (")):
-            return ()
         return None
 
     def _record_outcome(self, test, status: str, reason: str | None = None) -> None:
         fixture_test_ids = self._fixture_outcome_test_ids(test)
         if fixture_test_ids is None:
             self._record(getattr(test, "test_case", test), status, reason)
+            return
+        if test.id().startswith(("tearDownModule (", "tearDownClass (")) and status == "skipped":
             return
         for test_id in fixture_test_ids:
             self._record_id(test_id, status, reason)
