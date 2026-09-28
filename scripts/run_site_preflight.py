@@ -252,7 +252,13 @@ def run_node(jobs: int = 1) -> None:
         flush=True,
     )
     _run(
-        ["node", "--test", f"--test-concurrency={effective_jobs}", *NODE_TESTS],
+        [
+            "node",
+            "--test",
+            f"--test-concurrency={effective_jobs}",
+            "--test-reporter=spec",
+            *NODE_TESTS,
+        ],
         env=environment,
     )
 

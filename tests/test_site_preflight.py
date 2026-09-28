@@ -356,7 +356,8 @@ class SitePreflightTests(unittest.TestCase):
             preflight.run_node(1)
         command = run.call_args.args[0]
         self.assertEqual(command[:3], ["node", "--test", "--test-concurrency=1"])
-        self.assertEqual(command[3:], list(preflight.NODE_TESTS))
+        self.assertEqual(command[3], "--test-reporter=spec")
+        self.assertEqual(command[4:], list(preflight.NODE_TESTS))
         child_environment = run.call_args.kwargs["env"]
         self.assertEqual(
             child_environment["NODE_OPTIONS"],
