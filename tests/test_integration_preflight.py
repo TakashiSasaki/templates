@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+import io
 from pathlib import Path
 import json
 from threading import Barrier
@@ -13,6 +15,61 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class IntegrationPreflightTests(unittest.TestCase):
+    def test_skipped_subtest_keeps_the_discovered_parent_id(self) -> None:
+        class Probe(unittest.TestCase):
+            def test_skipped_subtest(self):
+                with self.subTest(case="parameterized"):
+                    self.skipTest("controlled skip")
+
+        case = Probe("test_skipped_subtest")
+        with (
+            patch.object(preflight, "classify_test_inventory", return_value=([], [case.id()])),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            status = preflight.run_discovered_tests([case], jobs=2, verbosity=0)
+
+        self.assertEqual(status, 0)
+        self.assertIn("tests_run=1 passed=0 skipped=1 failures=0 errors=0", output.getvalue())
+        self.assertNotIn("omitted test IDs", output.getvalue())
+
+    def test_parallel_worker_budget_is_capped_by_schedulable_modules(self) -> None:
+        cases = []
+        for module, method in (
+            ("test_alpha", "test_one"),
+            ("test_alpha", "test_two"),
+            ("test_beta", "test_one"),
+            ("test_beta", "test_two"),
+        ):
+            case_type = type(
+                "Case",
+                (unittest.TestCase,),
+                {"__module__": module, method: lambda self: None},
+            )
+            cases.append(case_type(method))
+        test_ids = [case.id() for case in cases]
+        outcomes = {test_id: {"status": "passed"} for test_id in test_ids}
+        metrics = {
+            "runner_wall_seconds": 0.01,
+            "slowest_shard_seconds": 0.01,
+            "worker_seconds": 0.02,
+            "estimated_idle_worker_seconds": 0.0,
+        }
+        with (
+            patch.object(preflight, "classify_test_inventory", return_value=(test_ids, [])),
+            patch.object(
+                preflight,
+                "run_parallel_shards",
+                return_value=(outcomes, [], metrics),
+            ) as run_parallel,
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            status = preflight.run_discovered_tests(cases, jobs=100, verbosity=0)
+
+        self.assertEqual(status, 0)
+        self.assertEqual(run_parallel.call_args.args[2], 2)
+        self.assertIn("requested=100 effective=2", output.getvalue())
+        self.assertIn("peak_workers=2", output.getvalue())
+
     def test_profiles_are_explicit_and_provider_inputs_are_not_implicit(self) -> None:
         self.assertEqual(preflight.parse_args(["fast"]).profile, "fast")
         self.assertEqual(
