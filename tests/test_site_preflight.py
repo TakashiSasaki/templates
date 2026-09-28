@@ -55,7 +55,7 @@ class SitePreflightTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(SystemExit):
                 preflight.parse_args(["fast", "--jobs", value])
 
-    def test_explicit_core_check_retains_assigned_site_budget(self):
+    def test_explicit_core_check_reports_measured_worker_cap(self):
         output = io.StringIO()
         with patch.object(preflight, "_git_output", return_value="a" * 40), patch.object(
             preflight, "run_check"
@@ -67,7 +67,7 @@ class SitePreflightTests(unittest.TestCase):
                 0,
             )
         self.assertEqual(run_check.call_args.args[1].jobs, 4)
-        self.assertIn("requested=4 effective=4 runner=site-preflight", output.getvalue())
+        self.assertIn("requested=4 effective=1 runner=site-preflight", output.getvalue())
 
     def test_exact_head_guard_precedes_validation(self):
         with patch.object(
@@ -420,6 +420,24 @@ class SitePreflightTests(unittest.TestCase):
         ) as run:
             preflight.run_node(8)
         self.assertIn("--test-concurrency=2", run.call_args.args[0])
+
+    def test_fast_core_preflight_reports_the_measured_core_worker_cap(self):
+        output = io.StringIO()
+        with (
+            patch.object(preflight, "_git_output", return_value=("a" * 40,)),
+            patch.object(preflight, "run_check") as run_check,
+            patch("sys.stdout", output),
+        ):
+            result = preflight.main(["fast", "--check", "core", "--jobs", "4"])
+
+        self.assertEqual(result, 0)
+        self.assertIn(
+            "SITE_PREFLIGHT_WORKERS profile=fast requested=4 effective=1",
+            output.getvalue(),
+        )
+        run_check.assert_called_once()
+        self.assertEqual(run_check.call_args.args[0], "core")
+        self.assertEqual(run_check.call_args.args[1].jobs, 4)
 
     def test_run_check_passes_site_allocation_to_node(self):
         args = preflight.parse_args(["source-ready", "--jobs", "2"])

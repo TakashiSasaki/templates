@@ -33,6 +33,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.classify_site_ci import classify_paths
+from scripts.run_core_tests import MEASURED_EFFECTIVE_WORKER_CAP
 from scripts.site_check_registry import (
     ARTIFACT_LOCAL_CHECKS,
     CHECK_NAMES,
@@ -545,7 +546,10 @@ def main(argv: list[str] | None = None) -> int:
             effective_jobs = 1
             for check in checks:
                 if check == "core":
-                    effective_jobs = max(effective_jobs, args.jobs)
+                    effective_jobs = max(
+                        effective_jobs,
+                        min(args.jobs, MEASURED_EFFECTIVE_WORKER_CAP),
+                    )
                 elif check == "node" and NODE_TESTS:
                     effective_jobs = max(
                         effective_jobs, min(args.jobs, len(NODE_TESTS))
