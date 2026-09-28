@@ -58,6 +58,19 @@ qualification uses `providers` with exact full-SHA checkouts. These checks estab
 Integration evidence only. They do not authorize Site adoption, Pages deployment,
 or changes to repository variables, credentials, protection rules, or kill switches.
 
+Each profile accepts `--jobs N` (default `2`, minimum `1`) as the maximum local
+unittest worker budget. `--jobs 1` runs the discovered inventory in one unittest
+process. Higher values use stable test-module shards only for modules whose source
+and discovered test IDs match the reviewed manifest; new or changed tests stay in
+the serial lane until reviewed. The serial lane runs after all shards complete, so
+it cannot overlap process-parallel tests. Provider preparation has its own stage
+budget; later shared publication generation, Bundle packing, extraction, and
+verification remain behind their existing dependency barriers. This keeps
+Integration on Python `unittest` and its own discovery authority rather than
+replacing it with a cross-authority runner. Qualification records the exact
+Integration SHA, requested/effective workers, inventory digest, and outcome digest;
+use `--jobs 1` to establish a reproducible debugging baseline.
+
 Use branch names to discover a candidate and exact full SHAs for qualification,
 review, receipts, and publication. Keep stacked PRs within Integration. A
 dependency on Modeling, Composition, Policy, or Site is recorded in the existing
