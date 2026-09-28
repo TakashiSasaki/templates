@@ -35,6 +35,7 @@ GH_EXECUTABLE = "/usr/bin/gh"
 REPOSITORY = "TakashiSasaki/templates"
 REPOSITORY_ID = "1315875002"
 OWNER_ID = "556958"
+POLICY_BASE_REF = "policy"
 DEFAULT_REF = "refs/heads/site"
 WORKFLOW_PATH = ".github/workflows/trusted-review-bootstrap.yml"
 WORKFLOW_REF = f"{REPOSITORY}/{WORKFLOW_PATH}@{DEFAULT_REF}"
@@ -209,6 +210,11 @@ class GitHubApi:
         base_repo = base.get("repo")
         if not isinstance(base_repo, dict) or str(base_repo.get("id")) != run.repository_id:
             raise TrustedObservationError("pull request base repository identity does not match")
+        base_ref = base.get("ref")
+        if base_ref != POLICY_BASE_REF:
+            raise TrustedObservationError(
+                "pull request base ref is not the trusted Policy branch"
+            )
 
         base_sha = _full_sha(base.get("sha"), "pull request base SHA")
         head_sha = _full_sha(head.get("sha"), "pull request head SHA")
@@ -242,7 +248,7 @@ class GitHubApi:
                 "number": number,
                 "author_id": str(author["id"]),
                 "author_login": author["login"],
-                "base": {"sha": base_sha, "tree": base_tree},
+                "base": {"ref": base_ref, "sha": base_sha, "tree": base_tree},
                 "head": {"sha": head_sha, "tree": head_tree},
             },
             "observation": {
@@ -341,6 +347,7 @@ def provider_identity(document: dict[str, Any], raw_bytes: bytes) -> dict[str, A
             "id": pull["id"],
             "node_id": pull["node_id"],
             "number": pull["number"],
+            "base_ref_name": pull["base"]["ref"],
             "base_ref_oid": pull["base"]["sha"],
             "base_tree": pull["base"]["tree"],
             "head_ref_oid": pull["head"]["sha"],
@@ -513,6 +520,7 @@ def _observation_identity(document: dict[str, Any]) -> tuple[Any, ...]:
         pull["id"],
         pull["node_id"],
         pull["number"],
+        pull["base"]["ref"],
         pull["base"]["sha"],
         pull["base"]["tree"],
         pull["head"]["sha"],
@@ -541,6 +549,7 @@ def _compare_target(target: dict[str, Any], document: dict[str, Any]) -> None:
         "repository name": (repository.get("name_with_owner"), repo["name_with_owner"]),
         "pull request id": (pull.get("id"), observed_pull["id"]),
         "pull request number": (pull.get("number"), observed_pull["number"]),
+        "base ref": (pull.get("base_ref_name"), observed_pull["base"]["ref"]),
         "base commit": (pull.get("base_ref_oid"), observed_pull["base"]["sha"]),
         "base tree": (pull.get("base_tree"), observed_pull["base"]["tree"]),
         "head commit": (pull.get("head_ref_oid"), observed_pull["head"]["sha"]),

@@ -31,7 +31,7 @@
                 "number": {"type": "integer", "minimum": 1},
                 "author_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
                 "author_login": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,39}$"},
-                "base": {"$ref": "#/$defs/commit"},
+                "base": {"$ref": "#/$defs/policyBaseCommit"},
                 "head": {"$ref": "#/$defs/commit"}}},
         "observation": {
             "type": "object",
@@ -70,6 +70,14 @@
                 "job": {"const": "bootstrap"}}}},
     "$defs": {
         "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "policyBaseCommit": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ref", "sha", "tree"],
+            "properties": {
+                "ref": {"const": "policy"},
+                "sha": {"$ref": "#/$defs/sha1"},
+                "tree": {"$ref": "#/$defs/sha1"}}},
         "commit": {
             "type": "object",
             "additionalProperties": false,
