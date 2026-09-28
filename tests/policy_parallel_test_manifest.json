@@ -1,0 +1,125 @@
+{
+  "modules": {
+    "tests/test_automation_boundaries.py": {
+      "count": 7,
+      "node_ids_sha256": "7a73a0580a81aee2450e53d25e1d7b5bd5053ca47fe97f8c5440058e80041008",
+      "source_sha256": "92b91de352dfc354d395c7fc393f2f7c9e820865ee65fb0c1b5013e58517c898"
+    },
+    "tests/test_config_driven_check.py": {
+      "count": 15,
+      "node_ids_sha256": "e8a7374104d6ca1921c486cd7167ee6482ff7b0dfa47d1a9d597965c328b9948",
+      "source_sha256": "391e6dfa46203836f138a7d59cf17b1b38900f51bf20d9f8b68fc664ccce54bc"
+    },
+    "tests/test_live_review_adapter.py": {
+      "count": 5,
+      "node_ids_sha256": "70bec5f71e742d8683ba7294b1e2c0baee79b10c389a1fe3c6f14ee8cc742564",
+      "source_sha256": "b6e7676a64ca02ba4d7b28142891d5f29cc02995e41570e6e1de575bb42da8d0"
+    },
+    "tests/test_local_checkout_contract_provenance.py": {
+      "count": 1,
+      "node_ids_sha256": "da907b46882cabc4f0826868aaa6d598cd5a408d9fbc265f95309cbf40b748af",
+      "source_sha256": "fbe215947e59422726505a27e37d5ec6e3a3e4abef59cda29382fe1f7d9afca5"
+    },
+    "tests/test_local_checkout_discovery.py": {
+      "count": 9,
+      "node_ids_sha256": "a31502f33a10dadc6949053924d62d5a2dbcc7e3ed38bf5499f5e2d4737d1fd2",
+      "source_sha256": "381d45e5040457ecee5b74db82d5fb049bbe2bf906b807015df0ace8fc52a783"
+    },
+    "tests/test_maintainer_efficiency_measurement.py": {
+      "count": 2,
+      "node_ids_sha256": "426bdef3691ab00269c44e073dfb404992dfcbeeedd4c03047fbb49c38a27bed",
+      "source_sha256": "dfb08dd2deb7d1d60e6737c1678073561f9c28133784d3c65522b24cfd0072de"
+    },
+    "tests/test_maintainer_source_closure.py": {
+      "count": 17,
+      "node_ids_sha256": "e161349d4cd92e94590e3d015779059ea03b7209075b25bfbf6ec068cb54604c",
+      "source_sha256": "b490e95fd8c27b72941a74e5738551c7b016fc4edabb27ef1ac1b31850cfeaa5"
+    },
+    "tests/test_matched_policy_delivery.py": {
+      "count": 126,
+      "node_ids_sha256": "44e4ae14ac3f464f9f6369fea5bfa9a832d75a75075db2da4631f6c9e04f974e",
+      "source_sha256": "eba1fae941fb46edfbe89dadda630b67b40df4b59843ca548a88160bc106833e"
+    },
+    "tests/test_observe_pr_state.py": {
+      "count": 44,
+      "node_ids_sha256": "a0b3c2e029e7dc39223b96e8f29370bb0bef724f495f077a3549924be5b536e3",
+      "source_sha256": "856fe7679e8f4a01e9d703062cbaba75a721e2e7531a5f8a635d4ac9f5ac5836"
+    },
+    "tests/test_policy_applicability.py": {
+      "count": 20,
+      "node_ids_sha256": "bac0150ca1dfc7c83fb1a03966dc94fdf3e47480792ddd49153280536ab3b832",
+      "source_sha256": "ac4f33179d20703eac09c7bc0191818b7590e9e258418f8aa01426c1192dff06"
+    },
+    "tests/test_policy_delivery_evidence_consistency.py": {
+      "count": 5,
+      "node_ids_sha256": "811473751ea0ac5f1f8ce00f271aebcb9fe30634549da25cb71a319bad901c57",
+      "source_sha256": "54acd0ef499eab8da35d1ee7fd7fe8762d42b58b07557636d82f99d1c8a1ff2f"
+    },
+    "tests/test_policy_delivery_evidence_spec.py": {
+      "count": 22,
+      "node_ids_sha256": "94a2e30a157793e6d644020b651c776ab2acda97155a84871ba74338514c4bc8",
+      "source_sha256": "e4a7cdec00c6cc523e4458300b1ab4243e1f5441ecc6a9e1d151e53e086350ad"
+    },
+    "tests/test_policy_fast_preflight_parallelism.py": {
+      "count": 10,
+      "node_ids_sha256": "3ab9f2d1cf34a1cb3d489ab87c7b0cc0b7156123f2d52e8343e56c6d0100999f",
+      "source_sha256": "e194c59e584b484e08fe89d1c839890abf05ba303a60ae61f5984df2e4142c20"
+    },
+    "tests/test_policy_focused_tests_parallelism.py": {
+      "count": 13,
+      "node_ids_sha256": "b53e73a96a5444b9b251c28d8d6fee85081a494bd077f69a1a3520c6ddabf37f",
+      "source_sha256": "e5084a92e139126aa76051274c65e4c2a44af691bfef7cca0dbb37a6980bdfea"
+    },
+    "tests/test_pr_state_observation.py": {
+      "count": 26,
+      "node_ids_sha256": "1f4c79c343fcc84082387f2ab8e51b3da0c8b246399b91513c1247f55976c9bf",
+      "source_sha256": "7ad43165d15522e3d46ef35929ea6b8cca337ffc56ce23b4361456d3caa43e9d"
+    },
+    "tests/test_pr_state_observation_replay.py": {
+      "count": 1,
+      "node_ids_sha256": "1c13447a98117173e905abfccde63f408d061c32a0dc8568947da9abc844ec35",
+      "source_sha256": "db4e67ddcc8392cba6efe01f38125a36bb4fa3a69011f6e9656d70ec6c09343d"
+    },
+    "tests/test_preflight_orchestration.py": {
+      "count": 11,
+      "node_ids_sha256": "5d4aab83121a0d3acc445cca849fcd80e8429eba918c1a4b8fa97d992c65fd6e",
+      "source_sha256": "5ad029606308b536ed9ab014ef0b36b147f359d0761078d80a69b964e29d7556"
+    },
+    "tests/test_prospective_self_host_qualification_boundary.py": {
+      "count": 31,
+      "node_ids_sha256": "7ff3484ff4e940b9ec09b45f68861b40399478eae8ef8e64f694bac6293dcd93",
+      "source_sha256": "ad48742e18997eafd7dd187c7e6d9f637f04a39ceeacc3a48ce7ace14bb5d8ec"
+    },
+    "tests/test_publish_review_artifacts.py": {
+      "count": 80,
+      "node_ids_sha256": "f55fe9ce40490a8bf069e35ca3efc8bc3687d242474409f079e838014b343e3a",
+      "source_sha256": "9ffe444b4d9bc9ebb2d131022b40e8d299f1b1c0635d8f4d75041de83a20c4d0"
+    },
+    "tests/test_qualification_sequencing.py": {
+      "count": 11,
+      "node_ids_sha256": "d99838e9825328deefe29588be80ff1587a68682ac678f182440c5bafe165517",
+      "source_sha256": "f19b894f7902d47d9916238d2070bed2517e91129dfc3dfb493df38e24452f11"
+    },
+    "tests/test_review_artifacts.py": {
+      "count": 76,
+      "node_ids_sha256": "1d65d7747c037b7ed6becb5cb95ac0f3cd7734d0a9c72ee7250fc50d580bf01d",
+      "source_sha256": "76994781d765949dd91092a4e82ffd264e73b4f2b6c9aa435588ad2227e16309"
+    },
+    "tests/test_review_scope_selection.py": {
+      "count": 190,
+      "node_ids_sha256": "351c730cec8e28d76195493593bc314d35ad4e43792a7bf8a3786061b2322f1a",
+      "source_sha256": "8676cd571cd065c12e714ef6d9ba35b0d2428191a136e292417f258849bf9e7f"
+    },
+    "tests/test_topology_change_orchestration.py": {
+      "count": 4,
+      "node_ids_sha256": "369e98a38ffecba20125337f6e0e83d1fc4df3d842e45ebc9b49b7d8a7d18adc",
+      "source_sha256": "faeb4567abe29d54b47202691c1caf81d179847caf929f3ba11f26902a857077"
+    },
+    "tests/test_topology_contract_provenance.py": {
+      "count": 1,
+      "node_ids_sha256": "14184bfea03758818d3ba5c9d9b4b530b10ee25289ab36b18bf81a896cea1e3c",
+      "source_sha256": "4e9200291dada667a5f3262db59a534840a224f59213edfeb2cf39775024f72b"
+    }
+  },
+  "version": 1
+}

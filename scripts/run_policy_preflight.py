@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -182,6 +184,15 @@ PARALLEL_FOCUSED_TESTS: tuple[str, ...] = tuple(
 EXCLUSIVE_FOCUSED_TESTS: tuple[str, ...] = tuple(
     spec.path for spec in FOCUSED_TEST_SPECS if spec.execution_class == "exclusive"
 )
+FULL_PARALLEL_MANIFEST = ROOT / "tests" / "policy_parallel_test_manifest.json"
+
+
+class TestPartition(NamedTuple):
+    discovered: tuple[str, ...]
+    parallel: tuple[str, ...]
+    serial: tuple[str, ...]
+    exclusive: tuple[str, ...]
+    fallback_modules: tuple[str, ...]
 
 
 def positive_jobs(value: str) -> int:
@@ -200,19 +211,173 @@ def effective_focused_jobs(requested_jobs: int) -> int:
     return min(requested_jobs, max(1, len(PARALLEL_FOCUSED_TESTS)))
 
 
+def effective_full_test_jobs(
+    requested_jobs: int, *, schedulable_modules: int | None = None
+) -> int:
+    if requested_jobs < 1:
+        raise ValueError("jobs must be at least 1")
+    worker_cap = (
+        len(PARALLEL_FOCUSED_TESTS)
+        if schedulable_modules is None
+        else schedulable_modules
+    )
+    return min(requested_jobs, max(1, worker_cap))
+
+
 def effective_runner_jobs(
     profile: str,
     requested_jobs: int,
     checks: Sequence[str] | None = None,
+    *,
+    schedulable_modules: int | None = None,
 ) -> int:
     if checks:
         if "focused-tests" in checks:
             return effective_focused_jobs(requested_jobs)
-        # Full-suite sharding is introduced by the next Policy stack member.
+        if "tests" in checks:
+            return effective_full_test_jobs(
+                requested_jobs, schedulable_modules=schedulable_modules
+            )
         return 1
     if profile == "fast":
         return max(min(requested_jobs, 2), effective_focused_jobs(requested_jobs))
+    if profile in {"full", "ready"}:
+        return effective_full_test_jobs(
+            requested_jobs, schedulable_modules=schedulable_modules
+        )
     return 1
+
+
+def _node_ids_digest(node_ids: Sequence[str]) -> str:
+    payload = json.dumps(
+        sorted(node_ids), ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def classify_full_test_inventory(
+    node_ids: Sequence[str],
+    root: Path = ROOT,
+    manifest_path: Path = FULL_PARALLEL_MANIFEST,
+) -> TestPartition:
+    """Fail closed: only fingerprinted focused modules enter the parallel lane."""
+
+    discovered = tuple(node_ids)
+    if len(set(discovered)) != len(discovered):
+        raise ValueError("pytest discovery returned duplicate test node IDs")
+    if not discovered:
+        raise ValueError("pytest discovery returned an empty test inventory")
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("version") != 1 or not isinstance(manifest.get("modules"), dict):
+        raise ValueError("invalid Policy parallel test manifest")
+
+    specs = {spec.path: spec for spec in FOCUSED_TEST_SPECS}
+    module_ids: dict[str, list[str]] = {}
+    for node_id in discovered:
+        module = node_id.split("::", 1)[0]
+        module_ids.setdefault(module, []).append(node_id)
+
+    parallel: list[str] = []
+    serial: list[str] = []
+    exclusive: list[str] = []
+    fallback_modules: list[str] = []
+    for module, ids in module_ids.items():
+        spec = specs.get(module)
+        if spec is not None and spec.execution_class == "exclusive":
+            exclusive.extend(ids)
+            continue
+        if spec is None or spec.execution_class not in PARALLEL_EXECUTION_CLASSES:
+            serial.extend(ids)
+            continue
+
+        expected = manifest["modules"].get(module)
+        source = root / module
+        source_digest = (
+            hashlib.sha256(source.read_bytes()).hexdigest() if source.is_file() else None
+        )
+        current = {
+            "count": len(ids),
+            "node_ids_sha256": _node_ids_digest(ids),
+            "source_sha256": source_digest,
+        }
+        if expected == current:
+            parallel.extend(ids)
+        else:
+            # Added, removed, renamed, or edited tests require a new safety
+            # review before their module can re-enter the parallel lane.
+            serial.extend(ids)
+            fallback_modules.append(module)
+
+    partition = TestPartition(
+        discovered=discovered,
+        parallel=tuple(sorted(parallel)),
+        serial=tuple(sorted(serial)),
+        exclusive=tuple(sorted(exclusive)),
+        fallback_modules=tuple(sorted(fallback_modules)),
+    )
+    parallel_set = set(partition.parallel)
+    serial_set = set(partition.serial)
+    exclusive_set = set(partition.exclusive)
+    discovered_set = set(discovered)
+    if (parallel_set & serial_set) or (parallel_set & exclusive_set) or (
+        serial_set & exclusive_set
+    ):
+        raise ValueError("Policy pytest execution classes overlap")
+    if parallel_set | serial_set | exclusive_set != discovered_set:
+        raise ValueError("Policy pytest execution classes do not cover discovery")
+    return partition
+
+
+def collect_full_test_inventory() -> tuple[str, ...]:
+    with tempfile.TemporaryDirectory(prefix="policy-pytest-inventory-") as directory:
+        inventory_file = Path(directory) / "node-ids.json"
+        run(
+            sys.executable,
+            "scripts/collect_policy_test_inventory.py",
+            "--output",
+            inventory_file,
+        )
+        node_ids = json.loads(inventory_file.read_text(encoding="utf-8"))
+    if not isinstance(node_ids, list) or any(not isinstance(item, str) for item in node_ids):
+        raise ValueError("Policy pytest collector returned malformed node IDs")
+    return tuple(node_ids)
+
+
+def schedulable_full_test_module_count() -> int:
+    """Return the module cap from the current exact discovered inventory."""
+
+    partition = classify_full_test_inventory(collect_full_test_inventory())
+    return len({node_id.split("::", maxsplit=1)[0] for node_id in partition.parallel})
+
+
+def run_pytest_subset(
+    name: str, node_ids: Sequence[str], requested_jobs: int, effective_jobs: int
+) -> None:
+    if not node_ids:
+        return
+    selection_hash = _node_ids_digest(node_ids)
+    worker_args = (
+        ("-n", str(effective_jobs), "--dist=loadfile")
+        if name == "parallel" and effective_jobs > 1
+        else ()
+    )
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-o",
+        "addopts=-q",
+        *worker_args,
+        *node_ids,
+    ]
+    print(
+        f"POLICY_TEST_PHASE name={name} requested={requested_jobs} "
+        f"effective={effective_jobs if name == 'parallel' else 1} "
+        f"tests={len(node_ids)} node_ids_sha256={selection_hash}",
+        flush=True,
+    )
+    subprocess.run(command, cwd=ROOT, env=sanitized_environment(), check=True)
 
 
 def sanitized_environment() -> dict[str, str]:
@@ -368,13 +533,36 @@ def check_focused_tests(jobs: int = DEFAULT_JOBS) -> None:
 
 
 def check_tests(jobs: int = DEFAULT_JOBS) -> None:
-    # P2 adds a fail-closed full-suite partition.  Until then, a larger
-    # requested budget remains serial rather than silently enabling xdist.
+    partition = classify_full_test_inventory(collect_full_test_inventory())
+    parallel_modules = {
+        node_id.split("::", maxsplit=1)[0] for node_id in partition.parallel
+    }
+    effective_jobs = effective_full_test_jobs(
+        jobs, schedulable_modules=len(parallel_modules)
+    )
     print(
-        f"POLICY_TEST_WORKERS suite=full requested={jobs} effective=1",
+        "POLICY_TEST_INVENTORY "
+        f"discovered={len(partition.discovered)} parallel={len(partition.parallel)} "
+        f"serial={len(partition.serial)} exclusive={len(partition.exclusive)} "
+        f"inventory_sha256={_node_ids_digest(partition.discovered)}",
         flush=True,
     )
-    run(sys.executable, "-m", "pytest", "-o", "addopts=-q")
+    for module in partition.fallback_modules:
+        print(
+            f"POLICY_TEST_CLASSIFICATION_FALLBACK module={module} lane=serial "
+            "reason=parallel-safety-fingerprint-changed",
+            flush=True,
+        )
+    print(
+        f"POLICY_TEST_WORKERS suite=full requested={jobs} effective={effective_jobs}",
+        flush=True,
+    )
+    if jobs == 1:
+        run(sys.executable, "-m", "pytest", "-o", "addopts=-q")
+        return
+    run_pytest_subset("parallel", partition.parallel, jobs, effective_jobs)
+    run_pytest_subset("serial", partition.serial, jobs, effective_jobs)
+    run_pytest_subset("exclusive", partition.exclusive, jobs, effective_jobs)
 
 
 def execute_check(
@@ -658,7 +846,17 @@ def main(arguments: Sequence[str] | None = None) -> int:
         )
         return 1
     try:
-        effective_jobs = effective_runner_jobs(args.profile, args.jobs, args.checks)
+        selected_checks = tuple(args.checks or PROFILES[args.profile])
+        needs_full_inventory = "tests" in selected_checks
+        schedulable_modules = (
+            schedulable_full_test_module_count() if needs_full_inventory else None
+        )
+        effective_jobs = effective_runner_jobs(
+            args.profile,
+            args.jobs,
+            args.checks,
+            schedulable_modules=schedulable_modules,
+        )
         print(
             f"POLICY_PREFLIGHT_WORKERS profile={args.profile} "
             f"requested={args.jobs} effective={effective_jobs}",
@@ -677,7 +875,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         elif args.profile == "fast" and not args.checks:
             selected = run_fast(head, jobs=args.jobs)
         else:
-            selected = tuple(args.checks or PROFILES[args.profile])
+            selected = selected_checks
             for name in selected:
                 print(f"POLICY_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
                 execute_check(CHECKS, name, args.jobs)

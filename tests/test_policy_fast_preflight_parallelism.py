@@ -253,7 +253,9 @@ def test_explicit_check_flag_remains_sequential() -> None:
         assert executed_order == ["self-check", "lint"]
 
 
-def test_full_and_ready_profiles_are_unchanged() -> None:
+def test_full_profile_logs_inventory_capped_worker_count(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """14.7 full profile remains sequential and does not invoke run_fast."""
     executed_checks: list[str] = []
     custom_checks = {
@@ -265,13 +267,23 @@ def test_full_and_ready_profiles_are_unchanged() -> None:
         for name in PROFILES["full"]
     }
 
-    with patch("scripts.run_policy_preflight.CHECKS", custom_checks), patch(
-        "scripts.run_policy_preflight.run_fast"
-    ) as mock_run_fast:
-        rc = main(["full"])
+    with (
+        patch("scripts.run_policy_preflight.CHECKS", custom_checks),
+        patch("scripts.run_policy_preflight.run_fast") as mock_run_fast,
+        patch(
+            "scripts.run_policy_preflight.schedulable_full_test_module_count",
+            return_value=1,
+        ),
+    ):
+        rc = main(["full", "--jobs", "100"])
         assert rc == 0
         mock_run_fast.assert_not_called()
         assert executed_checks == list(PROFILES["full"])
+
+    assert (
+        "POLICY_PREFLIGHT_WORKERS profile=full requested=100 effective=1"
+        in capsys.readouterr().out
+    )
 
 
 def test_canonical_fast_profile_markers_and_identity(capsys: pytest.CaptureFixture[str]) -> None:
