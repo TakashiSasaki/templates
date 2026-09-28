@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -214,6 +215,44 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('validate_promotion_intent', notify['jobs'])
         self.assertIn('verify-merged', '\n'.join(step.get('run', '') for step in notify['jobs']['validate_promotion_intent']['steps']))
         self.assertIn('needs.validate_promotion_intent.result == \'success\'', notify['jobs']['release_qualification']['if'])
+
+    def test_promotion_intent_staging_allows_regular_create_and_rejects_mode_changes(self):
+        workflow = yaml.safe_load((ROOT / '.github/workflows/integration-reconcile.yml').read_text())
+        step = next(
+            step for step in workflow['jobs']['promote_lock_pr']['steps']
+            if step.get('name') == 'Add the deterministic promotion intent'
+        )
+
+        def run_staging_step(intent_mode):
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                integration_base = root / 'integration-base'
+                integration_base.mkdir()
+                subprocess.run(['git', '-C', str(integration_base), 'init', '-q'], check=True)
+                subprocess.run(['git', '-C', str(integration_base), 'config', 'user.name', 'Test'], check=True)
+                subprocess.run(['git', '-C', str(integration_base), 'config', 'user.email', 'test@example.invalid'], check=True)
+                (integration_base / 'publication-sources.json').write_text('{}\n', encoding='utf-8')
+                subprocess.run(['git', '-C', str(integration_base), 'add', 'publication-sources.json'], check=True)
+                subprocess.run(['git', '-C', str(integration_base), 'commit', '-m', 'base'], check=True, capture_output=True)
+
+                intent_dir = root / 'promotion-intent'
+                intent_dir.mkdir()
+                intent = intent_dir / 'publication-promotion-intent.json'
+                intent.write_text('{"intent":true}\n', encoding='utf-8')
+                intent.chmod(intent_mode)
+                environment = {**os.environ, 'LOCK_UPDATE_REQUIRED': 'false'}
+                return subprocess.run(
+                    ['bash', '-e', '-o', 'pipefail', '-c', step['run']],
+                    cwd=root,
+                    env=environment,
+                    text=True,
+                    capture_output=True,
+                )
+
+        regular_file = run_staging_step(0o644)
+        self.assertEqual(regular_file.returncode, 0, regular_file.stdout + regular_file.stderr)
+        executable_file = run_staging_step(0o755)
+        self.assertNotEqual(executable_file.returncode, 0)
 
     def test_promotion_intent_schema_split_preserves_run_path_and_notification_contract(self):
         reconcile_text = (ROOT / '.github/workflows/integration-reconcile.yml').read_text()
