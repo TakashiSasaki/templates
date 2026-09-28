@@ -23,6 +23,7 @@ from scripts.run_core_tests import (
     run_parallel_shards,
     run_suite,
     sanitize_execution_environment,
+    summarize_outcomes,
     test_id_digest,
     run_tests,
 )
@@ -402,6 +403,41 @@ class RunCoreTestsContractTests(unittest.TestCase):
                 self.assertNotIn("/untrusted/site-packages", sys.path)
         finally:
             sys.path[:] = original_path
+
+    def test_subtest_errors_remain_errors_regardless_of_callback_order(self) -> None:
+        class MixedSubtestOutcomes(unittest.TestCase):
+            def __init__(
+                self,
+                method_name: str = "test_mixed_subtest_outcomes",
+                *,
+                reverse: bool = False,
+            ):
+                super().__init__(method_name)
+                self.reverse = reverse
+
+            def test_mixed_subtest_outcomes(self) -> None:
+                exceptions = [AssertionError("assertion"), RuntimeError("runtime")]
+                if self.reverse:
+                    exceptions.reverse()
+                for exception in exceptions:
+                    with self.subTest(kind=type(exception).__name__):
+                        raise exception
+
+        for reverse in (False, True):
+            case = MixedSubtestOutcomes(reverse=reverse)
+            result = run_suite([case], verbosity=0)
+            self.assertEqual(result.outcomes[case.id()]["status"], "error")
+            self.assertEqual(
+                summarize_outcomes(result.outcomes),
+                {
+                    "passed": 0,
+                    "skipped": 0,
+                    "failures": 0,
+                    "errors": 1,
+                    "expected_failures": 0,
+                    "unexpected_successes": 0,
+                },
+            )
 
 
 if __name__ == "__main__":
