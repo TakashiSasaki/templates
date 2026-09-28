@@ -203,6 +203,7 @@ class InventoryTextTestResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.outcomes: dict[str, dict[str, str]] = {}
+        self.discovered_cases: tuple[unittest.TestCase, ...] = ()
         self.test_durations: list[tuple[str, float]] = []
         self._started_ns: dict[int, int] = {}
         self._status_priority = {
@@ -230,13 +231,35 @@ class InventoryTextTestResult(unittest.TextTestResult):
         super().stopTest(test)
 
     def _record(self, test: unittest.TestCase, status: str, reason: str | None = None) -> None:
-        existing = self.outcomes.get(test.id())
+        self._record_id(test.id(), status, reason)
+
+    def _record_id(self, test_id: str, status: str, reason: str | None = None) -> None:
+        existing = self.outcomes.get(test_id)
         if existing is not None and self._status_priority[existing["status"]] >= self._status_priority[status]:
             return
         outcome = {"status": status}
         if reason is not None:
             outcome["reason"] = str(reason)
-        self.outcomes[test.id()] = outcome
+        self.outcomes[test_id] = outcome
+
+    def _fixture_test_ids(self, fixture_id: str) -> tuple[str, ...] | None:
+        if fixture_id.startswith(("setUpModule (", "tearDownModule (")) and fixture_id.endswith(")"):
+            prefix = "setUpModule (" if fixture_id.startswith("setUpModule (") else "tearDownModule ("
+            module = fixture_id[len(prefix) : -1]
+            return tuple(
+                case.id()
+                for case in self.discovered_cases
+                if case.__class__.__module__ == module
+            )
+        if fixture_id.startswith(("setUpClass (", "tearDownClass (")) and fixture_id.endswith(")"):
+            prefix = "setUpClass (" if fixture_id.startswith("setUpClass (") else "tearDownClass ("
+            target = fixture_id[len(prefix) : -1]
+            return tuple(
+                case.id()
+                for case in self.discovered_cases
+                if f"{case.__class__.__module__}.{case.__class__.__qualname__}" == target
+            )
+        return None
 
     def addSuccess(self, test):
         super().addSuccess(test)
@@ -244,6 +267,14 @@ class InventoryTextTestResult(unittest.TextTestResult):
 
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
+        fixture_id = test.id()
+        if fixture_id.startswith(("tearDownModule (", "tearDownClass (")) and fixture_id.endswith(")"):
+            return
+        fixture_test_ids = self._fixture_test_ids(fixture_id)
+        if fixture_test_ids is not None:
+            for test_id in fixture_test_ids:
+                self._record_id(test_id, "skipped", reason)
+            return
         self._record(getattr(test, "test_case", test), "skipped", reason)
 
     def addFailure(self, test, err):
@@ -272,31 +303,45 @@ class InventoryTextTestResult(unittest.TextTestResult):
 class InventoryTextTestRunner(unittest.TextTestRunner):
     resultclass = InventoryTextTestResult
 
+    def __init__(self, *args, discovered_cases: list[unittest.TestCase] | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.discovered_cases = tuple(discovered_cases or ())
 
-def run_suite(cases: list[unittest.TestCase], verbosity: int = 2) -> InventoryTextTestResult:
-    result = InventoryTextTestRunner(verbosity=verbosity).run(unittest.TestSuite(cases))
-    for test_id, duration in sorted(
-        result.test_durations, key=lambda item: (-item[1], item[0])
-    ):
-        print(
-            "MODELING_TEST_CASE_DURATION "
-            + json.dumps(
-                {"test_id": test_id, "duration_seconds": round(duration, 9)},
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-            flush=True,
-        )
+    def _makeResult(self):
+        result = super()._makeResult()
+        result.discovered_cases = self.discovered_cases
+        return result
+
+
+def run_suite(
+    cases: list[unittest.TestCase], verbosity: int = 2, *, emit_durations: bool = False
+) -> InventoryTextTestResult:
+    result = InventoryTextTestRunner(
+        verbosity=verbosity, discovered_cases=cases
+    ).run(unittest.TestSuite(cases))
+    if emit_durations:
+        for test_id, duration in sorted(
+            result.test_durations, key=lambda item: (-item[1], item[0])
+        ):
+            print(
+                "MODELING_TEST_CASE_DURATION "
+                + json.dumps(
+                    {"test_id": test_id, "duration_seconds": round(duration, 9)},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                flush=True,
+            )
     return result
 
 
 def run_suite_without_worker_options(
-    cases: list[unittest.TestCase], verbosity: int = 2
+    cases: list[unittest.TestCase], verbosity: int = 2, *, emit_durations: bool = False
 ) -> InventoryTextTestResult:
     original_argv = sys.argv
     sys.argv = [original_argv[0]]
     try:
-        return run_suite(cases, verbosity)
+        return run_suite(cases, verbosity, emit_durations=emit_durations)
     finally:
         sys.argv = original_argv
 
@@ -383,7 +428,7 @@ def run_shard_worker(manifest_path: Path) -> int:
         f"tests={len(shard_ids)} ids_sha256={test_id_digest(shard_ids)}",
         flush=True,
     )
-    result = run_suite_without_worker_options(cases)
+    result = run_suite_without_worker_options(cases, emit_durations=True)
     result_path = Path(manifest["result_path"])
     if result_path.parent.resolve() != manifest_path.parent.resolve():
         raise QualificationError("worker result must stay beside its private manifest")
@@ -558,7 +603,7 @@ def run_discovered_tests(
     if effective_jobs < 2:
         print(f"MODELING_WORKERS requested={jobs} effective=1 mode=serial-baseline-or-measured-cap", flush=True)
         started = time.perf_counter()
-        result = run_suite_without_worker_options(cases)
+        result = run_suite_without_worker_options(cases, emit_durations=True)
         elapsed = time.perf_counter() - started
         if set(result.outcomes) != set(inventory_ids) or len(result.outcomes) != len(inventory_ids):
             print("MODELING_QUALIFICATION_FAIL serial run omitted or duplicated test IDs", file=sys.stderr, flush=True)
@@ -590,7 +635,7 @@ def run_discovered_tests(
     serial_started = time.perf_counter()
     serial_cases = [case for case in cases if case.id() in set(serial_ids)]
     print(f"MODELING_SERIAL_EXCLUSIVE_START tests={len(serial_cases)}", flush=True)
-    serial_result = run_suite_without_worker_options(serial_cases)
+    serial_result = run_suite_without_worker_options(serial_cases, emit_durations=True)
     serial_seconds = time.perf_counter() - serial_started
     outcomes = dict(parallel_outcomes)
     for test_id, outcome in serial_result.outcomes.items():

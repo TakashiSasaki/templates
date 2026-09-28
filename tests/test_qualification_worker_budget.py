@@ -18,6 +18,54 @@ import qualify  # noqa: E402
 
 
 class QualificationWorkerBudgetTests(unittest.TestCase):
+    def test_class_fixture_skip_is_a_successful_outcome_for_discovered_cases(self) -> None:
+        class SkippedClass(unittest.TestCase):
+            @classmethod
+            def setUpClass(cls):
+                raise unittest.SkipTest("not available")
+
+            def test_one(self):
+                pass
+
+            def test_two(self):
+                pass
+
+        cases = [SkippedClass("test_one"), SkippedClass("test_two")]
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            result = qualify.run_suite(cases, verbosity=0)
+
+        self.assertTrue(result.wasSuccessful())
+        self.assertEqual(
+            result.outcomes,
+            {case.id(): {"status": "skipped", "reason": "not available"} for case in cases},
+        )
+
+    def test_duration_records_are_opt_in_for_top_level_inventory_runs(self) -> None:
+        class Probe(unittest.TestCase):
+            def test_duration_one(self):
+                pass
+
+            def test_duration_two(self):
+                pass
+
+        cases = [Probe("test_duration_one"), Probe("test_duration_two")]
+        with redirect_stdout(io.StringIO()) as nested_output:
+            qualify.run_suite(cases, verbosity=0)
+        self.assertNotIn("MODELING_TEST_CASE_DURATION", nested_output.getvalue())
+
+        with redirect_stdout(io.StringIO()) as inventory_output:
+            qualify.run_suite(cases, verbosity=0, emit_durations=True)
+        duration_records = [
+            line.removeprefix("MODELING_TEST_CASE_DURATION ")
+            for line in inventory_output.getvalue().splitlines()
+            if line.startswith("MODELING_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(
+            {json.loads(record)["test_id"] for record in duration_records},
+            {case.id() for case in cases},
+        )
+        self.assertEqual(len(duration_records), len(cases))
+
     def test_skipped_subtest_uses_the_discovered_parent_id(self) -> None:
         class Probe(unittest.TestCase):
             def test_skipped_subtest(self):
