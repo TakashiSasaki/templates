@@ -49,8 +49,8 @@
     "records",
     "schemas"
   ],
-  "curated_shortcuts": [
-    "docs",
+  "curated_shortcuts": [],
+  "intentional_no_indexes": [
     "docs/studies"
   ],
   "publication_system": true,
