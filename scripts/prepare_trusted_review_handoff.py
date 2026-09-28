@@ -86,7 +86,7 @@ REQUIRED_TOP_LEVEL_KEYS = frozenset(
         "review_authority_bundle",
     }
 )
-OPTIONAL_TOP_LEVEL_KEYS = frozenset({"locators", "freeze_evidence"})
+OPTIONAL_TOP_LEVEL_KEYS = frozenset({"locators", "freeze_evidence", "backing_locators"})
 
 
 class EvidenceStatus(StrEnum):

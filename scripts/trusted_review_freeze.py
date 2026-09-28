@@ -252,8 +252,14 @@ class GitHubActionsOciFreezeVerifier:
         locators = getattr(self, "_handoff_locators", None)
         if locators is None:
             raise TrustedFreezeError("freeze verifier has not been bound to handoff locators")
+        backing_locators = getattr(self, "_handoff_backing_locators", None)
+        if backing_locators is None:
+            raise TrustedFreezeError("freeze verifier has not been bound to backing locators")
+        if locator_key not in locators or locator_key not in backing_locators:
+            raise TrustedFreezeError(f"freeze verifier is missing role locators: {role}")
         role_path = Path(locators[locator_key])
-        self._verify_role_view(role, role_path, record)
+        backing_path = Path(backing_locators[locator_key])
+        self._verify_role_view(role, role_path, backing_path, record)
         self._verified_roles.add(role)
 
     def _expected_role_identity(self, role: str) -> dict[str, Any]:
@@ -295,16 +301,35 @@ class GitHubActionsOciFreezeVerifier:
         locators = handoff.get("locators")
         if not isinstance(locators, dict):
             raise TrustedFreezeError("handoff locators are missing")
-        self._handoff_locators = locators
+        backing_locators = handoff.get("backing_locators")
+        self._handoff_locators = dict(locators)
+        self._handoff_backing_locators = (
+            dict(backing_locators) if isinstance(backing_locators, dict) else None
+        )
         self._bound_handoff = handoff
 
     def verify_post_use(self, handoff: dict[str, Any]) -> None:
         self._require_unchanged_evidence()
         if self._verified_roles != set(ROLE_TO_SECTION):
             raise TrustedFreezeError("all four freeze roles were not verified before use")
-        locators = handoff.get("locators") or {}
+        locators = self._handoff_locators
+        backing_locators = self._handoff_backing_locators
+        if backing_locators is None:
+            raise TrustedFreezeError("local protected view is missing its backing locators")
+        if (
+            handoff.get("locators") != locators
+            or handoff.get("backing_locators") != backing_locators
+        ):
+            raise TrustedFreezeError("local protected view locators changed during verification")
         for role, locator_key in SECTION_TO_LOCATOR.items():
-            self._verify_role_view(role, Path(locators[locator_key]), self._role_record(role))
+            if locator_key not in locators or locator_key not in backing_locators:
+                raise TrustedFreezeError(f"local protected view is missing role {role}")
+            self._verify_role_view(
+                role,
+                Path(locators[locator_key]),
+                Path(backing_locators[locator_key]),
+                self._role_record(role),
+            )
 
     def _require_unchanged_evidence(self) -> None:
         try:
@@ -360,11 +385,19 @@ class GitHubActionsOciFreezeVerifier:
             raise TrustedFreezeError(f"freeze evidence must contain exactly one {role} record")
         return records[0]
 
-    def _verify_role_view(self, role: str, path: Path, record: dict[str, Any]) -> None:
+    def _verify_role_view(
+        self,
+        role: str,
+        path: Path,
+        backing_path: Path,
+        record: dict[str, Any],
+    ) -> None:
         mountinfo = self.mountinfo_reader() if self.mountinfo_reader is not None else None
-        require_protected_view(path, mountinfo=mountinfo)
+        require_protected_view(path, backing_path=backing_path, mountinfo=mountinfo)
         if _inventory_digest(path) != record["inventory_sha256"]:
             raise TrustedFreezeError(f"post-freeze authority inventory changed: {role}")
+        if _inventory_digest(backing_path) != record["inventory_sha256"]:
+            raise TrustedFreezeError(f"post-freeze authority backing inventory changed: {role}")
         expected_rel = record["path"]
         if path.as_posix().rstrip("/").endswith(expected_rel) is False:
             raise TrustedFreezeError(f"authority locator does not match frozen role path: {role}")
