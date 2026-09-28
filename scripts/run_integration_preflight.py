@@ -277,7 +277,8 @@ class InventoryTextTestResult(unittest.TextTestResult):
     def addSubTest(self, test, subtest, err):
         super().addSubTest(test, subtest, err)
         if err is not None:
-            self._record(test, "failure")
+            status = "failure" if issubclass(err[0], test.failureException) else "error"
+            self._record(test, status)
 
 
 class InventoryTextTestRunner(unittest.TextTestRunner):
