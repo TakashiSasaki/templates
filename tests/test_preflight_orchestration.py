@@ -51,19 +51,24 @@ def _cleanup_test_process_group(process_group_id: int) -> None:
             return
 
 
-def _assert_nested_timeout_is_reaped(workspace: Path, tmp_path: Path) -> None:
+def _assert_nested_timeout_is_reaped(
+    workspace: Path, tmp_path: Path, *, drop_uid: int | None = None
+) -> None:
     tmp_path.mkdir(parents=True, exist_ok=True)
     worktree = _create_mock_authority(workspace, "policy")
     authority_pid_file = tmp_path / "authority.pid"
     child_pid_file = tmp_path / "child.pid"
+    child_code = (
+        "import os, signal; os.setsid(); "
+        + (f"os.setuid({drop_uid}); " if drop_uid is not None else "")
+        + "signal.signal(signal.SIGTERM, signal.SIG_IGN); signal.pause()"
+    )
     script = worktree / "scripts" / "run_policy_preflight.py"
     script.write_text(
         "import os, signal, subprocess, sys\n"
         "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
         f"open({str(authority_pid_file)!r}, 'w').write(str(os.getpid()))\n"
-        "child = subprocess.Popen([sys.executable, '-c', "
-        "'import os, signal; os.setsid(); "
-        "signal.signal(signal.SIGTERM, signal.SIG_IGN); signal.pause()'])\n"
+        f"child = subprocess.Popen([sys.executable, '-c', {child_code!r}])\n"
         f"open({str(child_pid_file)!r}, 'w').write(str(child.pid))\n"
         "os.write(1, b'o' * 131072)\n"
         "os.write(2, b'e' * 131072)\n"
@@ -126,7 +131,11 @@ def _wait_for_pid_absent(pid: int, timeout: float = 3.0) -> bool:
     return True
 
 
-def _run_normal_completion_case(tmp_path: Path, exit_code: int):
+def _run_normal_completion_case(
+    tmp_path: Path, exit_code: int, *, drop_uid: int | None = None
+):
+    if drop_uid is not None:
+        tmp_path.chmod(0o777)
     workspace = tmp_path / "workspace"
     worktree = _create_mock_authority(workspace, "policy")
     parent_pid_file = tmp_path / "authority.pid"
@@ -136,14 +145,15 @@ def _run_normal_completion_case(tmp_path: Path, exit_code: int):
     child_code = (
         "import os, pathlib, sys, time\n"
         "os.setsid()\n"
-        "authority_pid = int(sys.argv[1])\n"
-        "adopted = pathlib.Path(sys.argv[2])\n"
-        "release = pathlib.Path(sys.argv[3])\n"
-        "while os.getppid() == authority_pid:\n"
-        "    time.sleep(0.001)\n"
-        "adopted.write_text(str(os.getppid()), encoding='utf-8')\n"
-        "while not release.exists():\n"
-        "    time.sleep(0.001)\n"
+        + (f"os.setuid({drop_uid})\n" if drop_uid is not None else "")
+        + "authority_pid = int(sys.argv[1])\n"
+        + "adopted = pathlib.Path(sys.argv[2])\n"
+        + "release = pathlib.Path(sys.argv[3])\n"
+        + "while os.getppid() == authority_pid:\n"
+        + "    time.sleep(0.001)\n"
+        + "adopted.write_text(str(os.getppid()), encoding='utf-8')\n"
+        + "while not release.exists():\n"
+        + "    time.sleep(0.001)\n"
     )
     script = worktree / "scripts" / "run_policy_preflight.py"
     script.write_text(
@@ -448,6 +458,30 @@ def test_direct_child_enumeration_uses_standard_proc_stat_records(
     ) == (801, 803, non_ascii_pid)
 
 
+def test_direct_child_enumeration_tracks_a_child_with_changed_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    child = proc_root / "901"
+    child.mkdir()
+    (child / "stat").write_text("901 (dropped uid worker) S 700 1 1 0 0\n")
+    original_stat = Path.stat
+
+    def stat_with_different_owner(path: Path, *args, **kwargs):
+        result = original_stat(path, *args, **kwargs)
+        if path == child:
+            fields = list(result)
+            fields[4] = 65534
+            return os.stat_result(fields)
+        return result
+
+    monkeypatch.setattr(Path, "stat", stat_with_different_owner)
+    assert _authority_supervisor._direct_child_pids(
+        proc_root=proc_root, parent_pid=700
+    ) == (901,)
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
 def test_authority_spawn_failure_is_reported_without_launching_child(
     monkeypatch: pytest.MonkeyPatch,
@@ -463,6 +497,16 @@ def test_authority_spawn_failure_is_reported_without_launching_child(
 
 def test_timeout_terminates_nested_authority_processes(tmp_path: Path) -> None:
     _assert_nested_timeout_is_reaped(tmp_path / "workspace", tmp_path)
+
+
+@pytest.mark.skipif(
+    sys.platform != "linux" or os.geteuid() != 0,
+    reason="requires Linux and root to change descendant credentials",
+)
+def test_timeout_reaps_adopted_descendant_after_uid_change(tmp_path: Path) -> None:
+    _assert_nested_timeout_is_reaped(
+        tmp_path / "workspace", tmp_path, drop_uid=65534
+    )
 
 
 def test_repeated_timeout_runs_do_not_leak_child_processes(tmp_path: Path) -> None:
@@ -484,6 +528,17 @@ def test_normal_completion_reaps_adopted_descendants(
 ) -> None:
     result = _run_normal_completion_case(tmp_path, exit_code)
     assert result.status == expected_status
+
+
+@pytest.mark.skipif(
+    sys.platform != "linux" or os.geteuid() != 0,
+    reason="requires Linux and root to change descendant credentials",
+)
+def test_normal_completion_reaps_adopted_descendant_after_uid_change(
+    tmp_path: Path,
+) -> None:
+    result = _run_normal_completion_case(tmp_path, 0, drop_uid=65534)
+    assert result.status == "PASS"
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")

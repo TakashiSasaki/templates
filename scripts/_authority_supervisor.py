@@ -67,18 +67,16 @@ def _direct_child_pids(
 
     root = proc_root if proc_root is not None else Path("/proc")
     expected_parent = os.getpid() if parent_pid is None else parent_pid
-    effective_uid = os.geteuid()
     child_pids: list[int] = []
     try:
         for entry in root.iterdir():
             if not entry.name.isdecimal():
                 continue
             try:
-                if entry.stat().st_uid != effective_uid:
-                    continue
                 # The parenthesized ``comm`` field is arbitrary process-name
-                # bytes. Preserve them losslessly while decoding the ASCII
-                # fields that follow it.
+                # bytes, and adopted descendants may have changed credentials.
+                # Preserve the command bytes losslessly and identify ownership
+                # by PPID rather than the process's current UID.
                 stat_record = (entry / "stat").read_bytes().decode(
                     "ascii", errors="surrogateescape"
                 )
