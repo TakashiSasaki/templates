@@ -30,6 +30,24 @@ from scripts.run_core_tests import (
 
 
 class RunCoreTestsContractTests(unittest.TestCase):
+    def test_skipped_subtest_records_parent_discovered_id(self) -> None:
+        class SkippedSubtest(unittest.TestCase):
+            def test_skipped_subtest(self) -> None:
+                with self.subTest(case="skipped"):
+                    self.skipTest("controlled subtest skip")
+
+        case = SkippedSubtest("test_skipped_subtest")
+        result = run_suite([case], verbosity=0)
+        self.assertEqual(
+            result.outcomes,
+            {
+                case.id(): {
+                    "status": "skipped",
+                    "reason": "controlled subtest skip",
+                }
+            },
+        )
+
     def test_all_modules_classified_without_overlap(self) -> None:
         tests_dir = Path(__file__).resolve().parent
         all_modules = sorted([f.stem for f in tests_dir.glob("test_*.py")])

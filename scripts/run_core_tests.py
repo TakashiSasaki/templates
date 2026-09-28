@@ -245,7 +245,7 @@ class InventoryTextTestResult(unittest.TextTestResult):
 
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
-        self._record(test, "skipped", reason)
+        self._record(getattr(test, "test_case", test), "skipped", reason)
 
     def addFailure(self, test, err):
         super().addFailure(test, err)
