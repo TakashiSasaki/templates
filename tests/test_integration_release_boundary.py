@@ -174,6 +174,11 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('publication_promotion_intent.py build', controller_commands)
         self.assertIn('publication-promotion-intent-${{ needs.qualify.outputs.bundle_identity }}', '\n'.join(str(step.get('with', {})) for step in controller_steps))
         self.assertIn('actions/download-artifact@', '\n'.join(step.get('uses', '') for step in promote_steps))
+        intent_download = next(
+            step for step in promote_steps
+            if step.get('name') == 'Download the exact trusted promotion intent'
+        )
+        self.assertTrue(intent_download['with'].get('merge-multiple'))
         self.assertIn('publication_promotion_intent.py verify', promote_commands)
         self.assertIn('publication-promotion-intent.json', promote_commands)
         self.assertIn("needs.controller.outputs.classification == 'AUTO_PROCESSABLE'", reconcile['jobs']['promote_lock_pr']['if'])
