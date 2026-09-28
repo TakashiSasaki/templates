@@ -51,7 +51,7 @@ def observation(run: actions.ActionsRunIdentity | None = None) -> dict[str, Any]
             "number": 97,
             "author_id": "9002",
             "author_login": "contributor",
-            "base": {"sha": BASE_SHA, "tree": BASE_TREE},
+            "base": {"ref": "policy", "sha": BASE_SHA, "tree": BASE_TREE},
             "head": {"sha": HEAD_SHA, "tree": HEAD_TREE},
         },
         "observation": {
@@ -176,6 +176,7 @@ def test_observation_is_bound_to_attestation_run_api_and_exact_target(tmp_path: 
     verifier, _, api, runner = make_verifier(tmp_path, document=doc)
 
     assert verifier.verify(provider) == actions.GitHubActionsObservationVerifier.name
+    assert provider["pull_request"]["base_ref_name"] == "policy"
     assert api.seen_number == 97
     command = runner.calls[0]
     assert "--repo" in command and actions.REPOSITORY in command
@@ -251,6 +252,7 @@ def test_timestamp_is_not_required_but_ambiguous_attestation_fails_closed(tmp_pa
         lambda d: d["pull_request"].update(id="999999"),
         lambda d: d["pull_request"].update(number=98),
         lambda d: d["pull_request"].update(author_id="9003"),
+        lambda d: d["pull_request"]["base"].update(ref="site"),
         lambda d: d["pull_request"]["base"].update(sha="f" * 40),
         lambda d: d["pull_request"]["base"].update(tree="f" * 40),
         lambda d: d["pull_request"]["head"].update(sha="f" * 40),
@@ -287,6 +289,7 @@ def test_head_movement_in_handoff_target_is_rejected(tmp_path: Path) -> None:
         ("pull_request", "id", "999999"),
         ("pull_request", "node_id", "PR_other"),
         ("pull_request", "number", 98),
+        ("pull_request", "base_ref_name", "site"),
         ("pull_request", "base_ref_oid", "f" * 40),
         ("pull_request", "base_tree", "f" * 40),
         ("pull_request", "head_ref_oid", "f" * 40),
@@ -444,7 +447,7 @@ def test_api_client_reads_fork_head_tree_without_shell_or_input_interpolation() 
             "number": 97,
             "state": "open",
             "user": {"id": 9002, "login": "contributor"},
-            "base": {"sha": BASE_SHA, "repo": {"id": int(REPO_ID)}},
+            "base": {"ref": "policy", "sha": BASE_SHA, "repo": {"id": int(REPO_ID)}},
             "head": {"sha": HEAD_SHA, "repo": {"full_name": "fork-owner/templates"}},
         },
         f"/repos/TakashiSasaki/templates/git/commits/{BASE_SHA}": base_commit,
@@ -473,9 +476,46 @@ def test_api_client_reads_fork_head_tree_without_shell_or_input_interpolation() 
 
     api = actions.GitHubApi("secret-token", opener=opener)
     result = api.observe(97, run)
+    assert result["pull_request"]["base"] == {
+        "ref": "policy",
+        "sha": BASE_SHA,
+        "tree": BASE_TREE,
+    }
     assert result["pull_request"]["head"] == {"sha": HEAD_SHA, "tree": HEAD_TREE}
     assert requests[-1].full_url.endswith(f"/repos/fork-owner/templates/git/commits/{HEAD_SHA}")
     assert requests[0].get_header("Authorization") == "Bearer secret-token"
+
+
+def test_api_client_rejects_pull_request_targeting_non_policy_branch() -> None:
+    class NonPolicyBaseApi(actions.GitHubApi):
+        def get(self, path: str) -> dict[str, Any]:
+            if path == "/repos/TakashiSasaki/templates":
+                return {
+                    "id": int(REPO_ID),
+                    "full_name": actions.REPOSITORY,
+                    "owner": {"id": int(OWNER_ID)},
+                }
+            if path == "/repos/TakashiSasaki/templates/pulls/97":
+                return {
+                    "id": 81001,
+                    "node_id": "PR_kwDOExample",
+                    "number": 97,
+                    "state": "open",
+                    "user": {"id": 9002, "login": "contributor"},
+                    "base": {
+                        "ref": "site",
+                        "sha": BASE_SHA,
+                        "repo": {"id": int(REPO_ID)},
+                    },
+                    "head": {
+                        "sha": HEAD_SHA,
+                        "repo": {"full_name": "fork-owner/templates"},
+                    },
+                }
+            raise AssertionError(f"unexpected GitHub API request: {path}")
+
+    with pytest.raises(actions.TrustedObservationError, match="base ref is not"):
+        NonPolicyBaseApi("secret-token").observe(97, run_identity())
 
 
 def test_pull_request_author_cannot_dispatch_their_own_review() -> None:
