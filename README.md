@@ -63,7 +63,11 @@ never hand-edit a generated output, and do not advance toolchain or installer pi
 as part of ordinary documentation routing. The canonical maintainer validation is
 the existing `python -m pytest` plus compile/release checks described in
 `repository-policy/maintainer-validation.md`; remote CI and review remain separate
-evidence layers.
+evidence layers. For a local serial baseline or bounded parallel fast preflight,
+run `python3 scripts/run_policy_preflight.py fast --jobs 1` or
+`python3 scripts/run_policy_preflight.py fast --jobs 2`. The shared semantics,
+authority boundaries, and qualification evidence contract are in
+[`docs/worker-budget-contract.md`](docs/worker-budget-contract.md).
 
 Policy governs generic change, review, release, and Work-ledger semantics. It does
 not own Composition, Integration, Site, or Pages behavior. Use branch names to

@@ -10,7 +10,7 @@ import sys
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -24,81 +24,86 @@ PYTHON_ROOTS = (
 )
 
 
+ExecutionClass = Literal["parallel/process", "isolated-workspace", "exclusive"]
+PARALLEL_EXECUTION_CLASSES = frozenset({"parallel/process", "isolated-workspace"})
+DEFAULT_JOBS = 2
+
+
 class FocusedTest(NamedTuple):
     path: str
-    parallel_safe: bool
+    execution_class: ExecutionClass
     reason: str = ""
 
 
 FOCUSED_TEST_SPECS: tuple[FocusedTest, ...] = (
     FocusedTest(
         "tests/test_config_driven_check.py",
-        parallel_safe=True,
+        execution_class="isolated-workspace",
         reason="isolated tmp_path repo checks",
     ),
     FocusedTest(
         "tests/test_topology_contract_provenance.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="read-only snapshot provenance",
     ),
     FocusedTest(
         "tests/test_topology_change_orchestration.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="read-only topology specification and in-memory structures",
     ),
     FocusedTest(
         "tests/test_local_checkout_discovery.py",
-        parallel_safe=True,
+        execution_class="isolated-workspace",
         reason="isolated tmp_path checkout discovery",
     ),
     FocusedTest(
         "tests/test_local_checkout_contract_provenance.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="read-only snapshot provenance",
     ),
     FocusedTest(
         "tests/test_observe_pr_state.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="mocked subprocess in-memory observation",
     ),
     FocusedTest(
         "tests/test_pr_state_observation.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="in-memory observation candidate structures",
     ),
     FocusedTest(
         "tests/test_pr_state_observation_replay.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="in-memory observation replay structures",
     ),
     FocusedTest(
         "tests/test_publish_review_artifacts.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="mocked provider in-memory artifact publishing",
     ),
     FocusedTest(
         "tests/test_review_artifacts.py",
-        parallel_safe=True,
+        execution_class="isolated-workspace",
         reason="mocked in-memory artifact rendering and isolated tmp_path git",
     ),
     FocusedTest(
         "tests/test_review_scope_selection.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="pure functional review scope selection",
     ),
     FocusedTest(
         "tests/test_maintainer_source_closure.py",
-        parallel_safe=False,
+        execution_class="parallel/process",
         reason="process-global working directory mutation (os.chdir) and sys.path manipulation",
     ),
     FocusedTest(
         "tests/test_live_review_adapter.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="mocked provider live revalidation",
     ),
     FocusedTest(
         "tests/test_maintainer_entrypoint_workflow.py",
-        parallel_safe=False,
+        execution_class="exclusive",
         reason=(
             "adversarial in-place poisoning of canonical worktree maintainer "
             "entrypoint and sibling files"
@@ -106,83 +111,117 @@ FOCUSED_TEST_SPECS: tuple[FocusedTest, ...] = (
     ),
     FocusedTest(
         "tests/test_maintainer_efficiency_measurement.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="in-memory efficiency report calculations",
     ),
     FocusedTest(
         "tests/test_qualification_sequencing.py",
-        parallel_safe=True,
+        execution_class="isolated-workspace",
         reason="in-memory frontier sequencing and isolated tmp_path repin checks",
     ),
     FocusedTest(
         "tests/test_preflight_orchestration.py",
-        parallel_safe=True,
+        execution_class="isolated-workspace",
         reason="mock authorities executed strictly inside tmp_path",
     ),
     FocusedTest(
         "tests/test_maintainer_progressive_disclosure.py",
-        parallel_safe=False,
+        execution_class="exclusive",
         reason="adversarial in-place poisoning of canonical worktree reference file",
     ),
     FocusedTest(
         "tests/test_automation_boundaries.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="pure functional permission and separation checks",
     ),
     FocusedTest(
         "tests/test_policy_fast_preflight_parallelism.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="in-memory mock registry and event synchronization",
     ),
     FocusedTest(
         "tests/test_policy_focused_tests_parallelism.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="in-memory command construction and classification invariant checks",
     ),
     FocusedTest(
         "tests/test_matched_policy_delivery.py",
-        parallel_safe=True,
+        execution_class="isolated-workspace",
         reason=(
             "synthetic candidate repositories and experiments created strictly inside tmp_path"
         ),
     ),
     FocusedTest(
         "tests/test_policy_delivery_evidence_spec.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="exhaustive in-memory transition state-machine model checking",
     ),
     FocusedTest(
         "tests/test_policy_delivery_evidence_consistency.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="read-only smoke result verification and tmp_path tamper tests",
     ),
     FocusedTest(
         "tests/test_policy_applicability.py",
-        parallel_safe=True,
+        execution_class="parallel/process",
         reason="isolated policy applicability model and scenario verification",
     ),
     FocusedTest(
         "tests/test_prospective_self_host_qualification_boundary.py",
-        parallel_safe=False,
+        execution_class="parallel/process",
         reason="process-wide monkeypatching of package_root and repository self-host checks",
     ),
 )
 
 FOCUSED_TESTS: tuple[str, ...] = tuple(spec.path for spec in FOCUSED_TEST_SPECS)
-PARALLEL_SAFE_FOCUSED_TESTS: tuple[str, ...] = tuple(
-    spec.path for spec in FOCUSED_TEST_SPECS if spec.parallel_safe
+PARALLEL_FOCUSED_TESTS: tuple[str, ...] = tuple(
+    spec.path
+    for spec in FOCUSED_TEST_SPECS
+    if spec.execution_class in PARALLEL_EXECUTION_CLASSES
 )
-SERIAL_FOCUSED_TESTS: tuple[str, ...] = tuple(
-    spec.path for spec in FOCUSED_TEST_SPECS if not spec.parallel_safe
+EXCLUSIVE_FOCUSED_TESTS: tuple[str, ...] = tuple(
+    spec.path for spec in FOCUSED_TEST_SPECS if spec.execution_class == "exclusive"
 )
-PARALLEL_FOCUSED_TEST_WORKERS: int = 2
+
+
+def positive_jobs(value: str) -> int:
+    try:
+        jobs = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("jobs must be an integer >= 1") from exc
+    if jobs < 1:
+        raise argparse.ArgumentTypeError("jobs must be >= 1")
+    return jobs
+
+
+def effective_focused_jobs(requested_jobs: int) -> int:
+    if requested_jobs < 1:
+        raise ValueError("jobs must be at least 1")
+    return min(requested_jobs, max(1, len(PARALLEL_FOCUSED_TESTS)))
+
+
+def effective_runner_jobs(
+    profile: str,
+    requested_jobs: int,
+    checks: Sequence[str] | None = None,
+) -> int:
+    if checks:
+        if "focused-tests" in checks:
+            return effective_focused_jobs(requested_jobs)
+        # Full-suite sharding is introduced by the next Policy stack member.
+        return 1
+    if profile == "fast":
+        return max(min(requested_jobs, 2), effective_focused_jobs(requested_jobs))
+    return 1
 
 
 def sanitized_environment() -> dict[str, str]:
     environment = {
         key: value
         for key, value in os.environ.items()
-        if not key.startswith("PIP_") and not key.startswith("PYTHON")
+        if not key.startswith("PIP_")
+        and not key.startswith("PYTHON")
+        and not key.startswith("PYTEST_")
     }
     environment["PIP_CONFIG_FILE"] = os.devnull
     environment["PYTHONNOUSERSITE"] = "1"
@@ -290,26 +329,62 @@ def check_lint() -> None:
     run(sys.executable, "-m", "ruff", "check", *paths)
 
 
-def check_focused_tests() -> None:
+def check_focused_tests(jobs: int = DEFAULT_JOBS) -> None:
     missing = [path for path in FOCUSED_TESTS if not (ROOT / path).is_file()]
     if missing:
         raise RuntimeError(f"focused Policy test suites are missing: {', '.join(missing)}")
-    if PARALLEL_SAFE_FOCUSED_TESTS:
+    effective_jobs = effective_focused_jobs(jobs)
+    print(
+        "POLICY_TEST_WORKERS suite=focused "
+        f"requested={jobs} effective={effective_jobs} "
+        f"parallel_tests={len(PARALLEL_FOCUSED_TESTS)} "
+        f"exclusive_tests={len(EXCLUSIVE_FOCUSED_TESTS)}",
+        flush=True,
+    )
+    pytest_args = ("-o", "addopts=-q")
+    if PARALLEL_FOCUSED_TESTS:
+        worker_args = (
+            ("-n", str(effective_jobs), "--dist=loadfile")
+            if effective_jobs > 1
+            else ()
+        )
         run(
             sys.executable,
             "-m",
             "pytest",
-            "-n",
-            str(PARALLEL_FOCUSED_TEST_WORKERS),
-            *PARALLEL_SAFE_FOCUSED_TESTS,
+            *pytest_args,
+            *worker_args,
+            *PARALLEL_FOCUSED_TESTS,
         )
-    if SERIAL_FOCUSED_TESTS:
-        run(sys.executable, "-m", "pytest", *SERIAL_FOCUSED_TESTS)
+    if EXCLUSIVE_FOCUSED_TESTS:
+        run(
+            sys.executable,
+            "-m",
+            "pytest",
+            *pytest_args,
+            *EXCLUSIVE_FOCUSED_TESTS,
+        )
     run(sys.executable, "scripts/check_policy_delivery_evidence.py")
 
 
-def check_tests() -> None:
-    run(sys.executable, "-m", "pytest")
+def check_tests(jobs: int = DEFAULT_JOBS) -> None:
+    # P2 adds a fail-closed full-suite partition.  Until then, a larger
+    # requested budget remains serial rather than silently enabling xdist.
+    print(
+        f"POLICY_TEST_WORKERS suite=full requested={jobs} effective=1",
+        flush=True,
+    )
+    run(sys.executable, "-m", "pytest", "-o", "addopts=-q")
+
+
+def execute_check(
+    registry: Mapping[str, Callable[..., None]], name: str, jobs: int
+) -> None:
+    check = registry[name]
+    if name in {"focused-tests", "tests"}:
+        check(jobs)
+    else:
+        check()
 
 
 def check_candidate_qualification() -> None:
@@ -441,7 +516,9 @@ def classify_ready_applicability(base_ref: str, head: str):
         return fail_closed_decision("base-classifier-unavailable")
 
 
-def run_ready(base_ref: str, head: str) -> tuple[str, ...]:
+def run_ready(
+    base_ref: str, head: str, jobs: int = DEFAULT_JOBS
+) -> tuple[str, ...]:
     require_clean_tree()
     selected = list(PROFILES["full"])
     decision = classify_ready_applicability(base_ref, head)
@@ -451,7 +528,7 @@ def run_ready(base_ref: str, head: str) -> tuple[str, ...]:
         selected.append("trusted-review")
     for name in selected:
         print(f"POLICY_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
-        CHECKS[name]()
+        execute_check(CHECKS, name, jobs)
         print(f"POLICY_PREFLIGHT_CHECK_PASS name={name} head={head}", flush=True)
     return tuple(selected)
 
@@ -496,7 +573,8 @@ PROFILES["ready"] = PROFILES["full"]
 
 def run_fast(
     head: str,
-    checks: Mapping[str, Callable[[], None]] | None = None,
+    checks: Mapping[str, Callable[..., None]] | None = None,
+    jobs: int = DEFAULT_JOBS,
 ) -> tuple[str, ...]:
     registry = CHECKS if checks is None else checks
     selected = PROFILES["fast"]
@@ -522,9 +600,14 @@ def run_fast(
             with errors_lock:
                 errors.append((check_name, exc))
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(_execute, name) for name in parallel_checks]
-        concurrent.futures.wait(futures)
+    check_workers = min(jobs, len(parallel_checks))
+    if check_workers == 1:
+        for name in parallel_checks:
+            _execute(name)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=check_workers) as executor:
+            futures = [executor.submit(_execute, name) for name in parallel_checks]
+            concurrent.futures.wait(futures)
 
     if errors:
         if len(errors) == 1:
@@ -542,7 +625,7 @@ def run_fast(
 
     # Stage 3: exclusive focused-tests
     print(f"POLICY_PREFLIGHT_CHECK_START name=focused-tests head={head}", flush=True)
-    registry["focused-tests"]()
+    execute_check(registry, "focused-tests", jobs)
     print(f"POLICY_PREFLIGHT_CHECK_PASS name=focused-tests head={head}", flush=True)
 
     return selected
@@ -554,6 +637,13 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--check", choices=sorted(CHECKS), action="append", dest="checks")
     parser.add_argument("--expected-head")
     parser.add_argument("--base-ref")
+    parser.add_argument(
+        "--jobs",
+        type=positive_jobs,
+        default=DEFAULT_JOBS,
+        metavar="N",
+        help="maximum Policy preflight workers (default: 2; use 1 for serial baseline)",
+    )
     return parser.parse_args(arguments)
 
 
@@ -568,6 +658,12 @@ def main(arguments: Sequence[str] | None = None) -> int:
         )
         return 1
     try:
+        effective_jobs = effective_runner_jobs(args.profile, args.jobs, args.checks)
+        print(
+            f"POLICY_PREFLIGHT_WORKERS profile={args.profile} "
+            f"requested={args.jobs} effective={effective_jobs}",
+            flush=True,
+        )
         if args.profile == "ready":
             if not args.expected_head:
                 raise RuntimeError("ready requires --expected-head")
@@ -577,14 +673,14 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 )
             if not args.base_ref:
                 raise RuntimeError("ready requires --base-ref")
-            selected = run_ready(args.base_ref, head)
+            selected = run_ready(args.base_ref, head, jobs=args.jobs)
         elif args.profile == "fast" and not args.checks:
-            selected = run_fast(head)
+            selected = run_fast(head, jobs=args.jobs)
         else:
             selected = tuple(args.checks or PROFILES[args.profile])
             for name in selected:
                 print(f"POLICY_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
-                CHECKS[name]()
+                execute_check(CHECKS, name, args.jobs)
                 print(f"POLICY_PREFLIGHT_CHECK_PASS name={name} head={head}", flush=True)
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
         print(

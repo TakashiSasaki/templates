@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import subprocess
 import threading
-import time
 from unittest.mock import patch
 
 import pytest
@@ -16,7 +15,6 @@ def test_compile_occurs_before_parallel_phase() -> None:
 
     def mock_compile() -> None:
         timeline.append("compile_start")
-        time.sleep(0.01)
         timeline.append("compile_end")
 
     def mock_lint() -> None:
@@ -25,7 +23,7 @@ def test_compile_occurs_before_parallel_phase() -> None:
     def mock_self_check() -> None:
         timeline.append("self_check_start")
 
-    def mock_focused_tests() -> None:
+    def mock_focused_tests(jobs: int = 1) -> None:
         timeline.append("focused_tests_start")
 
     registry = {
@@ -65,7 +63,7 @@ def test_lint_and_self_check_share_same_phase_concurrently() -> None:
         if lint_started.wait(timeout=2.0):
             both_active.set()
 
-    def mock_focused_tests() -> None:
+    def mock_focused_tests(jobs: int = 1) -> None:
         pass
 
     registry = {
@@ -88,16 +86,14 @@ def test_focused_tests_starts_only_after_both_parallel_checks_pass() -> None:
         pass
 
     def mock_lint() -> None:
-        time.sleep(0.01)
         finished.add("lint")
         events.append("lint_pass")
 
     def mock_self_check() -> None:
-        time.sleep(0.01)
         finished.add("self-check")
         events.append("self_check_pass")
 
-    def mock_focused_tests() -> None:
+    def mock_focused_tests(jobs: int = 1) -> None:
         assert "lint" in finished, "focused-tests started before lint finished"
         assert "self-check" in finished, "focused-tests started before self-check finished"
         events.append("focused_tests_start")
@@ -126,10 +122,9 @@ def test_lint_failure_blocks_focused_tests() -> None:
         raise RuntimeError("simulated lint failure")
 
     def mock_self_check() -> None:
-        time.sleep(0.02)
         self_check_settled.set()
 
-    def mock_focused_tests() -> None:
+    def mock_focused_tests(jobs: int = 1) -> None:
         focused_tests_called.set()
 
     registry = {
@@ -155,13 +150,12 @@ def test_self_check_failure_blocks_focused_tests() -> None:
         pass
 
     def mock_lint() -> None:
-        time.sleep(0.02)
         lint_settled.set()
 
     def mock_self_check() -> None:
         raise subprocess.CalledProcessError(1, ["agent-policy", "check"])
 
-    def mock_focused_tests() -> None:
+    def mock_focused_tests(jobs: int = 1) -> None:
         focused_tests_called.set()
 
     registry = {
@@ -190,7 +184,7 @@ def test_both_parallel_checks_fail_settles_and_reports_both() -> None:
     def mock_self_check() -> None:
         raise ValueError("self-check error details")
 
-    def mock_focused_tests() -> None:
+    def mock_focused_tests(jobs: int = 1) -> None:
         pass
 
     registry = {
@@ -206,6 +200,34 @@ def test_both_parallel_checks_fail_settles_and_reports_both() -> None:
     message = str(exc_info.value)
     assert "lint (lint error details)" in message
     assert "self-check (self-check error details)" in message
+
+
+def test_jobs_one_keeps_the_fast_profile_serial() -> None:
+    calls: list[str] = []
+
+    def mock_compile() -> None:
+        calls.append("compile")
+
+    def mock_lint() -> None:
+        assert threading.current_thread() is threading.main_thread()
+        calls.append("lint")
+
+    def mock_self_check() -> None:
+        assert threading.current_thread() is threading.main_thread()
+        calls.append("self-check")
+
+    def mock_focused_tests(jobs: int) -> None:
+        assert jobs == 1
+        calls.append("focused-tests")
+
+    registry = {
+        "compile": mock_compile,
+        "lint": mock_lint,
+        "self-check": mock_self_check,
+        "focused-tests": mock_focused_tests,
+    }
+    assert run_fast("head_sha_test", checks=registry, jobs=1) == PROFILES["fast"]
+    assert calls == ["compile", "lint", "self-check", "focused-tests"]
 
 
 def test_explicit_check_flag_remains_sequential() -> None:
@@ -235,7 +257,12 @@ def test_full_and_ready_profiles_are_unchanged() -> None:
     """14.7 full profile remains sequential and does not invoke run_fast."""
     executed_checks: list[str] = []
     custom_checks = {
-        name: (lambda n=name: executed_checks.append(n)) for name in PROFILES["full"]
+        name: (
+            (lambda jobs, n=name: executed_checks.append(n))
+            if name == "tests"
+            else (lambda n=name: executed_checks.append(n))
+        )
+        for name in PROFILES["full"]
     }
 
     with patch("scripts.run_policy_preflight.CHECKS", custom_checks), patch(
@@ -253,7 +280,7 @@ def test_canonical_fast_profile_markers_and_identity(capsys: pytest.CaptureFixtu
         "compile": lambda: None,
         "lint": lambda: None,
         "self-check": lambda: None,
-        "focused-tests": lambda: None,
+        "focused-tests": lambda jobs: None,
     }
 
     current_head = exact_head()
@@ -265,6 +292,7 @@ def test_canonical_fast_profile_markers_and_identity(capsys: pytest.CaptureFixtu
     stdout = captured.out
 
     assert f"POLICY_PREFLIGHT_CHECK_START name=compile head={current_head}" in stdout
+    assert "POLICY_PREFLIGHT_WORKERS profile=fast requested=2 effective=2" in stdout
     assert f"POLICY_PREFLIGHT_CHECK_PASS name=compile head={current_head}" in stdout
     assert f"POLICY_PREFLIGHT_CHECK_START name=lint head={current_head}" in stdout
     assert f"POLICY_PREFLIGHT_CHECK_PASS name=lint head={current_head}" in stdout
