@@ -145,7 +145,7 @@ jobs:
   integration_controller:
     needs: validate_event
     if: needs.validate_event.result == 'success'
-    uses: TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@4a8b7a6726e7d8b84247480b1d5d709307b5720e
+    uses: TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@edc7a4803e33a60411079b3bec21899ecdf4312a
     with:
       # Site only normalizes the transport. Provider events resolve Integration
       # live; manual requests bind the exact supplied producer SHA. In both
