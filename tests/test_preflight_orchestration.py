@@ -400,6 +400,43 @@ def test_supervisor_cleanup_exit_code_reports_cleanup_failure() -> None:
     assert not cleanup_complete
 
 
+def test_timeout_result_surfaces_supervisor_cleanup_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    _create_mock_authority(repo_root, "integration")
+
+    class FailedCleanupSupervisor:
+        returncode: int | None = None
+        communicate_calls = 0
+
+        def terminate(self) -> None:
+            pass
+
+        def communicate(self, *, timeout: float) -> tuple[str, str]:
+            self.communicate_calls += 1
+            if self.communicate_calls == 1:
+                raise subprocess.TimeoutExpired("supervisor", timeout)
+            self.returncode = 125
+            return "supervisor output", "cleanup failed"
+
+    supervisor = FailedCleanupSupervisor()
+    monkeypatch.setattr(orchestrator_module, "_get_git_head", lambda _path: FAKE_SHA)
+    monkeypatch.setattr(
+        orchestrator_module.subprocess, "Popen", lambda *_args, **_kwargs: supervisor
+    )
+
+    result = run_single_preflight(
+        authority="integration", repo_root=repo_root, timeout=1
+    )
+
+    assert result.status == "TIMEOUT"
+    assert (
+        "authority supervisor did not complete bounded descendant cleanup"
+        in result.failure_excerpt
+    )
+
+
 def test_windows_supervisor_uses_control_break_and_private_process_group(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
