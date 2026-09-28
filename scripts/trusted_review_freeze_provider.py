@@ -94,6 +94,19 @@ ROLE_NAMES = tuple(ROLE_TO_SECTION)
 IMAGE_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
 REPOSITORY_URL = "https://github.com/TakashiSasaki/templates.git"
 OCI_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+DATA_ONLY_CONTAINER_COMMAND = "/__trusted_review_data_only__"
+
+
+def _create_data_only_container(image_ref: str, *, runner: Any | None = None) -> str:
+    """Create a stopped OCI data container with an explicit, never-run command."""
+    execute = runner or subprocess.run
+    result = execute(
+        ["docker", "create", image_ref, DATA_ONLY_CONTAINER_COMMAND],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -342,9 +355,7 @@ def hydrate_handoff(
     backing_locators: dict[str, str] = {}
     try:
         runner(["docker", "pull", object_ref], check=True, capture_output=True, text=True)
-        container = runner(
-            ["docker", "create", object_ref], check=True, capture_output=True, text=True
-        ).stdout.strip()
+        container = _create_data_only_container(object_ref, runner=runner)
         if not container:
             raise TrustedFreezeError("Docker did not return the attested OCI container identity")
         for role, section in ROLE_TO_SECTION.items():
@@ -646,9 +657,7 @@ def _protect_aggregate(
     complete = False
     try:
         subprocess.run(["docker", "pull", object_ref], check=True, capture_output=True, text=True)
-        container = subprocess.run(
-            ["docker", "create", object_ref], check=True, capture_output=True, text=True
-        ).stdout.strip()
+        container = _create_data_only_container(object_ref)
         if not container:
             raise TrustedFreezeError("Docker did not return the aggregate container identity")
         for role in ROLE_NAMES:
@@ -1185,9 +1194,7 @@ def _protect_role(
     complete = False
     try:
         subprocess.run(["docker", "pull", object_ref], check=True, capture_output=True, text=True)
-        created = subprocess.run(
-            ["docker", "create", object_ref], check=True, capture_output=True, text=True
-        ).stdout.strip()
+        created = _create_data_only_container(object_ref)
         if not created:
             raise TrustedFreezeError("Docker did not return a container identity")
         subprocess.run(

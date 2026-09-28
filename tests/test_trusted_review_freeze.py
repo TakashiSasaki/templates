@@ -1256,6 +1256,17 @@ def test_portable_handoff_hydrates_without_producer_locators(
         runner=runner,
     )
 
+    assert [
+        command for command in runner.commands if command[:2] == ["docker", "create"]
+    ] == [
+        [
+            "docker",
+            "create",
+            f"{freeze.OCI_REPOSITORY}@sha256:{IMAGE_SHA}",
+            provider.DATA_ONLY_CONTAINER_COMMAND,
+        ]
+    ]
+
     local_view = json.loads(local_view_path.read_text(encoding="utf-8"))
     assert local_view["handoff_sha256"] == hashlib.sha256(
         fixture["handoff_path"].read_bytes()

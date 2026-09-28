@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 from types import SimpleNamespace
@@ -188,3 +189,32 @@ def test_image_manifest_verification_is_digest_addressed_and_checks_oci_media_ty
     )
     with pytest.raises(provider.TrustedFreezeError, match="single-platform OCI"):
         provider._verify_image_manifest(f"sha256:{SHA256}")
+
+
+def test_all_oci_data_container_paths_use_the_explicit_create_helper() -> None:
+    source = (ROOT / "scripts/trusted_review_freeze_provider.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    functions = {
+        node.name: node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+    for name in ("hydrate_handoff", "_protect_aggregate", "_protect_role"):
+        assert any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_create_data_only_container"
+            for node in ast.walk(functions[name])
+        )
+
+    helper = functions["_create_data_only_container"]
+    assert any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "execute"
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.List)
+        and len(node.args[0].elts) == 4
+        for node in ast.walk(helper)
+    )
