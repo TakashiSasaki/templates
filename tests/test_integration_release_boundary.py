@@ -178,10 +178,57 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('publication-promotion-intent.json', promote_commands)
         self.assertIn("needs.controller.outputs.classification == 'AUTO_PROCESSABLE'", reconcile['jobs']['promote_lock_pr']['if'])
 
+        build_step = next(
+            step for step in controller_steps
+            if step.get('name') == 'Build the deterministic trusted promotion intent'
+        )
+        self.assertEqual(
+            build_step['env']['RECONCILIATION_WORKFLOW_REPOSITORY'],
+            '${{ job.workflow_repository }}',
+        )
+        self.assertEqual(
+            build_step['env']['RECONCILIATION_WORKFLOW_FILE_PATH'],
+            '${{ job.workflow_file_path }}',
+        )
+        self.assertEqual(
+            build_step['env']['RECONCILIATION_WORKFLOW_REF'],
+            '${{ job.workflow_ref }}',
+        )
+        self.assertEqual(
+            build_step['env']['RECONCILIATION_WORKFLOW_SHA'],
+            '${{ job.workflow_sha }}',
+        )
+        self.assertIn('--run-workflow-path "$RUN_WORKFLOW_PATH"', build_step['run'])
+        self.assertIn('--reconciliation-workflow-sha "$RECONCILIATION_WORKFLOW_SHA"', build_step['run'])
+        self.assertNotIn('inputs.reconciliation_workflow', reconcile)
+        self.assertIn('publication_promotion_intent.py verify-target', promote_commands)
+        self.assertIn('--expected-reconciliation-workflow-sha "$EXPECTED_RECONCILIATION_WORKFLOW_SHA"', promote_commands)
+        self.assertIn('--expected-intent-digest "$PROMOTION_INTENT_DIGEST"', promote_commands)
+
         notify = yaml.safe_load((ROOT / '.github/workflows/integration-promotion-notify.yml').read_text())
         self.assertIn('validate_promotion_intent', notify['jobs'])
         self.assertIn('verify-merged', '\n'.join(step.get('run', '') for step in notify['jobs']['validate_promotion_intent']['steps']))
         self.assertIn('needs.validate_promotion_intent.result == \'success\'', notify['jobs']['release_qualification']['if'])
+
+    def test_promotion_intent_schema_split_preserves_run_path_and_notification_contract(self):
+        reconcile_text = (ROOT / '.github/workflows/integration-reconcile.yml').read_text()
+        self.assertIn(
+            'RUN_WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"',
+            reconcile_text,
+        )
+        self.assertIn('--workflow-path "$WORKFLOW_PATH"', reconcile_text)
+        self.assertIn('--run-workflow-path "$RUN_WORKFLOW_PATH"', reconcile_text)
+
+        source = (ROOT / 'scripts/publication_promotion_intent.py').read_text()
+        self.assertIn('"run_provenance"', source)
+        self.assertIn('"reconciliation_implementation"', source)
+        self.assertIn('RECONCILIATION_WORKFLOW_PATH = ".github/workflows/integration-reconcile.yml"', source)
+        self.assertNotIn('qualification.workflow_path', source)
+
+        notify = (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
+        self.assertIn('publication_promotion_intent.py verify-merged-pr', notify)
+        self.assertIn('--workflow-path "$WORKFLOW_PATH"', notify)
+        self.assertNotIn('reconciliation_implementation', notify)
 
     def test_bundle_receipt_uses_github_workflow_path_shape(self):
         for name, expected_count in (
@@ -191,8 +238,11 @@ class ReleaseBoundaryTests(unittest.TestCase):
             workflow = (ROOT / '.github/workflows' / name).read_text()
             with self.subTest(workflow=name):
                 self.assertEqual(
-                    workflow.count(
-                        'WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"'
+                    sum(
+                        line.strip().startswith(
+                            'WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"'
+                        )
+                        for line in workflow.splitlines()
                     ),
                     expected_count,
                 )
