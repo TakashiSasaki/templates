@@ -18,6 +18,7 @@ from scripts.run_policy_preflight import (
     classify_full_test_inventory,
     effective_full_test_jobs,
     effective_runner_jobs,
+    main,
     run_pytest_subset,
     schedulable_full_test_module_count,
 )
@@ -262,6 +263,39 @@ def test_top_level_full_budget_uses_inventory_schedulable_modules() -> None:
     assert effective_runner_jobs(
         "ready", 100, schedulable_modules=schedulable_modules
     ) == 1
+
+
+def test_explicit_non_test_check_skips_full_inventory_collection(capsys) -> None:
+    head = "a" * 40
+    with (
+        patch("scripts.run_policy_preflight.exact_head", return_value=head),
+        patch("scripts.run_policy_preflight.schedulable_full_test_module_count") as inventory,
+        patch("scripts.run_policy_preflight.execute_check") as execute_check,
+    ):
+        assert main(["full", "--expected-head", head, "--check", "lint"]) == 0
+
+    inventory.assert_not_called()
+    execute_check.assert_called_once()
+    assert "requested=2 effective=1" in capsys.readouterr().out
+
+
+def test_explicit_full_test_check_collects_inventory_for_worker_cap(capsys) -> None:
+    head = "b" * 40
+    with (
+        patch("scripts.run_policy_preflight.exact_head", return_value=head),
+        patch(
+            "scripts.run_policy_preflight.schedulable_full_test_module_count",
+            return_value=3,
+        ) as inventory,
+        patch("scripts.run_policy_preflight.execute_check") as execute_check,
+    ):
+        assert main(
+            ["full", "--expected-head", head, "--check", "tests", "--jobs", "8"]
+        ) == 0
+
+    inventory.assert_called_once_with()
+    execute_check.assert_called_once()
+    assert "requested=8 effective=3" in capsys.readouterr().out
 
 
 def test_inventory_collector_clears_injected_pytest_worker_options(

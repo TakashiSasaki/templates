@@ -846,9 +846,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         )
         return 1
     try:
-        needs_full_inventory = args.profile in {"full", "ready"} or (
-            args.checks is not None and "tests" in args.checks
-        )
+        selected_checks = tuple(args.checks or PROFILES[args.profile])
+        needs_full_inventory = "tests" in selected_checks
         schedulable_modules = (
             schedulable_full_test_module_count() if needs_full_inventory else None
         )
@@ -876,7 +875,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         elif args.profile == "fast" and not args.checks:
             selected = run_fast(head, jobs=args.jobs)
         else:
-            selected = tuple(args.checks or PROFILES[args.profile])
+            selected = selected_checks
             for name in selected:
                 print(f"POLICY_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
                 execute_check(CHECKS, name, args.jobs)
