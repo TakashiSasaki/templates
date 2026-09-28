@@ -166,7 +166,14 @@ def test_jobs_one_runs_full_suite_without_partition_or_xdist() -> None:
         check_tests(jobs=1)
 
     assert len(calls) == 1
-    assert calls[0][1:] == ("-m", "pytest", "-o", "addopts=-q")
+    assert calls[0][1:] == (
+        "-m",
+        "pytest",
+        "-o",
+        "addopts=-q",
+        "--durations=0",
+        "--durations-min=0",
+    )
     assert "-n" not in calls[0]
 
 

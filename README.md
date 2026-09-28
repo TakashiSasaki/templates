@@ -69,7 +69,9 @@ run `python3 scripts/run_policy_preflight.py fast --jobs 1` or
 uses the same budget with fingerprinted parallel-safe modules; changed and new
 tests remain in the serial lane until reviewed. Compare it with
 `python3 scripts/run_policy_preflight.py full --jobs 1` when qualifying a change.
-The shared semantics,
+For cross-authority qualification, run
+`python3 scripts/orchestrate_preflights.py --jobs 2`; this `--jobs` value is the
+combined worker cap across the selected authority worktrees. The shared semantics,
 authority boundaries, and qualification evidence contract are in
 [`docs/worker-budget-contract.md`](docs/worker-budget-contract.md).
 

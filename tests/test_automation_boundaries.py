@@ -16,7 +16,10 @@ from scripts.automation_boundaries import (  # noqa: E402
     enforce_acceptance_separation,
     enforce_operation_permission,
 )
-from scripts.orchestrate_preflights import orchestrate_preflights  # noqa: E402
+from scripts.orchestrate_preflights import (  # noqa: E402
+    AuthorityRunResult,
+    orchestrate_preflights,
+)
 from scripts.sequence_qualification import (  # noqa: E402
     FRONTIER_BLOCKED,
     FRONTIER_QUALIFICATION,
@@ -63,12 +66,38 @@ def test_qualification_sequencing_cannot_manufacture_acceptance() -> None:
     assert result["may_authorize_merge"] is False
 
 
-def test_preflight_pass_is_not_review_acceptance(tmp_path: Path) -> None:
+def test_preflight_pass_is_not_review_acceptance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """3. Preflight PASS is not review acceptance: preflight is validation evidence only."""
+
+    def fake_run_single(
+        authority: str,
+        *,
+        allocated_workers: int,
+        allocation_batch: int,
+        **_: object,
+    ) -> AuthorityRunResult:
+        return AuthorityRunResult(
+            authority=authority,
+            status="PASS",
+            head_sha=FAKE_SHA_1,
+            command=["mock", "--jobs", str(allocated_workers)],
+            working_directory=str(tmp_path),
+            elapsed_seconds=0.0,
+            exit_code=0,
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
+        )
+
+    monkeypatch.setattr(
+        "scripts.orchestrate_preflights.run_single_preflight", fake_run_single
+    )
     res = orchestrate_preflights(
-        authorities=[],
+        authorities=["policy"],
         repo_root=tmp_path,
     )
+    assert res["overall_status"] == "PASSED"
     assert res["is_validation_evidence_only"] is True
     assert res["may_establish_acceptance"] is False
 

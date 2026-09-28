@@ -311,6 +311,20 @@ The orchestrator:
 - Captures full logs (`--log-dir`) while returning a concise, bounded summary table (`<= 8 KiB`).
 - Preserves authority boundaries: does NOT re-implement or reinterpret authority validation semantics.
 
+On Linux, each authority invocation runs under its own small supervisor, which
+acts as a child subreaper for that invocation alone. The supervisor reaps all
+adopted descendants on normal PASS/FAIL completion and after timeout or spawn
+failure. Bounded group-scoped TERM/KILL handles descendants that remain, while
+the supervisor's private child ownership prevents concurrent authorities from
+reaping one another's processes. Other POSIX systems terminate and wait for the
+invocation process group, but cannot provide the same subreaper guarantee for
+detached grandchildren; cleanup of those descendants is best effort. On
+Windows, the coordinator requests cleanup with a control-break event to the
+supervisor's private process group. The supervisor handles that event, waits
+for the direct authority child to terminate, and uses a bounded force-kill
+fallback if needed. Descendant cleanup remains best effort because this runner
+has no equivalent process-group or child-subreaper contract there.
+
 ### Automation boundaries and operation taxonomy
 
 To prevent orchestration helpers from accidentally assuming semantic authority, maintainer tooling adheres to an explicit operation taxonomy (`scripts/automation_boundaries.py`):

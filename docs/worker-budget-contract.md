@@ -21,6 +21,14 @@ runners. It allocates child budgets whose active sum does not exceed that global
 limit; it must not forward the same global value to every authority. A direct
 authority invocation treats `--jobs` as that runner's local limit.
 
+The Policy cross-authority coordinator builds a fixed, ordered batch plan before
+starting children. Each child receives its allocated local `--jobs` value, and
+the allocation sum for every concurrently active batch is at most the requested
+global budget. When there are more authorities than worker slots, later batches
+wait for earlier ones to finish. The result records the allocation per authority
+and batch; authority-process count is reported separately from worker count.
+There is no runtime rebalancing.
+
 Environment variables and project configuration must not silently increase a
 requested limit. A runner that owns nested parallelism clears or explicitly
 overrides inherited worker options before launching its test runtime.
@@ -41,6 +49,32 @@ The common contract does not unify test runners:
 Each authority's qualification entrypoint remains responsible for its own
 inventory and results. The coordinator may start, bound, log, and aggregate
 those commands, but it cannot redefine their test semantics.
+
+## Timeout cleanup
+
+On POSIX, each authority command starts in its own session and process group.
+On timeout, the coordinator sends `SIGTERM` to that group while draining both
+captured output streams for at most one second, then sends `SIGKILL` and drains
+the direct authority process. The result remains `TIMEOUT`; successful runs do
+not enter the termination path.
+
+On Linux, each authority supervisor temporarily uses
+`PR_SET_CHILD_SUBREAPER`. It locates adopted descendants through their parent
+PIDs in standard `/proc/<pid>/stat` records, so cleanup does not depend on the
+optional `/proc/<pid>/task/<pid>/children` interface. The supervisor signals
+and reaps adopted descendants, including children that detached from the
+authority process group. If Linux subreaper support or readable process records
+are unavailable, it fails before launching the authority command. Process
+records are scanned only to discover and finalize that supervisor's children;
+the coordinator does not inspect process command lines or use timing sleeps.
+
+Other POSIX systems do not expose a portable subreaper API through Python. The
+coordinator signals their authority process group and reaps the direct child;
+the operating system's init process owns orphaned grandchildren. On those
+systems, descendants that create a new session or process group are outside
+the process-group cleanup contract. The termination grace is bounded at one
+second; after `SIGKILL`, final process exit and reaping depend on the operating
+system scheduling the killed processes.
 
 ## Parallel-safety classes
 
