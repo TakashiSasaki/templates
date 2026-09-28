@@ -63,7 +63,7 @@ Observation, attestation, OCI image, handoff and reviewer packet are bound to re
 ## Consequences
 
 - The GitHub-specific producer, verifier and submission transport remain in the platform adapter. GitHub event names, claims and review payloads do not enter semantic policy.
-- Workflow permissions must be explicit and job-scoped. The observation job needs `contents: read`, `pull-requests: read`, `id-token: write`, and `attestations: write`; only the OCI publisher needs `packages: write`; only the submit job needs `pull-requests: write`.
+- Workflow permissions must be explicit and job-scoped. The observation job needs `contents: read`, `pull-requests: read`, `id-token: write`, `attestations: write`, and `artifact-metadata: write`; only the OCI publisher needs `packages: write`; only the submit job needs `pull-requests: write`.
 - Review execution receives no GitHub token. Its OCI rootfs is read-only, networking is disabled, and proposed-head material is a read-only data mount.
 - `github-actions[bot]` is technically able to submit a pull-request review with `pull-requests: write`. Repository policy accepts a distinct review system when the implementing actor cannot self-review; the Actions workload is separate from the PR author. The semantic conclusion remains owned by the frozen procedure and policy, not the bot account.
 - GitHub-hosted workflow execution is required for deployment qualification. Local tests can qualify rejection behavior but cannot establish deployed OIDC, attestation, registry, token-permission or bot-review behavior.
