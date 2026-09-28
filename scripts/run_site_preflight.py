@@ -188,23 +188,20 @@ def sanitize_node_options_for_worker_budget(environment: dict[str, str]) -> None
     index = 0
     while index < len(tokens):
         token = tokens[index]
-        option = token[1:-1] if token.startswith('"') and token.endswith('"') else token
-        if option == "--test-concurrency":
+        option_name = token.partition("=")[0].replace('"', "")
+        if option_name == "--test-concurrency":
             removed = True
+            if "=" in token:
+                index += 1
+                continue
             index += 1
             next_option = (
-                tokens[index][1:-1]
+                tokens[index].partition("=")[0].replace('"', "")
                 if index < len(tokens)
-                and tokens[index].startswith('"')
-                and tokens[index].endswith('"')
-                else tokens[index] if index < len(tokens) else ""
+                else ""
             )
             if index < len(tokens) and not next_option.startswith("--"):
                 index += 1
-            continue
-        if option.startswith("--test-concurrency="):
-            removed = True
-            index += 1
             continue
         sanitized.append(token)
         index += 1

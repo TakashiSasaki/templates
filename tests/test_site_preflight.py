@@ -330,7 +330,7 @@ class SitePreflightTests(unittest.TestCase):
             "--max-old-space-size=2048 --trace-warnings",
         )
 
-    def test_node_runner_preserves_double_quoted_require_path_in_real_child(self):
+    def test_node_runner_preserves_quoted_require_path_and_removes_quoted_option_name(self):
         with TemporaryDirectory(prefix="site node options ") as temporary:
             directory = Path(temporary) / "space dir"
             directory.mkdir()
@@ -354,6 +354,7 @@ class SitePreflightTests(unittest.TestCase):
                     os.environ,
                     {
                         "NODE_OPTIONS": (
+                            '"--test-concurrency"=8 '
                             f'--require="{hook}" --test-concurrency=auto '
                             "--trace-warnings"
                         )
