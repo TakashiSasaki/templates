@@ -1,0 +1,63 @@
+{
+  "base_lock_digest": "cb42dfc440b900cdd19e0f57aaa1f60f842a94b2f22d18784526281b3a072cfe",
+  "boundary": "provider-to-integration",
+  "bundle": {
+    "content_digest": "95615790fad7ece7db35855cadd0a4aba9f4e0e2ab96447e58fab11e29a1029f",
+    "identity": "22ca95e6336010654a552fb90e0b4f62ce5d4b6511fffbd80e9bd5a7de3387c6",
+    "schema": 4
+  },
+  "consumer_base_revision": "edc7a4803e33a60411079b3bec21899ecdf4312a",
+  "idempotency_key": "1e5e2e574cc498bd1f123d6e3a6003ecf397a015c20b26e5e22499ec27a7eb8e",
+  "lock_update_required": false,
+  "provider_tuple": {
+    "composition": "d4d0e35485ea0c2030e902f462374f6fb8f8588a",
+    "modeling": "202afe0206d673b2e2195a2df271d76862f9323a",
+    "policy": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
+  },
+  "qualification_inputs": {
+    "bundle_content_digest": "95615790fad7ece7db35855cadd0a4aba9f4e0e2ab96447e58fab11e29a1029f",
+    "bundle_identity": "22ca95e6336010654a552fb90e0b4f62ce5d4b6511fffbd80e9bd5a7de3387c6",
+    "bundle_schema": "4",
+    "composition_revision": "d4d0e35485ea0c2030e902f462374f6fb8f8588a",
+    "integration_revision": "edc7a4803e33a60411079b3bec21899ecdf4312a",
+    "modeling_revision": "202afe0206d673b2e2195a2df271d76862f9323a",
+    "policy_revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
+  },
+  "reconciliation_implementation": {
+    "workflow_file_path": ".github/workflows/integration-reconcile.yml",
+    "workflow_ref": "TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@edc7a4803e33a60411079b3bec21899ecdf4312a",
+    "workflow_repository": "TakashiSasaki/templates",
+    "workflow_sha": "edc7a4803e33a60411079b3bec21899ecdf4312a"
+  },
+  "run_provenance": {
+    "artifact_namespace": "reconciliation",
+    "bundle_artifact": {
+      "digest": "sha256:411027ce19ca771b4945f2a63e60bf036dab010273f2189217e982c56b9e82df",
+      "id": 11003297573,
+      "name": "publication-bundle-22ca95e6336010654a552fb90e0b4f62ce5d4b6511fffbd80e9bd5a7de3387c6-1-reconciliation"
+    },
+    "invocation_mode": "site-reusable",
+    "qualification_artifact": {
+      "digest": "sha256:f894aef272bf1cc0bb35ea8807cdf60d876595cf97d4ce07d17e0870ce0d253c",
+      "id": 11003462361,
+      "name": "publication-compatibility-22ca95e6336010654a552fb90e0b4f62ce5d4b6511fffbd80e9bd5a7de3387c6-1-reconciliation"
+    },
+    "repository": "TakashiSasaki/templates",
+    "run_workflow_path": ".github/workflows/provider-publication-dispatch.yml",
+    "source_report_sha256": "88bd965ada0552a4fb874a8b569140cffc5951162937477048897519f12801f5",
+    "verified_report_sha256": "c6eba9ac775b2c4e7083402d1d7dc2820629649efc601b56906263ea5b87bf06",
+    "workflow_attempt": 1,
+    "workflow_event": "workflow_dispatch",
+    "workflow_head": "865df1ba2c34dad52a825d83992444a43f16822f",
+    "workflow_name": "Dispatch provider qualification to Integration",
+    "workflow_run_id": 36496218248
+  },
+  "schema_version": 2,
+  "selected_lock_digest": "cb42dfc440b900cdd19e0f57aaa1f60f842a94b2f22d18784526281b3a072cfe",
+  "source_integration_revision": "edc7a4803e33a60411079b3bec21899ecdf4312a",
+  "stage": "promotion-intent",
+  "trusted": {
+    "controller_revision": "edc7a4803e33a60411079b3bec21899ecdf4312a",
+    "policy_revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
+  }
+}
