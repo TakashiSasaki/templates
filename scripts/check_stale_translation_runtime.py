@@ -157,16 +157,30 @@ def _attach_browser_diagnostics(context, page, evidence, run_started):
         "serviceworker",
         lambda worker: event("service_worker", url=worker.url),
     )
-    page.on(
-        "console",
-        lambda message: event(
-            "browser_console",
-            message_type=message.type,
-            text=message.text,
-        )
-        if message.type in ("warning", "error")
-        else None,
-    )
+    def on_console(message):
+        prefix = "SITE_PWA_SW_UPDATE "
+        if message.text.startswith(prefix):
+            try:
+                observation = json.loads(message.text[len(prefix) :])
+            except json.JSONDecodeError as exc:
+                event(
+                    "service_worker_update_lifecycle_parse_error",
+                    text=message.text,
+                    error=str(exc),
+                )
+            else:
+                event(
+                    "service_worker_update_lifecycle",
+                    observation=observation,
+                )
+        elif message.type in ("warning", "error"):
+            event(
+                "browser_console",
+                message_type=message.type,
+                text=message.text,
+            )
+
+    page.on("console", on_console)
     page.on(
         "pageerror",
         lambda error: event("browser_page_error", error=str(error)),
@@ -176,6 +190,121 @@ def _attach_browser_diagnostics(context, page, evidence, run_started):
 def _run_phase(evidence, name, action):
     with _phase(evidence, name):
         return action()
+
+
+def _start_service_worker_update_probe(page):
+    return page.evaluate(
+        """async () => {
+            const key = "__sitePwaUpdateProbe";
+            const registration = await navigator.serviceWorker.ready;
+            const startedAt = performance.now();
+            const workerSummary = worker => worker ? {
+                script_url: worker.scriptURL,
+                state: worker.state,
+            } : null;
+            const registrationSummary = () => ({
+                active: workerSummary(registration.active),
+                waiting: workerSummary(registration.waiting),
+                installing: workerSummary(registration.installing),
+                controller: workerSummary(navigator.serviceWorker.controller),
+            });
+            const probe = {
+                started_at: startedAt,
+                update_status: "pending",
+                update_error: null,
+                controller_changed: false,
+                events: [],
+            };
+            const record = (name, details = {}) => {
+                const observation = {
+                    name,
+                    elapsed_ms: Math.round((performance.now() - startedAt) * 10) / 10,
+                    ...details,
+                };
+                probe.events.push(observation);
+                console.debug("SITE_PWA_SW_UPDATE " + JSON.stringify(observation));
+            };
+            const recordWorkerState = worker => {
+                if (!worker) return;
+                record("worker_state_observed", {worker: workerSummary(worker)});
+                worker.addEventListener("statechange", () => {
+                    record("worker_statechange", {worker: workerSummary(worker)});
+                });
+            };
+            const snapshot = () => ({
+                update_status: probe.update_status,
+                update_error: probe.update_error,
+                controller_changed: probe.controller_changed,
+                events: [...probe.events],
+                registration: registrationSummary(),
+            });
+
+            window[key] = probe;
+            record("registration_ready", {registration: registrationSummary()});
+            recordWorkerState(registration.installing);
+            registration.addEventListener("updatefound", () => {
+                const installing = registration.installing;
+                record("updatefound", {registration: registrationSummary()});
+                recordWorkerState(installing);
+            });
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+                probe.controller_changed = true;
+                record("controllerchange", {registration: registrationSummary()});
+            }, {once: true});
+
+            let updatePromise;
+            try {
+                updatePromise = registration.update();
+            } catch (error) {
+                probe.update_status = "rejected";
+                probe.update_error = {name: error.name, message: error.message};
+                record("registration_update_rejected", {
+                    error: probe.update_error,
+                    registration: registrationSummary(),
+                });
+                return {started: true, initial: snapshot()};
+            }
+            record("registration_update_started", {registration: registrationSummary()});
+            Promise.resolve(updatePromise).then(() => {
+                probe.update_status = "fulfilled";
+                record("registration_update_fulfilled", {registration: registrationSummary()});
+            }, error => {
+                probe.update_status = "rejected";
+                probe.update_error = {name: error.name, message: error.message};
+                record("registration_update_rejected", {
+                    error: probe.update_error,
+                    registration: registrationSummary(),
+                });
+            });
+            return {started: true, initial: snapshot()};
+        }"""
+    )
+
+
+def _capture_service_worker_update_probe(page):
+    return page.evaluate(
+        """async () => {
+            const probe = window.__sitePwaUpdateProbe;
+            if (!probe) return null;
+            const registration = await navigator.serviceWorker.ready;
+            const workerSummary = worker => worker ? {
+                script_url: worker.scriptURL,
+                state: worker.state,
+            } : null;
+            return {
+                update_status: probe.update_status,
+                update_error: probe.update_error,
+                controller_changed: probe.controller_changed,
+                events: [...probe.events],
+                registration: {
+                    active: workerSummary(registration.active),
+                    waiting: workerSummary(registration.waiting),
+                    installing: workerSummary(registration.installing),
+                },
+                controller: workerSummary(navigator.serviceWorker.controller),
+            };
+        }"""
+    )
 
 
 def _assert(condition, message):
@@ -208,6 +337,7 @@ def run(site, bundle, output=None):
     playwright = None
     browser = None
     context = None
+    page = None
     trace_started = False
     server_event_lock = threading.Lock()
 
@@ -507,19 +637,44 @@ def run(site, bundle, output=None):
             "state.set_worker_rollout_2",
             lambda: state.update(worker=2),
         )
+        probe_start = _run_phase(
+            evidence,
+            "service_worker.update_probe.start",
+            lambda: _start_service_worker_update_probe(page),
+        )
+        evidence["service_worker_update_probe_start"] = probe_start
         _run_phase(
             evidence,
-            "service_worker.update_and_wait_for_controllerchange",
-            lambda: page.evaluate(
-                """async () => {
-                    const reg = await navigator.serviceWorker.ready;
-                    await new Promise(async resolve => {
-                        navigator.serviceWorker.addEventListener('controllerchange', resolve, {once: true});
-                        await reg.update();
-                    });
-                }"""
+            "service_worker.wait_for_update_settlement_or_controllerchange",
+            lambda: page.wait_for_function(
+                """() => {
+                    const probe = window.__sitePwaUpdateProbe;
+                    return probe && (
+                        probe.update_status !== "pending" || probe.controller_changed
+                    );
+                }""",
+                timeout=0,
             ),
         )
+        _run_phase(
+            evidence,
+            "service_worker.wait_for_controllerchange",
+            lambda: page.wait_for_function(
+                "window.__sitePwaUpdateProbe?.controller_changed === true",
+                timeout=0,
+            ),
+        )
+        update_snapshot = _run_phase(
+            evidence,
+            "service_worker.capture_update_lifecycle",
+            lambda: _capture_service_worker_update_probe(page),
+        )
+        _assert(
+            update_snapshot is not None,
+            "service worker update probe disappeared before capture",
+        )
+        evidence["service_worker_update"] = update_snapshot
+        _log({"kind": "service_worker_update_snapshot", **update_snapshot})
         _run_phase(
             evidence,
             "navigation.after_worker_update.wait_networkidle",
@@ -563,6 +718,24 @@ def run(site, bundle, output=None):
         }
         raise
     finally:
+        if page is not None and "service_worker_update" not in evidence:
+            try:
+                partial_probe = _capture_service_worker_update_probe(page)
+                if partial_probe is not None:
+                    evidence["service_worker_update"] = partial_probe
+                    _log(
+                        {
+                            "kind": "service_worker_update_snapshot",
+                            "partial": True,
+                            **partial_probe,
+                        }
+                    )
+            except Exception as exc:
+                _diagnostic_error(
+                    evidence,
+                    "service_worker.update_probe.capture_partial",
+                    exc,
+                )
         if trace_started and context is not None:
             try:
                 with _phase(evidence, "browser.trace.stop"):
