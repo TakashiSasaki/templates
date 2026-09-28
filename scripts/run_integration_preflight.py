@@ -224,18 +224,18 @@ class InventoryTextTestResult(unittest.TextTestResult):
             value["reason"] = str(reason)
         self.outcomes[test_id] = value
 
-    def _fixture_skip_test_ids(self, fixture_id: str) -> tuple[str, ...] | None:
-        if fixture_id.startswith(("tearDownModule (", "tearDownClass (")) and fixture_id.endswith(")"):
-            return ()
-        if fixture_id.startswith("setUpModule (") and fixture_id.endswith(")"):
-            module = fixture_id[len("setUpModule (") : -1]
+    def _fixture_test_ids(self, fixture_id: str) -> tuple[str, ...] | None:
+        if fixture_id.startswith(("setUpModule (", "tearDownModule (")) and fixture_id.endswith(")"):
+            prefix = "setUpModule (" if fixture_id.startswith("setUpModule (") else "tearDownModule ("
+            module = fixture_id[len(prefix) : -1]
             return tuple(
                 case.id()
                 for case in self.discovered_cases
                 if case.__class__.__module__ == module
             )
-        if fixture_id.startswith("setUpClass (") and fixture_id.endswith(")"):
-            target = fixture_id[len("setUpClass (") : -1]
+        if fixture_id.startswith(("setUpClass (", "tearDownClass (")) and fixture_id.endswith(")"):
+            prefix = "setUpClass (" if fixture_id.startswith("setUpClass (") else "tearDownClass ("
+            target = fixture_id[len(prefix) : -1]
             return tuple(
                 case.id()
                 for case in self.discovered_cases
@@ -249,12 +249,15 @@ class InventoryTextTestResult(unittest.TextTestResult):
 
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
-        fixture_test_ids = self._fixture_skip_test_ids(test.id())
+        fixture_id = test.id()
+        if fixture_id.startswith(("tearDownModule (", "tearDownClass (")) and fixture_id.endswith(")"):
+            return
+        fixture_test_ids = self._fixture_test_ids(fixture_id)
         if fixture_test_ids is not None:
             if fixture_test_ids:
                 for test_id in fixture_test_ids:
                     self._record_id(test_id, "skipped", reason)
-            elif not test.id().startswith(("tearDownModule (", "tearDownClass (")):
+            else:
                 self._record(test, "skipped", reason)
             return
         self._record(getattr(test, "test_case", test), "skipped", reason)
@@ -265,6 +268,11 @@ class InventoryTextTestResult(unittest.TextTestResult):
 
     def addError(self, test, err):
         super().addError(test, err)
+        fixture_test_ids = self._fixture_test_ids(test.id())
+        if fixture_test_ids is not None:
+            for test_id in fixture_test_ids:
+                self._record_id(test_id, "error")
+            return
         self._record(test, "error")
 
     def addExpectedFailure(self, test, err):
