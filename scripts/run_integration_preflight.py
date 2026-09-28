@@ -641,13 +641,20 @@ def prepare_provider_checkouts(
     )
     started = time.perf_counter()
 
-    def prepare(name: str, source: Path, revision: str) -> tuple[Path, float]:
+    def prepare(
+        name: str, source: Path, revision: str
+    ) -> tuple[Path | None, float, Exception | None]:
         worker_started = time.perf_counter()
         target = materialized_root / name
-        path = clone_provider_for_materialization(source, revision, target, f"{name} materialization")
-        return path, time.perf_counter() - worker_started
+        try:
+            path = clone_provider_for_materialization(
+                source, revision, target, f"{name} materialization"
+            )
+        except Exception as exc:
+            return None, time.perf_counter() - worker_started, exc
+        return path, time.perf_counter() - worker_started, None
 
-    results: dict[str, tuple[Path, float]] = {}
+    results: dict[str, tuple[Path | None, float, Exception | None]] = {}
     failures: list[str] = []
     with ThreadPoolExecutor(max_workers=effective_jobs, thread_name_prefix="integration-provider-prep") as executor:
         futures = {
@@ -662,10 +669,18 @@ def prepare_provider_checkouts(
                 failures.append(f"{name}: {type(exc).__name__}: {exc}")
 
     wall = time.perf_counter() - started
-    total_worker_seconds = sum(seconds for _path, seconds in results.values())
-    slowest_worker_seconds = max((seconds for _path, seconds in results.values()), default=0.0)
+    total_worker_seconds = sum(seconds for _path, seconds, _error in results.values())
+    slowest_worker_seconds = max(
+        (seconds for _path, seconds, _error in results.values()), default=0.0
+    )
     for name in sorted(results):
-        path, elapsed = results[name]
+        path, elapsed, error = results[name]
+        if error is not None:
+            failures.append(f"{name}: {type(error).__name__}: {error}")
+            continue
+        if path is None:
+            failures.append(f"{name}: provider preparation returned no checkout")
+            continue
         print(
             f"INTEGRATION_PROVIDER_PREPARED name={name} worker_seconds={elapsed:.3f} "
             f"target={path}",
@@ -680,7 +695,11 @@ def prepare_provider_checkouts(
     )
     if failures:
         raise PreflightFailure("provider preparation failed: " + "; ".join(sorted(failures)))
-    return {name: path for name, (path, _seconds) in results.items()}
+    return {
+        name: path
+        for name, (path, _seconds, error) in results.items()
+        if path is not None and error is None
+    }
 
 
 def run_providers(args: argparse.Namespace, expected_head: str) -> None:

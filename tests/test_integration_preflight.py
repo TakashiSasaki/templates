@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+import io
 from pathlib import Path
 import json
 from threading import Barrier, Lock
+import time
 import unittest
 from unittest.mock import patch
 
@@ -175,6 +178,7 @@ class IntegrationPreflightTests(unittest.TestCase):
             if ordinal <= 2:
                 barrier.wait(timeout=5)
             if label.startswith("policy"):
+                time.sleep(0.05)
                 raise RuntimeError("controlled clone failure")
             return target
 
@@ -183,9 +187,27 @@ class IntegrationPreflightTests(unittest.TestCase):
             for name in ("composition", "policy", "modeling")
         ]
         with patch.object(preflight, "clone_provider_for_materialization", side_effect=fake_clone):
-            with self.assertRaisesRegex(preflight.PreflightFailure, "controlled clone failure"):
-                preflight.prepare_provider_checkouts(providers, Path("/materialized"), jobs=2)
+            with redirect_stdout(io.StringIO()) as output:
+                with self.assertRaisesRegex(preflight.PreflightFailure, "controlled clone failure"):
+                    preflight.prepare_provider_checkouts(providers, Path("/materialized"), jobs=2)
         self.assertEqual(state["calls"], 3)
+        metrics = next(
+            line
+            for line in output.getvalue().splitlines()
+            if line.startswith("INTEGRATION_PROVIDER_METRICS ")
+        )
+        worker_seconds = float(
+            next(field.split("=", 1)[1] for field in metrics.split() if field.startswith("worker_seconds="))
+        )
+        slowest_worker_seconds = float(
+            next(
+                field.split("=", 1)[1]
+                for field in metrics.split()
+                if field.startswith("slowest_worker_seconds=")
+            )
+        )
+        self.assertGreaterEqual(worker_seconds, 0.04)
+        self.assertGreaterEqual(slowest_worker_seconds, 0.04)
 
 
     def test_discovery_fails_if_a_test_import_is_not_represented(self) -> None:
