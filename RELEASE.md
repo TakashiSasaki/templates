@@ -149,3 +149,33 @@ receipt. After merge, the notification workflow verifies the intent against the 
 first parent, selected lock, branch idempotency key, and active pins, then performs a new
 trusted qualification for the exact merged Integration revision in the `promoted`
 artifact namespace. It does not reuse the pre-merge candidate Bundle as promoted evidence.
+
+Promotion-intent schema 2 keeps two workflow identities separate. `run_provenance`
+records the top-level GitHub Actions run, including its API-bound workflow path, run ID,
+attempt, head, repository, name and event, plus the bound Bundle and qualification
+artifacts. `reconciliation_implementation` records the repository, path, immutable
+workflow reference and SHA from GitHub's `job.workflow_*` context for the workflow that
+defines the running reconciliation job. Supported invocation modes are:
+
+- Direct Integration `workflow_dispatch` and `repository_dispatch` runs use
+  `integration-reconcile.yml` as the top-level workflow; its implementation SHA must
+  match the run head.
+- Site reusable `workflow_dispatch` runs and Site provider `repository_dispatch`
+  runs use `provider-publication-dispatch.yml` as the top-level workflow. The Site
+  adapter validates the provider notification, including the
+  `publication.provider-qualified` dispatch type, before calling Integration. The
+  `job.workflow_*` context must identify the same-repository
+  `integration-reconcile.yml` implementation through a full immutable SHA equal to
+  its runtime workflow SHA.
+
+Other event names and top-level workflow paths are rejected. Both workflow identities
+are checked when the intent is built, before privileged PR actions, and when the merged
+intent is verified. The qualification verification receipt retains its existing
+`workflow_path` meaning: the actual top-level run path used for GitHub API and artifact
+binding.
+
+Changes to controller-executed scripts require a later reviewed update of
+`PUBLICATION_CONTROLLER_REVISION`. Changes to `integration-reconcile.yml` also require
+the Site caller to be repinned to the landed Integration workflow revision before
+another Site-driven reconciliation. Neither pin is updated as part of preparing this
+remediation for review.

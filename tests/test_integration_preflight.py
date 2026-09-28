@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from contextlib import redirect_stdout
+import hashlib
 import io
-from pathlib import Path
 import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from threading import Barrier, Lock
 import time
 import unittest
@@ -117,14 +119,62 @@ class IntegrationPreflightTests(unittest.TestCase):
         self.assertEqual(preflight.partition_test_ids(test_ids, 1), [test_ids])
 
     def test_new_or_changed_modules_fail_closed_to_serial_classification(self) -> None:
-        cases = preflight.discover_test_cases()
-        parallel, serial = preflight.classify_test_inventory(cases)
+        with TemporaryDirectory(prefix="integration-module-classification-") as directory:
+            root = Path(directory)
+            tests_dir = root / "tests"
+            tests_dir.mkdir()
+
+            def make_case(module: str) -> unittest.TestCase:
+                case_type = type(
+                    "Probe",
+                    (unittest.TestCase,),
+                    {"__module__": module, "test_probe": lambda self: None},
+                )
+                return case_type("test_probe")
+
+            reviewed_case = make_case("test_reviewed")
+            changed_case = make_case("test_changed")
+            new_case = make_case("test_new")
+            cases = [reviewed_case, changed_case, new_case]
+            for module in ("test_reviewed", "test_changed", "test_new"):
+                (tests_dir / f"{module}.py").write_text("# fixture module\n", encoding="utf-8")
+
+            reviewed_source = (tests_dir / "test_reviewed.py").read_bytes()
+            changed_source = (tests_dir / "test_changed.py").read_bytes()
+            manifest_path = root / "parallel-modules.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "parallel_module_sha256": {
+                            "test_reviewed": {
+                                "source_sha256": hashlib.sha256(reviewed_source).hexdigest(),
+                                "test_ids_sha256": preflight.test_id_digest([reviewed_case.id()]),
+                            },
+                            "test_changed": {
+                                "source_sha256": "0" * 64,
+                                "test_ids_sha256": preflight.test_id_digest([changed_case.id()]),
+                            },
+                        },
+                    },
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch.object(preflight, "ROOT", root),
+                patch.object(preflight, "PARALLEL_MODULE_MANIFEST", manifest_path),
+            ):
+                parallel, serial = preflight.classify_test_inventory(cases)
+
         all_ids = [case.id() for case in cases]
         self.assertEqual(set(parallel) | set(serial), set(all_ids))
         self.assertFalse(set(parallel) & set(serial))
         self.assertEqual(len(all_ids), len(set(all_ids)))
-        self.assertTrue(all(test_id.startswith("test_integration_preflight.") for test_id in serial))
-        self.assertEqual(len(parallel), 141)
+        self.assertEqual(parallel, [reviewed_case.id()])
+        self.assertEqual(serial, [changed_case.id(), new_case.id()])
 
     def test_shard_failure_propagates_after_all_workers_join(self) -> None:
         test_ids = [

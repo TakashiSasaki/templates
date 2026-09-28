@@ -247,13 +247,75 @@ jobs:
             "${auth_args[@]}" "${kill_args[@]}" \
             --output reconciliation-report.json
           echo "classification=$(python3 -c 'import json; print(json.load(open("reconciliation-report.json"))["classification"])')" >> "$GITHUB_OUTPUT"
+          echo "reason_code=$(python3 -c 'import json; report=json.load(open("reconciliation-report.json")); print(report.get("reason_codes", [""])[0])')" >> "$GITHUB_OUTPUT"
           echo "idempotency_key=$(python3 -c 'import json; print(json.load(open("reconciliation-report.json"))["idempotency_key"])')" >> "$GITHUB_OUTPUT"
           cat reconciliation-report.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate schema-2 provenance without authorizing mutations
+        if: >-
+          steps.reconcile.outputs.classification == 'NOT_ELIGIBLE' &&
+          (steps.reconcile.outputs.reason_code == 'AUTHORIZATION_NOT_GRANTED' ||
+           steps.reconcile.outputs.reason_code == 'KILL_SWITCH_ACTIVE')
+        env:
+          RUN_REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_HEAD: ${{ github.sha }}
+          RUN_WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_EVENT: ${{ github.event_name }}
+          RECONCILIATION_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          RECONCILIATION_WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}
+          RECONCILIATION_WORKFLOW_REF: ${{ job.workflow_ref }}
+          RECONCILIATION_WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          RUN_WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          RUN_WORKFLOW_PATH="${RUN_WORKFLOW_PATH%@*}"
+          test -n "$RUN_WORKFLOW_PATH"
+          python3 scripts/publication_promotion_intent.py preview \
+            --current current-publication-sources.json \
+            --candidate candidate-lock.json \
+            --source-report qualification/compatibility-report.json \
+            --verified-report qualification/verified-report.json \
+            --reconciliation-report reconciliation-report.json \
+            --producer-revision "${{ needs.qualify.outputs.producer_revision }}" \
+            --consumer-base-revision "${{ steps.base.outputs.revision }}" \
+            --expected-current-lock-digest "${{ steps.base.outputs.lock_digest }}" \
+            --qualification-artifact-id "${{ needs.qualify.outputs.qualification_artifact_id }}" \
+            --qualification-artifact-digest "${{ needs.qualify.outputs.qualification_artifact_digest }}" \
+            --qualification-artifact-name "${{ needs.qualify.outputs.qualification_artifact_name }}" \
+            --trusted-controller-revision "${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}" \
+            --trusted-policy-revision "${{ vars.PUBLICATION_POLICY_REVISION || '' }}" \
+            --run-repository "$RUN_REPOSITORY" \
+            --run-id "$RUN_ID" \
+            --run-attempt "$RUN_ATTEMPT" \
+            --run-head "$RUN_HEAD" \
+            --run-workflow-name "$RUN_WORKFLOW_NAME" \
+            --run-event "$RUN_EVENT" \
+            --run-workflow-path "$RUN_WORKFLOW_PATH" \
+            --reconciliation-workflow-repository "$RECONCILIATION_WORKFLOW_REPOSITORY" \
+            --reconciliation-workflow-file-path "$RECONCILIATION_WORKFLOW_FILE_PATH" \
+            --reconciliation-workflow-ref "$RECONCILIATION_WORKFLOW_REF" \
+            --reconciliation-workflow-sha "$RECONCILIATION_WORKFLOW_SHA" \
+            --github-summary "$GITHUB_STEP_SUMMARY"
 
       - name: Build the deterministic trusted promotion intent
         id: promotion_intent
         if: ${{ steps.reconcile.outputs.classification == 'AUTO_PROCESSABLE' }}
+        env:
+          RUN_REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_HEAD: ${{ github.sha }}
+          RUN_WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_EVENT: ${{ github.event_name }}
+          RECONCILIATION_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          RECONCILIATION_WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}
+          RECONCILIATION_WORKFLOW_REF: ${{ job.workflow_ref }}
+          RECONCILIATION_WORKFLOW_SHA: ${{ job.workflow_sha }}
         run: |
+          RUN_WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          RUN_WORKFLOW_PATH="${RUN_WORKFLOW_PATH%@*}"
+          test -n "$RUN_WORKFLOW_PATH"
           python3 scripts/publication_promotion_intent.py build \
             --current current-publication-sources.json \
             --candidate candidate-lock.json \
@@ -268,6 +330,17 @@ jobs:
             --qualification-artifact-name "${{ needs.qualify.outputs.qualification_artifact_name }}" \
             --trusted-controller-revision "${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}" \
             --trusted-policy-revision "${{ vars.PUBLICATION_POLICY_REVISION || '' }}" \
+            --run-repository "$RUN_REPOSITORY" \
+            --run-id "$RUN_ID" \
+            --run-attempt "$RUN_ATTEMPT" \
+            --run-head "$RUN_HEAD" \
+            --run-workflow-name "$RUN_WORKFLOW_NAME" \
+            --run-event "$RUN_EVENT" \
+            --run-workflow-path "$RUN_WORKFLOW_PATH" \
+            --reconciliation-workflow-repository "$RECONCILIATION_WORKFLOW_REPOSITORY" \
+            --reconciliation-workflow-file-path "$RECONCILIATION_WORKFLOW_FILE_PATH" \
+            --reconciliation-workflow-ref "$RECONCILIATION_WORKFLOW_REF" \
+            --reconciliation-workflow-sha "$RECONCILIATION_WORKFLOW_SHA" \
             --output publication-promotion-intent.json \
             --github-output "$GITHUB_OUTPUT"
 
@@ -359,9 +432,22 @@ jobs:
         env:
           EXPECTED_CONSUMER_LOCK_DIGEST: ${{ needs.controller.outputs.consumer_lock_digest }}
           ACTIVE_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION }}
+          EXPECTED_RUN_REPOSITORY: ${{ github.repository }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+          EXPECTED_RUN_ATTEMPT: ${{ github.run_attempt }}
+          EXPECTED_RUN_HEAD: ${{ github.sha }}
+          EXPECTED_RUN_WORKFLOW_NAME: ${{ github.workflow }}
+          EXPECTED_RUN_EVENT: ${{ github.event_name }}
+          EXPECTED_RECONCILIATION_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          EXPECTED_RECONCILIATION_WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}
+          EXPECTED_RECONCILIATION_WORKFLOW_REF: ${{ job.workflow_ref }}
+          EXPECTED_RECONCILIATION_WORKFLOW_SHA: ${{ job.workflow_sha }}
         run: |
           base_lock="$RUNNER_TEMP/base-publication-sources.json"
           candidate_lock="$RUNNER_TEMP/candidate-lock.json"
+          EXPECTED_RUN_WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          EXPECTED_RUN_WORKFLOW_PATH="${EXPECTED_RUN_WORKFLOW_PATH%@*}"
+          test -n "$EXPECTED_RUN_WORKFLOW_PATH"
           python3 controller-source/scripts/publication_promotion_intent.py verify \
             --intent promotion-intent/publication-promotion-intent.json \
             --base-lock "$base_lock" \
@@ -371,6 +457,17 @@ jobs:
             --trusted-policy-revision "$ACTIVE_POLICY" \
             --branch "automation/publication-$IDEMPOTENCY_KEY" \
             --expected-intent-digest "$PROMOTION_INTENT_DIGEST" \
+            --expected-run-repository "$EXPECTED_RUN_REPOSITORY" \
+            --expected-run-id "$EXPECTED_RUN_ID" \
+            --expected-run-attempt "$EXPECTED_RUN_ATTEMPT" \
+            --expected-run-head "$EXPECTED_RUN_HEAD" \
+            --expected-run-workflow-name "$EXPECTED_RUN_WORKFLOW_NAME" \
+            --expected-run-event "$EXPECTED_RUN_EVENT" \
+            --expected-run-workflow-path "$EXPECTED_RUN_WORKFLOW_PATH" \
+            --expected-reconciliation-workflow-repository "$EXPECTED_RECONCILIATION_WORKFLOW_REPOSITORY" \
+            --expected-reconciliation-workflow-file-path "$EXPECTED_RECONCILIATION_WORKFLOW_FILE_PATH" \
+            --expected-reconciliation-workflow-ref "$EXPECTED_RECONCILIATION_WORKFLOW_REF" \
+            --expected-reconciliation-workflow-sha "$EXPECTED_RECONCILIATION_WORKFLOW_SHA" \
             --github-output "$GITHUB_OUTPUT"
       - name: Apply only the deterministic source-lock patch when the selection changes
         if: ${{ needs.controller.outputs.lock_update_required == 'true' }}
@@ -403,8 +500,21 @@ jobs:
       - name: Revalidate the live target before every privileged PR action
         env:
           BRANCH: automation/publication-$IDEMPOTENCY_KEY
+          EXPECTED_RUN_REPOSITORY: ${{ github.repository }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+          EXPECTED_RUN_ATTEMPT: ${{ github.run_attempt }}
+          EXPECTED_RUN_HEAD: ${{ github.sha }}
+          EXPECTED_RUN_WORKFLOW_NAME: ${{ github.workflow }}
+          EXPECTED_RUN_EVENT: ${{ github.event_name }}
+          EXPECTED_RECONCILIATION_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          EXPECTED_RECONCILIATION_WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}
+          EXPECTED_RECONCILIATION_WORKFLOW_REF: ${{ job.workflow_ref }}
+          EXPECTED_RECONCILIATION_WORKFLOW_SHA: ${{ job.workflow_sha }}
         run: |
           set -euo pipefail
+          EXPECTED_RUN_WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          EXPECTED_RUN_WORKFLOW_PATH="${EXPECTED_RUN_WORKFLOW_PATH%@*}"
+          test -n "$EXPECTED_RUN_WORKFLOW_PATH"
           gh auth setup-git
           git -C integration-base config user.name publication-controller
           git -C integration-base config user.email publication-controller@users.noreply.github.com
@@ -432,8 +542,21 @@ jobs:
             git -C integration-base fetch --quiet origin refs/heads/integration
             live_base=$(git -C integration-base rev-parse FETCH_HEAD)
             python3 controller-source/scripts/publication_promotion_intent.py verify-target \
+              --intent promotion-intent/publication-promotion-intent.json \
               --expected-base "$EXPECTED_CONSUMER_BASE" \
-              --live-base "$live_base"
+              --live-base "$live_base" \
+              --expected-intent-digest "$PROMOTION_INTENT_DIGEST" \
+              --expected-run-repository "$EXPECTED_RUN_REPOSITORY" \
+              --expected-run-id "$EXPECTED_RUN_ID" \
+              --expected-run-attempt "$EXPECTED_RUN_ATTEMPT" \
+              --expected-run-head "$EXPECTED_RUN_HEAD" \
+              --expected-run-workflow-name "$EXPECTED_RUN_WORKFLOW_NAME" \
+              --expected-run-event "$EXPECTED_RUN_EVENT" \
+              --expected-run-workflow-path "$EXPECTED_RUN_WORKFLOW_PATH" \
+              --expected-reconciliation-workflow-repository "$EXPECTED_RECONCILIATION_WORKFLOW_REPOSITORY" \
+              --expected-reconciliation-workflow-file-path "$EXPECTED_RECONCILIATION_WORKFLOW_FILE_PATH" \
+              --expected-reconciliation-workflow-ref "$EXPECTED_RECONCILIATION_WORKFLOW_REF" \
+              --expected-reconciliation-workflow-sha "$EXPECTED_RECONCILIATION_WORKFLOW_SHA"
           }
           verify_existing() {
             local pr="$1"
