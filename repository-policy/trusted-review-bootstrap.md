@@ -10,9 +10,12 @@ review-result meanings.
 
 The authenticated observation is produced by a direct, non-reusable workflow
 from the trusted default branch. It includes numeric repository ID and
-`nameWithOwner`, numeric and node pull-request IDs, PR number, base commit/tree,
-head commit/tree, API retrieval time, workflow path/revision, event, run ID, run
-attempt, and OIDC identity. It does not synthesize reusable-workflow claims.
+`nameWithOwner`, numeric and node pull-request IDs, PR number, base ref, base
+commit/tree, head commit/tree, API retrieval time, workflow path/revision, event,
+run ID, run attempt, and OIDC identity. The base ref must be `policy`; another
+same-repository target branch is rejected before its bytes are treated as
+trusted authority. The durable handoff carries that observed ref and rejects a
+missing or different value. It does not synthesize reusable-workflow claims.
 The producer reads identity fields from GitHub's API using the
 run-scoped `GITHUB_TOKEN`; caller input is only a strictly parsed PR number.
 

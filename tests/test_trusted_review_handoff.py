@@ -316,6 +316,18 @@ def test_handoff_rejects_wrong_schema_version() -> None:
         verify_handoff(data)
 
 
+def test_handoff_requires_policy_base_ref() -> None:
+    data = make_valid_handoff_dict()
+    del data["target"]["pull_request"]["base_ref_name"]
+    with pytest.raises(ValueError, match="missing base_ref_name"):
+        verify_handoff(data)
+
+    data = make_valid_handoff_dict()
+    data["target"]["pull_request"]["base_ref_name"] = "site"
+    with pytest.raises(ValueError, match="base_ref_name must be policy"):
+        verify_handoff(data)
+
+
 @pytest.mark.parametrize("bad_sha", ["not-a-sha", "0" * 39, "G" * 40, ""])
 def test_handoff_rejects_malformed_base_commit(bad_sha: str) -> None:
     data = make_valid_handoff_dict()
@@ -538,7 +550,11 @@ def setup_mock_environment(
         provider_id = {
             "name": "github",
             "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
-            "pull_request": {"id": "PR_kwDOTm6ous8AAAABFJDI8g", "number": 1031},
+            "pull_request": {
+                "id": "PR_kwDOTm6ous8AAAABFJDI8g",
+                "number": 1031,
+                "base_ref_name": "policy",
+            },
             "observation_evidence": {
                 "source": "simulated_test_adapter",
                 "evidence_status": "authenticated",
@@ -551,7 +567,11 @@ def setup_mock_environment(
         provider_id = {
             "name": "github",
             "repository": {"id": "R_kgDOTm6oug", "name_with_owner": "TakashiSasaki/templates"},
-            "pull_request": {"id": "PR_kwDOTm6ous8AAAABFJDI8g", "number": 1031},
+            "pull_request": {
+                "id": "PR_kwDOTm6ous8AAAABFJDI8g",
+                "number": 1031,
+                "base_ref_name": "policy",
+            },
             "observation_evidence": {
                 "source": "caller_declared",
                 "evidence_status": "declared",

@@ -623,6 +623,10 @@ class ExternalObservationProviderVerifier:
             raise ValueError("provider observation PR id does not match handoff target")
         if obs_pr.get("number") != target_pr.get("number"):
             raise ValueError("provider observation PR number does not match handoff target")
+        if target_pr.get("base_ref_name") != "policy":
+            raise ValueError("handoff target is not bound to the Policy base ref")
+        if obs_pr.get("base_ref_name") != target_pr.get("base_ref_name"):
+            raise ValueError("provider observation base ref does not match handoff target")
 
 
 REQUIRED_FROZEN_SECTIONS = frozenset(
@@ -1124,6 +1128,10 @@ class HandoffOrchestrator:
             == "github_artifact_attestation"
         ):
             observed_pr = self.provider_identity.get("pull_request", {})
+            if observed_pr.get("base_ref_name") != "policy":
+                raise ValueError(
+                    "authenticated provider observation is not bound to the Policy base ref"
+                )
             if observed_pr.get("base_ref_oid") != self.base_commit:
                 raise ValueError(
                     "requested base commit does not match authenticated provider observation"
@@ -1956,6 +1964,9 @@ class HandoffOrchestrator:
         target_pr = self.provider_identity.get("pull_request", {})
         head_commit = self.proposed_head or target_pr.get("head_ref_oid", "")
         head_tree = target_pr.get("head_tree", "")
+        base_ref_name = target_pr.get("base_ref_name")
+        if base_ref_name != "policy":
+            raise ValueError("trusted review handoff requires the authenticated Policy base ref")
 
         target = {
             "provider": self.provider_identity.get("name")
@@ -1968,7 +1979,7 @@ class HandoffOrchestrator:
                 "id": target_pr.get("id"),
                 "node_id": target_pr.get("node_id"),
                 "number": target_pr.get("number"),
-                "base_ref_name": target_pr.get("base_ref_name", "policy"),
+                "base_ref_name": base_ref_name,
                 "base_ref_oid": self.base_commit,
                 "base_tree": self.base_tree,
                 "head_ref_name": target_pr.get("head_ref_name", ""),
@@ -2249,13 +2260,15 @@ def verify_handoff(
     pr = target["pull_request"]
     if not isinstance(pr, dict):
         raise ValueError("target.pull_request must be a dict")
-    for req_pr_key in ("id", "number", "base_ref_oid", "base_tree"):
+    for req_pr_key in ("id", "number", "base_ref_name", "base_ref_oid", "base_tree"):
         if req_pr_key not in pr:
             raise ValueError(f"target.pull_request missing {req_pr_key}")
     if not isinstance(pr["id"], str) or not pr["id"]:
         raise ValueError("target.pull_request.id must be a non-empty string")
     if not isinstance(pr["number"], int) or pr["number"] <= 0:
         raise ValueError("target.pull_request.number must be a positive integer")
+    if pr["base_ref_name"] != "policy":
+        raise ValueError("target.pull_request.base_ref_name must be policy")
 
     base_commit = require_full_sha(pr["base_ref_oid"], "target.pull_request.base_ref_oid")
     base_tree = require_full_sha(pr["base_tree"], "target.pull_request.base_tree")

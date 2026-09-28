@@ -774,7 +774,7 @@ def _portable_observation() -> dict[str, Any]:
             "number": 97,
             "author_id": "9002",
             "author_login": "contributor",
-            "base": {"sha": BASE_SHA, "tree": BASE_TREE},
+            "base": {"ref": "policy", "sha": BASE_SHA, "tree": BASE_TREE},
             "head": {"sha": HEAD_SHA, "tree": HEAD_TREE},
         },
         "observation": {

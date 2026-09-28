@@ -883,6 +883,7 @@ def _target_record(provider: dict[str, Any]) -> dict[str, Any]:
         "pull_request_id": pull["id"],
         "pull_request_node_id": pull["node_id"],
         "pull_request_number": pull["number"],
+        "base_ref_name": pull["base_ref_name"],
         "base_sha": pull["base_ref_oid"],
         "base_tree": pull["base_tree"],
         "head_sha": pull["head_ref_oid"],
