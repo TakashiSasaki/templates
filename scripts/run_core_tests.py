@@ -337,22 +337,25 @@ class InventoryTextTestRunner(unittest.TextTestRunner):
 def run_suite(
     cases: list[unittest.TestCase],
     verbosity: int,
+    *,
+    emit_durations: bool = False,
 ) -> InventoryTextTestResult:
     result = InventoryTextTestRunner(
         verbosity=verbosity, discovered_cases=cases
     ).run(unittest.TestSuite(cases))
-    for test_id, duration in sorted(
-        result.test_durations, key=lambda item: (-item[1], item[0])
-    ):
-        print(
-            "SITE_TEST_CASE_DURATION "
-            + json.dumps(
-                {"test_id": test_id, "duration_seconds": round(duration, 9)},
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-            flush=True,
-        )
+    if emit_durations:
+        for test_id, duration in sorted(
+            result.test_durations, key=lambda item: (-item[1], item[0])
+        ):
+            print(
+                "SITE_TEST_CASE_DURATION "
+                + json.dumps(
+                    {"test_id": test_id, "duration_seconds": round(duration, 9)},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                flush=True,
+            )
     return result
 
 
@@ -474,7 +477,7 @@ def run_shard_worker(
         f"inventory_sha256={test_id_digest(inventory_ids)}",
         flush=True,
     )
-    result = run_suite(selected_cases, verbosity)
+    result = run_suite(selected_cases, verbosity, emit_durations=True)
     outcomes = result.outcomes
     result_path = Path(manifest["result_path"])
     if result_path.parent.resolve() != manifest_path.parent.resolve():
@@ -797,7 +800,7 @@ def run_tests(
             f"measured_cap={MEASURED_EFFECTIVE_WORKER_CAP}",
             flush=True,
         )
-        result = run_suite(cases, verbosity)
+        result = run_suite(cases, verbosity, emit_durations=True)
         runner_wall = time.perf_counter() - runner_started
         outcomes = result.outcomes
         failures = []
@@ -857,7 +860,7 @@ def run_tests(
         f"SITE_SERIAL_EXCLUSIVE_START suite={suite_name} tests={len(serial_cases)}",
         flush=True,
     )
-    serial_result = run_suite(serial_cases, verbosity)
+    serial_result = run_suite(serial_cases, verbosity, emit_durations=True)
     serial_seconds = time.perf_counter() - serial_started
     outcomes = dict(parallel_outcomes)
     for test_id, outcome in serial_result.outcomes.items():

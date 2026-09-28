@@ -31,6 +31,34 @@ from scripts.run_core_tests import (
 
 
 class RunCoreTestsContractTests(unittest.TestCase):
+    def test_duration_records_are_scoped_to_the_top_level_inventory(self) -> None:
+        class NestedRunnerProbe(unittest.TestCase):
+            def test_outer_inventory_case(self):
+                class SyntheticProbe(unittest.TestCase):
+                    def test_nested_helper_case(self):
+                        pass
+
+                run_suite([SyntheticProbe("test_nested_helper_case")], verbosity=0)
+
+        case = NestedRunnerProbe("test_outer_inventory_case")
+        output = io.StringIO()
+        with (
+            patch(
+                "scripts.run_core_tests.load_test_suite",
+                return_value=unittest.TestSuite([case]),
+            ),
+            patch("sys.stdout", output),
+        ):
+            self.assertEqual(run_tests("core", verbosity=0, jobs=1), 0)
+
+        duration_records = [
+            json.loads(line.removeprefix("SITE_TEST_CASE_DURATION "))
+            for line in output.getvalue().splitlines()
+            if line.startswith("SITE_TEST_CASE_DURATION ")
+        ]
+        self.assertEqual(len(duration_records), 1)
+        self.assertEqual(duration_records[0]["test_id"], case.id())
+
     def _assert_serial_fixture_outcomes(
         self,
         cases: list[unittest.TestCase],
@@ -456,9 +484,11 @@ class RunCoreTestsContractTests(unittest.TestCase):
         original_run_suite = run_suite
         executed_ids = []
 
-        def run_serial(cases, verbosity):
+        def run_serial(cases, verbosity, *, emit_durations=False):
             executed_ids.extend(case.id() for case in cases)
-            return original_run_suite(cases, verbosity)
+            return original_run_suite(
+                cases, verbosity, emit_durations=emit_durations
+            )
 
         output = io.StringIO()
         with (
