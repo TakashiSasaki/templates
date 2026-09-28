@@ -4,8 +4,9 @@
 Each invocation gets a separate supervisor process. That process alone becomes
 a Linux child subreaper, so waitpid(-1) can never consume another authority
 worker's children. Process-group signals stay scoped to the authority command;
-adopted children that detach from that group are tracked and reaped by their
-own supervisor.
+adopted children that detach from that group are found through standard procfs
+process records and reaped by their own supervisor. This does not depend on the
+optional ``/proc/<pid>/task/<pid>/children`` interface.
 """
 from __future__ import annotations
 
@@ -41,15 +42,59 @@ def _enable_linux_child_subreaper() -> bool:
     return True
 
 
-def _direct_child_pids() -> tuple[int, ...] | None:
-    """List this isolated supervisor's direct children on Linux."""
+def _parent_pid_from_proc_stat(value: str) -> int:
+    """Read PPID from ``/proc/<pid>/stat``, whose command field may contain spaces."""
 
-    path = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
+    closing_parenthesis = value.rfind(")")
+    if closing_parenthesis < 0:
+        raise ValueError("proc stat record has no command-field terminator")
+    fields = value[closing_parenthesis + 1 :].split()
+    if len(fields) < 2:
+        raise ValueError("proc stat record has no parent PID")
+    return int(fields[1])
+
+
+def _direct_child_pids(
+    *, proc_root: Path | None = None, parent_pid: int | None = None
+) -> tuple[int, ...] | None:
+    """List direct children by scanning standard Linux ``/proc/*/stat`` records.
+
+    The kernel's per-process ``children`` file is optional. ``stat`` is part of
+    the ordinary procfs process record and exposes each process's parent PID.
+    Return ``None`` when procfs cannot be read completely enough to establish
+    this supervisor's child set; callers then fail closed.
+    """
+
+    root = proc_root if proc_root is not None else Path("/proc")
+    expected_parent = os.getpid() if parent_pid is None else parent_pid
+    effective_uid = os.geteuid()
+    child_pids: list[int] = []
     try:
-        values = path.read_text(encoding="ascii").split()
+        for entry in root.iterdir():
+            if not entry.name.isdecimal():
+                continue
+            try:
+                if entry.stat().st_uid != effective_uid:
+                    continue
+                stat_record = (entry / "stat").read_text(encoding="ascii")
+            except (FileNotFoundError, ProcessLookupError):
+                # A process can exit between enumerating its PID and reading it.
+                continue
+            except PermissionError:
+                # A same-user process should be readable; otherwise cleanup is
+                # not able to prove that it found every adopted child.
+                return None
+            except OSError:
+                return None
+            try:
+                recorded_parent = _parent_pid_from_proc_stat(stat_record)
+            except (UnicodeError, ValueError):
+                return None
+            if recorded_parent == expected_parent:
+                child_pids.append(int(entry.name))
     except OSError:
         return None
-    return tuple(int(value) for value in values)
+    return tuple(sorted(child_pids))
 
 
 def _reap_available_children() -> bool:
@@ -206,6 +251,14 @@ def main(argv: list[str] | None = None) -> int:
         subreaper_enabled = _enable_linux_child_subreaper()
     except OSError as exc:
         print(f"Linux child-subreaper support is required: {exc}", file=sys.stderr)
+        return 125
+
+    if subreaper_enabled and _direct_child_pids() is None:
+        print(
+            "Linux procfs process records are required for descendant cleanup; "
+            "refusing to launch the authority",
+            file=sys.stderr,
+        )
         return 125
 
     if _STOP_REQUESTED:

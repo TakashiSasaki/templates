@@ -58,20 +58,21 @@ captured output streams for at most one second, then sends `SIGKILL` and drains
 the direct authority process. The result remains `TIMEOUT`; successful runs do
 not enter the termination path.
 
-On Linux, while coordinator-owned commands are active, the coordinator
-temporarily uses `PR_SET_CHILD_SUBREAPER`. Orphaned descendants that remain in
-the authority process group are reparented to the coordinator and waited for
-after the direct authority process is reaped. This prevents those descendants
-from accumulating as zombies under PID 1 in containers that do not promptly
-reap orphans. If the Linux kernel does not expose this subreaper capability, the
-coordinator fails before launching the authority command. It does not poll
-`/proc` or use timing sleeps.
+On Linux, each authority supervisor temporarily uses
+`PR_SET_CHILD_SUBREAPER`. It locates adopted descendants through their parent
+PIDs in standard `/proc/<pid>/stat` records, so cleanup does not depend on the
+optional `/proc/<pid>/task/<pid>/children` interface. The supervisor signals
+and reaps adopted descendants, including children that detached from the
+authority process group. If Linux subreaper support or readable process records
+are unavailable, it fails before launching the authority command. Process
+records are scanned only to discover and finalize that supervisor's children;
+the coordinator does not inspect process command lines or use timing sleeps.
 
 Other POSIX systems do not expose a portable subreaper API through Python. The
 coordinator signals their authority process group and reaps the direct child;
-the operating system's init process owns orphaned grandchildren. Descendants
-that create a new session or process group are outside this process-group
-cleanup contract on every platform. The termination grace is bounded at one
+the operating system's init process owns orphaned grandchildren. On those
+systems, descendants that create a new session or process group are outside
+the process-group cleanup contract. The termination grace is bounded at one
 second; after `SIGKILL`, final process exit and reaping depend on the operating
 system scheduling the killed processes.
 

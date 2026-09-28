@@ -394,6 +394,54 @@ def test_linux_preflight_fails_before_launch_without_subreaper_support(
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
+def test_linux_preflight_fails_before_launch_without_procfs_process_records(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    worktree = _create_mock_authority(repo_root, "policy")
+    started_file = tmp_path / "started"
+    script = worktree / "scripts" / "run_policy_preflight.py"
+    script.write_text(
+        f"from pathlib import Path; Path({str(started_file)!r}).write_text('yes')\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(_authority_supervisor, "_enable_linux_child_subreaper", lambda: True)
+    monkeypatch.setattr(_authority_supervisor, "_direct_child_pids", lambda: None)
+
+    result = _authority_supervisor.main(["--", sys.executable, str(script)])
+
+    assert result == 125
+    assert not started_file.exists()
+
+
+def test_direct_child_enumeration_uses_standard_proc_stat_records(
+    tmp_path: Path,
+) -> None:
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    expected_parent = 700
+    records = (
+        (801, "authority worker", expected_parent),
+        (802, "unrelated worker", 701),
+        (803, "worker ) with spaces", expected_parent),
+    )
+    for pid, command, parent_pid in records:
+        process_dir = proc_root / str(pid)
+        process_dir.mkdir()
+        (process_dir / "stat").write_text(
+            f"{pid} ({command}) S {parent_pid} 1 1 0 0\n",
+            encoding="ascii",
+        )
+
+    assert not (proc_root / "801" / "task" / "801" / "children").exists()
+    assert _authority_supervisor._direct_child_pids(
+        proc_root=proc_root,
+        parent_pid=expected_parent,
+    ) == (801, 803)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
 def test_authority_spawn_failure_is_reported_without_launching_child(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
