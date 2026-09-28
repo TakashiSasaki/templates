@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -537,7 +538,10 @@ def test_normal_completion_reaps_adopted_descendants(
 def test_normal_completion_reaps_adopted_descendant_after_uid_change(
     tmp_path: Path,
 ) -> None:
-    result = _run_normal_completion_case(tmp_path, 0, drop_uid=65534)
+    with TemporaryDirectory(prefix="policy-adopted-uid-", dir="/tmp") as directory:
+        shared_root = Path(directory)
+        shared_root.chmod(0o777)
+        result = _run_normal_completion_case(shared_root, 0, drop_uid=65534)
     assert result.status == "PASS"
 
 
