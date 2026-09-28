@@ -18,6 +18,8 @@ from scripts.run_unittest_shard import (
     format_timing_records,
     select_tests_for_suite,
     shard_index_for_test_id,
+    shard_tests,
+    digest_test_ids,
     validate_two_shard_timing_overrides,
 )
 
@@ -181,6 +183,28 @@ class UnittestShardTests(unittest.TestCase):
         assignments = [shard_index_for_test_id(duplicate_id, 2) for _ in range(3)]
         self.assertEqual(len(assignments), 3)
         self.assertEqual(len(set(assignments)), 1)
+
+    def test_one_and_two_shards_cover_the_same_inventory_without_duplicates(self) -> None:
+        discovered = discover_tests(ROOT / "tests", "test*.py")
+        selected = select_tests_for_suite(discovered, "core")
+        serial_shards = shard_tests(selected, 1)
+        parallel_shards = shard_tests(selected, 2)
+        selected_ids = [test.id() for test in selected]
+        parallel_ids = [test.id() for shard in parallel_shards for test in shard]
+
+        self.assertEqual(len(serial_shards), 1)
+        self.assertEqual([test.id() for test in serial_shards[0]], selected_ids)
+        self.assertEqual(len(parallel_shards), 2)
+        self.assertEqual(len(parallel_ids), len(selected_ids))
+        self.assertEqual(Counter(parallel_ids), Counter(selected_ids))
+        self.assertFalse(
+            {test.id() for test in parallel_shards[0]}
+            & {test.id() for test in parallel_shards[1]}
+        )
+        self.assertEqual(
+            digest_test_ids(parallel_ids),
+            digest_test_ids(selected_ids),
+        )
 
     def test_repository_discovery_has_unique_test_ids(self) -> None:
         discovered = discover_tests(ROOT / "tests", "test*.py")

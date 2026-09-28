@@ -128,6 +128,26 @@ def shard_index_for_test_id(test_id: str, shard_count: int) -> int:
     return _pure_hash_shard_index(test_id, shard_count)
 
 
+def shard_tests(
+    tests: Sequence[unittest.case.TestCase], shard_count: int
+) -> tuple[tuple[unittest.case.TestCase, ...], ...]:
+    if shard_count < 1:
+        raise ValueError("shard count must be at least 1")
+    shards: list[list[unittest.case.TestCase]] = [
+        [] for _ in range(shard_count)
+    ]
+    for test in tests:
+        shards[shard_index_for_test_id(test.id(), shard_count)].append(test)
+    return tuple(tuple(shard) for shard in shards)
+
+
+def digest_test_ids(test_ids: Sequence[str]) -> str:
+    payload = json.dumps(
+        sorted(test_ids), ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def validate_two_shard_timing_overrides(
     discovered: Sequence[unittest.case.TestCase],
 ) -> None:
@@ -194,9 +214,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     discovered = discover_tests(REPOSITORY_ROOT / "tests", "test*.py")
     validate_two_shard_timing_overrides(discovered)
     selected = select_tests_for_suite(discovered, args.suite)
-    shard_counts = [0] * args.shard_count
-    for test in selected:
-        shard_counts[shard_index_for_test_id(test.id(), args.shard_count)] += 1
+    test_shards = shard_tests(selected, args.shard_count)
+    shard_counts = [len(shard) for shard in test_shards]
+    print(
+        "COMPOSITION_UNITTEST_INVENTORY "
+        f"suite={args.suite} discovered={len(discovered)} selected={len(selected)} "
+        f"selected_ids_sha256={digest_test_ids([test.id() for test in selected])}",
+        flush=True,
+    )
     print(
         f"Discovered {len(discovered)} unittest instances; selected {len(selected)} "
         f"for suite {args.suite}; deterministic shard counts: {shard_counts}"
@@ -204,11 +229,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.verify_only:
         return 0
 
-    selected_for_shard = [
-        test
-        for test in selected
-        if shard_index_for_test_id(test.id(), args.shard_count) == args.shard_index
-    ]
+    selected_for_shard = test_shards[args.shard_index]
     print(
         f"Running {args.suite} shard {args.shard_index + 1}/{args.shard_count}: "
         f"{len(selected_for_shard)} unittest instances"
@@ -217,6 +238,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     runner = unittest.TextTestRunner(verbosity=2, resultclass=TimingTextTestResult)
     result = runner.run(suite)
     if isinstance(result, TimingTextTestResult):
+        run_ids = [test_id for test_id, _ in result.test_durations]
         for line in format_timing_records(
             result.test_durations,
             suite=args.suite,
@@ -224,6 +246,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             shard_index=args.shard_index,
         ):
             print(line)
+        print(
+            "COMPOSITION_UNITTEST_SHARD_RESULT "
+            f"suite={args.suite} shard={args.shard_index}/{args.shard_count} "
+            f"run_count={len(run_ids)} run_ids_sha256={digest_test_ids(run_ids)}",
+            flush=True,
+        )
     return 0 if result.wasSuccessful() else 1
 
 

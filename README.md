@@ -136,3 +136,11 @@ before broad tests. It selects existing tests for real resolve/apply/lock,
 managed registry/selected-validator dispatch, public CLI dispatch, and tampered or
 foreign validator ownership rejection. It creates no new E2E framework and does
 not replace full core or real-browser qualification.
+
+Composition accepts `--jobs N` as its authority-local worker budget (default 2).
+The core `unittest` suite uses the existing deterministic ID sharding and caps at
+two workers until timing data supports a higher count. Parallel shards run in
+temporary Git worktrees so tests that generate files under `generated/` cannot
+race on the canonical checkout. The real-browser suite remains serial. Use
+`--jobs 1` for a serial debugging baseline; a cross-authority coordinator must
+allocate only part of its global budget to this local runner.
