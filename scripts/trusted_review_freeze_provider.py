@@ -1030,7 +1030,7 @@ def _stage_aggregate_context(
         source = protected_root / "roles" / role
         require_protected_view(
             source,
-            backing_path=protected_root / ".materialized" / role,
+            backing_path=_protected_role_backing_path(protected_root, role, entry),
         )
         if _inventory_digest(source) != entry["materialized_digest"]:
             raise TrustedFreezeError(f"protected role inventory changed: {role}")
@@ -1070,7 +1070,7 @@ def _verify_protected_role_evidence(
             Path(entry["locator"]),
             freeze_evidence,
             expected_inventory_sha256=entry["materialized_digest"],
-            backing_path=protected_root / ".materialized" / role,
+            backing_path=_protected_role_backing_path(protected_root, role, entry),
             expected_identity=expected_freeze_role_identity(
                 role,
                 state,
@@ -1092,6 +1092,21 @@ def _verify_protected_role_evidence(
             }
         )
     return records
+
+
+def _protected_role_backing_path(
+    protected_root: Path, role: str, entry: dict[str, Any]
+) -> Path:
+    recorded = entry.get("backing_locator")
+    if recorded is None:
+        return protected_root / ".materialized" / role
+    if not isinstance(recorded, str) or not recorded:
+        raise TrustedFreezeError("protected role backing locator is malformed")
+    expected = protected_root.parent / f".{protected_root.name}.materialized" / role
+    backing = Path(recorded).expanduser().absolute()
+    if backing != expected.absolute():
+        raise TrustedFreezeError("protected role backing locator is not the recorded sibling tree")
+    return backing
 
 
 def _aggregate_evidence(

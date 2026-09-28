@@ -356,6 +356,7 @@ class GitHubActionsOciFreezeVerifier:
             "pull_request_id": pull.get("id"),
             "pull_request_node_id": pull.get("node_id"),
             "pull_request_number": pull.get("number"),
+            "base_ref_name": pull.get("base_ref_name"),
             "base_sha": pull.get("base_ref_oid"),
             "base_tree": pull.get("base_tree"),
             "head_sha": pull.get("head_ref_oid"),
@@ -493,14 +494,31 @@ def _verify_subject_attestation(
         results = json.loads(result.stdout)
     except (TypeError, json.JSONDecodeError) as exc:
         raise TrustedFreezeError("attestation verifier returned malformed JSON") from exc
-    if not isinstance(results, list) or len(results) != 1:
-        raise TrustedFreezeError("attestation verifier did not return exactly one result")
-    verification = results[0].get("verificationResult") if isinstance(results[0], dict) else None
-    if not isinstance(verification, dict):
-        raise TrustedFreezeError("OCI attestation verification result is incomplete")
-    signature = verification.get("signature") or {}
-    certificate = signature.get("certificate") or {}
-    statement = verification.get("statement") or {}
+    if not isinstance(results, list):
+        raise TrustedFreezeError("attestation verifier returned a non-list result")
+    expected_run_uri = (
+        f"https://github.com/{run_identity.repository}/actions/runs/"
+        f"{run_identity.run_id}/attempts/{run_identity.run_attempt}"
+    )
+    matching_results: list[dict[str, Any]] = []
+    for item in results:
+        if not isinstance(item, dict):
+            raise TrustedFreezeError("OCI attestation verification result is incomplete")
+        verification = item.get("verificationResult")
+        signature = verification.get("signature") if isinstance(verification, dict) else None
+        certificate = signature.get("certificate") if isinstance(signature, dict) else None
+        if not isinstance(certificate, dict):
+            raise TrustedFreezeError("OCI attestation verification result is incomplete")
+        if certificate.get("runInvocationURI") == expected_run_uri:
+            matching_results.append(item)
+    if len(matching_results) != 1:
+        raise TrustedFreezeError(
+            "attestation verifier did not return exactly one result for this workflow run"
+        )
+    verification = matching_results[0]["verificationResult"]
+    signature = verification["signature"]
+    certificate = signature["certificate"]
+    statement = verification.get("statement")
     try:
         _verify_attestation_claims(
             certificate,
@@ -688,6 +706,7 @@ class GitHubActionsRoleFreezeVerifier:
             "pull_request_id": pull["id"],
             "pull_request_node_id": pull["node_id"],
             "pull_request_number": pull["number"],
+            "base_ref_name": pull["base_ref_name"],
             "base_sha": pull["base_ref_oid"],
             "base_tree": pull["base_tree"],
             "head_sha": pull["head_ref_oid"],

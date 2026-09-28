@@ -122,6 +122,7 @@
                 "pull_request_id",
                 "pull_request_node_id",
                 "pull_request_number",
+                "base_ref_name",
                 "base_sha",
                 "base_tree",
                 "head_sha",
@@ -146,6 +147,9 @@
                 "pull_request_number": {
                     "type": "integer",
                     "minimum": 1
+                },
+                "base_ref_name": {
+                    "const": "policy"
                 },
                 "base_sha": {
                     "type": "string",

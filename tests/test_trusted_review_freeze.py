@@ -79,6 +79,7 @@ def evidence() -> dict[str, Any]:
             "pull_request_id": "81001",
             "pull_request_node_id": "PR_kwDOExample",
             "pull_request_number": 97,
+            "base_ref_name": "policy",
             "base_sha": BASE_SHA,
             "base_tree": BASE_TREE,
             "head_sha": HEAD_SHA,
@@ -170,6 +171,7 @@ def role_evidence(
             "pull_request_id": target_pr_id,
             "pull_request_node_id": "PR_kwDOExample",
             "pull_request_number": 97,
+            "base_ref_name": "policy",
             "base_sha": BASE_SHA,
             "base_tree": BASE_TREE,
             "head_sha": HEAD_SHA,
@@ -194,6 +196,7 @@ def handoff() -> dict[str, Any]:
                 "id": "81001",
                 "node_id": "PR_kwDOExample",
                 "number": 97,
+                "base_ref_name": "policy",
                 "base_ref_oid": BASE_SHA,
                 "base_tree": BASE_TREE,
                 "head_ref_oid": HEAD_SHA,
@@ -268,7 +271,9 @@ class Runner:
         return SimpleNamespace(stdout=json.dumps([verified_attestation(digest)]))
 
 
-def verified_attestation(subject_sha256: str) -> dict[str, Any]:
+def verified_attestation(
+    subject_sha256: str, *, run_id: str = "73124", run_attempt: int = 1
+) -> dict[str, Any]:
     cert_identity = (
         "https://github.com/TakashiSasaki/templates/.github/workflows/"
         "trusted-review-bootstrap.yml@refs/heads/site"
@@ -291,9 +296,7 @@ def verified_attestation(subject_sha256: str) -> dict[str, Any]:
         "sourceRepositoryIdentifier": REPO_ID,
         "sourceRepositoryOwnerIdentifier": OWNER_ID,
         "runnerEnvironment": "github-hosted",
-        "runInvocationURI": (
-            "https://github.com/TakashiSasaki/templates/actions/runs/73124/attempts/1"
-        ),
+        "runInvocationURI": f"https://github.com/TakashiSasaki/templates/actions/runs/{run_id}/attempts/{run_attempt}",
     }
     return {
         "verificationResult": {
@@ -348,6 +351,7 @@ def test_role_freeze_evidence_is_strict_and_attested_for_exact_role(
             "id": "81001",
             "node_id": "PR_kwDOExample",
             "number": 97,
+            "base_ref_name": "policy",
             "base_ref_oid": BASE_SHA,
             "base_tree": BASE_TREE,
             "head_ref_oid": HEAD_SHA,
@@ -438,6 +442,7 @@ def test_role_freeze_evidence_rejects_role_target_actor_and_digest_replay(
             "id": "81001",
             "node_id": "PR_kwDOExample",
             "number": 97,
+            "base_ref_name": "policy",
             "base_ref_oid": BASE_SHA,
             "base_tree": BASE_TREE,
             "head_ref_oid": HEAD_SHA,
@@ -472,6 +477,8 @@ def test_role_freeze_evidence_rejects_role_target_actor_and_digest_replay(
         lambda value: value["roles"].append(value["roles"][0]),
         lambda value: value["roles"][1].update(path="roles/runtime_image"),
         lambda value: value["post_freeze_verification"].update(after_use="FAIL"),
+        lambda value: value["target"].pop("base_ref_name"),
+        lambda value: value["target"].update(base_ref_name="site"),
     ],
 )
 def test_schema_rejects_mismatched_target_or_freeze_identity(mutate: Any) -> None:
@@ -479,6 +486,84 @@ def test_schema_rejects_mismatched_target_or_freeze_identity(mutate: Any) -> Non
     mutate(document)
     with pytest.raises(freeze.TrustedFreezeError):
         freeze.validate_freeze_evidence(document)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda value: value["target"].pop("base_ref_name"),
+        lambda value: value["target"].update(base_ref_name="site"),
+    ],
+)
+def test_role_freeze_schema_requires_the_policy_base_ref(mutate: Any) -> None:
+    document = role_evidence()
+    mutate(document)
+    with pytest.raises(freeze.TrustedFreezeError):
+        freeze.validate_role_freeze_evidence(document)
+
+
+def test_aggregate_freeze_verifier_uses_the_recorded_sibling_backing_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    protected_root = tmp_path / "aggregate-protected"
+    sibling_root = tmp_path / ".aggregate-protected.materialized"
+    observed: list[Path] = []
+
+    class StaticVerifier:
+        name = "test-role-freeze"
+        sha256 = "a" * 64
+        document = {"object": {"manifest_digest": "sha256:" + "b" * 64}}
+
+        def __init__(self, _path: Path, _provider_identity: dict[str, Any]) -> None:
+            pass
+
+        def verify_freeze(
+            self,
+            _role: str,
+            exposed_path: Path,
+            _evidence: Any,
+            *,
+            backing_path: Path,
+            expected_inventory_sha256: str,
+            expected_identity: dict[str, Any],
+        ) -> Path:
+            assert expected_inventory_sha256
+            assert expected_identity == {}
+            observed.append(Path(backing_path))
+            return Path(exposed_path).resolve()
+
+    monkeypatch.setenv("TRUSTED_REVIEW_PROTECTED_ROOT", str(protected_root))
+    monkeypatch.setattr(provider, "GitHubActionsRoleFreezeVerifier", StaticVerifier)
+    monkeypatch.setattr(provider, "expected_freeze_role_identity", lambda *_args, **_kwargs: {})
+    state = {
+        "artifacts": {
+            role: {
+                "locator": str(protected_root / "roles" / role),
+                "backing_locator": str(sibling_root / role),
+                "materialized_digest": "c" * 64,
+            }
+            for role in provider.ROLE_NAMES
+        }
+    }
+
+    provider._verify_protected_role_evidence(
+        state,
+        {},
+        tmp_path / "installation-attestation.json",
+        tmp_path / "role-evidence",
+    )
+
+    assert observed == [sibling_root / role for role in provider.ROLE_NAMES]
+
+
+def test_protected_role_backing_locator_rejects_a_non_sibling_path(tmp_path: Path) -> None:
+    protected_root = tmp_path / "aggregate-protected"
+    with pytest.raises(provider.TrustedFreezeError, match="recorded sibling tree"):
+        provider._protected_role_backing_path(
+            protected_root,
+            "runtime_image",
+            {"backing_locator": str(tmp_path / "unrelated")},
+        )
 
 
 def test_freeze_verifier_binds_handoff_and_attested_image(tmp_path: Path) -> None:
@@ -549,6 +634,54 @@ def test_freeze_verifier_fails_closed_on_bad_attestation(tmp_path: Path) -> None
     data["freeze_evidence"] = freeze_summary(verifier)
     with pytest.raises(freeze.TrustedFreezeError, match="subject digest"):
         verifier.verify_document_digest(data)
+
+
+def test_attestation_verifier_selects_the_current_run_for_repeated_subjects() -> None:
+    old_run = verified_attestation(IMAGE_SHA, run_id="71000")
+    current_run = verified_attestation(IMAGE_SHA)
+
+    def runner(_command: list[str], **kwargs: Any) -> SimpleNamespace:
+        assert kwargs["check"] is True
+        return SimpleNamespace(stdout=json.dumps([old_run, current_run]))
+
+    freeze._verify_subject_attestation(
+        f"oci://{freeze.OCI_REPOSITORY}@sha256:{IMAGE_SHA}",
+        IMAGE_SHA,
+        run_identity=run_identity(),
+        owner_id=OWNER_ID,
+        gh_executable="/usr/bin/gh",
+        runner=runner,
+        use_oci_bundle=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "results",
+    [
+        [verified_attestation(IMAGE_SHA, run_id="71000")],
+        [verified_attestation(IMAGE_SHA), verified_attestation(IMAGE_SHA)],
+    ],
+)
+def test_attestation_verifier_requires_one_current_run_result(
+    results: list[dict[str, Any]],
+) -> None:
+    def runner(_command: list[str], **kwargs: Any) -> SimpleNamespace:
+        assert kwargs["check"] is True
+        return SimpleNamespace(stdout=json.dumps(results))
+
+    with pytest.raises(
+        freeze.TrustedFreezeError,
+        match="exactly one result for this workflow run",
+    ):
+        freeze._verify_subject_attestation(
+            f"oci://{freeze.OCI_REPOSITORY}@sha256:{IMAGE_SHA}",
+            IMAGE_SHA,
+            run_identity=run_identity(),
+            owner_id=OWNER_ID,
+            gh_executable="/usr/bin/gh",
+            runner=runner,
+            use_oci_bundle=True,
+        )
 
 
 def test_freeze_evidence_requires_its_own_attestation(tmp_path: Path) -> None:
