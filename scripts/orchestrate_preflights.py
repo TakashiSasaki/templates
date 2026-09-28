@@ -16,6 +16,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from collections.abc import Sequence
@@ -78,6 +79,73 @@ class AuthorityRunResult:
     allocation_batch: int
     log_file: str | None = None
     failure_excerpt: str | None = None
+
+
+COORDINATOR_INTERRUPT_POLL_SECONDS = 0.25
+_COORDINATOR_INTERRUPTED = threading.Event()
+_COORDINATOR_INTERRUPT_SIGNAL: int | None = None
+_ACTIVE_SUPERVISORS: set[subprocess.Popen[str]] = set()
+_ACTIVE_SUPERVISORS_LOCK = threading.Lock()
+
+
+class CoordinatorInterrupted(Exception):
+    def __init__(self, signum: int):
+        self.signum = signum
+        super().__init__(f"coordinator interrupted by signal {signum}")
+
+
+def _request_supervisor_stop(process: subprocess.Popen[str]) -> None:
+    try:
+        if os.name == "nt":
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            process.send_signal(signal.SIGTERM)
+    except (OSError, ValueError):
+        pass
+
+
+def _register_supervisor(process: subprocess.Popen[str]) -> None:
+    with _ACTIVE_SUPERVISORS_LOCK:
+        _ACTIVE_SUPERVISORS.add(process)
+    if _COORDINATOR_INTERRUPTED.is_set():
+        _request_supervisor_stop(process)
+
+
+def _unregister_supervisor(process: subprocess.Popen[str]) -> None:
+    with _ACTIVE_SUPERVISORS_LOCK:
+        _ACTIVE_SUPERVISORS.discard(process)
+
+
+def _handle_coordinator_signal(signum: int, _frame: object) -> None:
+    global _COORDINATOR_INTERRUPT_SIGNAL
+    _COORDINATOR_INTERRUPT_SIGNAL = signum
+    _COORDINATOR_INTERRUPTED.set()
+    with _ACTIVE_SUPERVISORS_LOCK:
+        supervisors = tuple(_ACTIVE_SUPERVISORS)
+    for supervisor in supervisors:
+        _request_supervisor_stop(supervisor)
+    raise CoordinatorInterrupted(signum)
+
+
+def _install_coordinator_signal_handlers() -> dict[int, object]:
+    _COORDINATOR_INTERRUPTED.clear()
+    old_handlers = {}
+    for name in ("SIGTERM", "SIGINT", "SIGBREAK"):
+        signum = getattr(signal, name, None)
+        if signum is not None:
+            old_handlers[signum] = signal.getsignal(signum)
+            signal.signal(signum, _handle_coordinator_signal)
+    return old_handlers
+
+
+def _restore_coordinator_signal_handlers(old_handlers: dict[int, object]) -> None:
+    global _COORDINATOR_INTERRUPT_SIGNAL
+    for signum, handler in old_handlers.items():
+        signal.signal(signum, handler)
+    _COORDINATOR_INTERRUPTED.clear()
+    _COORDINATOR_INTERRUPT_SIGNAL = None
+    with _ACTIVE_SUPERVISORS_LOCK:
+        _ACTIVE_SUPERVISORS.clear()
 
 
 def allocate_worker_batches(
@@ -354,10 +422,25 @@ def run_single_preflight(
     execution_error: Exception | None = None
     cleanup_complete = True
     cleanup_failure: str | None = None
+    coordinator_interrupted = False
 
     supervisor_path = Path(__file__).with_name("_authority_supervisor.py")
     supervisor_cmd = [py_exec, str(supervisor_path), "--", *cmd]
     try:
+        if _COORDINATOR_INTERRUPTED.is_set():
+            return AuthorityRunResult(
+                authority=authority,
+                status="FAIL",
+                head_sha=actual_head,
+                command=cmd,
+                working_directory=str(worktree),
+                elapsed_seconds=0.0,
+                exit_code=128 + (_COORDINATOR_INTERRUPT_SIGNAL or 1),
+                allocated_workers=allocated_workers,
+                allocation_batch=allocation_batch,
+                log_file=str(log_file_path) if log_file_path else None,
+                failure_excerpt="coordinator interrupted before authority launch",
+            )
         proc = subprocess.Popen(
             supervisor_cmd,
             cwd=worktree,
@@ -366,25 +449,47 @@ def run_single_preflight(
             text=True,
             **_supervisor_process_options(),
         )
-        try:
-            stdout, stderr = proc.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            stdout, stderr, cleanup_complete = _stop_authority_supervisor(proc)
-            if not cleanup_complete:
-                cleanup_failure = (
-                    "authority supervisor did not complete bounded descendant cleanup"
+        _register_supervisor(proc)
+        deadline = time.monotonic() + timeout
+        while True:
+            if _COORDINATOR_INTERRUPTED.is_set():
+                coordinator_interrupted = True
+                stdout, stderr, cleanup_complete = _stop_authority_supervisor(proc)
+                if not cleanup_complete:
+                    cleanup_failure = (
+                        "authority supervisor did not complete bounded descendant cleanup"
+                    )
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                stdout, stderr, cleanup_complete = _stop_authority_supervisor(proc)
+                if not cleanup_complete:
+                    cleanup_failure = (
+                        "authority supervisor did not complete bounded descendant cleanup"
+                    )
+                break
+            try:
+                stdout, stderr = proc.communicate(
+                    timeout=min(COORDINATOR_INTERRUPT_POLL_SECONDS, remaining)
                 )
-        except Exception as exc:
-            execution_error = exc
-            stdout, stderr, cleanup_complete = _stop_authority_supervisor(proc)
-            if not cleanup_complete:
-                cleanup_failure = (
-                    "authority supervisor did not complete bounded descendant cleanup"
-                )
+                break
+            except subprocess.TimeoutExpired:
+                continue
+            except Exception as exc:
+                execution_error = exc
+                stdout, stderr, cleanup_complete = _stop_authority_supervisor(proc)
+                if not cleanup_complete:
+                    cleanup_failure = (
+                        "authority supervisor did not complete bounded descendant cleanup"
+                    )
+                break
     except Exception as exc:
         if execution_error is None:
             execution_error = exc
+    finally:
+        if proc is not None:
+            _unregister_supervisor(proc)
 
     elapsed = round(time.monotonic() - start_time, 2)
     full_output = f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n"
@@ -393,8 +498,60 @@ def run_single_preflight(
     if cleanup_failure:
         full_output += f"PROCESS CLEANUP\n{cleanup_failure}\n"
 
+    log_write_error: str | None = None
     if log_file_path:
-        log_file_path.write_text(full_output, encoding="utf-8")
+        try:
+            log_file_path.write_text(full_output, encoding="utf-8")
+        except OSError as exc:
+            log_write_error = f"failed to write authority log {log_file_path}: {exc}"
+
+    if coordinator_interrupted:
+        failure = "coordinator interrupted; authority supervisor cleanup was requested"
+        if cleanup_failure:
+            failure = f"{failure}; {cleanup_failure}"
+        return AuthorityRunResult(
+            authority=authority,
+            status="FAIL",
+            head_sha=actual_head,
+            command=cmd,
+            working_directory=str(worktree),
+            elapsed_seconds=elapsed,
+            exit_code=128 + (_COORDINATOR_INTERRUPT_SIGNAL or 1),
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
+            log_file=str(log_file_path) if log_file_path else None,
+            failure_excerpt=failure,
+        )
+
+    if log_write_error:
+        details = [log_write_error]
+        if timed_out:
+            details.append(f"execution exceeded {timeout}s timeout limit")
+        if execution_error is not None:
+            details.append(f"subprocess execution failed: {execution_error}")
+        if cleanup_failure:
+            details.append(cleanup_failure)
+        if proc is not None and proc.returncode not in (None, 0):
+            details.append(f"authority supervisor exited with {proc.returncode}")
+        return AuthorityRunResult(
+            authority=authority,
+            status="TIMEOUT" if timed_out else "FAIL",
+            head_sha=actual_head,
+            command=cmd,
+            working_directory=str(worktree),
+            elapsed_seconds=elapsed,
+            exit_code=(
+                None
+                if timed_out
+                else proc.returncode
+                if proc is not None and proc.returncode not in (None, 0)
+                else 1
+            ),
+            allocated_workers=allocated_workers,
+            allocation_batch=allocation_batch,
+            log_file=str(log_file_path),
+            failure_excerpt="; ".join(details),
+        )
 
     if timed_out:
         failure = f"execution exceeded {timeout}s timeout limit"
@@ -708,14 +865,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             Path(args.expected_heads_json).read_text(encoding="utf-8")
         )
 
-    res = orchestrate_preflights(
-        authorities=args.authorities,
-        repo_root=args.repo_root,
-        expected_heads=expected_heads,
-        timeout=args.timeout,
-        global_jobs=args.jobs,
-        log_dir=args.log_dir,
-    )
+    old_handlers = _install_coordinator_signal_handlers()
+    try:
+        res = orchestrate_preflights(
+            authorities=args.authorities,
+            repo_root=args.repo_root,
+            expected_heads=expected_heads,
+            timeout=args.timeout,
+            global_jobs=args.jobs,
+            log_dir=args.log_dir,
+        )
+    except CoordinatorInterrupted as exc:
+        sys.stderr.write(
+            f"coordinator interrupted by {signal.Signals(exc.signum).name}; "
+            "active authority supervisors were asked to stop\n"
+        )
+        return 128 + exc.signum
+    finally:
+        _restore_coordinator_signal_handlers(old_handlers)
 
     if args.json:
         sys.stdout.write(json.dumps(res, indent=2) + "\n")

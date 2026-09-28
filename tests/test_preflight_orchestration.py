@@ -380,6 +380,105 @@ def test_preflight_timeout_handling(tmp_path: Path) -> None:
     assert "timeout limit" in res.failure_excerpt
 
 
+def test_log_write_failure_is_normalized_as_authority_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    _create_mock_authority(repo_root, "policy")
+    original_write_text = Path.write_text
+
+    def fail_authority_log(path: Path, data: str, *args, **kwargs):
+        if path.name == "policy.log":
+            raise OSError("controlled full filesystem")
+        return original_write_text(path, data, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_authority_log)
+    result = run_single_preflight(
+        authority="policy",
+        repo_root=repo_root,
+        log_dir=tmp_path / "logs",
+    )
+
+    assert result.status == "FAIL"
+    assert result.exit_code == 1
+    assert "failed to write authority log" in result.failure_excerpt
+    assert "controlled full filesystem" in result.failure_excerpt
+
+
+@pytest.mark.skipif(os.name != "posix", reason="requires POSIX supervisor signal handling")
+def test_coordinator_sigterm_stops_supervisor_and_authority_tree(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    worktree = _create_mock_authority(workspace, "policy")
+    authority_pid_file = tmp_path / "authority.pid"
+    child_pid_file = tmp_path / "child.pid"
+    child_code = (
+        "import os, signal; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+        f"open({str(child_pid_file)!r}, 'w').write(str(os.getpid())); "
+        "signal.pause()"
+    )
+    (worktree / "scripts" / "run_policy_preflight.py").write_text(
+        "import os, signal, subprocess, sys\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        f"child = subprocess.Popen([sys.executable, '-c', {child_code!r}])\n"
+        f"open({str(authority_pid_file)!r}, 'w').write(str(os.getpid()))\n"
+        "signal.pause()\n",
+        encoding="utf-8",
+    )
+
+    coordinator = subprocess.Popen(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "orchestrate_preflights.py"),
+            "--repo-root",
+            str(workspace),
+            "--jobs",
+            "1",
+            "--timeout",
+            "30",
+            "policy",
+        ],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    authority_pid: int | None = None
+    child_pid: int | None = None
+    try:
+        assert _wait_for_path(authority_pid_file)
+        assert _wait_for_path(child_pid_file)
+        authority_pid = int(authority_pid_file.read_text(encoding="utf-8"))
+        child_pid = int(child_pid_file.read_text(encoding="utf-8"))
+
+        coordinator.send_signal(signal.SIGTERM)
+        _stdout, stderr = coordinator.communicate(timeout=8)
+
+        assert coordinator.returncode == 128 + signal.SIGTERM
+        assert "coordinator interrupted" in stderr
+        assert _wait_for_pid_absent(authority_pid)
+        assert _wait_for_pid_absent(child_pid)
+    finally:
+        if coordinator.poll() is None:
+            coordinator.kill()
+            coordinator.communicate(timeout=3)
+        if authority_pid is None and authority_pid_file.exists():
+            authority_pid = int(authority_pid_file.read_text(encoding="utf-8"))
+        if authority_pid is not None:
+            try:
+                os.kill(authority_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        if child_pid is None and child_pid_file.exists():
+            child_pid = int(child_pid_file.read_text(encoding="utf-8"))
+        if child_pid is not None:
+            try:
+                os.kill(child_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
 def test_supervisor_cleanup_exit_code_reports_cleanup_failure() -> None:
     class CompletedSupervisor:
         returncode = 125
@@ -405,6 +504,9 @@ def test_timeout_result_surfaces_supervisor_cleanup_failure(
 ) -> None:
     repo_root = tmp_path / "workspace"
     _create_mock_authority(repo_root, "integration")
+    monkeypatch.setattr(
+        orchestrator_module, "COORDINATOR_INTERRUPT_POLL_SECONDS", 2.0
+    )
 
     class FailedCleanupSupervisor:
         returncode: int | None = None
@@ -416,6 +518,7 @@ def test_timeout_result_surfaces_supervisor_cleanup_failure(
         def communicate(self, *, timeout: float) -> tuple[str, str]:
             self.communicate_calls += 1
             if self.communicate_calls == 1:
+                time.sleep(timeout + 0.01)
                 raise subprocess.TimeoutExpired("supervisor", timeout)
             self.returncode = 125
             return "supervisor output", "cleanup failed"
