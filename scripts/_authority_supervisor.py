@@ -207,13 +207,15 @@ def _finish_authority_tree(
         if allow_natural_exit and _wait_for_children(NATURAL_EXIT_GRACE_SECONDS):
             return True
 
-        _signal_authority_group(process_group_id, signal.SIGTERM)
+        # ``process.wait()`` above has reaped the session leader, so its numeric
+        # PID/PGID can be reused. On Linux, every surviving authority descendant
+        # is now owned by this subreaper; signal those child PIDs directly and do
+        # not target the stale process-group number.
         if _signal_adopted_children(
             signal.SIGTERM, TERMINATION_GRACE_SECONDS
         ) and _wait_for_children(REAP_GRACE_SECONDS):
             return True
 
-        _signal_authority_group(process_group_id, signal.SIGKILL)
         if not _signal_adopted_children(signal.SIGKILL, REAP_GRACE_SECONDS):
             return False
         return _wait_for_children(REAP_GRACE_SECONDS)
@@ -244,10 +246,11 @@ def _force_cleanup_after_lifecycle_error(
 ) -> None:
     """Best-effort kill and reap before reporting a lifecycle failure."""
 
-    try:
-        _signal_authority_group(process.pid, signal.SIGKILL)
-    except OSError:
-        pass
+    if process.returncode is None or not subreaper_enabled:
+        try:
+            _signal_authority_group(process.pid, signal.SIGKILL)
+        except OSError:
+            pass
     try:
         process.kill()
     except OSError:

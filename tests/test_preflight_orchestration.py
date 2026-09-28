@@ -1027,6 +1027,84 @@ def test_normal_completion_reaps_adopted_descendants(
     assert result.status == expected_status
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux-specific subreaper contract")
+def test_normal_exit_does_not_signal_a_reaped_authority_process_group(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "workspace"
+    worktree = _create_mock_authority(repo_root, "policy")
+    authority_pid_file = tmp_path / "authority.pid"
+    child_pid_file = tmp_path / "child.pid"
+    stale_group_signals = tmp_path / "stale-group-signals.log"
+    child_code = (
+        "import os, pathlib, signal, sys, time\n"
+        "os.setsid()\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        "pathlib.Path(sys.argv[1]).write_text(str(os.getpid()), encoding='utf-8')\n"
+        "while True:\n"
+        "    time.sleep(1)\n"
+    )
+    (worktree / "scripts" / "run_policy_preflight.py").write_text(
+        "import os, pathlib, subprocess, sys, time\n"
+        f"child_code = {child_code!r}\n"
+        "child = subprocess.Popen([sys.executable, '-c', child_code, "
+        f"{str(child_pid_file)!r}], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+        f"child_pid_file = pathlib.Path({str(child_pid_file)!r})\n"
+        "deadline = time.monotonic() + 5\n"
+        "while not child_pid_file.exists() and time.monotonic() < deadline:\n"
+        "    time.sleep(0.001)\n"
+        "if not child_pid_file.exists():\n"
+        "    raise RuntimeError('detached child did not start')\n"
+        f"pathlib.Path({str(authority_pid_file)!r}).write_text("
+        "str(os.getpid()), encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+
+    supervisor_directory = tmp_path / "supervisor"
+    supervisor_directory.mkdir()
+    supervisor_path = supervisor_directory / "_authority_supervisor.py"
+    supervisor_source = (ROOT / "scripts" / "_authority_supervisor.py").read_text(
+        encoding="utf-8"
+    )
+    main_marker = "\ndef main(argv: list[str] | None = None) -> int:\n"
+    assert main_marker in supervisor_source
+    signal_audit = (
+        "\n_signal_authority_group_before_audit = _signal_authority_group\n"
+        "def _signal_authority_group(process_group_id: int, signum: int) -> None:\n"
+        f"    leader_file = Path({str(authority_pid_file)!r})\n"
+        "    if leader_file.exists() and int("
+        "leader_file.read_text(encoding='utf-8')) == process_group_id:\n"
+        f"        audit_file = Path({str(stale_group_signals)!r})\n"
+        "        try:\n"
+        "            Path(f'/proc/{process_group_id}/stat').read_bytes()\n"
+        "            leader_present = True\n"
+        "        except FileNotFoundError:\n"
+        "            leader_present = False\n"
+        "        with audit_file.open('a', encoding='utf-8') as stream:\n"
+        "            stream.write(f'{signum} {leader_present}\\n')\n"
+        "    _signal_authority_group_before_audit(process_group_id, signum)\n"
+    )
+    supervisor_path.write_text(
+        supervisor_source.replace(main_marker, signal_audit + main_marker),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        orchestrator_module,
+        "__file__",
+        str(supervisor_directory / "orchestrate_preflights.py"),
+    )
+    result = run_single_preflight(authority="policy", repo_root=repo_root, timeout=5.0)
+
+    assert result.status == "PASS"
+    assert _wait_for_pid_absent(int(child_pid_file.read_text(encoding="utf-8")))
+    if stale_group_signals.exists():
+        assert all(
+            line.endswith(" True")
+            for line in stale_group_signals.read_text(encoding="utf-8").splitlines()
+        )
+
+
 @pytest.mark.skipif(
     sys.platform != "linux" or os.geteuid() != 0,
     reason="requires Linux and root to change descendant credentials",
