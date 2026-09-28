@@ -20,6 +20,96 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class IntegrationPreflightTests(unittest.TestCase):
+    def test_expected_failure_outcomes_are_emitted_in_serial_and_sharded_results(self) -> None:
+        class ExpectedFailureProbe(unittest.TestCase):
+            @unittest.expectedFailure
+            def test_expected_failure(self):
+                self.fail("controlled expected failure")
+
+            @unittest.expectedFailure
+            def test_unexpected_success(self):
+                pass
+
+        serial_cases = [
+            ExpectedFailureProbe("test_expected_failure"),
+            ExpectedFailureProbe("test_unexpected_success"),
+        ]
+        serial_ids = [case.id() for case in serial_cases]
+        with (
+            patch.object(
+                preflight,
+                "classify_test_inventory",
+                return_value=([], serial_ids),
+            ),
+            redirect_stdout(io.StringIO()) as serial_output,
+            redirect_stderr(io.StringIO()),
+        ):
+            serial_status = preflight.run_discovered_tests(
+                serial_cases, jobs=1, verbosity=0
+            )
+
+        self.assertEqual(serial_status, 1)
+        self.assertIn(
+            "expected_failures=1 unexpected_successes=1",
+            serial_output.getvalue(),
+        )
+
+        expected_case_type = type(
+            "ExpectedFailureProbe",
+            (unittest.TestCase,),
+            {
+                "__module__": "test_expected_failure_alpha",
+                "test_expected_failure": unittest.expectedFailure(
+                    lambda self: self.fail("controlled expected failure")
+                ),
+            },
+        )
+        unexpected_case_type = type(
+            "UnexpectedSuccessProbe",
+            (unittest.TestCase,),
+            {
+                "__module__": "test_expected_failure_beta",
+                "test_unexpected_success": unittest.expectedFailure(lambda self: None),
+            },
+        )
+        sharded_cases = [
+            expected_case_type("test_expected_failure"),
+            unexpected_case_type("test_unexpected_success"),
+        ]
+        sharded_ids = [case.id() for case in sharded_cases]
+        outcomes = {
+            sharded_ids[0]: {"status": "expected-failure"},
+            sharded_ids[1]: {"status": "unexpected-success"},
+        }
+        metrics = {
+            "runner_wall_seconds": 0.01,
+            "slowest_shard_seconds": 0.01,
+            "worker_seconds": 0.02,
+            "estimated_idle_worker_seconds": 0.0,
+        }
+        with (
+            patch.object(
+                preflight,
+                "classify_test_inventory",
+                return_value=(sharded_ids, []),
+            ),
+            patch.object(
+                preflight,
+                "run_parallel_shards",
+                return_value=(outcomes, [], metrics),
+            ),
+            redirect_stdout(io.StringIO()) as sharded_output,
+        ):
+            sharded_status = preflight.run_discovered_tests(
+                sharded_cases, jobs=2, verbosity=0
+            )
+
+        self.assertEqual(sharded_status, 1)
+        self.assertIn(
+            "expected_failures=1 unexpected_successes=1",
+            sharded_output.getvalue(),
+        )
+
     def test_class_fixture_skip_accounts_every_discovered_id(self) -> None:
         class SkippedClass(unittest.TestCase):
             @classmethod
