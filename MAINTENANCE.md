@@ -6,6 +6,8 @@ Read [PUBLISHING.md](PUBLISHING.md) for exact inputs and acceptance, and use the
 [maintainer onboarding guide](docs/maintainer-onboarding.md) for task ownership.
 The [publication automation handoff](docs/publication-automation.md) connects
 current workflows and stop/recovery boundaries without enabling them.
+The [Site CI performance guide](docs/ci/site-performance.md) records measured
+browser/PWA bottlenecks and their diagnostic evidence.
 
 ## Local validation
 
