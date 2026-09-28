@@ -42,16 +42,18 @@ later measurements justify sharding, workers import only modules assigned to
 their shard.
 
 The Python `unittest` and Node `node --test` execution domains remain separate;
-Node receives its allocated `--test-concurrency`, and inherited `NODE_OPTIONS`
-is removed before both core Python tests and Node tests run. Python shard workers
-also remove Python path overrides. The Node tests load the shipped
-Composition Playground JavaScript directly and exercise its URL, rendering,
-event, fetch, clipboard and async behavior. A cross-authority coordinator's
+Node receives its allocated `--test-concurrency`. Before that Node child starts,
+inherited test-concurrency options are removed from `NODE_OPTIONS`, while
+unrelated options and their Node-compatible double-quoted values are preserved.
+The explicit runner limit prevents an inherited setting from raising effective
+concurrency. The Python core runner's child environment removes `NODE_OPTIONS`
+and Python path overrides. The Node tests load the shipped Composition
+Playground JavaScript directly and exercise its URL, rendering, event, fetch,
+clipboard and async behavior. A cross-authority coordinator's
 `--jobs` is a larger shared budget that it divides among authority-local
 runners; invoking this Site command directly treats it as the entire Site-local
-budget. See the normative worker-budget contract in the Policy authority for
-the shared safety classes, nested-worker limit, and exact-SHA qualification
-rules.
+budget. See the normative worker-budget contract in the Policy authority for the
+shared safety classes, nested-worker limit, and exact-SHA qualification rules.
 
 This runs the complete classified Python core suite, every cheap Playground
 Node test, Site-owned declaration/contract checks, static Python dependency

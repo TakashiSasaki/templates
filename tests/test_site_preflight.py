@@ -380,6 +380,39 @@ class SitePreflightTests(unittest.TestCase):
             self.assertNotIn(name, child_environment)
             self.assertIn(f"variable={name}", output.getvalue())
 
+    def test_node_runner_preserves_double_quoted_require_path_in_real_child(self):
+        with TemporaryDirectory(prefix="site node options ") as temporary:
+            directory = Path(temporary) / "space dir"
+            directory.mkdir()
+            hook = directory / "node hook.cjs"
+            test_file = directory / "node options test.mjs"
+            hook.write_text(
+                "process.env.SITE_NODE_OPTIONS_HOOK_LOADED = 'yes';\n",
+                encoding="utf-8",
+            )
+            test_file.write_text(
+                "import assert from 'node:assert/strict';\n"
+                "import test from 'node:test';\n"
+                "test('quoted NODE_OPTIONS path survives sanitation', () => {\n"
+                "  assert.equal(process.env.SITE_NODE_OPTIONS_HOOK_LOADED, 'yes');\n"
+                "  assert.doesNotMatch(process.env.NODE_OPTIONS ?? '', /--test-concurrency/);\n"
+                "});\n",
+                encoding="utf-8",
+            )
+            with (
+                patch.dict(
+                    os.environ,
+                    {
+                        "NODE_OPTIONS": (
+                            f'--require="{hook}" --test-concurrency=auto '
+                            "--trace-warnings"
+                        )
+                    },
+                ),
+                patch.object(preflight, "NODE_TESTS", (str(test_file),)),
+            ):
+                preflight.run_node(1)
+
     def test_node_worker_count_is_capped_to_discovered_files(self):
         with patch.object(preflight, "NODE_TESTS", ("tests/one.test.mjs", "tests/two.test.mjs")), patch.object(
             preflight, "_run"

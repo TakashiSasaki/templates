@@ -24,7 +24,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 from pathlib import Path
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -174,19 +173,56 @@ def sanitize_node_options_for_worker_budget(environment: dict[str, str]) -> None
     value = environment.get("NODE_OPTIONS")
     if value is None:
         return
-    tokens = shlex.split(value)
+
+    # Node's NODE_OPTIONS parser uses double quotes to group values containing
+    # spaces. Keep each original token's spelling so rebuilding this variable
+    # does not replace Node-compatible double quotes with shell single quotes.
+    tokens: list[str] = []
+    token_start: int | None = None
+    in_double_quotes = False
+    escaped = False
+    for index, character in enumerate(value):
+        if token_start is None:
+            if character.isspace():
+                continue
+            token_start = index
+        if escaped:
+            escaped = False
+            continue
+        if in_double_quotes and character == "\\":
+            escaped = True
+            continue
+        if character == '"':
+            in_double_quotes = not in_double_quotes
+            continue
+        if character.isspace() and not in_double_quotes:
+            tokens.append(value[token_start:index])
+            token_start = None
+    if in_double_quotes or escaped:
+        raise ValueError("NODE_OPTIONS contains an unterminated double-quoted value")
+    if token_start is not None:
+        tokens.append(value[token_start:])
+
     sanitized: list[str] = []
     removed = False
     index = 0
     while index < len(tokens):
         token = tokens[index]
-        if token == "--test-concurrency":
+        option = token[1:-1] if token.startswith('"') and token.endswith('"') else token
+        if option == "--test-concurrency":
             removed = True
             index += 1
-            if index < len(tokens) and not tokens[index].startswith("--"):
+            next_option = (
+                tokens[index][1:-1]
+                if index < len(tokens)
+                and tokens[index].startswith('"')
+                and tokens[index].endswith('"')
+                else tokens[index] if index < len(tokens) else ""
+            )
+            if index < len(tokens) and not next_option.startswith("--"):
                 index += 1
             continue
-        if token.startswith("--test-concurrency="):
+        if option.startswith("--test-concurrency="):
             removed = True
             index += 1
             continue
@@ -194,7 +230,7 @@ def sanitize_node_options_for_worker_budget(environment: dict[str, str]) -> None
         index += 1
     if removed:
         if sanitized:
-            environment["NODE_OPTIONS"] = shlex.join(sanitized)
+            environment["NODE_OPTIONS"] = " ".join(sanitized)
         else:
             environment.pop("NODE_OPTIONS", None)
         print(
