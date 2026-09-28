@@ -1,0 +1,55 @@
+{
+  "kind": "informative-okf-study-observation",
+  "observationDate": "2026-09-28",
+  "assertionAuthority": "local-study-author",
+  "upstreamRepository": "GoogleCloudPlatform/open-knowledge-format",
+  "observedBranch": "main",
+  "specificationLabel": "0.2",
+  "revision": "ad30107c31c06aec8a7d5636e0d1058118604e6f",
+  "sources": [
+    {"id":"S1","path":"SPEC.md","blob":"c06e3eede0c910d0ecf12524c34204156f8795ac","kind":"specification","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md"},
+    {"id":"S2","path":"src/reference_agent/bundle/index.py","blob":"68cccd4cea6e8a583ab7929744348f4d82ff8364","kind":"implementation-probed","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/src/reference_agent/bundle/index.py"},
+    {"id":"S3","path":"src/reference_agent/bundle/document.py","blob":"b770a92f33adf9942e2932529308d066430b02a6","kind":"implementation-probed","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/src/reference_agent/bundle/document.py"},
+    {"id":"S4","path":"tests/test_index.py","blob":"d9a0ba61cccd8bfedb3b4c0042c950560b4323dd","kind":"tests-read-not-run","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/tests/test_index.py"},
+    {"id":"S5","path":"bundles/acme_retail/attesters/index.md","blob":"c22f7f68b33072e17dddc36772bb736b6333b9c9","kind":"sample","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/bundles/acme_retail/attesters/index.md"},
+    {"id":"S6","path":"bundles/acme_retail/index.md","blob":"f8bc4b247169a5d2c5823e0e9bd4608bbbf2c210","kind":"sample","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/bundles/acme_retail/index.md"},
+    {"id":"S7","path":"README.md","blob":"0e88bcf81ca9ade7e830f077f9687bb89ec0319c","kind":"viewer-documentation","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/README.md"},
+    {"id":"S8","path":"src/reference_agent/bundle/synthesizer.py","blob":"489aacafc4d847ed39d6c5318ebf0f89d845b95f","kind":"implementation-read-not-run","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/src/reference_agent/bundle/synthesizer.py"}
+  ],
+  "questionIds": ["Q01","Q02","Q03","Q04","Q05","Q06","Q07","Q08","Q09","Q10","Q11","Q12","Q13","Q14","Q15","Q16","Q17","Q18"],
+  "gapIds": ["G01","G02","G03","G04","G05","G06","G07","G08","G09","G10","G11","G12"],
+  "discussions": [
+    {"id":"D10","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/10","state":"open","updatedAt":"2026-08-23T23:53:35Z","commentsRead":false,"normative":false},
+    {"id":"D11","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/11","state":"open","updatedAt":"2026-09-03T19:07:51Z","commentsRead":false,"normative":false},
+    {"id":"D24","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/24","state":"open","updatedAt":"2026-09-21T13:36:47Z","commentsRead":false,"normative":false},
+    {"id":"D25","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/pull/25","state":"open","updatedAt":"2026-09-13T10:41:55Z","commentsRead":false,"normative":false,"merged":false,"head":"e23c32f73c222f94a29201dfa0659a23a0dd612c"},
+    {"id":"D26","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/26","state":"open","updatedAt":"2026-09-14T22:57:21Z","commentsRead":false,"normative":false},
+    {"id":"D28","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/28","state":"open","updatedAt":"2026-09-27T14:28:56Z","commentsRead":false,"normative":false},
+    {"id":"D29","url":"https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/29","state":"open","updatedAt":"2026-09-18T06:29:35Z","commentsRead":false,"normative":false}
+  ],
+  "probeMethod": {
+    "sourceBlobsVerified": true,
+    "upstreamSuiteRun": false,
+    "networkUsed": false,
+    "modelUsed": false,
+    "descriptionCallback": "injected deterministic offline stub",
+    "qualificationMeaning": "implementation observation, not OKF conformance"
+  },
+  "probes": [
+    {"id":"P01","written":["index.md"],"indexes":{"index.md":"# Reference\n\n* [Alpha](alpha.md) - Probe description.\n"},"synthesis_calls":[]},
+    {"id":"P02","written":["a/b/c/index.md","a/b/index.md","a/index.md","index.md"],"indexes":{"a/b/c/index.md":"# Reference\n\n* [Alpha](topic.md) - Probe description.\n","a/b/index.md":"# Subdirectories\n\n* [c](c/index.md) - Probe description.\n","a/index.md":"# Subdirectories\n\n* [b](b/index.md) - Probe description.\n","index.md":"# Subdirectories\n\n* [a](a/index.md) - Probe description.\n"},"synthesis_calls":[]},
+    {"id":"P03","written":["index.md"],"indexes":{"index.md":"# Reference\n\n* [Alpha](alpha.md) - Probe description.\n"},"synthesis_calls":[]},
+    {"id":"P04","written":[],"indexes":{},"synthesis_calls":[]},
+    {"id":"P05","written":["index.md"],"indexes":{"index.md":"# Reference\n\n* [Alpha](alpha.md) - Probe description.\n\n# Subdirectories\n\n* [code](code/index.md)\n* [empty](empty/index.md)\n"},"synthesis_calls":[]},
+    {"id":"P06","written":["index.md"],"indexes":{"index.md":"# Other\n\n* [guide](guide.md)\n* [log](log.md)\n"},"synthesis_calls":[]},
+    {"id":"P07","written":["index.md"],"indexes":{"index.md":"# Metric\n\n* [Beta](beta.md) - Probe description.\n\n# Reference\n\n* [Alpha](alpha.md) - Probe description.\n"},"synthesis_calls":[]},
+    {"id":"P08","written":[],"indexes":{"index.md":"# Tools\n\n* [Code](check.py) - Curated code description.\n"},"synthesis_calls":[]}
+  ],
+  "limits": [
+    "No independent 0.1 snapshot comparison.",
+    "No exhaustive community or sample-bundle survey.",
+    "Issue bodies and metadata inspected; comment threads not re-read.",
+    "No artifact rights or authenticity determination.",
+    "No normative OKF grammar or application profile is created."
+  ]
+}

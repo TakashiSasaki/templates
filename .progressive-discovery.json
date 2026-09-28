@@ -16,10 +16,19 @@
     "docs/intake.md",
     "catalog.json",
     "docs/publication-catalog.json",
-    "docs/publication-capabilities.json"
+    "docs/publication-capabilities.json",
+    "docs/studies/open-knowledge-format/index.md",
+    "docs/studies/open-knowledge-format/README.md",
+    "docs/studies/open-knowledge-format/questions.md",
+    "docs/studies/open-knowledge-format/concepts-and-properties.md",
+    "docs/studies/open-knowledge-format/index-and-discovery.md",
+    "docs/studies/open-knowledge-format/implementation-gaps.md",
+    "docs/studies/open-knowledge-format/sources.md",
+    "docs/studies/open-knowledge-format/observation-2026-09-28.json"
   ],
   "authored_boundaries": [
-    "docs"
+    "docs",
+    "docs/studies/open-knowledge-format"
   ],
   "generated_indexes": {
     "docs/resources/index.md": {
@@ -40,8 +49,9 @@
     "records",
     "schemas"
   ],
-  "curated_shortcuts": [
-    "docs"
+  "curated_shortcuts": [],
+  "intentional_no_indexes": [
+    "docs/studies"
   ],
   "publication_system": true,
   "surface_boundaries": {
