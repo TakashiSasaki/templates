@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -705,6 +706,101 @@ class PublicationPromotionIntentTests(unittest.TestCase):
                     reconciliation_implementation=implementation,
                     expected_intent_digest=_digest(encoded),
                 )
+
+    def test_fail_closed_preview_exercises_schema_two_provenance_without_writing_intent(self):
+        run_context = _observed_site_run_context()
+        implementation = _observed_reconciliation_implementation()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current, candidate, source, verified, reconciliation = self._fixture(
+                root,
+                OBSERVED_PRODUCER,
+                run_context=run_context,
+                trusted_controller=OBSERVED_PRODUCER,
+                trusted_policy=OBSERVED_POLICY_PIN,
+                bundle_identity=OBSERVED_BUNDLE_IDENTITY,
+                bundle_content=OBSERVED_BUNDLE_CONTENT,
+            )
+            report = json.loads(reconciliation.read_text(encoding="utf-8"))
+            report.update({
+                "classification": "NOT_ELIGIBLE",
+                "reason_codes": ["KILL_SWITCH_ACTIVE"],
+                "allowed_mutations": [],
+            })
+            _write_json(reconciliation, report)
+            qualification_artifact = {
+                "id": 102,
+                "digest": "sha256:" + "9" * 64,
+                "name": f"publication-compatibility-{OBSERVED_BUNDLE_IDENTITY}-1-reconciliation",
+            }
+            summary = root / "summary.md"
+            command = [
+                sys.executable,
+                str(Path(__file__).resolve().parents[1] / "scripts" / "publication_promotion_intent.py"),
+                "preview",
+                "--current", str(current),
+                "--candidate", str(candidate),
+                "--source-report", str(source),
+                "--verified-report", str(verified),
+                "--reconciliation-report", str(reconciliation),
+                "--producer-revision", OBSERVED_PRODUCER,
+                "--consumer-base-revision", OBSERVED_PRODUCER,
+                "--expected-current-lock-digest", _digest(current.read_bytes()),
+                "--qualification-artifact-id", str(qualification_artifact["id"]),
+                "--qualification-artifact-digest", qualification_artifact["digest"],
+                "--qualification-artifact-name", qualification_artifact["name"],
+                "--trusted-controller-revision", OBSERVED_PRODUCER,
+                "--trusted-policy-revision", OBSERVED_POLICY_PIN,
+                "--run-repository", run_context["repository"],
+                "--run-id", str(run_context["workflow_run_id"]),
+                "--run-attempt", str(run_context["workflow_attempt"]),
+                "--run-head", run_context["workflow_head"],
+                "--run-workflow-name", run_context["workflow_name"],
+                "--run-event", run_context["workflow_event"],
+                "--run-workflow-path", run_context["run_workflow_path"],
+                "--reconciliation-workflow-repository", implementation["workflow_repository"],
+                "--reconciliation-workflow-file-path", implementation["workflow_file_path"],
+                "--reconciliation-workflow-ref", implementation["workflow_ref"],
+                "--reconciliation-workflow-sha", implementation["workflow_sha"],
+                "--github-summary", str(summary),
+            ]
+
+            failed_closed_build = copy.deepcopy(report)
+            with self.assertRaisesRegex(ValueError, "not authorized"):
+                build_intent(
+                    current=current,
+                    candidate=candidate,
+                    source_report=source,
+                    verified_report=verified,
+                    reconciliation_report=reconciliation,
+                    producer_revision=OBSERVED_PRODUCER,
+                    consumer_base_revision=OBSERVED_PRODUCER,
+                    expected_current_lock_digest=_digest(current.read_bytes()),
+                    qualification_artifact=qualification_artifact,
+                    trusted_controller_revision=OBSERVED_PRODUCER,
+                    trusted_policy_revision=OBSERVED_POLICY_PIN,
+                    runtime_run_context=run_context,
+                    reconciliation_implementation=implementation,
+                )
+
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("schema_version=2", result.stdout)
+            self.assertIn("preview_only=true", result.stdout)
+            summary_text = summary.read_text(encoding="utf-8")
+            self.assertIn('"schema_version": 2', summary_text)
+            self.assertIn('"invocation_mode": "site-reusable"', summary_text)
+            self.assertIn('"run_workflow_path": ".github/workflows/provider-publication-dispatch.yml"', summary_text)
+            self.assertIn('"workflow_file_path": ".github/workflows/integration-reconcile.yml"', summary_text)
+            self.assertIn(f'"workflow_sha": "{implementation["workflow_sha"]}"', summary_text)
+            self.assertFalse((root / "publication-promotion-intent.json").exists())
+
+            failed_closed_build["reason_codes"] = ["QUALIFICATION_FAILED"]
+            failed_closed_build["allowed_mutations"] = []
+            _write_json(reconciliation, failed_closed_build)
+            rejected = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("intentional fail-closed", rejected.stderr)
 
     def test_site_provider_repository_dispatch_builds_verifies_and_preserves_event(self):
         with tempfile.TemporaryDirectory() as directory:

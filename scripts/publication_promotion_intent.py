@@ -368,6 +368,7 @@ def _check_report_bindings(
     qualification_artifact: dict[str, Any],
     trusted_controller_revision: str,
     trusted_policy_revision: str,
+    allow_fail_closed_preview: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, str], dict[str, str]]:
     producer_revision = _require_sha(producer_revision, "producer revision")
     consumer_base_revision = _require_sha(consumer_base_revision, "consumer base revision")
@@ -387,10 +388,19 @@ def _check_report_bindings(
     verified = read_json_object(verified_report)
     source = read_json_object(source_report)
     if reconciliation.get("classification") != "AUTO_PROCESSABLE":
-        raise ValueError("reconciliation is not authorized to prepare a promotion intent")
+        reason_codes = reconciliation.get("reason_codes")
+        is_fail_closed_preview = (
+            allow_fail_closed_preview
+            and reconciliation.get("classification") == "NOT_ELIGIBLE"
+            and reason_codes in (["AUTHORIZATION_NOT_GRANTED"], ["KILL_SWITCH_ACTIVE"])
+            and reconciliation.get("allowed_mutations") == []
+        )
+        if not is_fail_closed_preview:
+            raise ValueError("reconciliation is not authorized to prepare a promotion intent")
     if reconciliation.get("stage") != "authorization" or reconciliation.get("boundary") != "provider-to-integration":
         raise ValueError("reconciliation report is outside the provider-to-Integration authorization boundary")
-    if INTENT_NAME not in reconciliation.get("allowed_mutations", []):
+    if (reconciliation.get("classification") == "AUTO_PROCESSABLE"
+            and INTENT_NAME not in reconciliation.get("allowed_mutations", [])):
         raise ValueError("reconciliation report does not allow a promotion-intent record")
     if source.get("boundary") != "provider-to-integration" or source.get("stage") != "qualification":
         raise ValueError("source report is not an Integration qualification report")
@@ -499,6 +509,7 @@ def build_intent(
     trusted_policy_revision: str,
     runtime_run_context: dict[str, Any],
     reconciliation_implementation: dict[str, Any],
+    allow_fail_closed_preview: bool = False,
 ) -> dict[str, Any]:
     reconciliation, verified, verification, providers, base_plan = _check_report_bindings(
         current=current,
@@ -512,6 +523,7 @@ def build_intent(
         qualification_artifact=qualification_artifact,
         trusted_controller_revision=trusted_controller_revision,
         trusted_policy_revision=trusted_policy_revision,
+        allow_fail_closed_preview=allow_fail_closed_preview,
     )
     trusted_controller_revision = _require_sha(trusted_controller_revision, "trusted controller revision")
     trusted_policy_revision = _require_sha(trusted_policy_revision, "trusted Policy revision")
@@ -932,17 +944,26 @@ def main() -> int:
         ):
             command.add_argument(f"--{prefix}{name}", required=True, type=value_type)
 
+    def add_intent_inputs(command: argparse.ArgumentParser, *, include_outputs: bool) -> None:
+        for argument in (
+            "current", "candidate", "source-report", "verified-report", "reconciliation-report",
+            "producer-revision", "consumer-base-revision", "expected-current-lock-digest",
+            "qualification-artifact-id", "qualification-artifact-digest", "qualification-artifact-name",
+            "trusted-controller-revision", "trusted-policy-revision",
+        ):
+            command.add_argument("--" + argument, required=True, type=Path if argument in {
+                "current", "candidate", "source-report", "verified-report", "reconciliation-report"
+            } else str)
+        if include_outputs:
+            command.add_argument("--output", required=True, type=Path)
+            command.add_argument("--github-output", required=True, type=Path)
+        add_runtime_provenance_arguments(command, expected=False)
+
     build = commands.add_parser("build")
-    for argument in (
-        "current", "candidate", "source-report", "verified-report", "reconciliation-report",
-        "producer-revision", "consumer-base-revision", "expected-current-lock-digest",
-        "qualification-artifact-id", "qualification-artifact-digest", "qualification-artifact-name",
-        "trusted-controller-revision", "trusted-policy-revision", "output", "github-output",
-    ):
-        build.add_argument("--" + argument, required=True, type=Path if argument in {
-            "current", "candidate", "source-report", "verified-report", "reconciliation-report", "output", "github-output"
-        } else str)
-    add_runtime_provenance_arguments(build, expected=False)
+    add_intent_inputs(build, include_outputs=True)
+    preview = commands.add_parser("preview")
+    add_intent_inputs(preview, include_outputs=False)
+    preview.add_argument("--github-summary", required=True, type=Path)
     verify = commands.add_parser("verify")
     for argument in (
         "intent", "base-lock", "selected-lock", "consumer-base-revision",
@@ -1014,6 +1035,48 @@ def main() -> int:
                     stream.write(f"intent_digest={_sha256(encoded)}\n")
                     stream.write(f"lock_update_required={str(intent['lock_update_required']).lower()}\n")
             print(_sha256(encoded))
+        elif args.command == "preview":
+            reconciliation = read_json_object(args.reconciliation_report)
+            reason_codes = reconciliation.get("reason_codes")
+            if (reconciliation.get("classification") != "NOT_ELIGIBLE"
+                    or reason_codes not in (["AUTHORIZATION_NOT_GRANTED"], ["KILL_SWITCH_ACTIVE"])
+                    or reconciliation.get("allowed_mutations") != []):
+                raise ValueError("schema-2 preview requires an intentional fail-closed authorization or kill-switch guard")
+            artifact = _qualification_artifact(args)
+            runtime_run_context, reconciliation_implementation = _runtime_provenance_from_args(
+                args,
+                expected=False,
+            )
+            intent = build_intent(
+                current=args.current,
+                candidate=args.candidate,
+                source_report=args.source_report,
+                verified_report=args.verified_report,
+                reconciliation_report=args.reconciliation_report,
+                producer_revision=args.producer_revision,
+                consumer_base_revision=args.consumer_base_revision,
+                expected_current_lock_digest=args.expected_current_lock_digest,
+                qualification_artifact=artifact,
+                trusted_controller_revision=args.trusted_controller_revision,
+                trusted_policy_revision=args.trusted_policy_revision,
+                runtime_run_context=runtime_run_context,
+                reconciliation_implementation=reconciliation_implementation,
+                allow_fail_closed_preview=True,
+            )
+            encoded = _canonical_json(intent)
+            summary = {
+                "schema_version": intent["schema_version"],
+                "intent_preview_sha256": _sha256(encoded),
+                "run_provenance": intent["run_provenance"],
+                "reconciliation_implementation": intent["reconciliation_implementation"],
+            }
+            with args.github_summary.open("a", encoding="utf-8") as stream:
+                stream.write("### Fail-closed schema-2 intent preview\n\n")
+                stream.write("The schema-2 bindings below were rendered in memory only. No intent file was written or uploaded, and the reconciliation report allows no mutations.\n\n")
+                stream.write("```json\n")
+                stream.write(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+                stream.write("\n```\n")
+            print(f"schema_version=2 sha256={summary['intent_preview_sha256']} preview_only=true")
         elif args.command == "verify":
             runtime_run_context, reconciliation_implementation = _runtime_provenance_from_args(
                 args,
