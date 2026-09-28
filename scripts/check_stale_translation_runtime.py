@@ -361,6 +361,64 @@ def _attach_browser_diagnostics(context, page, evidence, run_started):
     )
 
 
+def _attach_service_worker_protocol_diagnostics(browser, evidence, run_started):
+    evidence["service_worker_protocol"] = {
+        "status": "unavailable",
+        "registrations": [],
+    }
+    session = None
+    try:
+        session = browser.new_browser_cdp_session()
+
+        def record(kind, payload):
+            observation = {
+                "kind": kind,
+                "elapsed_seconds": round(time.monotonic() - run_started, 3),
+                "payload": payload,
+            }
+            evidence["browser_events"].append(observation)
+            _log(observation)
+
+        session.on(
+            "ServiceWorker.workerVersionUpdated",
+            lambda payload: record("cdp_service_worker_version_updated", payload),
+        )
+        session.on(
+            "ServiceWorker.workerRegistrationUpdated",
+            lambda payload: record("cdp_service_worker_registration_updated", payload),
+        )
+        session.on(
+            "ServiceWorker.workerErrorReported",
+            lambda payload: record("cdp_service_worker_error_reported", payload),
+        )
+        initial = session.send("ServiceWorker.enable")
+        registrations = initial.get("registrations", [])
+        evidence["service_worker_protocol"] = {
+            "status": "enabled",
+            "initial_registration_count": len(registrations),
+            "registrations": registrations,
+        }
+        record(
+            "cdp_service_worker_enabled",
+            {"initial_registration_count": len(registrations)},
+        )
+        return session
+    except Exception as exc:
+        if session is not None:
+            try:
+                session.detach()
+            except Exception as detach_exc:
+                _diagnostic_error(
+                    evidence, "service_worker.protocol.detach_after_error", detach_exc
+                )
+        evidence["service_worker_protocol"]["error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc),
+        }
+        _diagnostic_error(evidence, "service_worker.protocol.enable", exc)
+        return None
+
+
 def _run_phase(evidence, name, action):
     with _phase(evidence, name):
         return action()
@@ -510,6 +568,7 @@ def run(site, bundle, output=None):
     server_started = False
     playwright = None
     browser = None
+    service_worker_cdp = None
     context = None
     page = None
     trace_started = False
@@ -654,6 +713,10 @@ def run(site, bundle, output=None):
             page = context.new_page()
 
         _attach_browser_diagnostics(context, page, evidence, run_started)
+        with _phase(evidence, "browser.service_worker_protocol.enable"):
+            service_worker_cdp = _attach_service_worker_protocol_diagnostics(
+                browser, evidence, run_started
+            )
 
         if trace_path is not None:
             with _phase(evidence, "browser.trace.start"):
@@ -920,6 +983,14 @@ def run(site, bundle, output=None):
             except Exception as exc:
                 evidence["trace"]["status"] = "failed"
                 _diagnostic_error(evidence, "browser.trace.stop", exc)
+        if service_worker_cdp is not None:
+            try:
+                with _phase(evidence, "browser.service_worker_protocol.detach"):
+                    service_worker_cdp.detach()
+            except Exception as exc:
+                _diagnostic_error(
+                    evidence, "service_worker.protocol.detach", exc
+                )
         if browser is not None:
             try:
                 with _phase(evidence, "browser.close"):
