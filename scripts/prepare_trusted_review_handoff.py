@@ -38,6 +38,7 @@ try:
     from scripts.trusted_review_actions import (
         validate_observation as validate_actions_observation,
     )
+    from scripts.trusted_review_freeze import GitHubActionsOciFreezeVerifier
 except ImportError:
     from trusted_review_actions import (
         GitHubActionsObservationVerifier,
@@ -48,6 +49,7 @@ except ImportError:
     from trusted_review_actions import (
         validate_observation as validate_actions_observation,
     )
+    from trusted_review_freeze import GitHubActionsOciFreezeVerifier
 
 sys.dont_write_bytecode = True
 
@@ -435,9 +437,8 @@ def validate_provider_identity(
                     "status without trusted provider adapter"
                 )
         elif src == "github_artifact_attestation":
-            if (
-                type(provider_adapter) is not GitHubActionsObservationVerifier
-                or not getattr(provider_adapter, "production_capable", False)
+            if type(provider_adapter) is not GitHubActionsObservationVerifier or not getattr(
+                provider_adapter, "production_capable", False
             ):
                 raise ValueError(
                     "GitHub observation attestation cannot self-assert authenticated "
@@ -2309,6 +2310,9 @@ def verify_handoff(
         if not bundle_skill_file.is_file():
             raise ValueError(f"bundle {skill_rel} missing")
 
+    if freeze_adapter is not None and hasattr(freeze_adapter, "verify_post_use"):
+        freeze_adapter.verify_post_use(handoff)
+
 
 def check_drift(
     git_executable: Path,
@@ -2667,7 +2671,25 @@ def main(argv: list[str] | None = None) -> int:
                     prov_adapter = ExternalObservationProviderVerifier(args.provider_observation)
             freeze_adapter = None
             if getattr(args, "freeze_evidence", None):
-                freeze_adapter = ExternalDeploymentFreezeVerifier(args.freeze_evidence)
+                freeze_data = json.loads(args.freeze_evidence.read_bytes())
+                is_actions_oci_evidence = (
+                    isinstance(freeze_data, dict)
+                    and freeze_data.get("schema_version") == 1
+                    and freeze_data.get("provider") == "github-actions-ghcr"
+                )
+                if is_actions_oci_evidence:
+                    freeze_adapter = GitHubActionsOciFreezeVerifier(args.freeze_evidence)
+                    if not freeze_adapter.production_capable:
+                        raise ValueError(
+                            "OCI freeze verification requires the built-in Actions/GHCR verifier"
+                        )
+                elif not args.allow_simulated_boundary:
+                    raise ValueError(
+                        "production verification requires attested GitHub Actions GHCR freeze "
+                        "evidence; legacy freeze JSON is not authenticated"
+                    )
+                else:
+                    freeze_adapter = ExternalDeploymentFreezeVerifier(args.freeze_evidence)
             verify_handoff(
                 data,
                 allow_simulated_boundary=args.allow_simulated_boundary,
