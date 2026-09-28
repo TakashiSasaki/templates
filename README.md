@@ -144,3 +144,7 @@ temporary Git worktrees so tests that generate files under `generated/` cannot
 race on the canonical checkout. The real-browser suite remains serial. Use
 `--jobs 1` for a serial debugging baseline; a cross-authority coordinator must
 allocate only part of its global budget to this local runner.
+The runner reports per-test timing totals by shard to show measured workload
+imbalance. In `full`, core completes before serial browser tests and runtime
+smokes, and publication generation remains after those consumers; `ready`
+cleans validation outputs in a final step.
