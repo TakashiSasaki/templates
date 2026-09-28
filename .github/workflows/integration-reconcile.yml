@@ -427,6 +427,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.controller.outputs.promotion_intent_artifact_id }}
           path: promotion-intent
+          merge-multiple: true
       - name: Verify the promotion intent against the pinned controller and exact lock
         id: verify_intent
         env:
