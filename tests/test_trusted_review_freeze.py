@@ -29,7 +29,7 @@ OBSERVATION_SHA = "1" * 64
 IMAGE_SHA = "2" * 64
 
 
-def run_identity() -> ActionsRunIdentity:
+def run_identity(*, actor: str = "maintainer") -> ActionsRunIdentity:
     return ActionsRunIdentity(
         repository="TakashiSasaki/templates",
         repository_id=REPO_ID,
@@ -42,13 +42,13 @@ def run_identity() -> ActionsRunIdentity:
         ),
         workflow_sha=WORKFLOW_SHA,
         source_sha=SOURCE_SHA,
-        actor="maintainer",
+        actor=actor,
         actor_id="9001",
         job="bootstrap",
     )
 
 
-def evidence() -> dict[str, Any]:
+def evidence(*, producer_actor: str = "maintainer") -> dict[str, Any]:
     return {
         "schema_version": 1,
         "provider": "github-actions-ghcr",
@@ -70,7 +70,7 @@ def evidence() -> dict[str, Any]:
             "run_attempt": 1,
             "event": "workflow_dispatch",
             "actor_id": "9001",
-            "actor_login": "maintainer",
+            "actor_login": producer_actor,
             "job": "bootstrap",
         },
         "target": {
@@ -142,6 +142,7 @@ def role_evidence(
     role: str = "trusted_base_snapshot",
     target_pr_id: str = "81001",
     manifest_digest: str | None = None,
+    producer_actor: str = "maintainer",
 ) -> dict[str, Any]:
     return {
         "schema_version": 1,
@@ -162,7 +163,7 @@ def role_evidence(
             "run_attempt": 1,
             "event": "workflow_dispatch",
             "actor_id": "9001",
-            "actor_login": "maintainer",
+            "actor_login": producer_actor,
             "job": "bootstrap",
         },
         "target": {
@@ -321,6 +322,10 @@ def test_valid_schema_and_duplicate_json_key_rejection(tmp_path: Path) -> None:
     path.write_text('{"schema_version":1,"schema_version":1}')
     with pytest.raises(freeze.TrustedFreezeError, match="duplicate JSON key"):
         freeze.load_freeze_evidence(path)
+
+
+def test_role_freeze_evidence_accepts_canonical_github_bot_actor() -> None:
+    freeze.validate_role_freeze_evidence(role_evidence(producer_actor="github-actions[bot]"))
 
 
 def test_role_freeze_evidence_is_strict_and_attested_for_exact_role(
@@ -895,8 +900,8 @@ def test_authority_mutation_between_pre_and_post_use_checks_is_detected(
         verifier.verify_post_use(handoff_data)
 
 
-def _portable_observation() -> dict[str, Any]:
-    run = run_identity()
+def _portable_observation(*, producer_actor: str = "maintainer") -> dict[str, Any]:
+    run = run_identity(actor=producer_actor)
     return {
         "schema_version": 1,
         "provider": "github",
@@ -931,9 +936,11 @@ def _portable_observation() -> dict[str, Any]:
     }
 
 
-def _portable_handoff_fixture(tmp_path: Path) -> dict[str, Any]:
+def _portable_handoff_fixture(
+    tmp_path: Path, *, producer_actor: str = "maintainer"
+) -> dict[str, Any]:
     tmp_path.mkdir(parents=True, exist_ok=True)
-    observation = _portable_observation()
+    observation = _portable_observation(producer_actor=producer_actor)
     observation_raw = actions.canonical_observation_bytes(observation)
     observation_path = tmp_path / "provider-observation.json"
     observation_path.write_bytes(observation_raw)
@@ -959,7 +966,7 @@ def _portable_handoff_fixture(tmp_path: Path) -> dict[str, Any]:
             path.write_bytes(payload)
         role_paths[role] = directory
 
-    document = evidence()
+    document = evidence(producer_actor=producer_actor)
     document["target"]["observation_sha256"] = observation_sha
     records = {item["role"]: item for item in document["roles"]}
     for role, directory in role_paths.items():
@@ -1139,6 +1146,7 @@ def _install_hydration_test_doubles(
     runner: HydrationRunner,
     *,
     protection_check: Any | None = None,
+    use_real_docker_login: bool = False,
 ) -> list[tuple[Path, Path | None]]:
     observation = fixture["observation"]
     seen_protected_checks: list[tuple[Path, Path | None]] = []
@@ -1159,9 +1167,10 @@ def _install_hydration_test_doubles(
 
     monkeypatch.setenv("GITHUB_TOKEN", "test-api-token")
     monkeypatch.setenv("GH_TOKEN", "test-gh-token")
-    monkeypatch.setenv("GITHUB_ACTOR", "maintainer")
+    monkeypatch.setenv("GITHUB_ACTOR", fixture["freeze_evidence"]["attestation"]["actor_login"])
     monkeypatch.setattr(provider, "GitHubActionsObservationVerifier", observation_verifier)
-    monkeypatch.setattr(provider, "_docker_login", lambda *_args, **_kwargs: None)
+    if not use_real_docker_login:
+        monkeypatch.setattr(provider, "_docker_login", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         provider,
         "_verify_image_manifest",
@@ -1176,13 +1185,16 @@ def assert_digest(digest: str) -> None:
     assert digest == f"sha256:{IMAGE_SHA}"
 
 
+@pytest.mark.parametrize("producer_actor", ["maintainer", "github-actions[bot]"])
 def test_portable_handoff_hydrates_without_producer_locators(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    producer_actor: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fixture = _portable_handoff_fixture(tmp_path)
+    fixture = _portable_handoff_fixture(tmp_path, producer_actor=producer_actor)
     assert "locators" not in fixture["handoff"]
     runner = HydrationRunner(fixture["role_paths"])
-    protected_checks = _install_hydration_test_doubles(monkeypatch, fixture, runner)
+    protected_checks = _install_hydration_test_doubles(
+        monkeypatch, fixture, runner, use_real_docker_login=True
+    )
     root = tmp_path / "fresh-reviewer"
     local_view_path = tmp_path / "reviewer-local-view.json"
 
@@ -1210,6 +1222,14 @@ def test_portable_handoff_hydrates_without_producer_locators(
         for command in runner.commands
         if command[:2] == ["docker", "pull"]
     )
+    assert [
+        "docker",
+        "login",
+        "ghcr.io",
+        "--username",
+        producer_actor,
+        "--password-stdin",
+    ] in runner.commands
 
 
 def test_portable_handoff_rejects_producer_locators_and_wrong_digest_tag(

@@ -32,7 +32,7 @@
         "run_attempt": {"const": 1},
         "event": {"const": "workflow_dispatch"},
         "actor_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
-        "actor_login": {"type": "string", "pattern": "^[A-Za-z0-9-]{1,39}$"},
+        "actor_login": {"$ref": "#/$defs/githubLogin"},
         "job": {"const": "bootstrap"}
       }
     },
@@ -64,6 +64,12 @@
         "inventory_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "identity": {"type": "object", "minProperties": 1}
       }
+    }
+  },
+  "$defs": {
+    "githubLogin": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9-]{1,39}(?:\\[bot\\])?$"
     }
   }
 }

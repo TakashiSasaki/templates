@@ -33,6 +33,7 @@ try:
         verify_handoff,
     )
     from scripts.trusted_review_actions import (
+        GITHUB_LOGIN,
         OWNER_ID,
         ActionsRunIdentity,
         GitHubActionsObservationVerifier,
@@ -68,6 +69,7 @@ except ImportError:
         verify_handoff,
     )
     from trusted_review_actions import (
+        GITHUB_LOGIN,
         OWNER_ID,
         ActionsRunIdentity,
         GitHubActionsObservationVerifier,
@@ -152,7 +154,7 @@ def _portable_local_view(
 def _docker_login(token: str, *, actor: str, runner: Any) -> None:
     if not token:
         raise TrustedFreezeError("a GHCR read token is required to hydrate portable authority")
-    if not re.fullmatch(r"[A-Za-z0-9-]{1,39}", actor):
+    if not GITHUB_LOGIN.fullmatch(actor):
         raise TrustedFreezeError("GHCR login actor is invalid")
     try:
         runner(

@@ -35,6 +35,7 @@ from jsonschema import Draft202012Validator, ValidationError
 try:
     from scripts.trusted_review_actions import (
         DEFAULT_REF,
+        GITHUB_LOGIN,
         OIDC_ISSUER,
         OWNER_ID,
         REPOSITORY,
@@ -57,6 +58,7 @@ try:
 except ImportError:
     from trusted_review_actions import (
         DEFAULT_REF,
+        GITHUB_LOGIN,
         OIDC_ISSUER,
         OWNER_ID,
         REPOSITORY,
@@ -123,7 +125,7 @@ def portable_run_identity(
         or not isinstance(source_sha, str)
         or not FULL_SHA.fullmatch(source_sha)
         or not isinstance(actor, str)
-        or not re.fullmatch(r"[A-Za-z0-9-]{1,39}", actor)
+        or not GITHUB_LOGIN.fullmatch(actor)
         or not isinstance(actor_id, str)
         or not re.fullmatch(r"[1-9][0-9]*", actor_id)
     ):

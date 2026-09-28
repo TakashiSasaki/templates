@@ -68,25 +68,39 @@ def test_trusted_bootstrap_workflow_has_only_explicit_default_branch_dispatch() 
     assert initialize < login < materialize
 
 
-def test_docker_login_reads_token_from_stdin() -> None:
+@pytest.mark.parametrize("actor", ["maintainer", "github-actions[bot]"])
+def test_docker_login_reads_token_from_stdin(actor: str) -> None:
     seen: list[tuple[list[str], dict[str, object]]] = []
 
     def run(command: list[str], **kwargs: object) -> SimpleNamespace:
         seen.append((command, kwargs))
         return SimpleNamespace(stdout="")
 
-    provider._docker_login("secret-token", actor="maintainer", runner=run)
+    provider._docker_login("secret-token", actor=actor, runner=run)
     command, kwargs = seen[0]
     assert command == [
         "docker",
         "login",
         "ghcr.io",
         "--username",
-        "maintainer",
+        actor,
         "--password-stdin",
     ]
     assert kwargs["input"] == "secret-token\n"
     assert "secret-token" not in " ".join(command)
+
+
+@pytest.mark.parametrize("actor", ["github-actions[app]", "github-actions[bot]extra"])
+def test_docker_login_rejects_noncanonical_actor(actor: str) -> None:
+    seen: list[list[str]] = []
+
+    def run(command: list[str], **_kwargs: object) -> SimpleNamespace:
+        seen.append(command)
+        return SimpleNamespace(stdout="")
+
+    with pytest.raises(provider.TrustedFreezeError, match="login actor is invalid"):
+        provider._docker_login("secret-token", actor=actor, runner=run)
+    assert not seen
 
 
 def test_all_external_actions_are_full_sha_pinned() -> None:

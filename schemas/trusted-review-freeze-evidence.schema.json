@@ -105,8 +105,7 @@
                     "pattern": "^[1-9][0-9]*$"
                 },
                 "actor_login": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9-]{1,39}$"
+                    "$ref": "#/$defs/githubLogin"
                 },
                 "job": {
                     "const": "bootstrap"
@@ -393,6 +392,12 @@
                     "minLength": 1
                 }
             }
+        }
+    },
+    "$defs": {
+        "githubLogin": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,39}(?:\\[bot\\])?$"
         }
     }
 }
