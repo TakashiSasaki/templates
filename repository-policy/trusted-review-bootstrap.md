@@ -8,11 +8,12 @@ review-result meanings.
 
 ## Provider observation
 
-The authenticated observation is produced by a workflow from the trusted
-default branch. It includes numeric repository ID and `nameWithOwner`, numeric
-and node pull-request IDs, PR number, base commit/tree, head commit/tree, API
-retrieval time, workflow path/revision, event, run ID, run attempt, and OIDC
-identity. The producer reads identity fields from GitHub's API using the
+The authenticated observation is produced by a direct, non-reusable workflow
+from the trusted default branch. It includes numeric repository ID and
+`nameWithOwner`, numeric and node pull-request IDs, PR number, base commit/tree,
+head commit/tree, API retrieval time, workflow path/revision, event, run ID, run
+attempt, and OIDC identity. It does not synthesize reusable-workflow claims.
+The producer reads identity fields from GitHub's API using the
 run-scoped `GITHUB_TOKEN`; caller input is only a strictly parsed PR number.
 
 The observation's canonical bytes are an Artifact Attestation subject. The
