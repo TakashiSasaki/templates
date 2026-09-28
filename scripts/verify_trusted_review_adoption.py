@@ -210,6 +210,24 @@ def ensure_commit(revision: str) -> None:
     )
 
 
+def project_site_workflow(source: bytes) -> bytes:
+    """Apply Site's one recorded workflow integration transform to exact Policy bytes."""
+    anchor = (
+        b"      ROLE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/role-protected\n"
+        b"      AGGREGATE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected\n"
+    )
+    insertion = (
+        b"      TRUSTED_REVIEW_PROTECTED_ROOT: "
+        b"${{ runner.temp }}/trusted-review/role-protected\n"
+    )
+    require(source.count(anchor) == 1, "Policy workflow transform input anchor is not unique")
+    return source.replace(
+        anchor,
+        anchor.replace(b"      AGGREGATE_PROTECTED_ROOT:", insertion + b"      AGGREGATE_PROTECTED_ROOT:"),
+        1,
+    )
+
+
 def main() -> int:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -239,6 +257,7 @@ def main() -> int:
     actual_paths = tuple(item["destination_path"] for item in adopted)
     expected_paths = tuple(entry[1] for entry in EXECUTION_FILES)
     require(actual_paths == expected_paths, "adopted file order or destination closure mismatch")
+    transformed = 0
     for item, (role, path, mode, blob) in zip(adopted, EXECUTION_FILES, strict=True):
         require(item["role"] == role, f"adoption role mismatch for {path}")
         require(item["source_path"] == path, f"source path mismatch for {path}")
@@ -256,8 +275,39 @@ def main() -> int:
         require(destination.is_file(), f"adopted destination is missing: {path}")
         require(not destination.is_symlink(), f"adopted destination is a symlink: {path}")
         require(stat.S_IMODE(destination.stat().st_mode) == 0o644, f"adopted file mode differs from Policy source: {path}")
-        projected_blob = git("hash-object", "--", path)
-        require(projected_blob == blob, f"adopted bytes differ from Policy source: {path}")
+        destination_bytes = destination.read_bytes()
+        transformation = item.get("transformation")
+        if transformation is None:
+            projected_blob = git("hash-object", "--", path)
+            require(projected_blob == blob, f"adopted bytes differ from Policy source: {path}")
+        else:
+            require(
+                path == ".github/workflows/trusted-review-bootstrap.yml",
+                f"unsupported transformed adoption path: {path}",
+            )
+            source_bytes = git("show", f"{SOURCE_REVISION}:{path}", text=False)
+            source_digest = hashlib.sha256(source_bytes).hexdigest()
+            require(
+                transformation["id"] == "site.trusted-review-add-role-protected-root-env"
+                and transformation["version"] == 1,
+                f"unsupported Policy-to-Site transform for {path}",
+            )
+            require(
+                transformation["source_sha256"] == source_digest,
+                f"workflow transform input digest mismatch for {path}",
+            )
+            projected_bytes = project_site_workflow(source_bytes)
+            projected_digest = hashlib.sha256(projected_bytes).hexdigest()
+            require(
+                transformation["output_sha256"] == projected_digest,
+                f"workflow transform output digest mismatch for {path}",
+            )
+            require(
+                destination_bytes == projected_bytes,
+                f"adopted workflow differs from deterministic Policy projection: {path}",
+            )
+            transformed += 1
+    require(transformed == 1, "expected exactly one recorded Site workflow transform")
 
     for item in RUNTIME_INPUTS:
         revision = item["revision"]
@@ -296,5 +346,6 @@ if __name__ == "__main__":
         raise SystemExit(1) from exc
     print(
         "TRUSTED_REVIEW_ADOPTION_OK "
-        f"policy={SOURCE_REVISION} tree={SOURCE_TREE} files={len(EXECUTION_FILES)}"
+        f"policy={SOURCE_REVISION} tree={SOURCE_TREE} files={len(EXECUTION_FILES)} "
+        f"exact={len(EXECUTION_FILES) - 1} transformed=1"
     )

@@ -16,9 +16,9 @@
   },
   "adoption_procedure": {
     "id": "site.trusted-review-source-projection",
-    "version": 1,
+    "version": 2,
     "verifier": "scripts/verify_trusted_review_adoption.py",
-    "verifier_sha256": "5f6eeaad7fbf1dd1e38b4424f80bacd492a8bedb67805b3221c4aca86365beff",
+    "verifier_sha256": "5d1e623ec7bbcf80ad4b0623832d454a5d84b7039554f18a4d7079ab6d6965f7",
     "tests": "tests/test_trusted_review_adoption.py",
     "qualification_workflow": ".github/workflows/trusted-review-bootstrap.yml"
   },
@@ -287,7 +287,13 @@
       "source_path": ".github/workflows/trusted-review-bootstrap.yml",
       "source_blob": "4690223a4dfab92870ac124281fea06e0e2fc302",
       "source_mode": "100644",
-      "destination_path": ".github/workflows/trusted-review-bootstrap.yml"
+      "destination_path": ".github/workflows/trusted-review-bootstrap.yml",
+      "transformation": {
+        "id": "site.trusted-review-add-role-protected-root-env",
+        "version": 1,
+        "source_sha256": "b74220273bc311a8d0ebf02d590d20363c7757699e854f5811a1dff4a53260f1",
+        "output_sha256": "0b10f6e15fd8e15834580fb0380c6748e909467a3f87c5b79bb750d8e5ebb7a8"
+      }
     },
     {
       "role": "local-action",

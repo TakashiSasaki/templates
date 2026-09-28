@@ -26,7 +26,7 @@
       "required": ["id", "version", "verifier", "verifier_sha256", "tests", "qualification_workflow"],
       "properties": {
         "id": { "const": "site.trusted-review-source-projection" },
-        "version": { "const": 1 },
+        "version": { "const": 2 },
         "verifier": { "const": "scripts/verify_trusted_review_adoption.py" },
         "verifier_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "tests": { "const": "tests/test_trusted_review_adoption.py" },
@@ -63,7 +63,18 @@
           "source_path": { "type": "string", "minLength": 1 },
           "source_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
           "source_mode": { "const": "100644" },
-          "destination_path": { "type": "string", "minLength": 1 }
+          "destination_path": { "type": "string", "minLength": 1 },
+          "transformation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "version", "source_sha256", "output_sha256"],
+            "properties": {
+              "id": { "const": "site.trusted-review-add-role-protected-root-env" },
+              "version": { "const": 1 },
+              "source_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "output_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            }
+          }
         }
       }
     }

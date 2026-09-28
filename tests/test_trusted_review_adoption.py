@@ -47,6 +47,16 @@ class TrustedReviewAdoptionTests(unittest.TestCase):
                 "packages": "write",
             },
         )
+        self.assertEqual(
+            workflow["jobs"]["bootstrap"]["env"]["TRUSTED_REVIEW_PROTECTED_ROOT"],
+            "${{ runner.temp }}/trusted-review/role-protected",
+        )
+        manifest = json.loads(ADOPTION.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["adoption_procedure"]["version"], 2)
+        self.assertEqual(
+            manifest["adopted_files"][0]["transformation"]["id"],
+            "site.trusted-review-add-role-protected-root-env",
+        )
         checkout = workflow["jobs"]["bootstrap"]["steps"][0]["with"]
         self.assertEqual(checkout["ref"], "${{ github.workflow_sha }}")
         self.assertEqual(checkout["persist-credentials"], "false")

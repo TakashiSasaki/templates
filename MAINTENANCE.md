@@ -113,12 +113,14 @@ controller diagnosis route to Integration or the read-only publication handoff.
 ## Trusted-review execution adoption
 
 The default-branch trusted-review bootstrap is Site-owned execution material
-projected byte-for-byte from the reviewed Policy source recorded in
-trusted-review-adoption.json. Run scripts/verify_trusted_review_adoption.py to
+projected from the reviewed Policy source recorded in
+trusted-review-adoption.json. Adopted files are byte-for-byte projections except
+where the record declares a deterministic Site integration transform with exact
+input and output digests. Run scripts/verify_trusted_review_adoption.py to
 compare each executable file and its Git mode with the exact immutable Policy
-commit and to check the recorded source tree, runtime inputs, and verifier
-identity. The verifier and focused workflow tests are part of normal Site
-source-ready validation.
+commit and to check the recorded source tree, runtime inputs, transformation,
+and verifier identity. The verifier and focused workflow tests are part of
+normal Site source-ready validation.
 
 Policy remains the semantic authority. The workflow observes a target pull
 request through the authenticated GitHub API and requires its base ref to be

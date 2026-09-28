@@ -33,6 +33,7 @@ jobs:
       TRUSTED_REVIEW_ACTOR_ID: ${{ github.actor_id }}
       WORK_ROOT: ${{ runner.temp }}/trusted-review
       ROLE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/role-protected
+      TRUSTED_REVIEW_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/role-protected
       AGGREGATE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected
       OCI_REPOSITORY: ghcr.io/takashisasaki/templates/trusted-review-authority
 
