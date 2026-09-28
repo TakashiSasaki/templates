@@ -203,6 +203,8 @@ class InventoryTextTestResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.outcomes: dict[str, dict[str, str]] = {}
+        self.test_durations: list[tuple[str, float]] = []
+        self._started_ns: dict[int, int] = {}
         self._status_priority = {
             "passed": 0,
             "skipped": 1,
@@ -211,6 +213,21 @@ class InventoryTextTestResult(unittest.TextTestResult):
             "failure": 4,
             "error": 5,
         }
+
+    def startTest(self, test: unittest.TestCase) -> None:
+        super().startTest(test)
+        self._started_ns[id(test)] = time.perf_counter_ns()
+
+    def stopTest(self, test: unittest.TestCase) -> None:
+        started_ns = self._started_ns.pop(id(test), None)
+        if started_ns is not None:
+            self.test_durations.append(
+                (
+                    test.id(),
+                    max(0.0, (time.perf_counter_ns() - started_ns) / 1_000_000_000),
+                )
+            )
+        super().stopTest(test)
 
     def _record(self, test: unittest.TestCase, status: str, reason: str | None = None) -> None:
         existing = self.outcomes.get(test.id())
@@ -257,7 +274,20 @@ class InventoryTextTestRunner(unittest.TextTestRunner):
 
 
 def run_suite(cases: list[unittest.TestCase], verbosity: int = 2) -> InventoryTextTestResult:
-    return InventoryTextTestRunner(verbosity=verbosity).run(unittest.TestSuite(cases))
+    result = InventoryTextTestRunner(verbosity=verbosity).run(unittest.TestSuite(cases))
+    for test_id, duration in sorted(
+        result.test_durations, key=lambda item: (-item[1], item[0])
+    ):
+        print(
+            "MODELING_TEST_CASE_DURATION "
+            + json.dumps(
+                {"test_id": test_id, "duration_seconds": round(duration, 9)},
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            flush=True,
+        )
+    return result
 
 
 def run_suite_without_worker_options(
