@@ -77,6 +77,54 @@ _SERVICE_WORKER_DIAGNOSTIC_PRELUDE = r"""const SITE_PWA_DIAGNOSTIC_ROLLOUT = __S
   let eventSequence = 0;
   let promiseSequence = 0;
 
+  const requestSkipWaiting = self.skipWaiting.bind(self);
+  self.skipWaiting = function() {
+    const promiseId = ++promiseSequence;
+    const startedAt = performance.now();
+    const log = (stage, extra = {}) => {
+      try {
+        console.debug("SITE_PWA_SW_EVENT " + JSON.stringify({
+          rollout: SITE_PWA_DIAGNOSTIC_ROLLOUT,
+          event_id: "skipWaiting-" + promiseId,
+          event_type: "skipWaiting",
+          stage,
+          worker_elapsed_ms: Math.round(performance.now() * 10) / 10,
+          ...extra,
+        }));
+      } catch (_) {}
+    };
+
+    log("skipWaiting_called", {promise_id: promiseId});
+    let promise;
+    try {
+      promise = requestSkipWaiting();
+    } catch (error) {
+      log("skipWaiting_threw", {
+        error_name: String(error?.name || "Error"),
+        error_message: String(error?.message || error).slice(0, 1000),
+      });
+      throw error;
+    }
+    return Promise.resolve(promise).then(
+      value => {
+        log("skipWaiting_fulfilled", {
+          promise_id: promiseId,
+          duration_ms: Math.round((performance.now() - startedAt) * 10) / 10,
+        });
+        return value;
+      },
+      error => {
+        log("skipWaiting_rejected", {
+          promise_id: promiseId,
+          duration_ms: Math.round((performance.now() - startedAt) * 10) / 10,
+          error_name: String(error?.name || "Error"),
+          error_message: String(error?.message || error).slice(0, 1000),
+        });
+        throw error;
+      },
+    );
+  };
+
   self.addEventListener = function(type, listener, options) {
     if (!observedTypes.has(type) || typeof listener !== "function") {
       return addEventListener(type, listener, options);

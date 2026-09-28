@@ -32,6 +32,9 @@ class StaleTranslationRuntimeDiagnosticTests(unittest.TestCase):
         )
         self.assertIn('method + "_pending"', prelude)
         self.assertIn('"respondWith"', prelude)
+        self.assertIn('log("skipWaiting_called"', prelude)
+        self.assertIn('log("skipWaiting_fulfilled"', prelude)
+        self.assertIn('log("skipWaiting_rejected"', prelude)
         self.assertIn("SITE_PWA_SW_EVENT ", prelude)
 
     def test_failure_writes_partial_evidence_and_phase_log(self) -> None:
