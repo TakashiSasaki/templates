@@ -406,11 +406,19 @@ class GitHubActionsObservationVerifier:
             and runner is subprocess.run
         )
 
-    def verify(self, identity: dict[str, Any]) -> str:
-        observation = identity.get("provider_observation")
-        if not isinstance(observation, dict):
-            raise TrustedObservationError("provider identity is missing observation binding")
-        return self.verify_target(identity, observation)
+    def verify(
+        self,
+        identity: dict[str, Any],
+        provider_observation: dict[str, Any] | None = None,
+    ) -> str:
+        """Verify either a provider identity or a separate target/observation pair."""
+        if provider_observation is None:
+            provider_observation = identity.get("provider_observation")
+            if not isinstance(provider_observation, dict):
+                raise TrustedObservationError("provider identity is missing observation binding")
+        elif not isinstance(provider_observation, dict):
+            raise TrustedObservationError("provider observation binding must be an object")
+        return self.verify_target(identity, provider_observation)
 
     def verify_target(self, target: dict[str, Any], provider_observation: dict[str, Any]) -> str:
         try:
