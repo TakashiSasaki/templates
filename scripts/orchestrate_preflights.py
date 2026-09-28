@@ -369,6 +369,9 @@ def run_single_preflight(
         )
 
     if execution_error is not None:
+        failure = f"subprocess execution failed with error: {execution_error}"
+        if cleanup_failure:
+            failure = f"{failure}; {cleanup_failure}"
         return AuthorityRunResult(
             authority=authority,
             status="FAIL",
@@ -380,7 +383,7 @@ def run_single_preflight(
             allocated_workers=allocated_workers,
             allocation_batch=allocation_batch,
             log_file=str(log_file_path) if log_file_path else None,
-            failure_excerpt=f"subprocess execution failed with error: {execution_error}",
+            failure_excerpt=failure,
         )
 
     if proc is None:
