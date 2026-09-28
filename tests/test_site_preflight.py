@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 import builtins
 import importlib
+import io
 import os
 import subprocess
 import sys
@@ -54,6 +55,20 @@ class SitePreflightTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(SystemExit):
                 preflight.parse_args(["fast", "--jobs", value])
 
+    def test_explicit_core_check_reports_measured_worker_cap(self):
+        output = io.StringIO()
+        with patch.object(preflight, "_git_output", return_value="a" * 40), patch.object(
+            preflight, "run_check"
+        ) as run_check, patch("sys.stdout", output):
+            self.assertEqual(
+                preflight.main(
+                    ["composition-validation", "--check", "core", "--jobs", "4"]
+                ),
+                0,
+            )
+        self.assertEqual(run_check.call_args.args[1].jobs, 4)
+        self.assertIn("requested=4 effective=1 runner=site-preflight", output.getvalue())
+
     def test_exact_head_guard_precedes_validation(self):
         with patch.object(
             preflight.subprocess,
@@ -69,13 +84,15 @@ class SitePreflightTests(unittest.TestCase):
         reached_l0 = threading.Event()
         independent_checks = threading.Barrier(2)
         started = []
+        allocations = {}
 
-        def run_check(check, _args):
+        def run_check(check, args):
             if check == "l0":
                 reached_l0.set()
                 return
             self.assertTrue(reached_l0.is_set())
             started.append(check)
+            allocations[check] = args.jobs
             if check in {"core", "node"}:
                 independent_checks.wait(timeout=5)
 
@@ -85,10 +102,12 @@ class SitePreflightTests(unittest.TestCase):
             side_effect=["a" * 40, ""],
         ):
             self.assertEqual(
-                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "2"]),
+                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "3"]),
                 0,
             )
         self.assertCountEqual(started, list(SOURCE_READY_CHECKS[1:]))
+        self.assertEqual(allocations["core"], 1)
+        self.assertEqual(allocations["node"], 1)
 
     def test_jobs_one_keeps_source_ready_checks_serial_in_order(self):
         active = 0
@@ -132,6 +151,19 @@ class SitePreflightTests(unittest.TestCase):
                 if jobs in expected_first_waves:
                     self.assertEqual(waves[:2], expected_first_waves[jobs])
 
+    def test_source_ready_python_and_node_domains_share_site_budget(self):
+        expected = {
+            1: [[("core", 1)], [("node", 1)], [("site-contracts", 1)], [("dependency-boundary", 1)]],
+            2: [[("core", 1), ("node", 1)], [("site-contracts", 1), ("dependency-boundary", 1)]],
+            3: [[("core", 1), ("node", 1), ("site-contracts", 1)], [("dependency-boundary", 1)]],
+            4: [[("core", 1), ("node", 2), ("site-contracts", 1)], [("dependency-boundary", 1)]],
+        }
+        for jobs, expected_waves in expected.items():
+            with self.subTest(jobs=jobs):
+                waves = preflight.plan_source_ready_waves(jobs, core_workers=1)
+                self.assertEqual(waves, expected_waves)
+                self.assertTrue(all(sum(count for _, count in wave) <= jobs for wave in waves))
+
     def test_source_ready_child_failure_waits_for_and_reaps_wave_siblings(self):
         barrier = threading.Barrier(2)
         completed = set()
@@ -139,19 +171,20 @@ class SitePreflightTests(unittest.TestCase):
         def run_check(check, _args):
             if check == "l0":
                 return
-            barrier.wait(timeout=5)
+            if check in {"core", "node"}:
+                barrier.wait(timeout=5)
             if check == "core":
                 raise RuntimeError("controlled core failure")
-            if check == "node":
+            if check in {"node", "site-contracts"}:
                 completed.add(check)
 
         with patch.object(preflight, "run_check", side_effect=run_check), patch.object(
             preflight, "_git_output", side_effect=["a" * 40, ""]
         ), patch("sys.stderr", new_callable=__import__("io").StringIO):
             with self.assertRaises(SystemExit) as raised:
-                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "2"])
+                preflight.main(["source-ready", "--expected-head", "a" * 40, "--jobs", "3"])
         self.assertEqual(raised.exception.code, 2)
-        self.assertEqual(completed, {"node"})
+        self.assertEqual(completed, {"node", "site-contracts"})
 
     def test_source_ready_does_not_start_managed_runtime_from_empty_cache(self):
         with TemporaryDirectory() as cache:
@@ -323,12 +356,30 @@ class SitePreflightTests(unittest.TestCase):
             preflight.run_node(1)
         command = run.call_args.args[0]
         self.assertEqual(command[:3], ["node", "--test", "--test-concurrency=1"])
-        self.assertEqual(command[3:], list(preflight.NODE_TESTS))
+        self.assertEqual(command[3], "--test-reporter=spec")
+        self.assertEqual(command[4:], list(preflight.NODE_TESTS))
         child_environment = run.call_args.kwargs["env"]
         self.assertEqual(
             child_environment["NODE_OPTIONS"],
             "--max-old-space-size=2048 --trace-warnings",
         )
+
+    def test_core_runner_sanitizes_environment_before_python_tests_spawn_node(self):
+        output = io.StringIO()
+        injected = {
+            "NODE_OPTIONS": "--test-concurrency=auto",
+            "PYTHONPATH": "/untrusted/python-path",
+            "PYTHONHOME": "/untrusted/python-home",
+        }
+        with patch.dict(os.environ, injected), patch.object(
+            preflight, "_run"
+        ) as run, patch("sys.stdout", output):
+            preflight.run_core(3)
+        self.assertEqual(run.call_args.args[0][-2:], ["--jobs", "3"])
+        child_environment = run.call_args.kwargs["env"]
+        for name in injected:
+            self.assertNotIn(name, child_environment)
+            self.assertIn(f"variable={name}", output.getvalue())
 
     def test_node_runner_preserves_quoted_require_path_and_removes_quoted_option_name(self):
         with TemporaryDirectory(prefix="site node options ") as temporary:
@@ -370,6 +421,24 @@ class SitePreflightTests(unittest.TestCase):
         ) as run:
             preflight.run_node(8)
         self.assertIn("--test-concurrency=2", run.call_args.args[0])
+
+    def test_fast_core_preflight_reports_the_measured_core_worker_cap(self):
+        output = io.StringIO()
+        with (
+            patch.object(preflight, "_git_output", return_value=("a" * 40,)),
+            patch.object(preflight, "run_check") as run_check,
+            patch("sys.stdout", output),
+        ):
+            result = preflight.main(["fast", "--check", "core", "--jobs", "4"])
+
+        self.assertEqual(result, 0)
+        self.assertIn(
+            "SITE_PREFLIGHT_WORKERS profile=fast requested=4 effective=1",
+            output.getvalue(),
+        )
+        run_check.assert_called_once()
+        self.assertEqual(run_check.call_args.args[0], "core")
+        self.assertEqual(run_check.call_args.args[1].jobs, 4)
 
     def test_run_check_passes_site_allocation_to_node(self):
         args = preflight.parse_args(["source-ready", "--jobs", "2"])

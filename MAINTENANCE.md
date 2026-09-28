@@ -28,18 +28,32 @@ source-ready gate from a clean checkout:
 
 Add `--jobs N` to cap test workers owned by this Site preflight. The default is
 2; `--jobs 1` runs the serial debugging baseline. Source-ready runs L0 first,
-then launches independent source checks in fixed budgeted waves. The Python
-`unittest` and Node `node --test` execution domains remain separate; Node receives
-its allocated `--test-concurrency`. Inherited Node test-concurrency options are
-removed from `NODE_OPTIONS`, while unrelated options and their Node-compatible
-double-quoted values are preserved. The explicit runner limit prevents an
-inherited setting from raising effective concurrency. A cross-authority
-coordinator's `--jobs` is a larger shared budget that it divides among
-authority-local runners; invoking this Site command directly treats it as the
-entire Site-local budget. The shared worker-budget contract documents the safety
-classes and allocation rules. Node tests load the shipped Composition
+then launches independent source checks in fixed budgeted waves. At `--jobs 2`,
+the Python core and Node suites each receive one worker and share a wave; at 3
+or 4, Python core remains at one measured worker while Node receives one or
+two workers. Site core sharding is available in the runner, but its measured
+jobs=2 and jobs=4 runs did not improve wall-clock time, so its current effective
+cap is one.
+The Site Python runner also accepts `--jobs N` directly (default 1). It keeps
+new, changed, and unreviewed test modules in a serial/exclusive lane. The
+parallel-module manifest pins reviewed source and test-ID fingerprints; changing
+one sends that module back to the serial lane until its safety is reviewed. If
+later measurements justify sharding, workers import only modules assigned to
+their shard.
+
+The Python `unittest` and Node `node --test` execution domains remain separate;
+Node receives its allocated `--test-concurrency`. Before that Node child starts,
+inherited test-concurrency options are removed from `NODE_OPTIONS`, while
+unrelated options and their Node-compatible double-quoted values are preserved.
+The explicit runner limit prevents an inherited setting from raising effective
+concurrency. The Python core runner's child environment removes `NODE_OPTIONS`
+and Python path overrides. The Node tests load the shipped Composition
 Playground JavaScript directly and exercise its URL, rendering, event, fetch,
-clipboard and async behavior.
+clipboard and async behavior. A cross-authority coordinator's
+`--jobs` is a larger shared budget that it divides among authority-local
+runners; invoking this Site command directly treats it as the entire Site-local
+budget. See the normative worker-budget contract in the Policy authority for the
+shared safety classes, nested-worker limit, and exact-SHA qualification rules.
 
 This runs the complete classified Python core suite, every cheap Playground
 Node test, Site-owned declaration/contract checks, static Python dependency
