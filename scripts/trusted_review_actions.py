@@ -540,7 +540,9 @@ def _compare_target(target: dict[str, Any], document: dict[str, Any]) -> None:
     pull = target.get("pull_request") or {}
     repo = document["repository"]
     observed_pull = document["pull_request"]
+    target_provider = target["provider"] if "provider" in target else target.get("name")
     checks = {
+        "provider": (target_provider, document["provider"]),
         "repository id": (repository.get("id"), repo["id"]),
         "repository name": (repository.get("name_with_owner"), repo["name_with_owner"]),
         "pull request id": (pull.get("id"), observed_pull["id"]),

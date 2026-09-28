@@ -186,6 +186,20 @@ def test_observation_is_bound_to_attestation_run_api_and_exact_target(tmp_path: 
     assert "test-secret" not in " ".join(command)
 
 
+def test_observation_rejects_target_provider_substitution(tmp_path: Path) -> None:
+    doc = observation()
+    provider = actions.provider_identity(doc, actions.canonical_observation_bytes(doc))
+    target = {
+        "provider": "arbitrary-provider",
+        "repository": provider["repository"],
+        "pull_request": provider["pull_request"],
+    }
+    verifier, _, _, _ = make_verifier(tmp_path, document=doc)
+
+    with pytest.raises(actions.TrustedObservationError, match="provider observation provider"):
+        verifier.verify(target, provider["provider_observation"])
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
