@@ -75,7 +75,7 @@ consumer-time validation では、`managed` および `generated` ファイル�
 
 coding-agent operating policy は独立した `policy` authority です。Composition は Policy profiles、`.agent-policy.yml`、`.agent-policy.lock`、または `.agent-policy/**` を解釈せず、Composer が `agent-policy` CLI を呼び出すこともありません。Policy-owned metadata paths は Composition にとって foreign reserved destinations です。
 
-Skill artifact は `AGENTS.md` を `seed` として materialize します。initial composition の後は consumer-owned となり、その後 Policy が adopt または rewrite しても、Composition が Policy state の ownership を取得することはありません。cross-authority の canonical rules は Site が [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/) として管理します。
+Skill artifact は `AGENTS.md` を `seed` として materialize します。initial composition の後は consumer-owned となり、その後 Policy が adopt または rewrite しても、Composition が Policy state の ownership を取得することはありません。cross-authority の canonical rules は Site が [Policy–Composition coexistence contract](template:site/policy-composition-coexistence) として管理します。
 
 Site は reader-facing information architecture、publication mapping、および generic schema-v3 publication protocol を別途担当します。Composition は provider declarations と provider-specific validation を所有し、Site は review 済みの正確な Composition revision を lock して公開します。provider contract については [publication boundary](docs/publication-catalog.md) を参照してください。
 

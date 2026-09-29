@@ -78,7 +78,7 @@ See the [Composer reference](docs/reference/composer.md) for the complete operat
 
 Coding-agent operating policy is a separate `policy` authority. Composition does not interpret Policy profiles, `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`, and the Composer never invokes the `agent-policy` CLI. Policy-owned metadata paths are foreign reserved destinations for Composition.
 
-The Skill artifact materializes `AGENTS.md` as `seed`; after initial composition it is consumer-owned and can later be adopted or rewritten by Policy without giving Composition ownership of Policy state. The canonical cross-authority rules are maintained by Site in the [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
+The Skill artifact materializes `AGENTS.md` as `seed`; after initial composition it is consumer-owned and can later be adopted or rewritten by Policy without giving Composition ownership of Policy state. The canonical cross-authority rules are maintained by Site in the [Policy–Composition coexistence contract](template:site/policy-composition-coexistence).
 
 Integration owns reader information architecture, publication mapping, and the generic schema-v3 publication protocol. Composition owns its provider declarations and provider-specific validation. Integration explicitly selects reviewed provider revisions and qualifies a Publication Bundle; Site owns presentation, browser runtime and deployment, and adopts Integration only under a separate human instruction. See the [publication boundary](docs/publication-catalog.md) for the provider contract.
 

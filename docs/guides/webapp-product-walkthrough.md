@@ -1210,7 +1210,7 @@ Composition initial
   → Composition validation + Policy validation/check + product verification
 ```
 
-Composition does not own `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`. Use the published [Policy getting-started guide](https://templates.moukaeritai.work/policy/getting-started/) for the Policy-owned adoption commands rather than copying those semantics into this Composition tutorial.
+Composition does not own `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`. Use the published [Policy getting-started guide](template:policy/getting-started) for the Policy-owned adoption commands rather than copying those semantics into this Composition tutorial.
 
 ## 17. Make ordinary product changes normally
 

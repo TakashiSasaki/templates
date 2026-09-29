@@ -198,7 +198,7 @@ component descriptor、resolved lock inventory、managed transaction action、se
 
 逆方向の transition は意図的に推論しません。Skill initial composition 前に repository に別の Policy-generated `AGENTS.md` がすでに存在する場合、既存 destination conflict を保持し、explicit migration contract が存在するまで initial composition は fail closed します。
 
-canonical cross-authority contract は Site-owned であり、[Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/) として公開されます。Composition の local model は自身が enforce する invariant だけを記録し、Policy semantics を複製したり、shared lock、transaction、umbrella management layer を導入したりしません。
+canonical cross-authority contract は Site-owned であり、[Policy–Composition coexistence contract](template:site/policy-composition-coexistence) として公開されます。Composition の local model は自身が enforce する invariant だけを記録し、Policy semantics を複製したり、shared lock、transaction、umbrella management layer を導入したりしません。
 
 ## Public operation model
 

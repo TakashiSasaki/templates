@@ -965,7 +965,7 @@ Chrome/ChromeDriver が利用できない場合でも、truthful な `product` d
 
 Policy は **separate authority** であり Composition capability ではありません。`capability.policy` のような fictitious component を追加しません。
 
-coding agents が Task Ledger を保守する場合は、Composition initial 後に [Policy getting-started guide](https://templates.moukaeritai.work/policy/getting-started/) を使います。Composition は `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を所有しません。
+coding agents が Task Ledger を保守する場合は、Composition initial 後に [Policy getting-started guide](template:policy/getting-started) を使います。Composition は `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を所有しません。
 
 ## 17. 通常の product change は通常どおり行う
 

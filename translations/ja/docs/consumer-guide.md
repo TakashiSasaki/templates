@@ -275,7 +275,7 @@ Composition initial
 
 Policy-owned metadata は Composition lock の外側です。逆方向の ownership transition も推測されません。異なる `AGENTS.md` が既に存在すれば normal destination conflict として扱われます。
 
-完全な cross-authority rule は Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/) を参照してください。
+完全な cross-authority rule は Site-owned [Policy–Composition coexistence contract](template:site/policy-composition-coexistence) を参照してください。
 
 ## Repository が managed か確認する
 

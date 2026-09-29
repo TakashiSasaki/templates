@@ -284,7 +284,7 @@ Policy-owned metadata is outside Composition ownership. Existing `.agent-policy.
 
 The reverse ownership transition is not inferred. If a Policy-managed repository already contains a different `AGENTS.md` and you then try Skill initial composition, planning reports a normal destination conflict and apply does not overwrite the file or create a Composition lock.
 
-For the complete cross-authority rules, see the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
+For the complete cross-authority rules, see the Site-owned [Policy–Composition coexistence contract](template:site/policy-composition-coexistence).
 
 ## Check whether a repository is managed
 

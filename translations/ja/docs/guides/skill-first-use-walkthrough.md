@@ -291,7 +291,7 @@ later Skill が maintained runtime、packaged CLI、MCP、MCP App、standalone b
 
 ## 15. Optional Policy adoption
 
-Policy は Composition から独立しており、Skill profile / Composition capability ではありません。coding agents が Release Note Helper repository を保守する場合は [Policy getting-started guide](https://templates.moukaeritai.work/policy/getting-started/) を使います。Composition は `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を所有しません。
+Policy は Composition から独立しており、Skill profile / Composition capability ではありません。coding agents が Release Note Helper repository を保守する場合は [Policy getting-started guide](template:policy/getting-started) を使います。Composition は `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を所有しません。
 
 ## 16. Ordinary maintenance
 

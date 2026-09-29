@@ -196,7 +196,7 @@ Component descriptors, resolved lock inventories, managed transaction actions, a
 
 The reverse transition is intentionally not inferred. If a repository already contains a different Policy-generated `AGENTS.md` before Skill initial composition, the existing destination conflict is preserved and initial composition fails closed until an explicit migration contract exists.
 
-The canonical cross-authority contract is Site-owned and published as the [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/). Composition's local model records only the invariants it enforces; it does not duplicate Policy semantics or introduce a shared lock, transaction, or umbrella management layer.
+The canonical cross-authority contract is Site-owned and published as the [Policy–Composition coexistence contract](template:site/policy-composition-coexistence). Composition's local model records only the invariants it enforces; it does not duplicate Policy semantics or introduce a shared lock, transaction, or umbrella management layer.
 
 ## Public operation model
 

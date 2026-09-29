@@ -437,7 +437,7 @@ A deliberate component/intent change belongs to `upgrade`, not an ordinary consu
 
 Policy is independent from Composition. It is not a Skill profile or Composition capability.
 
-If coding agents will maintain the Release Note Helper repository itself, adopt Policy using the [Policy getting-started guide](https://templates.moukaeritai.work/policy/getting-started/) after initial Composition materialization. Composition owns none of `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`.
+If coding agents will maintain the Release Note Helper repository itself, adopt Policy using the [Policy getting-started guide](template:policy/getting-started) after initial Composition materialization. Composition owns none of `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`.
 
 ## 16. Ordinary maintenance
 
