@@ -147,30 +147,38 @@ alone is not a `NO_CHANGE`; identity equality is the no-op criterion.
 The source-controlled path is the following. It is a read-only map for
 maintainers; it does not authorize a dispatch or a setting change.
 
-The candidate Site caller pin advances from
-`84bb21957f1df7b3d33fb412087b10c21d4553fb` to
-`4a8b7a6726e7d8b84247480b1d5d709307b5720e`, the #1076 Integration merge
-commit. That reviewed revision flattens exact-ID promotion-intent artifact
-extraction for the privileged verifier's expected file path; this code change
-does not establish runtime qualification. The new caller pin is proposed by the
-Site repin PR and is not yet live on the default branch. The live Site caller
-remains at `84bb21957f1df7b3d33fb412087b10c21d4553fb` until that PR lands.
-`PUBLICATION_CONTROLLER_REVISION` also remains at
-`84bb21957f1df7b3d33fb412087b10c21d4553fb`; `controller_ref` continues to come
-from that repository variable as a separate trust pin. Runtime qualification of
-the new revision is deferred until a coordinated dual-pin rollout. The
-post-remediation activation retry has not been performed.
+### Site repin preparation snapshot
 
-The new fail-closed runtime qualification has not been performed because it
-requires both live pins to advance together. Controlled activation has not
-resumed. Integration publication automation still stops at its deterministic
-publication-PR review boundary and does not approve or merge the publication
+The live Site caller and `PUBLICATION_CONTROLLER_REVISION` at the base of this
+repin candidate both name
+`edc7a4803e33a60411079b3bec21899ecdf4312a`. The candidate advances the caller
+to Integration merge `56771bd5159461403cc0c44643e6387cb52940a7` (tree
+`b3ae1d12643b9c731085c90da589481b299ec9f5`), which landed PR #1087's
+deterministic publication branch-name repair. PR #1087's exact-head Codex
+review approved with zero blocking findings; reviewed head
+`4b98ecff86fe5457dcfde0d4eeb6b476cf131ef9`, the merge tree, and the expected
+Integration base/head parents were verified. Post-merge Integration run
+`36499359331` succeeded. The trusted controller scripts are unchanged from
+`edc7a4803e33a60411079b3bec21899ecdf4312a`; the merged revision is qualified
+for the Site caller and controller pins.
+
+This is a preparation snapshot for the Site repin, before runtime qualification.
+The candidate PR changes only the Site caller pin, its exact immutable-pin
+boundary assertion, and this handoff documentation. At that snapshot the new
+revision has not had a Site-driven fail-closed runtime qualification or a
+controlled activation retry. Those gates follow the reviewed Site repin and
+coordinated dual-pin convergence. The controller pin remains a separate
+repository trust variable; no runtime dispatch occurs during the one-pin
+rollout interval.
+
+Integration publication automation still stops at its deterministic
+publication-PR review boundary. It does not approve or merge that publication
 PR.
 
 | Event | Current code | Result and next boundary |
 |---|---|---|
 | Provider push qualification | `modeling-ci.yml`, `reference-consumer-publication.yml`, and `integration-compatibility.yml` | The provider qualifies its exact pushed SHA, then sends `publication.provider-qualified` with run/attempt/workflow identity. A provider check or added file is not publication. |
-| Provider event received | Site caller candidate `provider-publication-dispatch.yml` | The candidate validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `4a8b7a6726e7d8b84247480b1d5d709307b5720e`. The live default-branch caller remains pinned to `84bb21957f1df7b3d33fb412087b10c21d4553fb` until this Site PR lands. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
+| Provider event received | Site caller candidate `provider-publication-dispatch.yml` | The candidate validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `56771bd5159461403cc0c44643e6387cb52940a7`. At this repin candidate's base, the live caller still names `edc7a4803e33a60411079b3bec21899ecdf4312a`; it changes only when the reviewed Site PR lands. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
 | Manual Integration reconciliation | Site caller candidate `provider-publication-dispatch.yml` | The candidate accepts one exact lowercase `producer_ref`; optional provider overrides remain empty to use the committed Integration selection. Site validates and forwards those values, takes `controller_ref` from the repository trust variable, and delegates to the same candidate Integration workflow. The Site adapter adds no qualification, promotion, or lock-update semantics. |
 | Integration candidate | `integration-reconcile.yml` | Exact producer/provider qualification, trusted-controller rebuild, artifact binding, and receipt verification produce a report. The source fallback is `shadow`; live repository variables and credentials are external. Only separately authorized `adoption-only` or `auto-publish` can create or reconcile the deterministic `automation/publication-*` lock PR. Automation stops at the PR, pending independent exact-head review and separate human merge authorization. |
 | Integration merge | `integration-promotion-notify.yml` | After independent review and authorized landing, a merged `automation/publication-*` PR is requalified and its trusted receipt is checked before `publication.integration-promoted` is sent to Site. The notification is a candidate handoff, not Site adoption or deployment. |

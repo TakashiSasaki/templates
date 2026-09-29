@@ -58,7 +58,7 @@ class BoundaryTests(unittest.TestCase):
   self.assertNotIn('client_payload.controller_ref',text)
 
   caller=workflow['jobs']['integration_controller']
-  self.assertEqual(caller['uses'],'TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@4a8b7a6726e7d8b84247480b1d5d709307b5720e')
+  self.assertEqual(caller['uses'],'TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@56771bd5159461403cc0c44643e6387cb52940a7')
   self.assertEqual(caller['with']['producer_ref'],'${{ needs.validate_event.outputs.producer_ref }}')
   self.assertEqual(caller['with']['composition_ref'],'${{ needs.validate_event.outputs.composition_ref || \'\' }}')
   self.assertEqual(caller['with']['policy_ref'],'${{ needs.validate_event.outputs.policy_ref || \'\' }}')
