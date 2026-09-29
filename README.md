@@ -31,6 +31,8 @@ A first-time application author normally starts with **Composition**, then uses 
 
 If you are changing `TakashiSasaki/templates` itself, use the [maintainer onboarding guide](docs/maintainer-onboarding.md). It routes the task to one of the five authority branches, names the first document/skill and validation, and keeps consumer onboarding separate from provider maintenance and the publication controller. Start by recording the live branch, full `HEAD`, dirty worktree, and related PRs; use explicit remote authority/path links when the source is on another branch.
 
+For a map of this authority's source documents, contracts, implementation, and checks, use [Site repository navigation](index.md).
+
 The rest of this README documents the repository authority and publication model for maintainers and readers who need provenance or Site implementation details.
 
 ## Repository authority model

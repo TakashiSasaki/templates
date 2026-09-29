@@ -32,6 +32,7 @@
 ## Implementation
 
 - [Site renderer](site_renderer/) - Implements rendering of the selected immutable Publication Bundle and Site-owned content.
+- [Progressive-discovery renderer](site_renderer/progressive_discovery.py) - Renders Site and selected Bundle routes into the generated Markdown entry point.
 - [Publication Bundle consumer](publication_bundle/) - Implements the Site-side Bundle validation and read-model boundary.
 - [Scripts](scripts/) - Contains build, qualification, validation, generation, and maintenance commands.
 - [Tests](tests/) - Contains Site acceptance and regression coverage.
