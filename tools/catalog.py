@@ -14,7 +14,6 @@ from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry
 from referencing.exceptions import NoSuchResource
 
-from policy_distribution import check_policy_distribution
 
 ROOT = Path(__file__).resolve().parents[1]
 OWNER = "https://github.com/TakashiSasaki/templates/tree/modeling"
@@ -229,10 +228,6 @@ def outputs(root: Path, records: list[dict[str, Any]], collections: list[dict[st
 
 
 def _discovery(root: Path, *, apply: bool) -> tuple[int, dict[str, Any]]:
-    try:
-        check_policy_distribution(root)
-    except ValueError as exc:
-        raise CatalogError(str(exc)) from exc
     script = root / ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
     command = [sys.executable, str(script), "--root", str(root), "--format", "json"]
     if apply:
