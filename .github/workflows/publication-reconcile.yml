@@ -275,6 +275,14 @@ jobs:
             --lock candidate-integration-source.json \
             --receipt receipt.json \
             --output publication-bundle
+      - name: Install pinned Site renderer dependencies
+        run: |
+          python3 -m pip install \
+            --no-deps \
+            --requirement requirements-build.lock
+          python3 -m pip check
+      - name: Validate Site build dependency boundary
+        run: python3 scripts/check_python_dependencies.py . --environment build
       - name: Site preflight against the selected public Bundle contract
         id: report
         env:
