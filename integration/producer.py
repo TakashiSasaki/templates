@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 import subprocess
 import sys
 import tempfile
+from urllib.parse import quote
 
 from publication_bundle.contract import BundleError, canonical, digest, seal, valid_providers
 from publication_bundle.markdown import _rewrite_markdown
@@ -110,12 +111,15 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
                 asset_rules[name].append((asset['source'], destination, path.is_dir()))
         published = {name: {PurePosixPath(d['source']): PurePosixPath(d['destination'])
                      for d in documents if d['publication'] == name} for name in providers}
+        source_paths = {name: frozenset(subprocess.check_output(['git', '-C', str(path), 'ls-files', '-z']).split(b'\0'))
+                        for name, path in provider_roots.items()}
         for document in documents:
             name = document['publication']; target = docs_root/document['destination']
             text, _ = _rewrite_markdown(target.read_text(encoding='utf-8'),
                 source_document=PurePosixPath(document['source']), site_document=PurePosixPath(document['destination']),
                 document_targets=published[name], asset_rules=asset_rules[name], docs_root=docs_root,
-                publication=name, site_source_paths=None)
+                publication=name, site_source_paths=source_paths[name],
+                source_url=lambda path, suffix: f'https://github.com/{repository}/blob/{provider_revisions[name]}/{quote(path, safe="/")}{suffix}')
             target.write_text(text, encoding='utf-8')
         translations = publish_translations(publications, included, docs_root)
         reconcile_translation_fragments(publications, included, translations, docs_root)
