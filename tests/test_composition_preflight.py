@@ -308,7 +308,8 @@ class CompositionPreflightTests(unittest.TestCase):
             ],
         )
         commands = "\n".join(" ".join(argv) for _, argv in recorded)
-        self.assertEqual(commands.count("validate_translations.py"), 1)
+        self.assertEqual(commands.count("check_translation_status.py"), 1)
+        self.assertNotIn("validate_translations.py", commands)
         self.assertEqual(commands.count("validate_component_versions.py"), 1)
         self.assertIn("--base base-sha", commands)
         self.assertIn("--shard-count 1", commands)
@@ -338,7 +339,8 @@ class CompositionPreflightTests(unittest.TestCase):
         commands = "\n".join(" ".join(argv) for _, argv in recorded)
         self.assertNotIn("generate_composition_playground_publication.py", commands)
         self.assertNotIn("validate_publication.py", commands)
-        self.assertIn("validate_translations.py", commands)
+        self.assertIn("check_translation_status.py", commands)
+        self.assertNotIn("validate_translations.py", commands)
         self.assertIn("validate_component_versions.py", commands)
 
     def test_ready_keeps_composition_playground_check_without_integration_protocol(self) -> None:

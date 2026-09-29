@@ -47,6 +47,10 @@ class TranslationStatusTests(unittest.TestCase):
             source.write_text("# New canonical meaning\n")
             self.assertEqual(status.report(root)["summary"]["stale"], 1)
             self.assertEqual(manifest_path.read_bytes(), evidence)
+            manifest_path.write_text("{broken reference metadata")
+            self.assertEqual(status.report(root)["summary"]["missing"], 1)
+            self.assertTrue(status.report(root)["diagnostics"])
+            manifest_path.write_bytes(evidence)
             translation.unlink()
             self.assertEqual(status.report(root)["summary"]["missing"], 1)
             (root / "docs/publication-catalog.json").write_text(

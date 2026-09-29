@@ -396,7 +396,12 @@ def main() -> int:
     try:
         catalog = load_publication_catalog()
         exclusions = parse_publication_classification()
-        translations = parse_translation_classification()
+        # Reference translations are not canonical publication inputs. Their
+        # manifest can be reviewed independently, including after file removal.
+        translations = {
+            path for path in discover_repository_markdown()
+            if path.parts[0] == "translations"
+        } - set(exclusions)
         validate_composition_catalog_declarations(catalog)
         validate_reader_coverage(catalog)
         validate_markdown_classification(catalog, exclusions, translations)

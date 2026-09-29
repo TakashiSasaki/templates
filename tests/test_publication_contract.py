@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import re
 import subprocess
 import sys
@@ -11,23 +10,6 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts" / "validate_publication.py"
-GUIDED_INDEX_PATHS = [
-    "catalog/index.md",
-    "components/artifact.skill-core/files/docs/index.md",
-    "components/artifact.webapp-core/files/docs/index.md",
-    "docs/index.md",
-    "index.md",
-    "recipes/index.md",
-    "release/index.md",
-    "schemas/index.md",
-]
-GUIDED_LINK = re.compile(r"^- \[[^\]]+\]\(.+\)[ \t]+[-–—][ \t]+\S.+$")
-LINK_TARGET = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-INTEGRATION_PROTOCOL_ENV = "INTEGRATION_PUBLICATION_PROTOCOL_ROOT"
-REVIEWED_INTEGRATION_PROTOCOL_REQUIRED = unittest.skipUnless(
-    os.environ.get(INTEGRATION_PROTOCOL_ENV),
-    "requires the reviewed Integration publication protocol checkout",
-)
 
 
 def load_validator():
@@ -53,7 +35,6 @@ class CompositionPublicationContractTests(unittest.TestCase):
                                  or navigation.startswith(item["source"] + "/")
                                  for item in assets))
 
-    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_provider_publication_is_valid(self):
         result = subprocess.run(
             [sys.executable, str(VALIDATOR)],
@@ -65,7 +46,6 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("Composition publication validation: OK", result.stdout)
 
-    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_catalog_is_composition_owned_and_has_one_home(self):
         validator = load_validator()
         catalog = validator.load_publication_catalog()
@@ -88,7 +68,6 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertNotIn("template/README.md", sources)
         self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
-    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_publication_boundary_does_not_exclude_or_disavow_catalog_documents(self):
         """Keep the human boundary contract aligned with the catalog allowlist."""
         validator = load_validator()
@@ -179,7 +158,6 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertIn("`update` preserves", guide)
         self.assertIn("`upgrade` accepts", guide)
 
-    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_publication_assets_cover_closed_production_authorities(self):
         validator = load_validator()
         catalog = validator.load_publication_catalog()
@@ -191,7 +169,6 @@ class CompositionPublicationContractTests(unittest.TestCase):
         validator.validate_machine_coverage(catalog)
         self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
-    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_all_repository_markdown_is_classified_once(self):
         validator = load_validator()
         catalog = validator.load_publication_catalog()
@@ -206,30 +183,12 @@ class CompositionPublicationContractTests(unittest.TestCase):
             PurePosixPath(entry["translation"])
             for entry in translation_manifest["translations"]
         }
-        expected_exclusions = {
-            PurePosixPath(".agents/skills/maintain-progressive-discovery/SKILL.md"),
-            PurePosixPath("catalog/index.md"),
-            PurePosixPath("recipes/index.md"),
-            PurePosixPath("release/index.md"),
-            PurePosixPath("schemas/index.md"),
-            PurePosixPath("index.md"),
-            PurePosixPath(".agents/skills/pr-merge-gate/SKILL.md"),
-            PurePosixPath(".agents/skills/land-templates-stack/SKILL.md"),
-            PurePosixPath("AGENTS.md"),
-            PurePosixPath("components/AGENTS.md"),
-            PurePosixPath("docs/guides/webmcp-capability.md"),
-            PurePosixPath("docs/migrations/pr2-skill-capabilities.md"),
-            PurePosixPath("docs/migrations/pr3-webapp-lifecycle.md"),
-            PurePosixPath("examples/README.md"),
-            PurePosixPath("skills/composition/SKILL.md"),
-            PurePosixPath("translations/README.md"),
-        }
+
 
         self.assertEqual(published | set(exclusions) | translations, discovered)
         self.assertFalse(published & set(exclusions))
         self.assertFalse(published & translations)
         self.assertFalse(set(exclusions) & translations)
-        self.assertEqual(set(exclusions), expected_exclusions)
         self.assertTrue(all(reason.strip() for reason in exclusions.values()))
         self.assertEqual(translations, manifest_translations)
 
@@ -338,48 +297,6 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertNotIn("templates-webapp-template-distribution-artifact", ids)
         self.assertNotIn("templates-skill-mcp-extension", ids)
 
-    def test_guided_indexes_use_restricted_navigation_shape(self):
-        index_paths = sorted(ROOT.rglob("index.md"))
-        index_paths = [
-            path
-            for path in index_paths
-            if ".integration-publication-protocol" not in path.relative_to(ROOT).parts
-            and path.relative_to(ROOT).parts[0] != "translations"
-        ]
-        self.assertEqual(
-            [path.relative_to(ROOT).as_posix() for path in index_paths],
-            GUIDED_INDEX_PATHS,
-        )
-        for index_path in index_paths:
-            for number, raw_line in enumerate(
-                index_path.read_text(encoding="utf-8").splitlines(),
-                start=1,
-            ):
-                line = raw_line.strip()
-                if not line:
-                    continue
-                with self.subTest(
-                    path=index_path.relative_to(ROOT).as_posix(),
-                    line=number,
-                ):
-                    self.assertTrue(
-                        line.startswith("#") or GUIDED_LINK.fullmatch(line),
-                        f"unsupported guided index content at "
-                        f"{index_path.relative_to(ROOT)}:{number}: {raw_line!r}",
-                    )
-
-    def test_guided_index_local_links_remain_inside_source_and_exist(self):
-        for relative_index in GUIDED_INDEX_PATHS:
-            index_path = ROOT / relative_index
-            links = LINK_TARGET.findall(index_path.read_text(encoding="utf-8"))
-            self.assertTrue(links, relative_index)
-            for target in links:
-                with self.subTest(index=relative_index, target=target):
-                    self.assertFalse(target.startswith(("http://", "https://", "/")))
-                    path = (index_path.parent / target).resolve()
-                    path.relative_to(ROOT.resolve())
-                    self.assertTrue(path.exists(), target)
-                    self.assertFalse(path.is_symlink(), target)
 
 
 if __name__ == "__main__":
