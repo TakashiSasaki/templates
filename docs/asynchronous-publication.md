@@ -114,3 +114,26 @@ failed/expired/untrusted artifacts, corrupt archive/payload, same-artifact Site 
 provider-free Site rendering, and authority-history overlap rejection. Run the real
 producer and renderer, in addition to unit tests. Do not substitute workflow text
 matching for proof that the publication can be built.
+
+## Source discovery and reference translations
+
+Each authority checks `index.md` locally with `scripts/check_discovery.py`. The
+complete material index is generated from existing publication/product catalogs
+and Git-tracked top-level entrypoints. There is no discovery-only membership list.
+The normal test suite checks exact projection, reachability and broken local links.
+After editing catalog membership, regenerate with `--write`; `--json` reports the
+route to every required document and material. This never waits for Integration
+or Site to accept a provider change.
+
+Japanese is optional reference content. Missing translations use English. Current
+and stale valid translations may be published, but stale pages display a prominent
+warning and a link to current English. Translation review evidence always names the
+English blob actually reviewed; an English edit does not advance that evidence.
+
+Translations are assembled separately. Invalid or orphaned translation inputs omit
+that provider's translation batch with a diagnostic, while canonical content still
+publishes. Guided locale overlays are also optional. The owner can fix translations
+later without coordinating another authority. Source CI reports the backlog instead
+of requiring it to be empty; the default-branch `Review translations` workflow offers
+a manual report for Composition, Policy or Site. Translation work remains in its
+owning branch and requires no reverse publication/adoption transaction.

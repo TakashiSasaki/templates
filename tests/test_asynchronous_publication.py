@@ -86,6 +86,32 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(BundleError,'histories overlap'):
             verify_independence({'one':self.provider,'clone':clone})
 
+    def test_translation_lag_and_broken_optional_input_never_block_canonical_updates(self):
+        import hashlib
+        original = (self.provider/'README.md').read_bytes()
+        reviewed = hashlib.sha1(f'blob {len(original)}\0'.encode()+original).hexdigest()
+        translation = self.provider/'translations/ja/README.md'
+        translation.parent.mkdir(parents=True)
+        translation.write_text('# 参考訳\n\n> **参考訳（非正本）:** English is canonical.\n\n本文\n')
+        manifest = {'schema_version':2,'canonical_language':'en','translations':[
+            {'canonical':'README.md','language':'ja','translation':'translations/ja/README.md',
+             'canonical_blob_sha':reviewed,'surfaces':['reader']} ]}
+        (self.provider/'translations/manifest.json').write_text(json.dumps(manifest))
+        git(self.provider,'add','.');git(self.provider,'commit','-qm','Optional Japanese reference')
+        self.build(self.base/'current')
+        self.assertEqual(read_json(self.base/'current/translation-availability.json')['summary']['current'],1)
+        (self.provider/'README.md').write_text('# Changed English\n')
+        git(self.provider,'add','.');git(self.provider,'commit','-qm','Canonical update alone')
+        self.build(self.base/'stale')
+        coverage=read_json(self.base/'stale/translation-availability.json')
+        self.assertEqual(coverage['summary']['stale'],1)
+        self.assertTrue((self.base/'stale/publication/ja/additional/index.md').is_file())
+        translation.unlink()
+        git(self.provider,'add','.');git(self.provider,'commit','-qm','Reference temporarily unavailable')
+        self.build(self.base/'missing-translation')
+        self.assertTrue((self.base/'missing-translation/publication/additional/index.md').is_file())
+        self.assertEqual(read_json(self.base/'missing-translation/translation-publication.json')['translations'],[])
+
     def test_dirty_provider_and_corrupt_payload_are_rejected(self):
         output=self.base/'bundle';self.build(output)
         (output/'publication/additional/index.md').write_text('corrupt')

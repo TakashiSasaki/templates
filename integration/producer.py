@@ -13,10 +13,8 @@ from urllib.parse import quote
 from publication_bundle.contract import BundleError, canonical, digest, seal, valid_providers
 from publication_bundle.markdown import _rewrite_markdown
 from integration.publication_model import load_catalog, copy_asset, resolve
-from integration.publish_translations import publish_translations
-from integration.translation_fragment_reconciliation import reconcile_translation_fragments
+from publication_bundle.authority_content.optional_translations import publish_optional_translations
 from integration.translation_link_selection import rewrite_available_localized_links
-from integration.translation_coverage import build_reader_coverage
 from integration.glossary import integrate_glossaries
 from integration.git import checked_revision
 from integration import generate_index_navigation as navigation
@@ -121,8 +119,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
                 publication=name, site_source_paths=source_paths[name],
                 source_url=lambda path, suffix: f'https://github.com/{repository}/blob/{provider_revisions[name]}/{quote(path, safe="/")}{suffix}')
             target.write_text(text, encoding='utf-8')
-        translations = publish_translations(publications, included, docs_root)
-        reconcile_translation_fragments(publications, included, translations, docs_root)
+        translations, translation_coverage = publish_optional_translations(publications, included, docs_root)
         rewrite_available_localized_links(translations, docs_root)
         qualified.update('publication/' + str(record.translation_destination) for record in translations)
         write(bundle/'documents.json', documents)
@@ -130,7 +127,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
             'translations': [{'publication': r.publication, 'language': r.language,
                 'canonical_destination': str(r.canonical_destination), 'translation_destination': str(r.translation_destination)}
                 for r in translations]})
-        write(bundle/'translation-availability.json', build_reader_coverage(publications, included))
+        write(bundle/'translation-availability.json', translation_coverage)
         write(bundle/'glossary.json', integrate_glossaries({'integration': root, **provider_roots},
               {'integration': producer_revision, **provider_revisions}, repository))
         # Source indexes are optional discovery aids. Their editorial format must
@@ -149,7 +146,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
             indexed_roots[name] = provider_roots[name]
         locales.PROVIDER_ORDER = tuple(indexed_roots)
         write(bundle/'guided-navigation.json', graph)
-        write(bundle/'guided-locales.json', locales.generate_locale_overlays(graph, indexed_roots))
+        write(bundle/'guided-locales.json', locales.generate_locale_overlays(graph, indexed_roots, optional=True))
         producer = {'authority': 'integration', 'revision': producer_revision}
         revisions = {name: provider_revisions[name] for name in providers}
         write(bundle/'provenance.json', {'schema_version': 1, 'producer': producer, 'providers': revisions})

@@ -382,15 +382,18 @@ def collect_provider_overlays(
 def generate_locale_overlays(
     graph: dict[str, Any],
     provider_roots: dict[str, Path],
+    *, optional: bool = False,
 ) -> dict[str, Any]:
     provider_graphs = validate_graph(graph)
     locale_providers: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for provider in PROVIDER_ORDER:
-        overlays = collect_provider_overlays(
-            provider,
-            provider_roots[provider],
-            provider_graphs[provider],
-        )
+        try:
+            overlays = collect_provider_overlays(provider, provider_roots[provider], provider_graphs[provider])
+        except (IndexNavigationLocaleError, ValueError, OSError) as exc:
+            if not optional:
+                raise
+            print(f"Optional guided translation omitted for {provider}: {exc}", file=sys.stderr)
+            continue
         for language, overlay in overlays:
             locale_providers.setdefault(language, {}).setdefault(provider, []).append(overlay)
 

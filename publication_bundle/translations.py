@@ -88,6 +88,9 @@ def validate_translations(root, coverage, publication, providers, documents):
                 for field in ("canonical_blob_sha", "current_blob_sha")
             ):
                 raise BundleError("invalid translation evidence")
+            derived = "current" if record["canonical_blob_sha"] == record["current_blob_sha"] else "stale"
+            if status != derived:
+                raise BundleError("translation status contradicts canonical review evidence")
             expected[(key[0], language, record["canonical_destination"])] = record
         elif {
             "translation_source",

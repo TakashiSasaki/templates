@@ -9,3 +9,5 @@
 
 - [Integration authority](../AUTHORITY.md) - Defines which publication and read-model decisions belong here.
 - [Contracts](../contracts/index.md) - Defines the Bundle and compatibility contracts consumed by qualification.
+
+- [Asynchronous publication](asynchronous-publication.md) - Explains independent publication, Site presentation, source discovery and reference translations.

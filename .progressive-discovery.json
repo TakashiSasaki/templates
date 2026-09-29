@@ -18,7 +18,8 @@
     "contracts"
   ],
   "explicit_exclusions": [
-    "publication"
+    "publication",
+    "discovery"
   ],
   "publication_system": true,
   "surface_boundaries": {

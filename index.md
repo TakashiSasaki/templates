@@ -9,7 +9,7 @@
 
 ## Publication inputs and contracts
 
-- [Provider selection](publication-sources.json) - Records the exact reviewed provider revisions selected by Integration.
+- [Provider selection](publication-sources.json) - Records the provider branches followed asynchronously by Integration.
 - [Contracts](contracts/index.md) - Contains Publication Bundle and compatibility contracts, schemas, registries, and qualification-report definitions.
 - [Integration documentation](docs/index.md) - Contains Integration-owned glossary and publication catalog inputs.
 
@@ -19,3 +19,7 @@
 - [Publication Bundle contract implementation](publication_bundle/) - Implements the portable Bundle validation and read-model contract.
 - [Scripts](scripts/) - Contains production, qualification, reconciliation, adoption, and verification entry points.
 - [Tests](tests/) - Contains deterministic Bundle, compatibility, transport, and authority-boundary regression coverage.
+
+## Complete material discovery
+
+- [Canonical documents and agent materials](discovery/index.md) - Generated directly from the source catalogs and Git-tracked entrypoints; no separate membership list.
