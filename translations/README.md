@@ -12,7 +12,7 @@ For every translated document:
 - a translation must identify itself visibly as non-authoritative; and
 - changing a canonical document invalidates the translation synchronization record until the translation is reviewed against the new canonical content.
 
-`translations/manifest.json` records the relationship between canonical documents and translations. `canonical_blob_sha` is the Git blob SHA-1 of the canonical file bytes against which that translation was reviewed. The translation validator recomputes the blob identity from the current canonical bytes and rejects stale records.
+`translations/manifest.json` records the relationship between canonical documents and translations. `canonical_blob_sha` is the Git blob SHA-1 of the canonical file bytes against which that translation was reviewed. The translation validator recomputes the blob identity from the current canonical bytes and reports stale records. Normal source CI accepts stale translations.
 
 ## Translation surfaces
 
@@ -26,3 +26,17 @@ A translation may declare both surfaces. A `reader` translation must correspond 
 The `guided` surface does not create a second navigation authority. Link targets, reachability, ordering, and graph structure remain defined only by canonical English `index.md` files. A site integration may use the translated `index.md` text only as a locale overlay on that canonical graph and must fall back to canonical English when an overlay is unavailable.
 
 Translations remain separate from `docs/publication-catalog.json`; the publication catalog continues to expose only canonical English documents. A publication layer may add translated routes or localized guided views only after it preserves this one-way authority relationship and makes the non-authoritative status explicit to readers.
+
+## Independent translation maintenance
+
+Canonical edits do not require translation updates. Review translations later, on
+the owning authority branch. `canonical_blob_sha` identifies the English bytes
+actually reviewed; never advance it merely to clear a stale report. Translation
+status is derived from content, and stale Japanese pages display a warning and a
+link to current English. Use `python scripts/check_translation_status.py` for the
+current backlog; the default-branch **Review translations** workflow offers the
+same report on manual dispatch. Missing Japanese pages simply use English.
+
+For translation-specific review, run `python scripts/validate_translations.py
+--allow-stale`. This structural review is separate from canonical source CI;
+`--allow-stale` allows a partial translation update without clearing the backlog.

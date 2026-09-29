@@ -59,7 +59,8 @@
     "src",
     "templates",
     "tests",
-    "translations"
+    "translations",
+    "discovery"
   ],
   "publication_system": true,
   "surface_boundaries": {

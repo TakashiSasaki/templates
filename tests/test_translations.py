@@ -84,12 +84,6 @@ def prepare_single_translation(root: Path) -> bytes:
 
 
 class TranslationContractTests(unittest.TestCase):
-    def test_repository_translation_manifest_is_valid(self) -> None:
-        result = validate(ROOT, allow_stale=True)
-        self.assertIn("canonical language: en", result)
-        self.assertIn("translations validated: 15", result)
-        self.assertIn("reader translations: 14", result)
-        self.assertIn("guided translations: 5", result)
 
     def test_publication_catalog_schema_version_is_strictly_v3(self) -> None:
         for version in (1, 2, 4, "3", 3.0, True, None, [3]):

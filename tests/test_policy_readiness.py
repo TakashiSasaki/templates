@@ -204,6 +204,6 @@ def test_policy_documentation_keeps_pages_deployment_outside_policy() -> None:
     roadmap = normalized(ROADMAP)
 
     assert "belongs exclusively to the independent `site` authority" in publication
-    assert "immutable development/publication protocol dependency" in publication
-    assert "not a runtime dependency of `agent-policy`" in publication
+    assert "local catalog" in publication
+    assert "no integration checkout" in publication
     assert "a Pages deployment path on `policy`" in roadmap

@@ -4,7 +4,7 @@
 
 - [Policy overview](README.md) - Explains the shared policy system, provider toolchain, consumer adoption, and maintenance entry points.
 - [Policy configuration](.agent-policy.yml) - Selects contexts, profiles, repository policy inputs, outputs, and the immutable toolchain.
-- [Repository agent instructions](AGENTS.md) - Defines the active generated operating instructions for Policy authority maintenance.
+- [Repository agent instructions](AGENTS.md) - Defines the local operating instructions for Policy authority maintenance.
 - [Contributing](CONTRIBUTING.md) - Defines canonical contribution, validation, and source-ownership expectations.
 - [Policy documentation](docs/index.md) - Contains provider, consumer, shared-policy, architecture, adoption, release, and operational documentation.
 
@@ -42,3 +42,7 @@
 - [Revision-bound qualification](docs/revision-bound-qualification.md) - Defines qualification evidence bound to immutable revisions.
 - [Preparing reliable agent tasks](docs/agent-task-design.md) - Turns existing change-contract and evidence rules into proportional specification and instruction-design guidance.
 - [Agent task, goal, and steering templates](docs/agent-task-briefs.md) - Provides copyable briefs and examples with explicit obligations, evidence, and stop boundaries.
+
+## Complete material discovery
+
+- [Canonical documents and agent materials](discovery/index.md) - Generated directly from the source catalogs and Git-tracked entrypoints; no separate membership list.

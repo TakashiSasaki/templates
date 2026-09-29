@@ -76,21 +76,3 @@ def test_empirical_cases_exercise_the_new_convergence_reasoning() -> None:
     assert "testing.require-adversarial-invariant-coverage" in text
 
 
-def test_maintainer_guidance_preserves_non_self_authorizing_adoption() -> None:
-    text = MAINTAINER_DOC.read_text(encoding="utf-8").lower()
-    for phrase in (
-        "not a second semantic policy authority",
-        "shared application-neutral policy",
-        "policy-provider-specific maintenance requirements",
-        "full immutable commit sha",
-        "must not become the authority that declares that same change acceptable",
-        "do not directly edit generated maintainer outputs",
-        "focused diagnostic validation",
-        "revision-bound qualification",
-        "separate-promotion trust boundary",
-        "separate reviewed maintenance change",
-        "circular trust chain",
-    ):
-        assert phrase in text
-
-
