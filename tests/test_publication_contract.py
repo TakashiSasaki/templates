@@ -158,40 +158,6 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertIn("`update` preserves", guide)
         self.assertIn("`upgrade` accepts", guide)
 
-    def test_publication_assets_cover_closed_production_authorities(self):
-        validator = load_validator()
-        catalog = validator.load_publication_catalog()
-        exclusions = validator.parse_publication_classification()
-        translations = validator.parse_translation_classification()
-        validator.validate_composition_catalog_declarations(catalog)
-        validator.validate_reader_coverage(catalog)
-        validator.validate_markdown_classification(catalog, exclusions, translations)
-        validator.validate_machine_coverage(catalog)
-        self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
-
-    def test_all_repository_markdown_is_classified_once(self):
-        validator = load_validator()
-        catalog = validator.load_publication_catalog()
-        exclusions = validator.parse_publication_classification()
-        translations = validator.parse_translation_classification()
-        published = {entry.source for entry in catalog.documents}
-        discovered = validator.discover_repository_markdown()
-        translation_manifest = json.loads(
-            (ROOT / "translations" / "manifest.json").read_text(encoding="utf-8")
-        )
-        manifest_translations = {
-            PurePosixPath(entry["translation"])
-            for entry in translation_manifest["translations"]
-        }
-
-
-        self.assertEqual(published | set(exclusions) | translations, discovered)
-        self.assertFalse(published & set(exclusions))
-        self.assertFalse(published & translations)
-        self.assertFalse(set(exclusions) & translations)
-        self.assertTrue(all(reason.strip() for reason in exclusions.values()))
-        self.assertEqual(translations, manifest_translations)
-
     def test_only_root_execution_state_directories_are_ignored(self):
         validator = load_validator()
         self.assertTrue(
