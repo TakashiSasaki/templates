@@ -88,6 +88,24 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertNotIn("template/README.md", sources)
         self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
+    def test_published_home_links_to_excluded_agent_guidance_as_source(self):
+        catalog = json.loads((ROOT / "docs/publication-catalog.json").read_text(encoding="utf-8"))
+        classification = json.loads(
+            (ROOT / "docs/publication-classification.json").read_text(encoding="utf-8")
+        )
+        published = {entry["source"] for entry in catalog["documents"]}
+        excluded = {entry["source"] for entry in classification["excluded_markdown"]}
+        homes = [entry["source"] for entry in catalog["documents"] if entry["home"]]
+        self.assertEqual(homes, ["README.md"])
+        self.assertIn("AGENTS.md", excluded)
+        self.assertIn("index.md", excluded)
+        self.assertNotIn("AGENTS.md", published)
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        source_url = "https://github.com/TakashiSasaki/templates/blob/composition/AGENTS.md"
+        self.assertNotIn("[AGENTS.md](AGENTS.md)", readme)
+        self.assertEqual(re.findall(r"\[AGENTS\.md\]\(([^)]+)\)", readme), [source_url])
+
     @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_publication_boundary_does_not_exclude_or_disavow_catalog_documents(self):
         """Keep the human boundary contract aligned with the catalog allowlist."""
