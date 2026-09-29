@@ -6,6 +6,7 @@ from dataclasses import asdict, is_dataclass
 import json
 from pathlib import Path, PurePosixPath
 import subprocess
+import sys
 import tempfile
 
 from publication_bundle.contract import BundleError, canonical, digest, seal, valid_providers
@@ -128,10 +129,21 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         write(bundle/'translation-availability.json', build_reader_coverage(publications, included))
         write(bundle/'glossary.json', integrate_glossaries({'integration': root, **provider_roots},
               {'integration': producer_revision, **provider_revisions}, repository))
-        indexed = tuple(name for name in providers if (Path(provider_roots[name])/'index.md').is_file())
-        navigation.PROVIDER_ORDER=indexed; navigation_base.PROVIDER_ORDER=indexed; locales.PROVIDER_ORDER=indexed
-        indexed_roots = {name: provider_roots[name] for name in indexed}
-        graph = navigation.generate_graph(repository, indexed_roots)
+        # Source indexes are optional discovery aids. Their editorial format must
+        # not prevent catalog documents from being published.
+        graph = {'schema_version': 2, 'repository': repository, 'providers': []}
+        indexed_roots = {}
+        for name in providers:
+            if not (Path(provider_roots[name])/'index.md').is_file():
+                continue
+            try:
+                provider_graph = navigation.collect_provider_graph(name, provider_roots[name])
+            except navigation.IndexNavigationError as exc:
+                print(f'Optional source navigation omitted for {name}: {exc}', file=sys.stderr)
+                continue
+            graph['providers'].append(provider_graph)
+            indexed_roots[name] = provider_roots[name]
+        locales.PROVIDER_ORDER = tuple(indexed_roots)
         write(bundle/'guided-navigation.json', graph)
         write(bundle/'guided-locales.json', locales.generate_locale_overlays(graph, indexed_roots))
         producer = {'authority': 'integration', 'revision': producer_revision}
