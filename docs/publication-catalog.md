@@ -54,7 +54,7 @@ authority relationship and keeping the English document canonical.
 
 ## Schema version
 
-The Integration-owned generic publication protocol accepts only integer schema version
+The local publication parser accepts integer schema version
 `3`. Legacy publication-catalog schema versions `1` and `2` are retired and fail
 closed. Schema version `3` defines the current Markdown document and explicit
 asset contracts and additionally permits one canonical glossary declaration:
@@ -83,7 +83,7 @@ asset contracts and additionally permits one canonical glossary declaration:
 }
 ```
 
-Each document contains exactly `id`, `source`, `optional`, and `home`. A
+Each document identifies `id` and `source`; `optional` and `home` default to false. A
 required document source must identify an existing regular Markdown file. An
 optional document source may be absent, but when present it must also be a
 regular Markdown file. Exactly one non-optional document is the publication
@@ -192,26 +192,10 @@ links the contribution and workflow entry points. The [ADR index](adr/index.md)
 links ADR-0008 and ADR-0009 through their canonical relative document paths. The
 three published layer indexes retain their catalog-only link contract.
 
-The four mappings are already active in the reviewed Integration bootstrap
-snapshot. Candidate compatibility uses that exact Integration contract without
-staging or Site rendering. Future new reader destinations require Integration-owned
-candidate staging; provider CI must not weaken catalog closure or carry IA mappings.
+Integration includes all declared reader documents automatically. New document identities
+need no curated Integration route or staging entry. Site alone assigns reader destinations,
+audience navigation and presentation. Policy owns the document sources and meanings.
 
-Integration chooses reader destinations and semantic navigation. Site owns presentation.
-Policy owns these sources, identities, semantic roles and
-publication eligibility. No portal labels, theme metadata, or audience fields
-belong in the Policy catalog. The four canonical sources currently have no
-Japanese reader translations; English remains canonical and available as
-fallback. Updated Japanese index text remains a non-authoritative overlay with
-synchronized canonical blob hashes; future translations follow the existing
-manifest/surface rules when eligible.
-
-
-Provider candidate compatibility uses reviewed Integration `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d`. The reusable
-Integration qualification workflow selects its reviewed companion provider and
-qualifies the exact candidate through deterministic Publication Bundle generation.
-A successful candidate is compatibility evidence only; Integration promotion is an
-explicit later change. Site adoption and deployment remain separate human decisions.
-Draft construction does not acquire this release-bound compatibility evidence;
-ready candidates and exact merged provider commits do. Integration owns any new
-reader destination or staging mapping required by a provider catalog change.
+Provider CI validates the local catalog. Integration and Site publish asynchronously,
+with exact input revisions recorded in their artifacts as provenance. Translation
+availability is derived from the provider's manifest; English remains canonical.

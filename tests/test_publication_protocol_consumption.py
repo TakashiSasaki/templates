@@ -16,39 +16,13 @@ WORKFLOW = ROOT / ".github/workflows/pages.yml"
 CATALOG = ROOT / "docs/publication-catalog.json"
 PUBLICATION_GUIDE = ROOT / "docs/publication-catalog.md"
 BUILD_GUIDE = ROOT / "docs/documentation-publication.md"
-LEGACY_VALIDATOR = ROOT / "scripts/validate_publication_catalog.py"
-INTEGRATION_PROTOCOL_REVISION = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
-INTEGRATION_PROTOCOL_PATH = ".integration-publication-protocol/integration/publication_contract.py"
 
 
-def test_policy_uses_reviewed_integration_publication_protocol() -> None:
-    workflow = WORKFLOW.read_text(encoding="utf-8")
-
-    assert f"ref: {INTEGRATION_PROTOCOL_REVISION}" in workflow
-    assert "path: .integration-publication-protocol" in workflow
-    assert "sparse-checkout: integration/publication_contract.py" in workflow
-    assert "sparse-checkout-cone-mode: false" in workflow
-    assert "persist-credentials: false" in workflow
-    assert f"INTEGRATION_PUBLICATION_PROTOCOL: {INTEGRATION_PROTOCOL_PATH}" in workflow
+def test_policy_validates_publication_locally() -> None:
+    workflow = WORKFLOW.read_text()
+    assert ".integration-publication-protocol" not in workflow
     assert "scripts/run_policy_preflight.py --check docs" in workflow
-    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
-    assert '"--catalog",\n        "docs/publication-catalog.json"' in runner
-    assert "ref: site" not in workflow
-    assert "ref: refs/heads/site" not in workflow
-    assert "scripts/validate_publication_catalog.py" not in workflow
-    assert not LEGACY_VALIDATOR.exists()
-
-
-def test_publication_protocol_ownership_is_documented() -> None:
-    publication_guide = PUBLICATION_GUIDE.read_text(encoding="utf-8")
-    build_guide = BUILD_GUIDE.read_text(encoding="utf-8")
-
-    for text in (publication_guide, build_guide):
-        assert INTEGRATION_PROTOCOL_REVISION in text
-        assert "Integration-owned" in text
-        assert "full" in text.lower() and "sha" in text.lower()
-    assert "scripts/validate_publication_catalog.py" not in publication_guide
-    assert "scripts/validate_publication_catalog.py" not in build_guide
+    assert (ROOT / "scripts/publication_catalog.py").is_file()
 
 
 def test_policy_catalog_keeps_policy_owned_v3_declarations() -> None:
@@ -106,7 +80,7 @@ def test_contribution_guide_describes_active_policy_publication() -> None:
     contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
 
     assert "active Policy publication entries" in contributing
-    assert "Integration owns their staged-to-active reader promotion" in contributing
+    assert "Integration reads the catalog asynchronously" in contributing
     assert "prepared for later publication" not in contributing
 
 
@@ -123,14 +97,10 @@ def test_published_maintainer_sources_have_post_cutover_discovery_links() -> Non
     for document_id, source in MAINTAINER_SOURCES.items():
         if document_id.startswith("adr-"):
             relative = Path(source).name
-            repository_link = (
-                "https://github.com/TakashiSasaki/templates/blob/policy/" + source
-            )
+            repository_link = "https://github.com/TakashiSasaki/templates/blob/policy/" + source
             assert f"({relative})" in adr_index
             assert repository_link not in adr_index
-            assert source.removeprefix("docs/") in (ROOT / "mkdocs.yml").read_text(
-                encoding="utf-8"
-            )
+            assert source.removeprefix("docs/") in (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
 
     assert "reader publication is deferred" not in adr_index
 
@@ -189,55 +159,65 @@ def test_published_maintainer_relative_links_stay_inside_publication_catalog() -
             )
 
 
-@pytest.mark.parametrize("text", [
-    '[guide](staged-ci.md)',
-    '[guide](staged-ci.md "title")',
-    "[guide](staged-ci.md 'title')",
-    '[guide](<staged-ci.md> "title")',
-    '[guide][g]\n\n[g]: staged-ci.md',
-    '[guide][g]\n\n[g]: staged-ci.md "title"',
-    '[guide][]\n\n[guide]: staged-ci.md',
-    '[guide]\n\n[guide]: <staged-ci.md>',
-    '[guide][g]\n\n[g]:\n    staged-ci.md',
-    '!!! note\n\n    [guide][g]\n\n    [g]: staged-ci.md',
-])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[guide](staged-ci.md)",
+        '[guide](staged-ci.md "title")',
+        "[guide](staged-ci.md 'title')",
+        '[guide](<staged-ci.md> "title")',
+        "[guide][g]\n\n[g]: staged-ci.md",
+        '[guide][g]\n\n[g]: staged-ci.md "title"',
+        "[guide][]\n\n[guide]: staged-ci.md",
+        "[guide]\n\n[guide]: <staged-ci.md>",
+        "[guide][g]\n\n[g]:\n    staged-ci.md",
+        "!!! note\n\n    [guide][g]\n\n    [g]: staged-ci.md",
+    ],
+)
 def test_catalog_guard_extracts_rendered_markdown_link_forms(text: str) -> None:
     assert _markdown_link_destinations(text) == ["staged-ci.md"]
 
 
-@pytest.mark.parametrize("text", [
-    '`[example](staged-ci.md)`',
-    '```markdown\n[example](staged-ci.md)\n```',
-    '[unused]: staged-ci.md',
-])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "`[example](staged-ci.md)`",
+        "```markdown\n[example](staged-ci.md)\n```",
+        "[unused]: staged-ci.md",
+    ],
+)
 def test_catalog_guard_ignores_non_links(text: str) -> None:
     assert _markdown_link_destinations(text) == []
 
 
-@pytest.mark.parametrize("href, expected", [
-    ("unpublished.md?view=1", "docs/unpublished.md"),
-    ("unpublished.md?view=1#section", "docs/unpublished.md"),
-    ("../unpublished.md#section", "unpublished.md"),
-    ("unpublished%2Emd", "docs/unpublished.md"),
-    ("https://example.org/unpublished.md?view=1", None),
-    ("//example.org/unpublished.md", None),
-    ("mailto:someone@example.org", None),
-    ("#section", None),
-    ("/unpublished.md", None),
-])
+@pytest.mark.parametrize(
+    "href, expected",
+    [
+        ("unpublished.md?view=1", "docs/unpublished.md"),
+        ("unpublished.md?view=1#section", "docs/unpublished.md"),
+        ("../unpublished.md#section", "unpublished.md"),
+        ("unpublished%2Emd", "docs/unpublished.md"),
+        ("https://example.org/unpublished.md?view=1", None),
+        ("//example.org/unpublished.md", None),
+        ("mailto:someone@example.org", None),
+        ("#section", None),
+        ("/unpublished.md", None),
+    ],
+)
 def test_catalog_guard_classifies_url_paths(href: str, expected: str | None) -> None:
     assert _relative_markdown_target("docs/guide.md", href) == expected
 
 
 @pytest.mark.parametrize("boundary", [chr(code) for code in range(0x21)])
 def test_catalog_guard_normalizes_url_boundary_controls(boundary: str) -> None:
-    assert _relative_markdown_target(
-        "docs/guide.md", boundary + "unpublished.md" + boundary
-    ) == "docs/unpublished.md"
+    assert (
+        _relative_markdown_target("docs/guide.md", boundary + "unpublished.md" + boundary)
+        == "docs/unpublished.md"
+    )
 
 
 def test_catalog_guard_classifies_entity_space_but_preserves_encoded_path_space() -> None:
-    href, = _markdown_link_destinations("[guide](unpublished.md&#32;)")
+    (href,) = _markdown_link_destinations("[guide](unpublished.md&#32;)")
     assert href == "unpublished.md "
     assert _relative_markdown_target("docs/guide.md", href) == "docs/unpublished.md"
     assert _relative_markdown_target("docs/guide.md", "unpublished.md%20") is None

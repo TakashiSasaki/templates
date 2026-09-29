@@ -6,7 +6,9 @@ The `policy` branch builds its documentation through `.github/workflows/pages.ym
 
 Pull requests targeting `policy` or authority-local `policy-*` stacked bases, and pushes to `policy`, regenerate repository previews and documentation assets, verify the documented tree, generate build metadata, and run a strict MkDocs build. The workflow uses the Ubuntu runner's Python directly for bootstrap; every documentation command then runs from a cleared branch-maintainer virtual environment because the locked documentation dependency graph is the validation boundary.
 
-The documentation build also consumes the Integration-owned generic schema-v3 publication protocol. It sparse-checks out only `integration/publication_contract.py` from reviewed Integration merge commit `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d` (P5 bootstrap release) and executes that exact stdlib-only file against the Policy checkout. This is an immutable development/publication protocol dependency, not a runtime dependency of `agent-policy`. Policy does not keep a duplicate generic publication parser or validator.
+The documentation build validates its own catalog with `scripts/publication_catalog.py`.
+Integration independently reads this branch's catalog. No Integration checkout, full-SHA
+parser dependency, candidate promotion or Site adoption is needed for a documentation edit.
 
 Before the first Python invocation, the build job neutralizes Python startup inputs and pip cache, output, parser, behavior, and transport inputs that could redirect or terminate the pre-venv toolchain. It creates `.venv` with the runner's isolated bootstrap interpreter, installs the arbitrary-exact documentation lock with dependency resolution disabled and pip isolated from unlisted environment inputs, verifies the complete installed distribution set, and runs `pip check` before generating or building documentation.
 
@@ -48,7 +50,7 @@ The Integration checkout used for `INTEGRATION_PUBLICATION_PROTOCOL_ROOT` must i
 
 ## Deployment ownership
 
-GitHub Pages deployment for `TakashiSasaki/templates` belongs exclusively to the independent `site` authority. It must not be introduced into `policy` as an incidental documentation, migration, release, or toolchain change. Publishing policy documentation through the repository site requires the Integration-owned publication integration and source lock; the `policy` workflow remains build-only.
+GitHub Pages deployment for `TakashiSasaki/templates` belongs exclusively to the independent `site` authority. It must not be introduced into `policy` as an incidental documentation, migration, release, or toolchain change. Publishing policy documentation through the repository site uses asynchronous Integration artifacts; the `policy` workflow remains build-only.
 
 A future change to `.github/workflows/pages.yml` must continue to reject all of the following:
 
@@ -70,7 +72,7 @@ The documentation build is successful only when all of the following pass:
 - clean creation of the isolated documentation environment;
 - installation from the complete arbitrary-exact dependency lock with dependency resolution disabled;
 - exact installed-distribution verification and `pip check`;
-- generic publication catalog validation by the reviewed full-SHA Integration-owned protocol;
+- generic publication catalog validation by the local provider-owned parser;
 - Policy-owned publication declaration and documentation-boundary regression tests;
 - repository preview generation;
 - documented-tree verification;

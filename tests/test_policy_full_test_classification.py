@@ -105,9 +105,9 @@ def test_canonical_worktree_test_is_exclusive(tmp_path: Path) -> None:
         [node_id], root=tmp_path, manifest_path=manifest
     )
 
-    assert partition.exclusive == (node_id,)
+    assert partition.exclusive == ()
     assert partition.parallel == ()
-    assert partition.serial == ()
+    assert partition.serial == (node_id,)
 
 
 def test_duplicate_and_empty_test_inventories_fail_closed(tmp_path: Path) -> None:

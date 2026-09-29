@@ -1,24 +1,17 @@
-# Contract-gated publication automation
+# Asynchronous publication
 
-The publication controller distinguishes technical processability from
-authorization. A compatible candidate remains pending until the exact producer,
-consumer, policy, workflow, run attempt, and artifact evidence are qualified.
+Policy validates its source and `docs/publication-catalog.json` locally. Integration
+periodically snapshots the Policy branch, combines its exported documentation with
+other providers and uploads a complete publication artifact. No Policy callback,
+promotion receipt, downstream CI result or source pin update is required.
 
-The release mode is `shadow` by default. Shadow classification and read-only
-qualification may produce reports, but they never update an authority lock,
-merge a pull request, or deploy Pages. Adoption-only and auto-publish require a
-separate activation of trusted external configuration.
+Site independently selects an available successful Integration publication, renders
+its consumer and maintainer surfaces, and deploys the checked artifact to Pages.
+An Integration failure leaves the previous publication available. A Site failure
+leaves the current website deployed. Neither failure reverses a Policy change.
 
-The only normal mutations are the exact provider revision fields in Integration's
-`publication-sources.json` and the exact selected Bundle identity fields in
-Site's `integration-source.json`. The controller never updates active Policy
-pins, `AGENTS.md`, workflows, validators, capabilities, or generated trees.
-
-Candidate qualification output is evidence, not authority: a controller must
-bind the exact run/attempt/artifact and independently validate the Bundle with
-trusted code before applying a positive adoption gate. A candidate report
-cannot grant its own authorization or change the active Policy/controller pin.
-
-The kill switch stops new adoption and deployment while preserving the last
-successful publication. Recovery selects a previously qualified fixed input or
-artifact; retry must not resurrect a superseded selection.
+Change Policy documentation here, Integration semantics in Integration, and routes
+or presentation in Site. Exact revisions and hashes are recorded in the built
+artifacts for source attribution and integrity; they are not a coordinated release
+transaction. See the [Integration design](https://github.com/TakashiSasaki/templates/blob/integration/docs/asynchronous-publication.md)
+and [Site publishing guide](https://github.com/TakashiSasaki/templates/blob/site/PUBLISHING.md).

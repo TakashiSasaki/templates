@@ -20,7 +20,6 @@ from agent_policy import delivery, generated_mutation
 from agent_policy.commands import check, render, validate
 from agent_policy.commands import guidance as guidance_command
 from agent_policy.config import load_config, package_root
-from agent_policy.delivery import load_presentation_map
 from agent_policy.policy_loader import load_rules
 from agent_policy.renderer import render_agents
 from agent_policy.yamlutil import dump_yaml, load_yaml

@@ -162,7 +162,8 @@ as one candidate change before invoking ordinary authority qualification.
    old aliases or duplicate registries permanently. Wider boundary-directory audits
    and bulk index placement are a later task, after the meaning is stable.
 
-Keep provider publication promotion, `integration-source.json` changes, publication
-cutover and Pages deployment out of these migrations unless separately authorized.
+This document records the earlier adapter design. Repository maintenance no longer
+requires coordinated adapter/pin migrations: each authority has local instructions,
+and Integration and Site publish asynchronously. See `AGENTS.md` for current operation.
 The next human action at Stage A handoff is an independent whole-stack design and
 implementation review; the author prepares its scope but does not request it.

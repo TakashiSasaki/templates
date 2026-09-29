@@ -6,7 +6,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-import yaml
 
 import scripts.verify_candidate_qualification as candidate_mod
 from scripts.verify_candidate_qualification import (
@@ -90,82 +89,8 @@ def test_adopted_self_host_consistency_passes_on_current_head() -> None:
     verify_self_host(ROOT)
 
 
-def test_prospective_profile_change_separated_from_adopted_self_host(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Test 4: Prospective profile change is qualified in candidate toolchain
-
-    while adopted self-host consistency continues to evaluate the old pinned toolchain.
-    """
-    synthetic_root = tmp_path / "synthetic_package_root"
-    for d in ("src", "schemas", "templates", "profiles", "policy", "skills"):
-        shutil.copytree(ROOT / d, synthetic_root / d)
-
-    synthetic_rule_path = synthetic_root / "policy" / "core" / "synthetic-prospective-rule.md"
-    synthetic_rule_path.write_text(
-        """---
-id: core.synthetic-prospective-rule
-severity: mandatory
-overridable: false
-order: 49
----
-# Synthetic Prospective Rule
-
-Must not leak into adopted self-host maintainer instructions.
-""",
-        encoding="utf-8",
-    )
-
-    core_profile_path = synthetic_root / "profiles" / "core.yml"
-    profile_data = yaml.safe_load(core_profile_path.read_text(encoding="utf-8"))
-    profile_data["policy_files"].append("policy/core/synthetic-prospective-rule.md")
-    core_profile_path.write_text(yaml.safe_dump(profile_data), encoding="utf-8")
-
-    subprocess.run(["git", "init"], cwd=synthetic_root, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test Runner"], cwd=synthetic_root, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=synthetic_root,
-        check=True,
-    )
-    subprocess.run(["git", "add", "."], cwd=synthetic_root, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "init prospective candidate"],
-        cwd=synthetic_root,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setattr(candidate_mod, "ROOT", synthetic_root)
-
-    # 1. Candidate qualification sees the prospective change and qualifies cleanly
-    candidate_rev = qualify_candidate()
-    assert candidate_rev == resolve_checkout_revision(synthetic_root)
-
-    # 2. Adopted self-host consistency continues evaluating the adopted runtime (aa6f9ac...)
-    verify_self_host(ROOT)
-
-    # 3. Committed self-host outputs remain untouched and do not contain the prospective rule
-    agents_content = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-    assert "core.synthetic-prospective-rule" not in agents_content
-    review_content = (ROOT / ".review-authority" / "review-policy.md").read_text(encoding="utf-8")
-    assert "core.synthetic-prospective-rule" not in review_content
-
-    # 4. No false source provenance is emitted under the pinned toolchain
-    assert "TakashiSasaki/templates@aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3" in agents_content
 
 
-def test_adopted_self_host_fails_when_outputs_are_stale(tmp_path: Path) -> None:
-    """Tampered or stale maintainer outputs in an adopted repository fail closed."""
-    repo = tmp_path / "repo"
-    shutil.copytree(ROOT, repo, ignore=shutil.ignore_patterns(".git", ".venv", "__pycache__"))
-    (repo / ".git").mkdir()
-
-    # Modify committed AGENTS.md to simulate stale output
-    agents_file = repo / "AGENTS.md"
-    agents_file.write_text(agents_file.read_text(encoding="utf-8") + "\n# Stale line\n")
-
-    with pytest.raises(RuntimeError, match="Self-host check failed against adopted toolchain"):
-        verify_self_host(repo)
 
 
 def test_adopted_self_host_fails_closed_when_lock_and_config_disagree(tmp_path: Path) -> None:

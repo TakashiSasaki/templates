@@ -64,16 +64,12 @@ def read_json_object(path: Path, label: str) -> dict[str, Any]:
         result: dict[str, Any] = {}
         for key, value in pairs:
             if key in result:
-                raise PublicationContractError(
-                    f"{label} contains duplicate object member: {key}"
-                )
+                raise PublicationContractError(f"{label} contains duplicate object member: {key}")
             result[key] = value
         return result
 
     def reject_constant(value: str) -> Any:
-        raise PublicationContractError(
-            f"{label} contains non-standard numeric constant: {value}"
-        )
+        raise PublicationContractError(f"{label} contains non-standard numeric constant: {value}")
 
     try:
         value = json.loads(
@@ -82,38 +78,21 @@ def read_json_object(path: Path, label: str) -> dict[str, Any]:
             parse_constant=reject_constant,
         )
     except json.JSONDecodeError as exc:
-        raise PublicationContractError(
-            f"unable to parse {label} {path}: {exc}"
-        ) from exc
+        raise PublicationContractError(f"unable to parse {label} {path}: {exc}") from exc
     if not isinstance(value, dict):
         raise PublicationContractError(f"{label} must be a JSON object")
     return value
 
 
 def safe_relative_path(value: Any, field: str) -> PurePosixPath:
-    if (
-        not isinstance(value, str)
-        or not value
-        or "\\" in value
-        or ":" in value
-        or "\0" in value
-    ):
-        raise PublicationContractError(
-            f"{field} must be a safe non-empty relative POSIX path"
-        )
+    if not isinstance(value, str) or not value or "\\" in value or ":" in value or "\0" in value:
+        raise PublicationContractError(f"{field} must be a safe non-empty relative POSIX path")
     parts = value.split("/")
-    if any(
-        part in ("", ".", "..") or part.casefold() == ".git"
-        for part in parts
-    ):
-        raise PublicationContractError(
-            f"{field} must be a safe non-empty relative POSIX path"
-        )
+    if any(part in ("", ".", "..") or part.casefold() == ".git" for part in parts):
+        raise PublicationContractError(f"{field} must be a safe non-empty relative POSIX path")
     path = PurePosixPath(value)
     if path.is_absolute():
-        raise PublicationContractError(
-            f"{field} must be a safe non-empty relative POSIX path"
-        )
+        raise PublicationContractError(f"{field} must be a safe non-empty relative POSIX path")
     return path
 
 
@@ -139,9 +118,7 @@ def resolve_without_symlinks(
                 f"{field} must remain within source root: {relative}"
             ) from exc
         if current.is_symlink():
-            raise PublicationContractError(
-                f"{field} must not traverse a symbolic link: {relative}"
-            )
+            raise PublicationContractError(f"{field} must not traverse a symbolic link: {relative}")
     return current
 
 
@@ -216,16 +193,16 @@ def _parse_asset(raw: Any, index: int, label: str) -> Asset:
 def _parse_glossary_source(raw: Any, label: str) -> PurePosixPath:
     field = f"{label}.glossary"
     if not isinstance(raw, dict) or set(raw) != {"source"}:
-        raise PublicationContractError(
-            f"{field} must contain exactly the source field"
-        )
+        raise PublicationContractError(f"{field} must contain exactly the source field")
     source = safe_relative_path(raw["source"], f"{field}.source")
     if source.suffix.lower() != ".yml":
         raise PublicationContractError(f"{field}.source must be a .yml file")
     return source
 
 
-def parse_publication_catalog(path: Path, *, label: str = "publication catalog") -> PublicationCatalog:
+def parse_publication_catalog(
+    path: Path, *, label: str = "publication catalog"
+) -> PublicationCatalog:
     data = read_json_object(path, label)
     schema_version = data.get("schema_version")
     if type(schema_version) is not int or schema_version != 3:
@@ -240,13 +217,8 @@ def parse_publication_catalog(path: Path, *, label: str = "publication catalog")
 
     raw_documents = data.get("documents")
     if not isinstance(raw_documents, list) or not raw_documents:
-        raise PublicationContractError(
-            f"{label} documents must be a non-empty array"
-        )
-    documents = tuple(
-        _parse_document(raw, index, label)
-        for index, raw in enumerate(raw_documents)
-    )
+        raise PublicationContractError(f"{label} documents must be a non-empty array")
+    documents = tuple(_parse_document(raw, index, label) for index, raw in enumerate(raw_documents))
 
     document_ids = [document.document_id for document in documents]
     if len(set(document_ids)) != len(document_ids):
@@ -256,19 +228,14 @@ def parse_publication_catalog(path: Path, *, label: str = "publication catalog")
         raise PublicationContractError(f"{label} document sources must be unique")
     homes = [document for document in documents if document.home]
     if len(homes) != 1:
-        raise PublicationContractError(
-            f"{label} must define exactly one home document"
-        )
+        raise PublicationContractError(f"{label} must define exactly one home document")
     if homes[0].optional:
         raise PublicationContractError(f"{label} home document must not be optional")
 
     raw_assets = data.get("assets", [])
     if not isinstance(raw_assets, list):
         raise PublicationContractError(f"{label} assets must be an array")
-    assets = tuple(
-        _parse_asset(raw, index, label)
-        for index, raw in enumerate(raw_assets)
-    )
+    assets = tuple(_parse_asset(raw, index, label) for index, raw in enumerate(raw_assets))
     asset_sources = [asset.source for asset in assets]
     if len(set(asset_sources)) != len(asset_sources):
         raise PublicationContractError(f"{label} asset sources must be unique")
@@ -298,9 +265,7 @@ def asset_files(
     path = resolve_without_symlinks(source_root, relative, field)
     if path.is_file():
         if path.suffix.lower() == ".md":
-            raise PublicationContractError(
-                f"{field} must not publish Markdown as an asset"
-            )
+            raise PublicationContractError(f"{field} must not publish Markdown as an asset")
         return (path,)
     if not path.is_dir():
         raise PublicationContractError(f"{field} does not exist: {relative}")
@@ -312,26 +277,18 @@ def asset_files(
         try:
             children = sorted(directory.iterdir(), key=lambda item: item.name)
         except OSError as exc:
-            raise PublicationContractError(
-                f"unable to inspect {field} {directory}: {exc}"
-            ) from exc
+            raise PublicationContractError(f"unable to inspect {field} {directory}: {exc}") from exc
         for child in children:
             child_relative = child.relative_to(path)
             if any(part.casefold() == ".git" for part in child_relative.parts):
-                raise PublicationContractError(
-                    f"{field} contains a .git subtree: {child}"
-                )
+                raise PublicationContractError(f"{field} contains a .git subtree: {child}")
             if child.is_symlink():
-                raise PublicationContractError(
-                    f"{field} contains a symbolic link: {child}"
-                )
+                raise PublicationContractError(f"{field} contains a symbolic link: {child}")
             if child.is_dir():
                 pending.append(child)
                 continue
             if not child.is_file():
-                raise PublicationContractError(
-                    f"{field} contains an unsupported entry: {child}"
-                )
+                raise PublicationContractError(f"{field} contains an unsupported entry: {child}")
             if child.suffix.lower() == ".md":
                 raise PublicationContractError(
                     f"{field} contains Markdown outside the document catalog: {child}"
@@ -367,9 +324,7 @@ def validate_publication_sources(
         if not path.exists():
             if asset.optional:
                 continue
-            raise PublicationContractError(
-                f"declared asset source does not exist: {asset.source}"
-            )
+            raise PublicationContractError(f"declared asset source does not exist: {asset.source}")
         files = asset_files(source_root, asset.source, field)
         if path.is_file() and asset.destination.suffix.lower() == ".md":
             raise PublicationContractError(
@@ -386,8 +341,7 @@ def validate_publication_sources(
         )
         if not path.is_file():
             raise PublicationContractError(
-                "declared glossary source is not a regular file: "
-                f"{catalog.glossary_source}"
+                f"declared glossary source is not a regular file: {catalog.glossary_source}"
             )
 
 

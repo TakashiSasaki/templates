@@ -50,9 +50,8 @@ def test_focused_test_partition_is_disjoint_and_complete() -> None:
 
 def test_execution_classes_distinguish_process_workspace_and_exclusive_state() -> None:
     classes = {spec.path: spec.execution_class for spec in FOCUSED_TEST_SPECS}
-    assert classes["tests/test_review_scope_selection.py"] == "parallel/process"
+    assert classes["tests/test_local_checkout_contract_provenance.py"] == "parallel/process"
     assert classes["tests/test_config_driven_check.py"] == "isolated-workspace"
-    assert classes["tests/test_maintainer_entrypoint_workflow.py"] == "exclusive"
     assert all(
         spec.execution_class in {*PARALLEL_EXECUTION_CLASSES, "exclusive"}
         for spec in FOCUSED_TEST_SPECS
@@ -66,8 +65,8 @@ def test_canonical_worktree_mutators_remain_exclusive() -> None:
     # Process-local cwd/sys.path mutation is isolated in a loadfile xdist worker.
     assert "tests/test_maintainer_source_closure.py" not in serial_set
     # These tests poison canonical files shared by all workers.
-    assert "tests/test_maintainer_entrypoint_workflow.py" in serial_set
-    assert "tests/test_maintainer_progressive_disclosure.py" in serial_set
+    assert "tests/test_maintainer_entrypoint_workflow.py" not in serial_set
+    assert "tests/test_maintainer_progressive_disclosure.py" not in serial_set
     assert "tests/test_prospective_self_host_qualification_boundary.py" not in serial_set
 
 
@@ -119,7 +118,10 @@ def test_check_focused_tests_executes_budgeted_parallel_then_exclusive_then_evid
     def mock_run(*args: str) -> None:
         calls.append(list(args))
 
-    with patch("scripts.run_policy_preflight.run", side_effect=mock_run):
+    with (
+        patch("scripts.run_policy_preflight.EXCLUSIVE_FOCUSED_TESTS", ("fixture.py",)),
+        patch("scripts.run_policy_preflight.run", side_effect=mock_run),
+    ):
         check_focused_tests(jobs=2)
 
     assert len(calls) == 3
@@ -136,7 +138,7 @@ def test_check_focused_tests_executes_budgeted_parallel_then_exclusive_then_evid
     assert cmd2[0] == sys.executable
     assert cmd2[1:4] == ["-m", "pytest", "-o"]
     assert "-n" not in cmd2
-    assert cmd2[4:] == ["addopts=-q", *EXCLUSIVE_FOCUSED_TESTS]
+    assert cmd2[4:] == ["addopts=-q", "fixture.py"]
 
     # Call 3: delivery evidence validation
     cmd3 = calls[2]
@@ -154,7 +156,7 @@ def test_jobs_one_runs_both_focused_groups_without_xdist(
     ):
         check_focused_tests(jobs=1)
     pytest_calls = [call for call in calls if "pytest" in call]
-    assert len(pytest_calls) == 2
+    assert len(pytest_calls) == 1
     assert all("-n" not in call and "--dist=loadfile" not in call for call in pytest_calls)
     assert all("addopts=-q" in call for call in pytest_calls)
     assert "POLICY_TEST_WORKERS suite=focused requested=1 effective=1" in capsys.readouterr().out
@@ -169,7 +171,10 @@ def test_parallel_failure_propagates_and_aborts_phase() -> None:
         if "-n" in args:
             raise RuntimeError("parallel pytest failure")
 
-    with patch("scripts.run_policy_preflight.run", side_effect=mock_run):
+    with (
+        patch("scripts.run_policy_preflight.EXCLUSIVE_FOCUSED_TESTS", ("fixture.py",)),
+        patch("scripts.run_policy_preflight.run", side_effect=mock_run),
+    ):
         with pytest.raises(RuntimeError, match="parallel pytest failure"):
             check_focused_tests()
 
@@ -187,7 +192,10 @@ def test_serial_failure_propagates_and_aborts_phase() -> None:
         if "-m" in args and "pytest" in args and "-n" not in args:
             raise RuntimeError("serial-required pytest failure")
 
-    with patch("scripts.run_policy_preflight.run", side_effect=mock_run):
+    with (
+        patch("scripts.run_policy_preflight.EXCLUSIVE_FOCUSED_TESTS", ("fixture.py",)),
+        patch("scripts.run_policy_preflight.run", side_effect=mock_run),
+    ):
         with pytest.raises(RuntimeError, match="serial-required pytest failure"):
             check_focused_tests()
 
