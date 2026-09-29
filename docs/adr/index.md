@@ -13,6 +13,7 @@
 * [ADR-0008: Review authority and GitHub runtime boundary (partially superseded)](0008-review-authority-and-github-runtime-boundary.md) - Preserves trusted review bootstrap, provenance, and the GitHub runtime boundary; read ADR-0009 for the superseded representation requirements.
 * [ADR-0009: Review-result representation boundary](0009-review-result-representation-boundary.md) - Keeps representation outside review authority while preserving the identity-bound completion handoff; partially supersedes ADR-0008.
 * [ADR-0011: Actions-native trusted-review bootstrap](0011-actions-native-trusted-review-bootstrap.md) - Adds authenticated GitHub observation and an attested OCI-backed read-only execution view without changing semantic review authority.
+* [ADR-0012: Digest-bound Policy build backend closure](0012-digest-bound-policy-build-backend.md) - Binds PEP 517 backend and transitive build artifacts before execution and separates builder and runtime environments.
 
 ## Superseded decisions
 
