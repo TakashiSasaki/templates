@@ -1,4 +1,5 @@
 import ast
+from io import BytesIO
 import os
 from pathlib import Path
 import re
@@ -6,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 import yaml
 from integration.freshness import classify,PublicationFreshnessError
 
@@ -203,6 +205,50 @@ class ReleaseBoundaryTests(unittest.TestCase):
         notify = jobs['notify']['if']
         self.assertIn("vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'", notify)
         self.assertIn("vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'", notify)
+
+    def test_promoted_qualification_report_download_flattens_one_exact_artifact(self):
+        workflow = yaml.safe_load(
+            (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
+        )
+        verify_steps = workflow['jobs']['verify_release']['steps']
+        download = next(
+            step for step in verify_steps
+            if step.get('name') == 'Download the exact candidate qualification report'
+        )
+        self.assertRegex(download['uses'], r'^actions/download-artifact@[^\s]+$')
+        self.assertEqual(
+            download['with'],
+            {
+                'artifact-ids': '${{ needs.release_qualification.outputs.qualification_artifact_id }}',
+                'path': 'qualification',
+                'merge-multiple': True,
+            },
+        )
+
+        verify = next(
+            step for step in verify_steps
+            if step.get('name') == 'Consume and independently verify the exact promoted Bundle'
+        )
+        verify_args = verify['run'].split('verify_args=(', 1)[1].split(')', 1)[0]
+        report_args = [
+            line.strip() for line in verify_args.splitlines()
+            if line.strip().startswith('--report ')
+        ]
+        self.assertEqual(report_args, ['--report qualification/compatibility-report.json'])
+        for heuristic in ('find qualification', 'glob(', 'rglob(', '*.json', '**/*.json'):
+            with self.subTest(heuristic=heuristic):
+                self.assertNotIn(heuristic, verify['run'])
+
+        archive_bytes = BytesIO()
+        with zipfile.ZipFile(archive_bytes, 'w') as archive:
+            archive.writestr('compatibility-report.json', '{"result":"qualified"}\n')
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'qualification'
+            target.mkdir()
+            with zipfile.ZipFile(BytesIO(archive_bytes.getvalue())) as archive:
+                self.assertEqual(archive.namelist(), ['compatibility-report.json'])
+                archive.extractall(target)
+            self.assertTrue((target / 'compatibility-report.json').is_file())
 
     def test_promotion_job_conditions_parse_as_complete_actions_expressions(self):
         workflow = yaml.safe_load(
