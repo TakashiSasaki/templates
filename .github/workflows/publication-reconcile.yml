@@ -300,35 +300,35 @@ jobs:
             test -s site-reconcile-report.json
             echo "site_qualification_exit=$qualification_status" >> "$GITHUB_STEP_SUMMARY"
           elif [ ! -d publication-bundle ]; then
-            python3 - <<'PYCODE' > site-reconcile-report.json
-            import hashlib, json
-            payload = {
-                'schema_version': 1, 'boundary': 'integration-to-site', 'stage': 'qualification',
-                'classification': 'INFRASTRUCTURE_FAILURE', 'reason_codes': ['MISSING_INTEGRATION_ARTIFACT'],
-                'affected_authorities': ['integration'], 'inputs': json.load(open('candidate-integration-source.json')),
-                'trusted': {'policy_revision': None, 'controller_revision': None},
-                'requirements': {'required': [], 'supported': [], 'missing': [], 'unsupported': [], 'fallbacks': {}},
-                'checks': {'required': ['site-qualification'], 'results': {}, 'not_run': ['site-qualification']},
-                'evidence_refs': [], 'allowed_mutations': [], 'next_action': 'obtain the exact unexpired Bundle artifact',
-            }
-            payload['idempotency_key'] = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-            print(json.dumps(payload, indent=2, sort_keys=True))
-            PYCODE
+          python3 - <<'PYCODE' > site-reconcile-report.json
+          import hashlib, json
+          payload = {
+              'schema_version': 1, 'boundary': 'integration-to-site', 'stage': 'qualification',
+              'classification': 'INFRASTRUCTURE_FAILURE', 'reason_codes': ['MISSING_INTEGRATION_ARTIFACT'],
+              'affected_authorities': ['integration'], 'inputs': json.load(open('candidate-integration-source.json')),
+              'trusted': {'policy_revision': None, 'controller_revision': None},
+              'requirements': {'required': [], 'supported': [], 'missing': [], 'unsupported': [], 'fallbacks': {}},
+              'checks': {'required': ['site-qualification'], 'results': {}, 'not_run': ['site-qualification']},
+              'evidence_refs': [], 'allowed_mutations': [], 'next_action': 'obtain the exact unexpired Bundle artifact',
+          }
+          payload['idempotency_key'] = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PYCODE
           else
-            python3 - <<'PYCODE' > site-reconcile-report.json
-            import hashlib, json
-            payload = {
-                'schema_version': 1, 'boundary': 'integration-to-site', 'stage': 'qualification',
-                'classification': 'INFRASTRUCTURE_FAILURE', 'reason_codes': ['MISSING_TRUSTED_INTEGRATION_RECEIPT'],
-                'affected_authorities': ['integration'], 'inputs': json.load(open('candidate-integration-source.json')),
-                'trusted': {'policy_revision': None, 'controller_revision': None},
-                'requirements': {'required': [], 'supported': [], 'missing': [], 'unsupported': [], 'fallbacks': {}},
-                'checks': {'required': ['site-qualification'], 'results': {}, 'not_run': ['site-qualification']},
-                'evidence_refs': [], 'allowed_mutations': [], 'next_action': 'obtain the exact unexpired trusted Integration promotion receipt',
-            }
-            payload['idempotency_key'] = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-            print(json.dumps(payload, indent=2, sort_keys=True))
-            PYCODE
+          python3 - <<'PYCODE' > site-reconcile-report.json
+          import hashlib, json
+          payload = {
+              'schema_version': 1, 'boundary': 'integration-to-site', 'stage': 'qualification',
+              'classification': 'INFRASTRUCTURE_FAILURE', 'reason_codes': ['MISSING_TRUSTED_INTEGRATION_RECEIPT'],
+              'affected_authorities': ['integration'], 'inputs': json.load(open('candidate-integration-source.json')),
+              'trusted': {'policy_revision': None, 'controller_revision': None},
+              'requirements': {'required': [], 'supported': [], 'missing': [], 'unsupported': [], 'fallbacks': {}},
+              'checks': {'required': ['site-qualification'], 'results': {}, 'not_run': ['site-qualification']},
+              'evidence_refs': [], 'allowed_mutations': [], 'next_action': 'obtain the exact unexpired trusted Integration promotion receipt',
+          }
+          payload['idempotency_key'] = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PYCODE
           fi
           classification=$(python3 -c 'import json; print(json.load(open("site-reconcile-report.json"))["classification"])')
           idempotency=$(python3 -c 'import json; print(json.load(open("site-reconcile-report.json"))["idempotency_key"])')
