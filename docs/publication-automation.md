@@ -151,15 +151,16 @@ maintainers; it does not authorize a dispatch or a setting change.
 
 The live Site caller and `PUBLICATION_CONTROLLER_REVISION` at the base of this
 repin candidate both name
-`4a8b7a6726e7d8b84247480b1d5d709307b5720e`. The candidate advances the caller
-to Integration merge `edc7a4803e33a60411079b3bec21899ecdf4312a` (tree
-`d06c804d1c4f0c21e360738638d1bed0d7e5d2f8`), which landed PR #1080's reviewed
-regular-file staging guard. PR #1080's exact-head Codex review approved with
-zero findings; its merge tree matched the reviewed tree, its parents were the
-reviewed Integration base and head, and post-merge Integration run
-`36492976538` succeeded. The trusted controller scripts are unchanged from
-`4a8b7a6726e7d8b84247480b1d5d709307b5720e`; the new revision is qualified for
-the Site caller and controller pins.
+`edc7a4803e33a60411079b3bec21899ecdf4312a`. The candidate advances the caller
+to Integration merge `56771bd5159461403cc0c44643e6387cb52940a7` (tree
+`b3ae1d12643b9c731085c90da589481b299ec9f5`), which landed PR #1087's
+deterministic publication branch-name repair. PR #1087's exact-head Codex
+review approved with zero blocking findings; reviewed head
+`4b98ecff86fe5457dcfde0d4eeb6b476cf131ef9`, the merge tree, and the expected
+Integration base/head parents were verified. Post-merge Integration run
+`36499359331` succeeded. The trusted controller scripts are unchanged from
+`edc7a4803e33a60411079b3bec21899ecdf4312a`; the merged revision is qualified
+for the Site caller and controller pins.
 
 This is a preparation snapshot for the Site repin, before runtime qualification.
 The candidate PR changes only the Site caller pin, its exact immutable-pin
@@ -177,7 +178,7 @@ PR.
 | Event | Current code | Result and next boundary |
 |---|---|---|
 | Provider push qualification | `modeling-ci.yml`, `reference-consumer-publication.yml`, and `integration-compatibility.yml` | The provider qualifies its exact pushed SHA, then sends `publication.provider-qualified` with run/attempt/workflow identity. A provider check or added file is not publication. |
-| Provider event received | Site caller candidate `provider-publication-dispatch.yml` | The candidate validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `edc7a4803e33a60411079b3bec21899ecdf4312a`. At this repin candidate's base, the live caller still names `4a8b7a6726e7d8b84247480b1d5d709307b5720e`; it changes only when the reviewed Site PR lands. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
+| Provider event received | Site caller candidate `provider-publication-dispatch.yml` | The candidate validates the exact payload, resolves the live `integration` ref to one producer SHA, and calls `integration-reconcile.yml` pinned at `56771bd5159461403cc0c44643e6387cb52940a7`. At this repin candidate's base, the live caller still names `edc7a4803e33a60411079b3bec21899ecdf4312a`; it changes only when the reviewed Site PR lands. Provider qualification transport remains unchanged; the adapter does not adopt Site or execute provider code. |
 | Manual Integration reconciliation | Site caller candidate `provider-publication-dispatch.yml` | The candidate accepts one exact lowercase `producer_ref`; optional provider overrides remain empty to use the committed Integration selection. Site validates and forwards those values, takes `controller_ref` from the repository trust variable, and delegates to the same candidate Integration workflow. The Site adapter adds no qualification, promotion, or lock-update semantics. |
 | Integration candidate | `integration-reconcile.yml` | Exact producer/provider qualification, trusted-controller rebuild, artifact binding, and receipt verification produce a report. The source fallback is `shadow`; live repository variables and credentials are external. Only separately authorized `adoption-only` or `auto-publish` can create or reconcile the deterministic `automation/publication-*` lock PR. Automation stops at the PR, pending independent exact-head review and separate human merge authorization. |
 | Integration merge | `integration-promotion-notify.yml` | After independent review and authorized landing, a merged `automation/publication-*` PR is requalified and its trusted receipt is checked before `publication.integration-promoted` is sent to Site. The notification is a candidate handoff, not Site adoption or deployment. |
