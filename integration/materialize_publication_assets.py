@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Materialize provider-owned publication build products before Site reads them.
+"""Materialize provider-owned build products inside Integration’s disposable input.
 
-Site owns only orchestration. A provider that needs build-time publication assets
-exposes the conventional ``scripts/materialize_publication.py`` entrypoint. Site
-does not know the provider's generator, semantic revision model, or output format.
+A provider that needs build-time publication assets exposes the conventional
+``scripts/materialize_publication.py`` entrypoint. Integration invokes it before
+assembling the Bundle; Site only reads the completed publication artifact.
 
 Schema-v4 catalogs receive explicit source- then materialized-phase validation.
 Schema-v3 providers may use the conventional materializer as a migration bridge;

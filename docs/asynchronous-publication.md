@@ -29,6 +29,10 @@ GitHub Pages
   IDs. Site alone assigns public routes and creates the two audience navigations.
   Provider names are data, not an enum shared with Site. Index navigation, glossary
   and translations are optional enhancements; a catalog can publish plain documents.
+- Cross-provider links use `template:<provider>/<document-id>#fragment`. Site resolves
+  them after route assignment. Links to unpublished source documents use immutable
+  GitHub URLs. An unparseable optional source index emits a warning and omits that
+  provider's index graph; it does not block ordinary catalog documents.
 - Site accepts complete successful artifacts from the canonical publishing workflows.
   It verifies the GitHub origin, archive digest, paths, inventory, Bundle identity and
   renderable structure. It never checks out providers or regenerates Integration.
@@ -61,6 +65,25 @@ GitHub Pages
 Exact hashes remain useful for integrity and debugging. Published executable products
 and third-party dependencies can retain their release pins; they are not publication
 coordination state. There is no promise to preserve old internal commands or formats.
+
+## Presentation ownership
+
+Site has a neutral landing page with two clearly named entrances:
+
+- `/use/` is for consumers building projects: Composition, Policy, Modeling,
+  examples, capabilities and the playground.
+- `/maintain/` is for providers maintaining this repository: authority ownership,
+  local development, publication, recovery and source/build provenance.
+
+`surfaces.json` belongs to Site. It assigns routes and selects maintainer documents
+by provider and document ID; other provider documents appear in the consumer
+reference automatically. Site's own catalog supplies its local guides. Source
+semantics never depend on these audience decisions. New providers work with the
+same generic section renderer, without new capability flags or a contract release.
+
+Use one downloaded Bundle while changing the Site working tree. The preview command
+creates a disposable source snapshot, so a CSS edit needs no commit and no upstream
+build. Final deployment records the actual committed Site revision and Bundle identity.
 
 ## Operations and rollback
 

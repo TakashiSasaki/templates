@@ -1,4 +1,4 @@
-"""Publication Bundle v3/v4 integrity contract; independent of either implementation."""
+"""Publication integrity contract; Bundle 5 is the live asynchronous format."""
 from __future__ import annotations
 import hashlib
 import json
