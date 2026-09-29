@@ -4,83 +4,9 @@ toolchain:
   revision: aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3
 inputs:
   .agent-policy.yml:
-    sha256: 9a7039fb56b816c7ed122289d8534980910d6bb5f1435fe35cc526176e2a176f
-  repository-policy/architecture-decisions.md:
-    sha256: 6377845c99329c58f0d26134dfa3cf91236d3d8ade4c317920bfdc13f77a0ff1
-  repository-policy/authority-boundary.md:
-    sha256: a224e1b8bc2ddc667e146a7c055111ab012c2cf6806008faf19a112db6cf9805
-  repository-policy/documentation-boundary.md:
-    sha256: 7eaf3dce990512dea930e71dc6125b2a081c1080c483f0530d96d4eebf708968
-  repository-policy/history-boundary.md:
-    sha256: 4de61b1a469770d12e1e66326cba5fadc242aaef63389b8a219bff52a701b910
-  repository-policy/maintainer-merge-routing.md:
-    sha256: a3eefea3c36363afe10c71a9a1fc5cd6512a66dab6ccc4aac87ff1f3f26919b2
-  repository-policy/maintainer-validation.md:
-    sha256: 32726e455e4e307806916d2ea1ce44061a6a4a34ca24efedbfa8dd7e554c0960
-  repository-policy/release-trust.md:
-    sha256: 7c4df04faa3d2d984d7d05c81f3ab6caf31e5aebdf11dfdd5af89504325376f8
-  repository-policy/toolchain-safety.md:
-    sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
+    sha256: 378ecb2f8fe6fcb460edc5879bf83a285d63ba91ddb87daa1f312f4f812aba09
 outputs:
   .agents/skills/maintain-progressive-discovery/SKILL.md:
     sha256: 3425fc674d459732f806ff35fdc8753de0f8d30c75766f318b141dac56a35b5b
   .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py:
     sha256: 1ce656be2ae8f9f7108d850c2539932ae49ef93cfb33ba9e02aaf9d83020988d
-  .agents/skills/orchestrate-repository-change/SKILL.md:
-    sha256: e1e3811b5962bc98159bb8d6221bac621d21141b54ba64709cf7a7608ff59d82
-  .agents/skills/orchestrate-repository-change/references/generated-artifact-transport.md:
-    sha256: 129a99646b222be5eb51a1ca5f6baba29b937a3630c84b7b03e0f43e576052b2
-  .agents/skills/orchestrate-repository-change/references/github-review-finding-representation.md:
-    sha256: d297f50e9b3c31ae78c05b080733664b98c45e3b2693c683cea4a9b39087b50d
-  .agents/skills/orchestrate-repository-change/references/github-review-result-discovery.md:
-    sha256: 60c8d950a886115385d08743e581e4e420ad027adc7cff7c1e748cfec7a7c11f
-  .agents/skills/orchestrate-repository-change/references/human-handoff.md:
-    sha256: c0cfa1caea7092e47a165d2f48da0dcfce873a259d79e633660e306ea919e62c
-  .agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md:
-    sha256: be3581ad7264be059604138c0ef2387f1fa9fb20c36b0b73b88bf9fb2e31631d
-  .agents/skills/orchestrate-repository-change/references/repository-topology-discovery.md:
-    sha256: 00e5be71c2d869c40b6c88aa84e77cf8e035ae95a50d9fbfceab3a36c5ded433
-  .agents/skills/orchestrate-repository-change/references/repository-tracked-work-ledger.md:
-    sha256: 38d69db4306d48cc1dd29d47c98d4b3a3d1eac6fd7a01c352d3cbf22de0f0f07
-  .agents/skills/orchestrate-repository-change/references/review-feedback-disposition.md:
-    sha256: 2fb550eb7bdf0bc16af43a81d398f963abfe10b56ee0fecc7179c80024cca12b
-  .agents/skills/orchestrate-repository-change/references/review-finding-ledger.md:
-    sha256: d7ed20b74ee998d97141b914ccfe8cb39afc5003d7afb7fbefb0cd6d7881b53a
-  .agents/skills/orchestrate-repository-change/references/serial-pr-workflow.md:
-    sha256: da7d9b9d26dbd26060d9bbdec0122b37c9e34e245dd722091e60e0ef58971789
-  .agents/skills/orchestrate-repository-change/references/stacked-pr-workflow.md:
-    sha256: 01e028ef2fb2e2eb051dd3e22f74501e2f9abd392c2447cd2d121502021f74c3
-  .agents/skills/orchestrate-repository-change/references/staged-ci-execution.md:
-    sha256: 241654d2c3373cec25b9e04cc579065f37d4306059b7d14614372a4c339218fe
-  .agents/skills/orchestrate-repository-change/references/work-ledger.md:
-    sha256: fb998103f2cdd5cd495378de5cafc761d29b693680e5f6657d36cfabc2543b22
-  .agents/skills/pr-review/SKILL.md:
-    sha256: ed44e1db3549e41342ced28b50fbd37189bef0e43e783c309300432e5df979f1
-  .agents/skills/pr-review/references/github-pull-request-review-api.md:
-    sha256: b20d9612813d41a6f7ceaf6a51a3475f1fb42b6ca197beddb3a5feb18c9a623b
-  .agents/skills/pr-review/references/risk-domains/build-provenance-and-ci.md:
-    sha256: 20826956a6ef31965fdee2db3420edf288c73b6058127750bffc18ab610f600b
-  .agents/skills/pr-review/references/risk-domains/concurrency-and-temporal-consistency.md:
-    sha256: aca40811cf69061419ec1d4c34411c941c756b73d720701a511a12248168b34a
-  .agents/skills/pr-review/references/risk-domains/consumer-and-execution-paths.md:
-    sha256: 5e30c205c328d714e7aaec46a01dd2e2967d334f86e6cb4e69de0fdc2fd8256c
-  .agents/skills/pr-review/references/risk-domains/external-interaction.md:
-    sha256: 71ad7b1004292ab7fcc2c470d6cb0f448c5d453d7a5312f24e90459bff200413
-  .agents/skills/pr-review/references/risk-domains/identity-and-authority.md:
-    sha256: 26ca485459ecfcb32307c633d3fd262e9f8159d94257c3da769bedfd2e5cf7e6
-  .agents/skills/pr-review/references/risk-domains/index.md:
-    sha256: aee703224bac2f903a0cf7c08e8b45b51e185badeab434593a8debf8df4ecb35
-  .agents/skills/pr-review/references/risk-domains/namespace-and-indirection.md:
-    sha256: 4cedc41e9d7c6dcf9b5891eee44a2a0f9b942d82ca88d34b354c5f50d91bf1e5
-  .agents/skills/pr-review/references/risk-domains/persistence-and-integrity.md:
-    sha256: 8a889526da9707d9cbce715bbe371680e8baa8288b9fd00055323de4dab0e19c
-  .agents/skills/pr-review/references/risk-domains/privileged-execution.md:
-    sha256: f78f265fa4300cac2175b513850c8b095082c5a38b2719a8ce9c7f7cd6bc111b
-  .agents/skills/pr-review/references/risk-domains/resource-behavior.md:
-    sha256: c233257c3772b6dc79a9f09fceccc80e8aa20cdd872ded75c5d0db3c762f8d17
-  .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
-    sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
-  .review-authority/review-policy.md:
-    sha256: 0648b0c16369a261a48848f4be7f1d43a2c997132cbd97e042f29bf809e0c923
-  AGENTS.md:
-    sha256: 2f777e285e73c89995f291332aeeebdbc24c9f8e839f2583e2eb4c9b7066a252

@@ -3,50 +3,17 @@ toolchain:
   repository: TakashiSasaki/templates
   revision: aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3
 contexts:
-  coding:
+  default:
     profiles:
-      - core
-      - security-baseline
-      - pull-request
-      - progressive-discovery
+    - progressive-discovery
     project_policy:
-      files:
-        - repository-policy/authority-boundary.md
-        - repository-policy/history-boundary.md
-        - repository-policy/architecture-decisions.md
-        - repository-policy/release-trust.md
-        - repository-policy/toolchain-safety.md
-        - repository-policy/maintainer-validation.md
-        - repository-policy/maintainer-merge-routing.md
-        - repository-policy/documentation-boundary.md
-  review:
-    profiles:
-      - core
-      - security-baseline
-      - review
-    project_policy:
-      files:
-        - repository-policy/authority-boundary.md
-        - repository-policy/history-boundary.md
-        - repository-policy/architecture-decisions.md
-        - repository-policy/release-trust.md
-        - repository-policy/toolchain-safety.md
-        - repository-policy/maintainer-validation.md
-        - repository-policy/maintainer-merge-routing.md
-        - repository-policy/documentation-boundary.md
+      files: []
 outputs:
   agents:
-    enabled: true
+    enabled: false
     path: AGENTS.md
-    context: coding
+    context: default
     renderer: agents-md
-  review-authority:
-    enabled: true
-    path: .review-authority/review-policy.md
-    context: review
-    renderer: policy-context-md
 skills:
   enabled:
-    - pr-review
-    - orchestrate-repository-change
-    - maintain-progressive-discovery
+  - maintain-progressive-discovery

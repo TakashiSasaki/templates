@@ -44,46 +44,14 @@ Repository-maintainer operating authority for this branch is declared by `.agent
 
 Policy and Composition may coexist in one consumer repository without a direct runtime dependency. Policy owns `.agent-policy.yml`, `.agent-policy.lock`, and `.agent-policy/**`; Composition owns `.template-composition/**`. The canonical cross-authority boundary, including ordinary-path ownership handoffs such as a consumer-owned `AGENTS.md`, is the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
 
-## Maintain the Policy authority in `templates`
+## Maintain this authority
 
-This is the maintainer route for the `policy` authority itself; the adoption
-commands above are for a separate product repository. The repository-wide map and
-publication-chain entry point are maintained by Site in the [templates maintainer
-onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
-For task-oriented routes to consumer use, shared-rule authorship, provider maintenance,
-and validation, use [Policy authority navigation](index.md).
-Confirm the checked-out branch is `policy`, capture its full `HEAD` and dirty/
-untracked state, and read [AGENTS.md](AGENTS.md), the applicable files under
-`repository-policy/`, and the local [orchestration skill](skills/orchestrate-repository-change/SKILL.md)
-before changing policy source.
-
-The editable semantic inputs are `.agent-policy.yml` and `repository-policy/`.
-`AGENTS.md`, `.review-authority/review-policy.md`, `.agent-policy.lock`, and
-generated skills are managed projections. Re-render and check them with the exact
-repository-pinned Policy toolchain (`aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3`);
-never hand-edit a generated output, and do not advance toolchain or installer pins
-as part of ordinary documentation routing. The canonical maintainer validation is
-the existing `python -m pytest` plus compile/release checks described in
-`repository-policy/maintainer-validation.md`; remote CI and review remain separate
-evidence layers. For a local serial baseline or bounded parallel fast preflight,
-run `python3 scripts/run_policy_preflight.py fast --jobs 1` or
-`python3 scripts/run_policy_preflight.py fast --jobs 2`. The full pytest profile
-uses the same budget with fingerprinted parallel-safe modules; changed and new
-tests remain in the serial lane until reviewed. Compare it with
-`python3 scripts/run_policy_preflight.py full --jobs 1` when qualifying a change.
-For cross-authority qualification, run
-`python3 scripts/orchestrate_preflights.py --jobs 2`; this `--jobs` value is the
-combined worker cap across the selected authority worktrees. The shared semantics,
-authority boundaries, and qualification evidence contract are in
-[`docs/worker-budget-contract.md`](docs/worker-budget-contract.md).
-
-Policy governs generic change, review, release, and Work-ledger semantics. It does
-not own Composition, Integration, Site, or Pages behavior. Use branch names to
-discover documents and full immutable SHAs for evidence. Keep stacked PRs inside
-the `policy` authority and record dependencies on other authority PRs in the
-existing PR/Issue ledger; do not merge, rebase, or cherry-pick authority histories.
-On resumption, restore live PR/head/CI/review facts and avoid duplicate PRs or
-reviews. A passing Policy check does not authorize provider adoption or deployment.
+Read [AGENTS.md](AGENTS.md) and run its local checks. Policy changes require
+no Integration checkout or Site release. Providers own their publication catalogs;
+Integration reads them asynchronously and publishes artifacts consumed by Site.
+An added catalog document gets a default route without an adoption or pin-update PR.
+Keep authority Git histories independent. Consumer runtime release pins remain separate
+from documentation publication. See the [maintainer guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
 
 ## Commands
 

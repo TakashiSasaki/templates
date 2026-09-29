@@ -1,22 +1,20 @@
 ---
 name: land-templates-stack
-description: Load the immutable repository-maintainer landing procedure for a Policy authority change.
+description: Prepare or land a policy change using local validation and GitHub repository settings.
 ---
 
-# Templates maintainer landing reference
+# Policy PR maintenance
 
-This is a thin Policy-local discovery shim. Validate the adjacent version-2
-`source.json` and prove its repository, full lowercase revision, canonical
-path, blob identity, and declared rule/planner closure before loading the
-pinned Skill. The canonical Skill resolves the maintenance rule and review
-scope planner from that same immutable snapshot, never from this worktree, a
-mutable branch, latest, or an unverified copy. Missing or mismatched source
-identity or closure is blocked.
+Use this procedure only for a PR belonging to this authority. Read `AGENTS.md` and
+run the affected local validation. Open one PR for a coherent change; create a stack
+only if it makes review easier. All bases and commits remain in this authority's history.
 
-After verification, follow the canonical Skill and then the local
-`.agents/skills/pr-merge-gate/SKILL.md` shim. Validate that shim's separate
-`source.json` before loading the pinned `skills/pr-merge-gate/SKILL.md` source.
-The landing Skill orchestrates that shared gate without calling either local
-shim recursively. This route applies to a single PR and a same-authority
-stack; it does not authorize merge, auto-merge, publication, deployment, or
-cross-authority history changes.
+Describe the problem, behavior, checks and remaining limitations. Check current PR
+state before creating another PR or review request. Review only the changed behavior
+and its actual dependencies. Existing hosting protections apply; there is no pinned
+external procedure, mandatory review planner, Work-ledger format or cross-authority gate.
+
+Respect the user's merge/deployment authorization. If landing is authorized, use the
+current proposed SHA as the merge precondition and verify the result. Otherwise hand
+off the implementation and validation result. A provider change never requires a Site
+adoption PR. An Integration artifact is consumed asynchronously by Site.

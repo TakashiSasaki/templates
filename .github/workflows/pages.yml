@@ -62,17 +62,6 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
-      - name: Check out Integration publication protocol
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # Reviewed Integration owns the standalone generic publication protocol.
-          ref: a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d
-          path: .integration-publication-protocol
-          sparse-checkout: integration/publication_contract.py
-          sparse-checkout-cone-mode: false
-          fetch-depth: 1
-          persist-credentials: false
-
       - name: Resolve checked-out Policy revision
         id: policy-revision
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -92,5 +81,4 @@ jobs:
           BUILD_RUN_ID: ${{ github.run_id }}
           BUILD_RUN_NUMBER: ${{ github.run_number }}
           POLICY_DOCS_ENV_READY: "1"
-          INTEGRATION_PUBLICATION_PROTOCOL: .integration-publication-protocol/integration/publication_contract.py
         run: .venv/bin/python scripts/run_policy_preflight.py --check docs

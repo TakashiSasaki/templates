@@ -613,16 +613,7 @@ def check_docs() -> None:
     if os.environ.get("POLICY_DOCS_ENV_READY") != "1":
         run(sys.executable, "-I", "scripts/smoke_test_policy_documentation.py")
         return
-    protocol = Path(
-        os.environ.get(
-            "INTEGRATION_PUBLICATION_PROTOCOL",
-            ".integration-publication-protocol/integration/publication_contract.py",
-        )
-    )
-    if not protocol.is_absolute():
-        protocol = ROOT / protocol
-    if not protocol.is_file():
-        raise RuntimeError(f"Integration publication protocol is unavailable: {protocol}")
+    protocol = ROOT / "scripts/publication_catalog.py"
     run(sys.executable, "scripts/verify_docs_environment.py")
     run(sys.executable, "-m", "pip", "check")
     run(

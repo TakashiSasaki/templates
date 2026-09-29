@@ -8,8 +8,6 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-INTEGRATION_PROTOCOL_REVISION = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
-INTEGRATION_PROTOCOL_SOURCE = "integration/publication_contract.py"
 
 
 def clean_environment() -> dict[str, str]:
@@ -35,19 +33,6 @@ def venv_python(venv: Path) -> Path:
     return venv / "bin" / "python"
 
 
-def read_integration_protocol() -> bytes:
-    reference = f"{INTEGRATION_PROTOCOL_REVISION}:{INTEGRATION_PROTOCOL_SOURCE}"
-    try:
-        return subprocess.check_output(["git", "show", reference], cwd=ROOT)
-    except subprocess.CalledProcessError:
-        subprocess.run(
-            ["git", "fetch", "--no-tags", "origin", INTEGRATION_PROTOCOL_REVISION],
-            cwd=ROOT,
-            check=True,
-        )
-        return subprocess.check_output(["git", "show", reference], cwd=ROOT)
-
-
 def main() -> int:
     environment = clean_environment()
     worktree: Path | None = None
@@ -61,7 +46,7 @@ def main() -> int:
                 environment=environment,
             )
             protocol = temporary_root / "integration-publication-protocol.py"
-            protocol.write_bytes(read_integration_protocol())
+            protocol.write_bytes((ROOT / "scripts/publication_catalog.py").read_bytes())
             venv = temporary_root / "venv"
             run(
                 [sys.executable, "-I", "-m", "venv", str(venv)],
