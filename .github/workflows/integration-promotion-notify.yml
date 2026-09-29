@@ -222,6 +222,18 @@ jobs:
       vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
     runs-on: ubuntu-24.04
     steps:
+      - name: Check out the exact merged Integration dispatch helper
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release_qualification.outputs.producer_revision }}
+          path: producer-source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify the exact producer helper checkout
+        env:
+          EXPECTED_PRODUCER_REVISION: ${{ needs.release_qualification.outputs.producer_revision }}
+        run: |
+          test "$(git -C producer-source rev-parse HEAD)" = "$EXPECTED_PRODUCER_REVISION"
       - name: Dispatch exact merged Integration identity to Site
         env:
           GH_TOKEN: ${{ secrets.PUBLICATION_AUTOMATION_TOKEN }}
@@ -249,7 +261,7 @@ jobs:
           set -euo pipefail
           test -n "$GH_TOKEN"
           PAYLOAD_FILE="$RUNNER_TEMP/integration-to-site-dispatch.json"
-          python3 scripts/build_integration_site_dispatch_payload.py \
+          python3 producer-source/scripts/build_integration_site_dispatch_payload.py \
             --output "$PAYLOAD_FILE"
           gh api repos/TakashiSasaki/templates/dispatches \
             --method POST \

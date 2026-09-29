@@ -256,12 +256,42 @@ class ReleaseBoundaryTests(unittest.TestCase):
             (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
         )
         notify_steps = workflow['jobs']['notify']['steps']
+        checkout = next(
+            step for step in notify_steps
+            if step.get('name') == 'Check out the exact merged Integration dispatch helper'
+        )
+        self.assertEqual(
+            checkout['uses'],
+            'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+        )
+        self.assertEqual(
+            checkout['with'],
+            {
+                'ref': '${{ needs.release_qualification.outputs.producer_revision }}',
+                'path': 'producer-source',
+                'fetch-depth': 0,
+                'persist-credentials': False,
+            },
+        )
+        verify_checkout = next(
+            step for step in notify_steps
+            if step.get('name') == 'Verify the exact producer helper checkout'
+        )
+        self.assertEqual(
+            verify_checkout['env']['EXPECTED_PRODUCER_REVISION'],
+            '${{ needs.release_qualification.outputs.producer_revision }}',
+        )
+        self.assertIn(
+            'test "$(git -C producer-source rev-parse HEAD)" = "$EXPECTED_PRODUCER_REVISION"',
+            verify_checkout['run'],
+        )
         dispatch = next(
             step for step in notify_steps
             if step.get('name') == 'Dispatch exact merged Integration identity to Site'
         )
         script = dispatch['run']
-        self.assertIn('python3 scripts/build_integration_site_dispatch_payload.py', script)
+        self.assertIn('python3 producer-source/scripts/build_integration_site_dispatch_payload.py', script)
+        self.assertNotIn('python3 scripts/build_integration_site_dispatch_payload.py', script)
         self.assertIn('--output "$PAYLOAD_FILE"', script)
         self.assertIn('gh api repos/TakashiSasaki/templates/dispatches', script)
         self.assertIn('--method POST', script)
@@ -269,6 +299,14 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertLess(script.index('build_integration_site_dispatch_payload.py'), script.index('gh api '))
         self.assertNotRegex(script, r'client_payload\s*\[')
         self.assertNotIn('-f client_payload', script)
+        self.assertLess(
+            next(index for index, step in enumerate(notify_steps) if step is checkout),
+            next(index for index, step in enumerate(notify_steps) if step is verify_checkout),
+        )
+        self.assertLess(
+            next(index for index, step in enumerate(notify_steps) if step is verify_checkout),
+            next(index for index, step in enumerate(notify_steps) if step is dispatch),
+        )
         expected_bindings = {
             'PRODUCER_SHA': '${{ needs.release_qualification.outputs.producer_revision }}',
             'BUNDLE_SCHEMA': '${{ needs.release_qualification.outputs.bundle_schema }}',
