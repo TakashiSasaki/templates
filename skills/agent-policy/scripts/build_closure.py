@@ -20,8 +20,9 @@ NUMERIC_RELEASE = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?$")
 WHEEL_FILENAME = re.compile(
     r"^(?P<distribution>[A-Za-z0-9_]+)-(?P<version>[A-Za-z0-9.+!_-]+)-py3-none-any\.whl$"
 )
-BUILD_CLOSURE_SCHEMA = 1
-BUILDER_CONTRACT = "policy-pep517-hatchling-v1"
+BUILD_CLOSURE_SCHEMA = 2
+BUILDER_CONTRACT = "policy-pep517-hatchling-v2"
+SUPPORTED_FRONTEND = "pip"
 SUPPORTED_BACKEND = "hatchling.build"
 SUPPORTED_BUILD_REQUIREMENTS = ("hatchling>=1.25",)
 MAX_WHEEL_BYTES = 32 * 1024 * 1024
@@ -44,6 +45,7 @@ class BuildArtifact:
 class BuildClosure:
     builder_contract: str
     python_requires: str
+    frontend: BuildArtifact
     backend: str
     build_system_requires: tuple[str, ...]
     dynamic_requires: tuple[str, ...]
@@ -92,6 +94,7 @@ def parse_build_closure(data: bytes | str) -> BuildClosure:
         "schema_version",
         "builder_contract",
         "python_requires",
+        "frontend",
         "build_system",
         "artifacts",
     }
@@ -108,6 +111,19 @@ def parse_build_closure(data: bytes | str) -> BuildClosure:
     python_requires = _require_string(document["python_requires"], "python_requires")
     if python_requires != ">=3.11":
         raise BuildClosureError("unsupported build-closure Python range")
+
+    frontend_document = document["frontend"]
+    if not isinstance(frontend_document, dict) or set(frontend_document) != {
+        "name",
+        "version",
+    }:
+        raise BuildClosureError("build-closure frontend is invalid")
+    frontend_name = _require_string(frontend_document["name"], "frontend.name")
+    frontend_version = _require_string(frontend_document["version"], "frontend.version")
+    if normalize_name(frontend_name) != SUPPORTED_FRONTEND or not VERSION.fullmatch(
+        frontend_version
+    ):
+        raise BuildClosureError("build-closure frontend must pin an exact pip version")
 
     build_system = document["build_system"]
     if not isinstance(build_system, dict) or set(build_system) != {
@@ -195,15 +211,30 @@ def parse_build_closure(data: bytes | str) -> BuildClosure:
     version_tuple = tuple(int(part or "0") for part in numeric_version.groups())
     if version_tuple < (1, 25, 0):
         raise BuildClosureError("reviewed Hatchling artifact does not satisfy hatchling>=1.25")
+    frontend_artifacts = [item for item in artifacts if normalize_name(item.name) == "pip"]
+    if len(frontend_artifacts) != 1 or frontend_artifacts[0].version != frontend_version:
+        raise BuildClosureError("build closure must bind its exact pip frontend wheel")
 
     return BuildClosure(
         builder_contract=contract,
         python_requires=python_requires,
+        frontend=frontend_artifacts[0],
         backend=backend,
         build_system_requires=tuple(requires),
         dynamic_requires=tuple(dynamic_requires),
         artifacts=tuple(artifacts),
     )
+
+
+def build_closure_binding(data: bytes | str) -> dict[str, str]:
+    closure = parse_build_closure(data)
+    raw = data.encode("utf-8") if isinstance(data, str) else data
+    return {
+        "build_closure_sha256": hashlib.sha256(raw).hexdigest(),
+        "backend_artifact_sha256": closure.backend_artifact.sha256,
+        "build_frontend_artifact_sha256": closure.frontend.sha256,
+        "builder_contract": closure.builder_contract,
+    }
 
 
 def validate_build_system(pyproject_data: bytes, closure: BuildClosure) -> None:
