@@ -1,38 +1,20 @@
 ---
 name: land-templates-stack
-description: Load the immutable repository-maintainer landing procedure for a single or stacked Integration authority change.
+description: Prepare or land a integration change using local validation and GitHub repository settings.
 ---
 
-# Templates maintainer landing reference
+# Integration PR maintenance
 
-This is a thin Integration-local reference shim. Read the version-2
-`.agents/skills/land-templates-stack/source.json`, validate the repository,
-full lowercase revision, canonical path, blob identity, and rule/planner
-closure, and prove every declared object at the exact revision before loading
-the canonical Skill.
+Use this procedure only for a PR belonging to this authority. Read `AGENTS.md` and
+run the affected local validation. Open one PR for a coherent change; create a stack
+only if it makes review easier. All bases and commits remain in this authority's history.
 
-The pinned Skill resolves `repository-policy/stacked-pr-landing.md` from the
-same immutable snapshot. Do not use a consumer/worktree copy, mutable branch,
-latest ref, or historical PR text. Missing, malformed, unavailable, or
-mismatched source identity or closure is blocked.
+Describe the problem, behavior, checks and remaining limitations. Check current PR
+state before creating another PR or review request. Review only the changed behavior
+and its actual dependencies. Existing hosting protections apply; there is no pinned
+external procedure, mandatory review planner, Work-ledger format or cross-authority gate.
 
-After source verification, follow the canonical Skill and the separate
-`.agents/skills/pr-merge-gate/SKILL.md` shim. The landing Skill orchestrates
-that shared gate and does not call this shim recursively. Keep Integration's
-provider tuple, Bundle, receipts, deterministic qualification, and Site
-adoption/deployment boundaries separate from the shared PR acceptance gate.
-This route applies to a single PR and a same-authority stack; it does not
-authorize merge, auto-merge, publication, deployment, or provider-lock changes.
-
-Before an independent review request, use the pinned review-scope planner with
-the exact provider tuple, Bundle contract, ordered members, local preflight
-result, existing review coverage, and request state. Integration's cheap checks
-are exact provider inputs, owner/destination closure, collision detection,
-deterministic pack/extract/consumer paths, and negative receipt/identity
-fixtures. A declared provider-reference update inside the current Bundle
-contract can use an independent exact-head delta review; a Bundle/protocol,
-cross-provider closure, transport binding, trusted-controller, promotion, or
-authorization change expands to the related Integration stack. Provider-source
-review and tuple qualification remain separate. An existing result is reusable
-only when its explicit candidate, tuple, purpose, coverage, and completion
-bindings still apply; CI success or cost does not waive independent review.
+Respect the user's merge/deployment authorization. If landing is authorized, use the
+current proposed SHA as the merge precondition and verify the result. Otherwise hand
+off the implementation and validation result. A provider change never requires a Site
+adoption PR. An Integration artifact is consumed asynchronously by Site.

@@ -1,35 +1,13 @@
 # Integration authority boundary
 
-Composition owns Composition artifacts, capabilities, foundations, lifecycle, topology,
-recipes, Composer, schemas/validators, consumer semantics, catalogs and translations.
-Policy owns operating policy, procedures, review/profile/runtime/release semantics,
-consumer tooling, catalogs, translations and Work-ledger policy.
+Providers own their source, local validation, catalogs, translations and semantic meaning.
+Integration owns assembly, cross-provider relationships, publication routes and the Bundle.
+Site owns presentation, browser behavior and Pages. None has an approval dependency on
+its downstream consumer. Histories stay independent; share artifacts, never ancestry.
 
-Integration owns reviewed provider selection, compatibility/publication closure,
-destinations and reader IA, semantic navigation, publication staging, provider freshness,
-translation availability derivation, integrated glossary, guided graph, exact provider
-provenance and deterministic Bundle qualification. It does not transport provider
-repository/source read models for Site browsing; GitHub owns source browsing.
-It may represent or validate provider declarations, but may not redefine their semantics.
+Builds follow configured provider branches and record the resolved commits in their
+outputs. A source revision is not a consumer lock. Adding a provider or catalog document
+uses generic publication; specialized rendering is optional. Do not rewrite provider
+translation freshness or invent content, provenance or successful validation.
 
-Site owns presentation and browser runtime, including source browser/search/glossary UI,
-accessibility, PWA and deployed-document freshness, artifact packaging and deployment.
-Integration does not import those implementations. Site adoption of an exact reviewed
-Integration release is a separate Site-owned gate: Shadow is report-only, and an activated
-controller may create or reconcile the allowlisted lock PR, then stops. Independent review
-and separate human merge authorization precede landing; Site qualification and branch
-protection remain additional constraints. Integration advancement still does not authorize
-Pages deployment.
-
-The historical P5 bootstrap used the reviewed Site provider snapshot, not provider
-HEADs. Its provenance remains immutable historical evidence. Later P7 promotion and
-P8 Bundle v2 introduced the current reviewed inputs and stale derivative publication.
-Current and structurally valid stale translations remain available; missing coverage
-has no fabricated derivative. Provider-owned reviewed and current source identities
-remain distinct. Malformed metadata, unsafe paths, missing declared files and identity
-mismatches fail. No provider translation or synchronization metadata is rewritten.
-
-The live dependency direction is Composition + Policy → Integration → Site → Pages.
-Site may remain pinned to an earlier reviewed Integration release while this authority
-advances. Machine discovery describes responsibilities, not a second Site adoption lock.
-The exact downstream selection belongs solely to Site's `integration-source.json`.
+The operational design is [asynchronous publication](docs/asynchronous-publication.md).

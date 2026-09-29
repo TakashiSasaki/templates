@@ -16,8 +16,10 @@ MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
           'translation-publication.json', 'reader-navigation-runtime.json',
           'glossary.json', 'guided-navigation.json', 'guided-locales.json',
           'provenance.json')
+MODELS_V5 = tuple(name for name in MODELS if name not in {'navigation.json', 'reader-navigation-runtime.json'})
 MODEL_SET = frozenset(MODELS)
 PROVIDER_SETS = {
+    5: None,  # Provider names are data in the asynchronous publication contract.
     3: frozenset({'composition', 'policy'}),
     4: frozenset({'modeling', 'composition', 'policy'}),
 }
@@ -30,6 +32,20 @@ FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
 FIELDS_V4 = FIELDS | {'requirements', 'requirements_digest'}
 REQUIREMENT_FIELDS = frozenset({'provider', 'feature', 'required', 'fallback'})
 REQUIREMENT_FALLBACKS = frozenset({'none', 'generic-document', 'ignore'})
+
+
+def valid_providers(providers, schema_version):
+    if not isinstance(providers, dict) or not providers:
+        return False
+    if any(not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]*', name)
+           or name in {'site', 'integration'} or not isinstance(sha, str)
+           or not SHA.fullmatch(sha) for name, sha in providers.items()):
+        return False
+    return schema_version == 5 or set(providers) == PROVIDER_SETS.get(schema_version)
+
+
+def provider_order(schema_version, providers):
+    return tuple(sorted(providers)) if schema_version == 5 else PROVIDER_ORDERS[schema_version]
 
 
 class BundleError(ValueError):
@@ -156,7 +172,7 @@ def _normalize_expected_publication_paths(paths):
     return frozenset(result)
 
 
-def _validate_closed_inventory(files, expected_publication_paths=None):
+def _validate_closed_inventory(files, expected_publication_paths=None, schema_version=3):
     """Require the v3 inventory to be an exact semantic/output closure.
 
     The producer derives ``expected_publication_paths`` from its authoritative
@@ -165,12 +181,13 @@ def _validate_closed_inventory(files, expected_publication_paths=None):
     not authorize an arbitrary file merely because it was present during
     sealing.
     """
+    models = frozenset(MODELS_V5 if schema_version == 5 else MODELS)
     for path in files:
-        if path not in MODEL_SET and not path.startswith('publication/'):
+        if path not in models and not path.startswith('publication/'):
             raise BundleError('Bundle contains undeclared non-publication payload: ' + path)
     if expected_publication_paths is None:
         return
-    expected = MODEL_SET | set(expected_publication_paths)
+    expected = models | set(expected_publication_paths)
     actual = set(files)
     if actual != expected:
         missing = sorted(expected - actual)
@@ -189,10 +206,10 @@ def seal(root, *, producer, providers, configuration_digest, expected_publicatio
         expected_publication_paths
     )
     files = inventory(root)
-    _validate_closed_inventory(files, expected_publication_paths)
+    _validate_closed_inventory(files, expected_publication_paths, schema_version or 3)
     if schema_version is None:
         schema_version = SCHEMA_VERSION
-    if schema_version not in PROVIDER_SETS or set(providers) != PROVIDER_SETS[schema_version]:
+    if schema_version not in PROVIDER_SETS or not valid_providers(providers, schema_version):
         raise BundleError('provider set does not match Bundle schema')
     data = dict(schema_version=schema_version, producer=producer, providers=providers,
                 configuration_digest=configuration_digest, files=files,
@@ -228,8 +245,7 @@ def validate(root, *, expected_identity=None, expected_producer=None,
             or producer['authority'] not in {'site-internal-integration', 'integration'}
             or not isinstance(producer['revision'], str) or not SHA.fullmatch(producer['revision'])):
         raise BundleError('invalid producer identity')
-    if (not isinstance(providers, dict) or set(providers) != PROVIDER_SETS[schema_version]
-            or any(not isinstance(v, str) or not SHA.fullmatch(v) for v in providers.values())):
+    if not valid_providers(providers, schema_version):
         raise BundleError('invalid provider identities')
     for field in ('configuration_digest', 'content_digest', 'identity'):
         if not isinstance(data[field], str) or not DIGEST.fullmatch(data[field]):
@@ -250,9 +266,9 @@ def validate(root, *, expected_identity=None, expected_producer=None,
                 or requirements_digest(data['requirements']) != data['requirements_digest']):
             raise BundleError('Bundle requirements digest mismatch')
     files = data['files']
-    if not isinstance(files, dict) or not set(MODELS) <= files.keys():
+    if not isinstance(files, dict) or not set(MODELS_V5 if schema_version == 5 else MODELS) <= files.keys():
         raise BundleError('incomplete Bundle models')
-    _validate_closed_inventory(files, expected_publication_paths)
+    _validate_closed_inventory(files, expected_publication_paths, schema_version or 3)
     for path, record in files.items():
         safe_path(path)
         if path == 'bundle.json' or not isinstance(record, dict) or set(record) != {'size', 'sha256'} or type(record['size']) is not int or record['size'] < 0 or not isinstance(record['sha256'], str) or not DIGEST.fullmatch(record['sha256']):
@@ -281,19 +297,21 @@ def validate(root, *, expected_identity=None, expected_producer=None,
             raise BundleError('invalid Site slot')
         if not doc['slot']:
             regular(root, 'publication/' + destination)
-    navigation = read_json(regular(root, 'navigation.json'))
-    if not isinstance(navigation, dict) or not isinstance(navigation.get('navigation'), dict):
-        raise BundleError('invalid navigation model')
-    def walk(nodes):
-        if not isinstance(nodes, list):raise BundleError('navigation nodes must be arrays')
-        for node in nodes:
-            if not isinstance(node, dict):raise BundleError('invalid navigation node')
-            if 'children' in node:walk(node['children'])
-            elif (node.get('publication'), node.get('document')) not in keys or node.get('destination') not in destinations:
-                raise BundleError('navigation references absent document')
-    for nodes in navigation['navigation'].values():walk(nodes)
+    if schema_version != 5:
+        navigation = read_json(regular(root, 'navigation.json'))
+        if not isinstance(navigation, dict) or not isinstance(navigation.get('navigation'), dict):
+            raise BundleError('invalid navigation model')
+        def walk(nodes):
+            if not isinstance(nodes, list):raise BundleError('navigation nodes must be arrays')
+            for node in nodes:
+                if not isinstance(node, dict):raise BundleError('invalid navigation node')
+                if 'children' in node:walk(node['children'])
+                elif (node.get('publication'), node.get('document')) not in keys or node.get('destination') not in destinations:
+                    raise BundleError('navigation references absent document')
+        for nodes in navigation['navigation'].values():walk(nodes)
     graph = read_json(regular(root, 'guided-navigation.json'))
-    if not isinstance(graph, dict) or {p.get('name'):p.get('revision') for p in graph.get('providers', [])} != providers:
+    graph_providers = {p.get('name'):p.get('revision') for p in graph.get('providers', [])} if isinstance(graph, dict) else None
+    if graph_providers is None or (schema_version != 5 and graph_providers != providers) or any(providers.get(k) != v for k,v in (graph_providers or {}).items()):
         raise BundleError('guided graph provenance mismatch')
     from publication_bundle.graph import (
         GRAPH_SCHEMA_VERSION,
@@ -313,8 +331,9 @@ def validate(root, *, expected_identity=None, expected_producer=None,
         from publication_bundle.locales import load_overlays
         load_overlays(root / 'guided-locales.json', graph)
         from publication_bundle.navigation import validate_navigation
-        validate_navigation(root, navigation, documents)
-        accepted_graph = load_graph(root / 'guided-navigation.json', provider_order=PROVIDER_ORDERS[schema_version])
+        if schema_version != 5:
+            validate_navigation(root, navigation, documents)
+        accepted_graph = load_graph(root / 'guided-navigation.json', provider_order=provider_order(schema_version, graph_providers))
         graph_schema_version = accepted_graph['schema_version']
         if schema_version == SCHEMA_VERSION_V4 and graph_schema_version != GRAPH_SCHEMA_VERSION:
             raise BundleError('Bundle v4 requires guided graph schema v2')
@@ -326,7 +345,7 @@ def validate(root, *, expected_identity=None, expected_producer=None,
         for provider in accepted_graph['providers']:
             validate_provider_graph(
                 provider,
-                provider_order=PROVIDER_ORDERS[schema_version],
+                provider_order=provider_order(schema_version, graph_providers),
                 root_index=graph_root_index,
             )
     except (ValueError, RuntimeError, KeyError, TypeError, UnicodeError) as exc:

@@ -9,7 +9,3 @@
 
 ## Compatibility
 
-- [Provider registry](publication-compatibility/provider-registry.json) - Declares provider capability registries used by Integration.
-- [Feature registry](publication-compatibility/feature-registry.json) - Declares compatibility feature identities and requirements.
-- [Compatibility schema](publication-compatibility/compatibility.schema.json) - Defines provider capability declarations.
-- [Qualification report schema](publication-compatibility/qualification-report.schema.json) - Defines exact qualification evidence records.

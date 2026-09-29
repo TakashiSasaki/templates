@@ -3,51 +3,14 @@ on:
   pull_request:
   push:
     branches: [integration]
-  workflow_dispatch:
-    inputs:
-      producer_ref:
-        description: Exact Integration producer SHA
-        required: true
-        type: string
-      composition_ref:
-        description: Exact Composition provider SHA
-        required: true
-        type: string
-      policy_ref:
-        description: Exact Policy provider SHA
-        required: true
-        type: string
-      modeling_ref:
-        description: Optional exact Modeling provider SHA for Bundle v4
-        required: false
-        default: ''
-        type: string
 permissions:
   contents: read
-  actions: read
 jobs:
   contracts:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
           persist-credentials: false
-      - run: |
-          python3 -m pip install --no-deps -r requirements-build.lock
-          python3 -m pip check
-      - name: Run canonical Integration local preflight
-        env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python3 scripts/run_integration_preflight.py fast --expected-head "$EXPECTED_HEAD"
-  qualification:
-    needs: contracts
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    uses: ./.github/workflows/integration-qualification.yml
-    with:
-      producer_ref: ${{ inputs.producer_ref }}
-      composition_ref: ${{ inputs.composition_ref }}
-      policy_ref: ${{ inputs.policy_ref }}
-      modeling_ref: ${{ inputs.modeling_ref }}
-      artifact_namespace: integration
+      - run: python3 -m pip install -r requirements-build.lock
+      - run: python3 -m unittest discover -s tests -v

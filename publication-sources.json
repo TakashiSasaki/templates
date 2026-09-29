@@ -1,15 +1,15 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "repository": "TakashiSasaki/templates",
   "publications": {
     "modeling": {
-      "revision": "202afe0206d673b2e2195a2df271d76862f9323a"
+      "ref": "modeling"
     },
     "composition": {
-      "revision": "d4d0e35485ea0c2030e902f462374f6fb8f8588a"
+      "ref": "composition"
     },
     "policy": {
-      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
+      "ref": "policy"
     }
   }
 }

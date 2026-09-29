@@ -10,49 +10,12 @@ from unittest.mock import patch
 import yaml
 from integration.qualification import qualify
 from publication_bundle.contract import BundleError, canonical, digest
-from scripts.build_qualification_report import build_payload
 from tests.test_publication_bundle import fixture,finish,PRODUCER,PROVIDERS
 
 ROOT=Path(__file__).resolve().parents[1]
 
 
 class IntegrationQualificationTests(unittest.TestCase):
-    def test_report_builder_accepts_modeling_provider_tuple(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            bundle = Path(tmp) / 'bundle'
-            bundle.mkdir()
-            (bundle / 'bundle.json').write_text(json.dumps({
-                'producer': {'authority': 'integration', 'revision': 'a' * 40},
-                'schema_version': 4,
-                'identity': 'b' * 64,
-                'content_digest': 'c' * 64,
-                'requirements': [],
-                'requirements_digest': digest(canonical([])),
-            }))
-            (bundle / 'provenance.json').write_text(json.dumps({
-                'providers': {
-                    'modeling': 'd' * 40,
-                    'composition': 'e' * 40,
-                    'policy': 'f' * 40,
-                },
-            }))
-            args = argparse.Namespace(
-                bundle=bundle,
-                integration_revision='a' * 40,
-                modeling_root=Path(tmp) / 'modeling',
-                composition_root=Path(tmp) / 'composition',
-                policy_root=Path(tmp) / 'policy',
-                trusted_policy_revision='f' * 40,
-                trusted_controller_revision='a' * 40,
-                evidence_ref=['local://bundle'],
-            )
-            with patch('scripts.build_qualification_report._requirements', return_value=[]), \
-                 patch('scripts.build_qualification_report._destinations', return_value=['modeling/index.md']):
-                payload = build_payload(args)
-            self.assertEqual(
-                set(payload['candidate']['providers']),
-                {'modeling', 'composition', 'policy'},
-            )
 
     def test_qualification_requires_equivalent_second_generation(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -71,17 +34,4 @@ class IntegrationQualificationTests(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertNotIn('site-root',result.stdout)
 
-    def test_reusable_candidate_qualification_reaches_stale_contract_regressions(self):
-        workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())
-        commands='\n'.join(step.get('run','') for step in workflow['jobs']['qualify']['steps'])
-        self.assertIn('scripts/run_integration_preflight.py fast',commands)
-        self.assertNotIn('tests.test_translation_manifest_closure',commands)
-        self.assertIn('scripts/qualify_integration.py',commands)
-        self.assertIn('materialized-provider-inputs', commands)
-        self.assertIn('git clone --quiet --shared', commands)
-        self.assertIn('--composition-root composition-source', commands)
 
-    def test_trusted_regeneration_can_bind_a_distinct_producer_identity(self):
-        from integration.producer import produce
-        import inspect
-        self.assertIn('code_revision', inspect.signature(produce).parameters)

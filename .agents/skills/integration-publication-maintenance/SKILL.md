@@ -1,82 +1,17 @@
 ---
 name: integration-publication-maintenance
-description: Route maintenance of Integration provider selection, deterministic Bundles, and publication-chain evidence.
+description: Use local integration validation and the asynchronous publication route.
 ---
 
-# Integration publication maintenance
+# Integration maintenance route
 
-Use this thin route to classify a `templates` maintenance task whose semantic
-owner is Integration: provider selection, publication declarations, Bundle
-qualification, promotion evidence, or diagnosis of the handoff to Site. It
-connects existing authority documents and workflows; it does not define a new
-publication policy.
+Read `AGENTS.md` and [README.md](../../../README.md). Follow the current implementation
+and local tests. The former pinned controller/adoption procedure is retired.
 
-## Purpose
+For a defect, reproduce it at its owning layer using the same input artifact. Fix the
+source and run focused regression checks, then the applicable local suite. Reuse the
+artifact when upstream source branches move. Do not add upstream qualification, lock PRs,
+review planners or whole-stack gates to a local change. Report actual validation results.
 
-Keep provider capability, selected input, and deployed input distinct while
-following the exact-identity and trusted-receipt boundaries already owned by
-Integration and Site.
-
-## Use when
-
-- changing or reviewing `publication-sources.json`, Bundle contracts, or provider
-  publication declarations;
-- qualifying an exact Integration candidate or checking a promotion receipt; or
-- tracing a provider-qualified or Integration-promoted event through the current
-  workflows without changing Site.
-
-## Do not use when
-
-- registering or revising an information-model record (use Modeling's
-  `register-information-model` skill);
-- changing Composition or Policy semantics; or
-- adopting a Bundle in Site, changing Site locks, dispatching Pages, changing
-  repository variables/secrets/protection, rerunning a stale event, or merging.
-  Those actions need their owning authority and explicit authorization.
-
-## Canonical authorities
-
-Read `AGENTS.md`, `AUTHORITY.md`, `README.md`, `RELEASE.md`,
-`publication-sources.json`, and the relevant `.github/workflows/` definitions.
-For the downstream boundary read Site's
-`https://github.com/TakashiSasaki/templates/blob/site/docs/publication-automation.md`
-and Site `PUBLISHING.md` by explicit remote reference or a separate Site
-checkout. Policy's `orchestrate-repository-change` skill supplies generic
-stacking, evidence, and Work-ledger rules; do not copy it here.
-
-## Inputs
-
-Capture the actual `integration` branch, full current `HEAD`, dirty/untracked
-state, relevant PRs, exact producer/provider SHAs, Bundle schema/identity/digest,
-workflow run and attempt, artifact/receipt names and digests, and the externally
-reported mode, authorization, pins, and kill-switch state. Unreadable external
-settings are `unknown`, not `false`. Branch names discover; full SHAs bind
-qualification and evidence.
-
-## Stop conditions
-
-Stop on a moving or stale head, missing or expired artifact/receipt, mismatched
-workflow identity, unknown authorization, unsupported Bundle, failed qualification,
-duplicate automation PR, active kill switch, missing trusted pins, or any request
-to cross the Site adoption/deployment boundary. Shadow success is evidence only.
-
-## Evidence to report
-
-Report the owner, exact base/head and dependencies, local `fast`/`ready`/`providers`
-result, remote workflow and review state, candidate/selected/deployed distinction,
-next safe action, and the stop boundary. Keep the checkpoint in the existing PR or
-Issue Work ledger. On resume, restore live state and reuse valid evidence; do not
-create a new ledger, empty commit, duplicate PR, or unbounded polling loop.
-
-## Adaptive review scope
-
-Before an independent review request, use the pinned Policy review-scope planner
-with the exact provider tuple, Bundle contract, ordered members, local preflight
-result, existing review coverage, and request state. A provider-reference update
-inside the current Bundle contract can use an independent exact-head delta
-review. Bundle/protocol, cross-provider closure, transport binding,
-trusted-controller, promotion, or authorization changes expand to the related
-Integration stack. Provider-source review and tuple qualification remain
-separate; CI success or cost does not waive independent review. Reuse an
-existing result only when its explicit candidate, tuple, purpose, coverage, and
-completion bindings still apply.
+For deployment or PR landing, use the user's authorization and current GitHub settings.
+Do not infer that an artifact upload is a deployment. Never merge authority histories.

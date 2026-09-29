@@ -15,7 +15,7 @@ from integration.publication_contract import (
     safe_relative_path,
     validate_publication_sources,
 )
-from integration.publication_model import AssemblyError, copy_asset, parse_manifest
+from integration.publication_model import AssemblyError, copy_asset
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -95,24 +95,6 @@ class MaterializationContractTests(unittest.TestCase):
             with self.assertRaisesRegex(AssemblyError, "output collision"):
                 copy_asset(source, destination, "asset")
 
-    def test_manifest_duplicate_destination_and_missing_navigation_target_fail(self) -> None:
-        manifest = json.loads((ROOT / "site-manifest.json").read_text(encoding="utf-8"))
-        duplicate = copy.deepcopy(manifest)
-        duplicate["documents"][1]["destination"] = duplicate["documents"][0]["destination"]
-        with self.assertRaisesRegex(AssemblyError, "duplicate document destination"):
-            parse_manifest(duplicate)
-
-        missing_route = copy.deepcopy(manifest)
-        missing_route["navigation"]["use"][0]["children"].append(
-            {
-                "title": "Missing",
-                "publication": "site",
-                "document": "missing",
-                "destination": "missing.md",
-            }
-        )
-        with self.assertRaisesRegex(AssemblyError, "navigation"):
-            parse_manifest(missing_route)
 
 
 if __name__ == "__main__":

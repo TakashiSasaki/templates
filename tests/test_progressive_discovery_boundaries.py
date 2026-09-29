@@ -36,7 +36,7 @@ class ProgressiveDiscoveryBoundaryTests(unittest.TestCase):
         self.assertTrue(set(CONFIGURATION_FILES).issubset(adapter['authoritative_inventories']))
         self.assertTrue(set(CONFIGURATION_FILES).issubset(adapter.get('expected_documents', [])))
         root = (ROOT / 'index.md').read_text()
-        for source in ('reader-navigation-locales.json', 'integration/site-slots.json'):
+        for source in ('publication-sources.json',):
             self.assertIn(f']({source})', root)
 
     def test_adapter_has_unique_members_and_complete_expected_documents(self):
