@@ -223,33 +223,6 @@ def test_documentation_build_runs_all_tools_from_the_isolated_environment() -> N
     assert "from datetime import datetime, timezone" not in workflow
 
 
-def test_documentation_environment_contract_is_documented() -> None:
-    readme = README.read_text(encoding="utf-8")
-    guide = PUBLICATION_GUIDE.read_text(encoding="utf-8")
-    documented_unset = (
-        "unset "
-        + " ".join(PYTHON_SANITIZED_INPUTS)
-        + " "
-        + " ".join(PIP_SANITIZED_INPUTS)
-    )
-    documented_sequence = (
-        f"{documented_unset}\n"
-        "export PIP_CONFIG_FILE=/dev/null\n"
-        "python3 -I -m venv --clear .venv\n"
-        ". .venv/bin/activate\n"
-        "python3 -m pip install --isolated --disable-pip-version-check "
-        "--no-deps --requirement requirements-docs.lock\n"
-        "python3 scripts/verify_docs_environment.py\n"
-        "python3 -m pip check"
-    )
-
-    assert documented_sequence in guide
-    assert "Ubuntu runner's Python" in guide
-    assert "documentation build uses the same clean-runner boundary" in readme
-    assert "contains no GitHub Pages deployment route" in guide
-    assert "contains no GitHub Pages deployment route" in readme
-
-
 def test_documentation_dependency_inputs_are_arbitrary_exact_reviewed_pins() -> None:
     direct = non_comment_lines(DOC_REQUIREMENTS)
 

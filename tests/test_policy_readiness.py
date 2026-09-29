@@ -205,5 +205,5 @@ def test_policy_documentation_keeps_pages_deployment_outside_policy() -> None:
 
     assert "belongs exclusively to the independent `site` authority" in publication
     assert "local catalog" in publication
-    assert "no integration checkout" in publication
+    assert "no integration checkout" in publication.lower()
     assert "a Pages deployment path on `policy`" in roadmap

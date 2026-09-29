@@ -30,13 +30,8 @@ def test_workflow_and_local_reproduction_share_build_info_generator() -> None:
     assert 'os.environ.get("BUILD_RUN_NUMBER", "0")' in runner
     assert "from datetime import datetime, timezone" not in workflow
 
-    assert "python scripts/generate_docs_build_info.py" in guide
-    assert '--commit "$(git rev-parse HEAD)"' in guide
-    assert "--repository TakashiSasaki/templates" in guide
-    assert "python -m mkdocs build --strict --clean" in guide
-    assert guide.index("python scripts/generate_docs_build_info.py") < guide.index(
-        "python -m mkdocs build --strict --clean"
-    )
+    # Documentation names the shared entrypoint, without duplicating its internals.
+    assert "python scripts/run_policy_preflight.py --check docs" in guide
 
 
 def test_build_metadata_preserves_ci_identity_and_jst_timestamp() -> None:

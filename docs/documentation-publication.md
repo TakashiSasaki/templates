@@ -10,6 +10,8 @@ checkout, reviewed parser pin or Site adoption step in Policy CI. Integration
 snapshots this branch independently and Site consumes a completed publication.
 The reusable `agent-policy` product does not depend on either publishing stage.
 
+## Local build reproduction
+
 For a local documentation build, install `requirements-docs.lock` in a virtual
 environment and run `python scripts/run_policy_preflight.py --check docs`.
 The normal test and source-discovery commands are documented in `AGENTS.md`.

@@ -12,7 +12,7 @@
 
 - [Use Policy in a product repository](docs/consumer/index.md) - Find adoption, profile-selection, and managed-operation guidance for consumers.
 - [Author shared rules](docs/policy-authoring.md) - Locate the shared `policy/` corpus and distinguish it from repository-local policy.
-- [Maintain the Policy provider](docs/provider/index.md) - Find provider lifecycle guidance; repository-only maintenance rules are under [repository policy](repository-policy/index.md).
+- [Maintain the Policy provider](docs/provider/index.md) - Find provider lifecycle guidance and local maintenance commands.
 
 ## Shared policy and selectable behavior
 
