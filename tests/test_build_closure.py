@@ -46,13 +46,17 @@ def make_wheel(path: Path, *, code: bytes, version: str = "1.31.0") -> bytes:
     return path.read_bytes()
 
 
-def test_checked_in_build_closure_binds_exact_backend_and_transitives() -> None:
+def test_checked_in_build_closure_binds_exact_frontend_backend_and_transitives() -> None:
     closure = build_closure.parse_build_closure(CLOSURE_PATH.read_bytes())
 
     assert closure.builder_contract == "policy-pep517-hatchling-v2"
     assert closure.python_requires == ">=3.11"
     assert closure.frontend.name == "pip"
     assert closure.frontend.version == "26.2.1"
+    assert closure.frontend.filename == "pip-26.2.1-py3-none-any.whl"
+    assert closure.frontend.sha256 == (
+        "71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e"
+    )
     assert closure.backend == "hatchling.build"
     assert closure.build_system_requires == ("hatchling>=1.25",)
     assert {item.name for item in closure.artifacts} == {
@@ -121,7 +125,7 @@ def test_malformed_or_missing_target_build_system_fails_closed(pyproject: bytes)
 def test_build_closure_rejects_duplicate_json_keys_and_extra_fields() -> None:
     with pytest.raises(build_closure.BuildClosureError, match="duplicate JSON key"):
         build_closure.parse_build_closure(
-            '{"schema_version":1,"schema_version":1}'
+            '{"schema_version":2,"schema_version":2}'
         )
 
     document = closure_document()
@@ -140,6 +144,25 @@ def test_build_closure_requires_a_digest_bound_exact_pip_frontend() -> None:
     document["frontend"]["name"] = "setuptools"
     with pytest.raises(build_closure.BuildClosureError, match="exact pip version"):
         build_closure.parse_build_closure(json.dumps(document))
+
+    document = closure_document()
+    document["artifacts"] = [
+        item for item in document["artifacts"] if item["name"] != "pip"
+    ]
+    with pytest.raises(build_closure.BuildClosureError, match="exact pip frontend wheel"):
+        build_closure.parse_build_closure(json.dumps(document))
+
+
+def test_build_closure_binding_includes_frontend_artifact_digest() -> None:
+    closure_data = CLOSURE_PATH.read_bytes()
+    closure = build_closure.parse_build_closure(closure_data)
+
+    assert build_closure.build_closure_binding(closure_data) == {
+        "build_closure_sha256": hashlib.sha256(closure_data).hexdigest(),
+        "backend_artifact_sha256": closure.backend_artifact.sha256,
+        "build_frontend_artifact_sha256": closure.frontend.sha256,
+        "builder_contract": closure.builder_contract,
+    }
 
 
 def test_build_closure_rejects_non_direct_or_mutable_artifact_urls() -> None:
