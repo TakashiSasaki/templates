@@ -29,14 +29,6 @@ class CompositionPlaygroundDocumentTests(unittest.TestCase):
             "the rendered h1 id would shadow the interactive Playground root",
         )
 
-    def test_landing_pages_link_to_playground(self) -> None:
-        canonical = LANDING.read_text(encoding="utf-8")
-        japanese = JAPANESE_LANDING.read_text(encoding="utf-8")
-
-        self.assertGreaterEqual(canonical.count('href="playground/"'), 2)
-        self.assertGreaterEqual(japanese.count('href="/playground/"'), 2)
-        self.assertIn("Try Composition Playground", canonical)
-        self.assertIn("Composition Playground を試す", japanese)
 
     def test_playground_grid_tracks_can_shrink_inside_reader_content(self) -> None:
         css = STYLESHEET.read_text(encoding="utf-8")

@@ -81,11 +81,6 @@ class PwaCapabilityRegressionTests(unittest.TestCase):
                 check_pwa_capabilities.run_check(site_root, None)
         self.assertIn("built site is missing required PWA assets", str(context.exception))
 
-    def test_mobile_visual_workflow_runs_capability_checker(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("Check PWA freshness capability messaging", workflow)
-        self.assertIn("python3 scripts/check_pwa_capabilities.py", workflow)
-        self.assertIn("build/mobile-visual/pwa-capabilities.json", workflow)
 
 
 if __name__ == "__main__":

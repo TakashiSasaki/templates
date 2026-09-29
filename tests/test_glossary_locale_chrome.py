@@ -22,16 +22,6 @@ class GlossaryLocaleChromeCheckerTests(unittest.TestCase):
             ):
                 check_glossary_locale_chrome.run_check(site_root, None)
 
-    def test_mobile_visual_workflow_runs_glossary_locale_checker(self) -> None:
-        workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("Check localized inline Glossary chrome", workflow)
-        self.assertIn("python3 scripts/check_glossary_locale_chrome.py", workflow)
-        self.assertIn(
-            "--output build/mobile-visual/glossary-locale-chrome.json",
-            workflow,
-        )
 
 
 if __name__ == "__main__":

@@ -4,36 +4,36 @@
 
 これは Composition capability publication のための Site 所有の読者向けインデックスです。このページが定義するのは public navigation だけです。artifact、foundation、capability、runtime、routing、viewport、evidence の canonical semantics は `composition` provider が所有します。
 
-Composition の canonical model は [Composition concepts](/composition/concepts/) を参照してください。browser artifact の選択には provider-owned の [Website と Web application の選び方](/web/) を使用してください。Site はその decision rule をここで再定義しません。
+Composition の canonical model は [Composition concepts](template:composition/composition-concepts) を参照してください。browser artifact の選択には provider-owned の [Website と Web application の選び方](template:composition/website-webapp-selection) を使用してください。Site はその decision rule をここで再定義しません。
 
 ## 公開済み Composition route
 
 ### Implementation runtime
 
-- [Implementation runtime decision record](/capabilities/runtime/)
-- [Choosing an implementation runtime](/capabilities/runtime/selection/)
+- [Implementation runtime decision record](template:composition/runtime-decision-record)
+- [Choosing an implementation runtime](template:composition/runtime-selection)
 
 ### Interfaces
 
-- [Packaged CLI interface](/capabilities/cli/)
-- [MCP interface](/capabilities/mcp/)
-- [MCP transports](/capabilities/mcp/transports/)
-- [MCP Apps interface](/capabilities/mcp-apps/)
-- [MCP Apps guidance](/capabilities/mcp-apps/guidance/)
-- [Standalone browser interface](/capabilities/browser/)
-- [Headless service interface](/capabilities/service/)
-- [WebMCP reader guide](/capabilities/webmcp/)
+- [Packaged CLI interface](template:composition/cli-interface)
+- [MCP interface](template:composition/mcp-interface)
+- [MCP transports](template:composition/mcp-transports)
+- [MCP Apps interface](template:composition/mcp-apps-interface)
+- [MCP Apps guidance](template:composition/mcp-apps-guidance)
+- [Standalone browser interface](template:composition/browser-interface)
+- [Headless service interface](template:composition/service-interface)
+- [WebMCP reader guide](template:site/webmcp-guide)
 
 ### Browser 関連 entry
 
-- [Website と Web application の選び方](/web/)
-- [Website](/website/)
-- [Web application](/webapp/)
-- [Progressive Web App capability](/capabilities/pwa/)
-- [WebMCP reader guide](/capabilities/webmcp/)
+- [Website と Web application の選び方](template:composition/website-webapp-selection)
+- [Website](template:composition/website-product-walkthrough)
+- [Web application](template:composition/webapp-overview)
+- [Progressive Web App capability](template:composition/pwa-capability)
+- [WebMCP reader guide](template:site/webmcp-guide)
 
 WebMCP guide は reader 向けに adoption の判断と security 上の含意を説明します。canonical WebMCP capability / contract semantics は引き続き Composition が所有します。
 
-別の [Policy PWA usage guide](/policy/pwa/) は Policy documentation site を install / use するための reader route であり、Composition capability document ではありません。
+別の [Policy PWA usage guide](template:policy/pwa) は Policy documentation site を install / use するための reader route であり、Composition capability document ではありません。
 
 上記の Composition link はすべて Site publication destination です。正確な provider revision は build artifact の `build-provenance.json` に記録されます。

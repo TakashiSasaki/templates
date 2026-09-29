@@ -79,11 +79,14 @@ def validate_projection_parity(
 
 
 def check_artifact(site_root: Path, bundle: Path, lock: Path | None = None) -> dict:
-    from site_renderer.bundle import validate_locked, load_lock
-    lock_path = lock or (Path(__file__).resolve().parents[1] / 'integration-source.json')
-    validate_locked(bundle, load_lock(lock_path))
+    from site_renderer.bundle import validate_locked, load_lock, validate
+    manifest = validate_locked(bundle, load_lock(lock)) if lock else validate(bundle)
     model=json.loads((site_root/'audience-runtime.json').read_text())
-    expected=json.loads((bundle/'navigation.json').read_text())['audience_runtime']
+    if manifest['schema_version'] == 5:
+        from site_renderer.surfaces import project
+        expected = project(Path(__file__).resolve().parents[1], bundle)[1]['audience_runtime']
+    else:
+        expected=json.loads((bundle/'navigation.json').read_text())['audience_runtime']
     validate_projection_parity(site_root,model,expected,set())
     assert model["overviews"] == expected["overviews"], "assembled audience overview drift"
     assert model["audiences"] == ["use", "maintain"]

@@ -4,15 +4,9 @@ toolchain:
   revision: aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3
 inputs:
   .agent-policy.yml:
-    sha256: 6d68804d52c037f9503bd007b149094a1dcec75896f7370dfcd7a1d177018026
-  policy/project.md:
-    sha256: d9bd9aee0073e3c9b29d67b7578c1ee965fa9f602dc05a5ca11fe85b7bd35c24
+    sha256: 378ecb2f8fe6fcb460edc5879bf83a285d63ba91ddb87daa1f312f4f812aba09
 outputs:
   .agents/skills/maintain-progressive-discovery/SKILL.md:
     sha256: 3425fc674d459732f806ff35fdc8753de0f8d30c75766f318b141dac56a35b5b
   .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py:
     sha256: 1ce656be2ae8f9f7108d850c2539932ae49ef93cfb33ba9e02aaf9d83020988d
-  .review-authority/review-policy.md:
-    sha256: 43c6a16f9024d5459e05f5f33252e82d2f1d38a8ce5eeab0846b8d4624664d34
-  AGENTS.md:
-    sha256: 294f04a53194a0c120900dfc60211b1660ad8334969ab1b85e31520df9eee06f

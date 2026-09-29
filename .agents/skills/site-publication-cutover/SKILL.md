@@ -1,63 +1,17 @@
 ---
 name: site-publication-cutover
-description: Explicitly adopt an immutable reviewed Integration release in Site.
+description: Use local site validation and the asynchronous publication route.
 ---
 
-# Site Integration adoption
+# Site maintenance route
 
-Require an explicit Site-adoption instruction. Refresh Site and Integration heads, submitted reviews, comments, threads, and exact-head CI. Select a reviewed Integration release, not a moving branch. Record its schema, Bundle identity, and content digest in `integration-source.json`; do not select Composition or Policy revisions in Site.
+Read `AGENTS.md` and [PUBLISHING.md](../../../PUBLISHING.md). Follow the current implementation
+and local tests. The former pinned controller/adoption procedure is retired.
 
-Acquire the qualified Bundle through `scripts/acquire_integration_bundle.py`, preserving run/head/attempt/upload-window/archive/provenance verification. Missing durable evidence may use the pinned Integration regeneration workflow; corrupt or misbound evidence must fail closed. Never copy provider semantics or Git ancestry into Site.
+For a defect, reproduce it at its owning layer using the same input artifact. Fix the
+source and run focused regression checks, then the applicable local suite. Reuse the
+artifact when upstream source branches move. Do not add upstream qualification, lock PRs,
+review planners or whole-stack gates to a local change. Report actual validation results.
 
-Qualify Site rendering from the Bundle with provider checkouts absent. Run full Site/browser/PWA qualification at the stabilized acceptance frontier. Inspect the Site audience, navigation, translation warnings, source browser, glossary, search, accessibility, and offline behavior. Use `site-pr-exact-head-acceptance`, then `pr-merge-gate` for guarded landing.
-
-Adoption does not authorize deployment. Deployment requires a separate explicit instruction and must use the exact qualified Site and Integration identities. A Site-only runtime release retains the existing Integration lock.
-
-## Purpose
-
-Make explicit Site adoption reproducible without selecting provider revisions.
-
-## Automatic controller boundary
-
-This skill covers a human's explicit Site-adoption instruction. It does not
-authorize changing `PUBLICATION_AUTOMATION_MODE` or any other repository
-variable, secret, App credential, protection rule, Pages environment, dispatch,
-rerun, or deployment. The pre-authorized automatic path is owned by the current
-controller workflows: after external activation, exact trusted receipts and
-policy/controller pins, positive qualification, a clear kill switch, and the
-required protected branch conditions, the controller may prepare only an
-allowlisted Site lock PR. It is a deterministic lock updater, not an LLM that
-generates Site code and not a mechanism for merging authority histories.
-
-Use [the publication automation handoff](../../../docs/publication-automation.md)
-and the current workflow files for a read-only diagnosis of an automatic event.
-Do not expand an Integration-promoted notification into Site editing or Pages
-deployment from this skill. The controller creates or reconciles the adoption PR
-and stops; it does not approve or merge. Independent exact-head review and
-separate human merge authorization precede landing, with CI and branch protection
-as additional constraints. Post-merge deployment remains separate. A normal Site UI
-PR and a manual `workflow_dispatch` use their own explicit acceptance/deployment paths.
-
-## Use when
-
-The human explicitly requests Site adoption of a reviewed Integration release.
-
-## Do not use when
-
-Provider construction, Integration qualification, and Integration promotion stop upstream.
-
-## Canonical authorities
-
-Consult `MAINTENANCE.md`, `PUBLISHING.md`, `integration-source.json`, and the selected Integration contract. The lock is the sole committed authority for Site provider-publication input. Integration owns all provider selection.
-
-## Inputs
-
-Record the full 40-character lowercase Integration SHA, reviewed Integration diff, Bundle schema/identity/content digest, and generated provenance. Do not infer the target SHA from a branch name. Do not expose undeclared Bundle content. Use `site-pr-exact-head-acceptance` and `pr-merge-gate` for acceptance and merge authorization.
-
-## Stop conditions
-
-Stop for missing authorization, corrupt or misbound artifacts, unresolved material findings, or incompatible contracts. Do not deploy without explicit deployment authorization.
-
-## Evidence to report
-
-Report exact Site and Integration revisions, Bundle identity, qualification and review applicability, adoption state, and deployment state separately.
+For deployment or PR landing, use the user's authorization and current GitHub settings.
+Do not infer that an artifact upload is a deployment. Never merge authority histories.

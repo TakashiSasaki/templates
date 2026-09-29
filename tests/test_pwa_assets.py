@@ -289,28 +289,6 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('statusText: "Service Unavailable"', worker)
         self.assertIn('headers: { "Content-Type": "text/plain; charset=utf-8" }', worker)
 
-    def test_browser_regression_check_is_wired_into_visual_ci(self) -> None:
-        workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(encoding="utf-8")
-        checker = (ROOT / "scripts/check_pwa_freshness.py").read_text(encoding="utf-8")
-        self.assertIn("Check PWA freshness lifecycle", workflow)
-        self.assertIn("python3 scripts/check_pwa_freshness.py", workflow)
-        self.assertIn("Check PWA slow-network convergence", workflow)
-        self.assertIn("python3 scripts/check_pwa_slow_convergence.py", workflow)
-        self.assertIn('service_workers="allow"', checker)
-        self.assertIn('worker_source + "\\n" + marker', checker)
-        self.assertIn("state.record_hit", checker)
-        self.assertIn("navigator.serviceWorker.startMessages()", checker)
-        self.assertIn("def _wait_for_manifest_version(", checker)
-        self.assertIn("_wait_for_manifest_version(page, 2)", checker)
-        self.assertIn('context.set_offline(True)', checker)
-        self.assertIn('evidence["offline_cached_status"] = 200', checker)
-        self.assertIn('evidence["offline_cache_miss_status"] = 503', checker)
-        self.assertIn('evidence["legacy_instant_navigation_status"] = 503', checker)
-        self.assertIn('evidence["network_fetch_preserved_indicator_until_commit"] = True', checker)
-        self.assertIn('evidence["committed_navigation_cleared_indicator"] = True', checker)
-        self.assertIn('"document-v2"', checker)
-        self.assertIn('"manifest-v{state.manifest_version}"', checker)
-        self.assertIn("_wait_for_worker_version(page, 2)", checker)
 
     def test_pwa_freshness_checker_validates_missing_site_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

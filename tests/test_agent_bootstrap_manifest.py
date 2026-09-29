@@ -73,4 +73,4 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         invalid=copy.deepcopy(self.template);del invalid['authorities']['integration']
         with self.assertRaises(BundleError):project(invalid,self.bundle)
         invalid=copy.deepcopy(self.bundle);invalid['providers']['unknown']='f'*40
-        with self.assertRaises(BundleError):project(self.template,invalid)
+        self.assertEqual(project(self.template,invalid)['authorities']['unknown']['publication_revision'], 'f'*40)

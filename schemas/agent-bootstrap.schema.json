@@ -53,7 +53,7 @@
           "const": "Integration authority contract and producer"
         },
         "selected_input": {
-          "const": "integration-source.json"
+          "const": "publication-channel.json"
         },
         "deployed_evidence": {
           "type": "string",
@@ -70,11 +70,18 @@
         "integration",
         "site"
       ],
-      "additionalProperties": false,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "role"
+        ]
+      },
       "properties": {
         "modeling": {
           "type": "object",
-          "required": ["role"],
+          "required": [
+            "role"
+          ],
           "properties": {
             "role": {
               "const": "information-model-registry-and-resource-records"
@@ -132,12 +139,12 @@
         {
           "type": "object",
           "required": [
-            "lock"
+            "channel"
           ],
           "additionalProperties": false,
           "properties": {
-            "lock": {
-              "const": "integration-source.json"
+            "channel": {
+              "const": "publication-channel.json"
             }
           }
         },
@@ -257,6 +264,56 @@
                 }
               },
               "additionalProperties": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema_version",
+            "identity",
+            "content_digest",
+            "producer",
+            "providers"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": 5
+            },
+            "identity": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "content_digest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "producer": {
+              "type": "object",
+              "required": [
+                "authority",
+                "revision"
+              ],
+              "properties": {
+                "authority": {
+                  "const": "integration"
+                },
+                "revision": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                }
+              }
+            },
+            "providers": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9-]*$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              }
             }
           }
         }

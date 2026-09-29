@@ -165,6 +165,7 @@
     utilities.setAttribute("aria-label", text === labels.ja ? "共通ツール" : "Shared tools");
     utilities.replaceChildren();
     for (const [route, en, ja] of [["/glossary/","Glossary","用語集"],["/guided/","Browse by index","索引から探す"],["/build-provenance.json","Build provenance","ビルド来歴"]]) {
+      if (route === "/build-provenance.json" && audience !== "maintain") continue;
       const link = document.createElement("a"); link.href = href(route); link.textContent = text === labels.ja ? ja : en; utilities.append(link);
     }
     function list(nodes, trail = []) {
@@ -226,6 +227,7 @@
       if (tree) {
         const home = document.createElement("a"); home.href = href(model.overviews[audience]); home.textContent = text[audience]; crumbs.append(home);
         for (const item of navigationTrail(tree, meta.document?.destination) || [text === labels.ja ? "共通ツール" : "Shared service"]) {
+          if (label(item) === text[audience]) continue;
           const part = document.createElement("span"); part.textContent = " / " + label(item); crumbs.append(part);
         }
         crumbs.lastElementChild?.setAttribute("aria-current", "page");

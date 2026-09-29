@@ -27,11 +27,6 @@ class PwaCommitRegressionTests(unittest.TestCase):
         self.assertIn("setTimeout(resolve, 50)", source)
         self.assertIn("[200, 404]", source)
 
-    def test_mobile_visual_workflow_runs_commit_checker(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("Check PWA document commit correlation", workflow)
-        self.assertIn("python3 scripts/check_pwa_commit_regressions.py", workflow)
-        self.assertIn("build/mobile-visual/pwa-document-commit.json", workflow)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,10 @@
 # Audience architecture implementation roadmap
 
-> **Historical design record:** This pre-cutover design records the audience migration.
-> The current public destination/semantic navigation authority is Integration's selected
-> Publication Bundle. Site owns its audience UI and rendering. References below to
-> a Site manifest or Site-owned integration describe the historical implementation.
+> **Historical design record — superseded:** The current design uses Site-owned
+> `surfaces.json` and an asynchronous publication channel. Integration supplies
+> semantic content; Site owns public routes and both audience navigations. The
+> frozen inventories, migration gates and pin requirements below are historical,
+> not maintenance instructions. See [current onboarding](../../maintainer-onboarding.md).
 
 
 This roadmap defines authority responsibilities, dependencies, and acceptance

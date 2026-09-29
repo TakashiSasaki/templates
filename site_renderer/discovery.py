@@ -11,7 +11,7 @@ def project(template,bundle):
         raise BundleError('invalid five-authority discovery template')
     result['integration_source']={k:bundle[k] for k in ('schema_version','identity','content_digest','producer','providers')}
     for name,revision in bundle['providers'].items():
-        if name not in result['authorities']:raise BundleError('unknown discovery authority')
+        result['authorities'].setdefault(name, {'branch': name, 'role': 'Canonical provider documents'})
         result['authorities'][name]['publication_revision']=revision
         result['authorities'][name]['canonical_repository_url']=github_tree_url(result['repository'], revision)
     result['authorities']['integration']['revision']=bundle['producer']['revision']
@@ -24,4 +24,4 @@ def write(site_root,docs_root,bundle):
     (docs_root/'schemas').mkdir(exist_ok=True)
     (docs_root/'schemas/agent-bootstrap.schema.json').write_bytes((site_root/'schemas/agent-bootstrap.schema.json').read_bytes())
     from scripts.render_reference_consumer import project as reference
-    (docs_root/'reference-consumer.json').write_bytes(canonical(reference(site_root)))
+    (docs_root/'reference-consumer.json').write_bytes(canonical(reference(site_root, publication_bundle={k:bundle[k] for k in ('schema_version','identity','content_digest','producer','providers')})))

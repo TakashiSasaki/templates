@@ -133,15 +133,6 @@ class GlossaryViewerBoundaryTests(unittest.TestCase):
                 heading_level=2,
             )
 
-    def test_pages_pipeline_validates_landing_link_to_glossary(self) -> None:
-        root = Path(__file__).resolve().parents[1]
-        workflow = (root / ".github/workflows/site-producer.yml").read_text(
-            encoding="utf-8"
-        )
-        landing = (root / "docs/landing.md").read_text(encoding="utf-8")
-        self.assertIn('href="/glossary/"', landing)
-        self.assertIn("validate_site_links.py", (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text())
-        self.assertIn("generate_glossary_viewer.py", (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text())
 
 
 if __name__ == "__main__":

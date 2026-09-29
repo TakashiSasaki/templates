@@ -28,3 +28,6 @@
 * [Templates maintainer onboarding](maintainer-onboarding.md) - Routes maintainers of the five independent authorities to current sources, skills, validation, publication boundaries, and handoff.
 
 * [Publication catalog data](publication-catalog.json) - Defines the branch-owned Site publication documents.
+
+- [Consumer surface](use.md) - Entry for template users.
+- [Maintainer surface](maintain.md) - Entry for source authors and maintainers.

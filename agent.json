@@ -11,24 +11,24 @@
   },
   "publication_state": {
     "capability_source": "Integration authority contract and producer",
-    "selected_input": "integration-source.json",
+    "selected_input": "publication-channel.json",
     "deployed_evidence": "immutable Site revision, Bundle identity, and Pages artifact provenance"
   },
   "integration_source": {
-    "lock": "integration-source.json"
+    "channel": "publication-channel.json"
   },
   "authorities": {
     "modeling": {
       "role": "information-model-registry-and-resource-records",
-      "canonical_entry": "https://templates.moukaeritai.work/modeling/"
+      "canonical_entry": "https://templates.moukaeritai.work/use/modeling/"
     },
     "composition": {
       "role": "artifact-foundation-capability-lifecycle-topology-semantics",
-      "canonical_entry": "https://templates.moukaeritai.work/composition/"
+      "canonical_entry": "https://templates.moukaeritai.work/use/composition/"
     },
     "policy": {
       "role": "coding-agent-operating-policy",
-      "canonical_entry": "https://templates.moukaeritai.work/policy/",
+      "canonical_entry": "https://templates.moukaeritai.work/use/policy/",
       "relationship_to_composition": "independent-optional"
     },
     "integration": {

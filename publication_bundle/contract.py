@@ -16,12 +16,14 @@ MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
           'translation-publication.json', 'reader-navigation-runtime.json',
           'glossary.json', 'guided-navigation.json', 'guided-locales.json',
           'provenance.json')
+MODELS_V5 = tuple(name for name in MODELS if name not in {'navigation.json', 'reader-navigation-runtime.json'})
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
 FIELDS_V4 = FIELDS | {'requirements', 'requirements_digest'}
 REQUIREMENT_FIELDS = {'provider', 'feature', 'required', 'fallback'}
 FALLBACKS = frozenset({'none', 'generic-document', 'ignore'})
 PROVIDER_SETS = {
+    5: None,  # Provider names are data in the asynchronous publication contract.
     3: frozenset({'composition', 'policy'}),
     4: frozenset({'modeling', 'composition', 'policy'}),
 }
@@ -29,6 +31,20 @@ PROVIDER_ORDERS = {
     3: ('composition', 'policy'),
     4: ('modeling', 'composition', 'policy'),
 }
+
+
+def valid_providers(providers, schema_version):
+    if not isinstance(providers, dict) or not providers:
+        return False
+    if any(not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]*', name)
+           or name in {'site', 'integration'} or not isinstance(sha, str)
+           or not SHA.fullmatch(sha) for name, sha in providers.items()):
+        return False
+    return schema_version == 5 or set(providers) == PROVIDER_SETS.get(schema_version)
+
+
+def provider_order(schema_version, providers):
+    return tuple(sorted(providers)) if schema_version == 5 else PROVIDER_ORDERS[schema_version]
 
 
 class BundleError(ValueError):

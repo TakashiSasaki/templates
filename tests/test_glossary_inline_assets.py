@@ -210,12 +210,12 @@ class GlossaryInlineAssetTests(unittest.TestCase):
     def test_runtime_assets_are_global_for_instant_navigation_but_data_remains_lazy(self) -> None:
         template = TEMPLATE.read_text(encoding="utf-8")
         project = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))["project"]
-        self.assertEqual(
+        self.assertCountEqual(
             project["extra_css"],
             [
                 "stylesheets/extra.css",
-                "stylesheets/landing-cover.css",
-                "stylesheets/landing-shell.css",
+                "stylesheets/surfaces.css",
+
                 "stylesheets/mobile-density.css",
                 "stylesheets/translation-reader.css",
                 "stylesheets/glossary-inline.css",

@@ -39,7 +39,7 @@ class PythonEnvironment:
 
 
 CORE_ENTRYPOINTS = (
-    "scripts/run_core_tests.py",
+    "scripts/run_site_preflight.py",
 )
 
 # ``run_core_tests.py`` dynamically imports the complete test inventory. The
@@ -48,12 +48,9 @@ CORE_ENTRYPOINTS = (
 TEST_ENTRYPOINTS = ("tests/test_*.py",)
 
 BUILD_ENTRYPOINTS = (
-    "scripts/acquire_integration_bundle.py",
-    "scripts/acquire_trusted_integration_receipt.py",
-    "scripts/verify_trusted_integration_receipt.py",
-    "scripts/resolve_site_checkout.py",
-    "scripts/site_build_artifact.py",
-    "scripts/run_core_tests.py",
+    "scripts/fetch_publication.py",
+    "scripts/build_site.py",
+    "scripts/run_site_preflight.py",
     "scripts/render_publication_bundle.py",
     "scripts/prepare_site_metadata.py",
     "scripts/generate_glossary_viewer.py",
@@ -74,8 +71,7 @@ BUILD_ENTRYPOINTS = (
 )
 
 VISUAL_ENTRYPOINTS = (
-    "scripts/acquire_integration_bundle.py",
-    "scripts/consume_site_build_artifact.py",
+    "scripts/fetch_publication.py",
     "scripts/check_audience_artifact.py",
     "scripts/check_audience_runtime.py",
     "scripts/check_search_history.py",

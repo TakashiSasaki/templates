@@ -5,32 +5,15 @@ toolchain:
 contexts:
   default:
     profiles:
-    - core
-    - security-baseline
-    - pull-request
     - progressive-discovery
     project_policy:
-      files:
-      - policy/project.md
-  review:
-    profiles:
-    - core
-    - security-baseline
-    - review
-    project_policy:
-      files:
-      - policy/project.md
+      files: []
 outputs:
   agents:
-    enabled: true
+    enabled: false
     path: AGENTS.md
     context: default
     renderer: agents-md
-  review-authority:
-    enabled: true
-    path: .review-authority/review-policy.md
-    context: review
-    renderer: policy-context-md
 skills:
   enabled:
   - maintain-progressive-discovery

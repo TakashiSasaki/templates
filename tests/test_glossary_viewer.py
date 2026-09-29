@@ -72,9 +72,6 @@ class GlossaryViewerTests(unittest.TestCase):
             root=Path(directory); input_path=self.write_model(root); output_path=root/"index.html"; generate(input_path,output_path); page=output_path.read_text(encoding="utf-8")
         self.assertIn("<h1>Glossary</h1>", page)
         self.assertIn('href="/glossary/index.json"', page)
-    def test_landing_page_links_to_generated_glossary(self) -> None:
-        landing=(Path(__file__).resolve().parents[1]/"docs/landing.md").read_text(encoding="utf-8")
-        self.assertIn('href="/glossary/"',landing)
     def test_pages_workflow_still_calls_integrated_glossary_cli(self) -> None:
         text = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
         self.assertIn("read_json(bundle/'glossary.json')",text)

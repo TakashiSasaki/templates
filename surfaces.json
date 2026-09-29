@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "consumer_guides": [
+    "portal-home",
+    "use-home",
+    "composition-playground",
+    "capabilities-overview",
+    "webmcp-guide",
+    "lifecycle-overview",
+    "repository-topology-overview",
+    "workspace-topology-overview",
+    "policy-composition-coexistence"
+  ],
+  "routes": {
+    "portal-home": "index.md",
+    "use-home": "use/index.md",
+    "maintain-home": "maintain/index.md"
+  },
+  "maintainer_documents": {
+    "composition": [
+      "maintainer-*",
+      "publication-*",
+      "adr-*",
+      "provider-*"
+    ],
+    "policy": [
+      "maintainer-*",
+      "publication-*",
+      "adr-*",
+      "repository-*",
+      "contributing",
+      "provider-*"
+    ]
+  }
+}

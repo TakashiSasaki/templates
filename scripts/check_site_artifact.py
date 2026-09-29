@@ -15,7 +15,7 @@ import markdown
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from site_renderer.bundle import load_lock, validate_locked
+from site_renderer.bundle import load_lock, validate_locked, validate
 from site_renderer.github import FULL_SHA
 from site_renderer.guided import (
     edge_href,
@@ -157,7 +157,7 @@ def _validate_guided_projection(site_root: Path, bundle: Path, lock: dict) -> No
     graph = project_immutable_source_links(
         json.loads((bundle / "guided-navigation.json").read_text(encoding="utf-8"))
     )
-    documents = json.loads((bundle / "documents.json").read_text(encoding="utf-8"))
+    documents = json.loads((site_root / 'presentation.json').read_text())['documents'] if (site_root / 'presentation.json').exists() else json.loads((bundle / 'documents.json').read_text())
     published: dict[str, dict[str, str]] = {provider["name"]: {} for provider in graph["providers"]}
     for document in documents:
         if not document["slot"]:
@@ -222,16 +222,14 @@ def check(site_root: Path, bundle: Path | None = None, lock: dict | None = None)
     if not any('data-playground-material-tree' in path.read_text(encoding="utf-8") for path in html_files):
         raise SiteArtifactError("Composition Playground material tree is missing")
     if bundle is not None:
-        if lock is None:
-            raise SiteArtifactError("Bundle validation requires the exact Site lock")
-        validate_locked(bundle, lock)
+        validate_locked(bundle, lock) if lock is not None else validate(bundle)
         _validate_guided_projection(site_root, bundle, lock)
         source_root = Path(__file__).resolve().parents[1]
         try:
             expected = project(
                 json.loads((source_root / "progressive-discovery.json").read_text()),
                 json.loads((bundle / "guided-navigation.json").read_text()),
-                json.loads((bundle / "documents.json").read_text()),
+                json.loads((site_root / "presentation.json").read_text())["documents"] if (site_root / "presentation.json").exists() else json.loads((bundle / "documents.json").read_text()),
                 site_catalog=json.loads((source_root / "docs/publication-catalog.json").read_text()),
             )
             validate_generated(site_root / "index.md", expected=expected)
@@ -248,10 +246,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--site-root", type=Path, required=True)
     parser.add_argument("--bundle", type=Path)
-    parser.add_argument("--lock", type=Path, default=Path("integration-source.json"))
+    parser.add_argument("--lock", type=Path)
     args = parser.parse_args()
     try:
-        result = check(args.site_root, args.bundle, load_lock(args.lock) if args.bundle else None)
+        result = check(args.site_root, args.bundle, load_lock(args.lock) if args.lock else None)
     except (OSError, SiteArtifactError, ValueError) as exc:
         parser.error(str(exc))
     print(json.dumps(result, sort_keys=True))

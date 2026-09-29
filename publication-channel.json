@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "repository": "TakashiSasaki/templates",
+  "artifact": "integrated-publication",
+  "workflows": {
+    "integration-publish.yml": {"branch": "integration", "events": ["push"]},
+    "refresh-publication.yml": {"branch": "site", "events": ["schedule", "workflow_dispatch"]}
+  }
+}

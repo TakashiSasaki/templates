@@ -44,7 +44,7 @@
   },
   "expected_documents": [
     "composition.json",
-    "integration-source.json",
+    "publication-channel.json",
     "policy/project.md",
     "reference-consumer.json",
     "contracts/site-discovery.json",

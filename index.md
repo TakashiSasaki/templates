@@ -23,7 +23,7 @@
 - [Documentation index](docs/index.md) - Routes reader-facing and maintainer-facing Site documentation and architecture material.
 - [Contracts](contracts/index.md) - Contains Site-owned contract instances and declared repository topology inputs.
 - [Reference consumer contract](reference-consumer.json) - Declares product, maintenance, and deployed publication relationships.
-- [Integration selection](integration-source.json) - Binds the exact Integration revision and Bundle identity selected by Site.
+- [Integration selection](publication-channel.json) - Binds the exact Integration revision and Bundle identity selected by Site.
 - [Composition input](composition.json) - Records the Composition product input consumed by this Site authority.
 - [Site maintenance policy](policy/project.md) - Records the Site-local policy source routed by the maintenance configuration.
 - [Schemas](schemas/) - Contains Site-owned schema material used to validate Site contracts and publication inputs.
@@ -36,3 +36,6 @@
 - [Publication Bundle consumer](publication_bundle/) - Implements the Site-side Bundle validation and read-model boundary.
 - [Scripts](scripts/) - Contains build, qualification, validation, generation, and maintenance commands.
 - [Tests](tests/) - Contains Site acceptance and regression coverage.
+
+- [Consumer surface](docs/use.md) - Entry for template users.
+- [Maintainer surface](docs/maintain.md) - Entry for source authors and maintainers.

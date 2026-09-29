@@ -173,34 +173,8 @@ class ReferenceBrowserContractTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     check_manifest(changed, expected, routes, url)
 
-    def test_japanese_entry_links_to_generated_localized_anchor(self):
-        landing = (ROOT / "translations/ja/docs/landing.md").read_text()
-        target = '/ja/coexistence/#self-hosting-reference-consumer'
-        self.assertEqual(landing.count('href="' + target + '"'), 2)
-        generated = (ROOT/"translations/ja/docs/policy-composition-coexistence.md").read_text()
-        checked_in = (ROOT / "translations/ja/docs/policy-composition-coexistence.md").read_text()
-        self.assertIn('## 自己ホスティングの参照 consumer', generated)
-        self.assertNotIn('<h2 id="self-hosting-reference-consumer">', generated)
-        self.assertNotIn('<!-- ## 自己ホスティングの参照 consumer -->', generated)
-        self.assertEqual(generated, checked_in)
 
-    def test_landing_pages_link_to_repository_treemap(self):
-        target = 'https://templates-repository-treemap-pr1016.onrender.com/'
-        english = (ROOT / "docs/landing.md").read_text()
-        japanese = (ROOT / "translations/ja/docs/landing.md").read_text()
-        self.assertEqual(english.count('href="' + target + '"'), 1)
-        self.assertEqual(japanese.count('href="' + target + '"'), 1)
 
-    def test_english_entry_links_to_generated_anchor(self):
-        landing = (ROOT / "docs/landing.md").read_text()
-        target = 'coexistence/#self-hosting-reference-consumer'
-        self.assertEqual(landing.count('href="' + target + '"'), 2)
-        generated = (ROOT/"docs/policy-composition-coexistence.md").read_text()
-        checked_in = (ROOT / "docs/policy-composition-coexistence.md").read_text()
-        self.assertIn('## Self-hosting reference consumer', generated)
-        self.assertNotIn('<h2 id="self-hosting-reference-consumer">', generated)
-        self.assertNotIn('<!-- ## Self-hosting reference consumer -->', generated)
-        self.assertEqual(generated, checked_in)
 
     def test_coexistence_translation_manifest_is_fresh(self):
         from site_renderer.owned_content.translation_manifest import load_translation_manifest

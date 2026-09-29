@@ -4,9 +4,9 @@ Integration qualifies provider declarations and semantics. Site authenticates th
 selected immutable artifact, never parses provider catalogs/manifests or Git blobs.
 """
 from pathlib import Path
-from publication_bundle.contract import (BundleError, SHA, DIGEST, MODELS, FIELDS, FIELDS_V4,
+from publication_bundle.contract import (BundleError, SHA, DIGEST, MODELS, MODELS_V5, FIELDS, FIELDS_V4,
     PROVIDER_SETS, PROVIDER_ORDERS, canonical, digest, read_json, safe_path, regular,
-    inventory, requirements_digest, validate_requirements)
+    inventory, requirements_digest, validate_requirements, valid_providers, provider_order)
 
 
 def load_lock(path):
@@ -33,7 +33,7 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
     data = read_json(regular(root, 'bundle.json'))
     if not isinstance(data, dict):
         raise BundleError('unsupported Bundle schema or fields')
-    expected_fields = FIELDS if data.get('schema_version') == 3 else FIELDS_V4
+    expected_fields = FIELDS_V4 if data.get('schema_version') == 4 else FIELDS
     if (set(data) != expected_fields
             or type(data.get('schema_version')) is not int
             or data['schema_version'] not in PROVIDER_SETS):
@@ -50,8 +50,7 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
             or producer['authority'] != 'integration'
             or not isinstance(producer['revision'], str) or not SHA.fullmatch(producer['revision'])):
         raise BundleError('invalid producer identity')
-    if (not isinstance(providers, dict) or set(providers) != PROVIDER_SETS[schema_version]
-            or any(not isinstance(v, str) or not SHA.fullmatch(v) for v in providers.values())):
+    if not valid_providers(providers, schema_version):
         raise BundleError('invalid provider identities')
     for field in ('configuration_digest', 'content_digest', 'identity'):
         if not isinstance(data[field], str) or not DIGEST.fullmatch(data[field]):
@@ -66,7 +65,7 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
     if expected_providers is not None and providers != expected_providers:
         raise BundleError('provider revision mismatch')
     files = data['files']
-    if not isinstance(files, dict) or not set(MODELS) <= files.keys():
+    if not isinstance(files, dict) or not set(MODELS_V5 if schema_version == 5 else MODELS) <= files.keys():
         raise BundleError('incomplete Bundle models')
     for path, record in files.items():
         safe_path(path)
@@ -96,28 +95,31 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
             raise BundleError('invalid Site slot')
         if not doc['slot']:
             regular(root, 'publication/' + destination)
-    navigation = read_json(regular(root, 'navigation.json'))
-    if not isinstance(navigation, dict) or not isinstance(navigation.get('navigation'), dict):
-        raise BundleError('invalid navigation model')
-    def walk(nodes):
-        if not isinstance(nodes, list):raise BundleError('navigation nodes must be arrays')
-        for node in nodes:
-            if not isinstance(node, dict):raise BundleError('invalid navigation node')
-            if 'children' in node:walk(node['children'])
-            elif (node.get('publication'), node.get('document')) not in keys or node.get('destination') not in destinations:
-                raise BundleError('navigation references absent document')
-    for nodes in navigation['navigation'].values():walk(nodes)
+    if schema_version != 5:
+        navigation = read_json(regular(root, 'navigation.json'))
+        if not isinstance(navigation, dict) or not isinstance(navigation.get('navigation'), dict):
+            raise BundleError('invalid navigation model')
+        def walk(nodes):
+            if not isinstance(nodes, list):raise BundleError('navigation nodes must be arrays')
+            for node in nodes:
+                if not isinstance(node, dict):raise BundleError('invalid navigation node')
+                if 'children' in node:walk(node['children'])
+                elif (node.get('publication'), node.get('document')) not in keys or node.get('destination') not in destinations:
+                    raise BundleError('navigation references absent document')
+        for nodes in navigation['navigation'].values():walk(nodes)
     graph = read_json(regular(root, 'guided-navigation.json'))
-    if not isinstance(graph, dict) or {p.get('name'):p.get('revision') for p in graph.get('providers', [])} != providers:
+    graph_providers = {p.get('name'):p.get('revision') for p in graph.get('providers', [])} if isinstance(graph, dict) else None
+    if graph_providers is None or (schema_version != 5 and graph_providers != providers) or any(providers.get(k) != v for k,v in (graph_providers or {}).items()):
         raise BundleError('guided graph provenance mismatch')
     validate_translation_state(root, documents, providers)
     from publication_bundle.navigation import validate_navigation
     from publication_bundle.locales import load_overlays,LocaleViewerError
     from publication_bundle.graph import load_graph, IndexNavigationViewerError
-    validate_navigation(root,navigation,documents)
+    if schema_version != 5:
+        validate_navigation(root,navigation,documents)
     try:
         load_overlays(root/'guided-locales.json',graph)
-        load_graph(root/'guided-navigation.json', provider_order=PROVIDER_ORDERS[data['schema_version']])
+        load_graph(root/'guided-navigation.json', provider_order=provider_order(schema_version, graph_providers))
     except (LocaleViewerError, IndexNavigationViewerError) as exc:raise BundleError(str(exc)) from exc
     return data
 

@@ -89,26 +89,11 @@ def render(repository: Path, site_root: Path) -> None:
     def load(name):
         return json.loads((repository / "contracts" / f"{name}.json").read_text())
 
-    routes = {r["id"]: r["path"] for r in load("routes")["routes"]}
-    pages = {p["id"]: p for p in load("site-structure")["pages"]}
     browser_identity = load("browser-identity")["favicon"]
     pwa = load("pwa-manifest")
     ios_identity = pwa["platformCompatibility"]["ios"]["homeScreenIcon"]
-
-    for meta in load("document-metadata")["pages"]:
-        route = routes[pages[meta["pageId"]]["routeId"]]
-        path = site_root / route.lstrip("/") / "index.html"
-        source = path.read_text()
-        source, count = re.subn(r"<title>.*?</title>", "<title>" + html.escape(meta["title"]) + "</title>", source, flags=re.S)
-        if count != 1:
-            raise ValueError(f"expected one title: {path}")
-        source = re.sub(r'<meta\s+name="description"\s+content="[^"]*"\s*/?>', "", source)
-        marker = '<meta name="description" content="' + html.escape(meta["description"], quote=True) + '">'
-        if source.lower().count("</head>") != 1:
-            raise ValueError(f"expected one head: {path}")
-        source = source.replace("</head>", marker + "</head>")
-        path.write_text(source)
-
+    # Titles and routes come from rendered content and Site presentation. The
+    # legacy product worksheets are no longer a second publication inventory.
     # Zensical owns HTML rendering; Site's explicit product worksheets own the
     # product-wide browser identity values. Normalize every generated HTML
     # document from those public contracts so localized, guided and repository

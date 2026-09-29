@@ -244,20 +244,6 @@ class TranslationLinkSelectionTests(unittest.TestCase):
                     docs,
                 )
 
-    def test_site_translation_sources_keep_cross_authority_routes_canonical(self) -> None:
-        landing = (ROOT / "translations" / "ja" / "docs" / "landing.md").read_text(
-            encoding="utf-8"
-        )
-        lifecycle = (
-            ROOT / "translations" / "ja" / "docs" / "lifecycle.md"
-        ).read_text(encoding="utf-8")
-
-        self.assertIn('href="/composition/"', landing)
-        self.assertIn('href="/policy/"', landing)
-        self.assertNotIn('href="/ja/composition/"', landing)
-        self.assertNotIn('href="/ja/policy/"', landing)
-        self.assertIn("[Composition state](/lifecycle/composition-state/)", lifecycle)
-        self.assertNotIn("/ja/lifecycle/composition-state/", lifecycle)
 
 
 if __name__ == "__main__":

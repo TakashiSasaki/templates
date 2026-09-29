@@ -41,7 +41,7 @@ class ProgressiveDiscoverySourceTests(unittest.TestCase):
         report = json.loads(result.stdout)
         for path in ('reference-consumer.json', 'contracts/site-discovery.json',
                      'docs/publication-catalog.json', 'composition.json',
-                     'integration-source.json', 'policy/project.md'):
+                     'publication-channel.json', 'policy/project.md'):
             self.assertIn(path, report['expected_documents'])
             self.assertIn(path, report['validation']['reachable'])
         self.assertEqual(report['result'], 'NO_UPDATE_REQUIRED')

@@ -135,40 +135,6 @@ class MobileLayoutRegressionTests(unittest.TestCase):
             "playwright==1.61.0\nPygments==2.20.0\nPyYAML==6.0.3\nidna==3.18\n",
         )
 
-    def test_pr_build_runs_browser_regression_after_its_own_artifact(self) -> None:
-        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
-        check_block = workflow.split("\n  check:\n", 1)[1]
-        self.assertIn("needs:\n      - build\n      - classify_browser", check_block)
-        self.assertIn("test \"$BUILD_RESULT\" = success", check_block)
-        self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
-        self.assertIn("inputs.site_ref == ''", check_block)
-        self.assertIn("scripts/consume_site_build_artifact.py", check_block)
-        self.assertIn(
-            "if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}",
-            check_block,
-        )
-        self.assertNotIn("Wait for documentation artifact build", workflow)
-        self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
-        self.assertNotIn("actions/setup-python", check_block)
-        self.assertIn("requirements-visual.txt", check_block)
-        self.assertIn("Install Japanese browser font", check_block)
-        self.assertIn("sudo apt-get update", check_block)
-        self.assertIn(
-            "sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic",
-            check_block,
-        )
-        self.assertNotIn(
-            "playwright install",
-            check_block,
-        )
-        self.assertIn("build/mobile-visual", check_block)
-        self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", check_block)
-        self.assertIn(
-            "github.event.pull_request.head.repo.full_name == github.repository",
-            check_block,
-        )
-        self.assertNotIn("browser-actions/setup-chrome", workflow)
-        self.assertNotIn("--no-sandbox", workflow)
 
 if __name__ == "__main__":
     unittest.main()

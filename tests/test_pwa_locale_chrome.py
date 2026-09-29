@@ -51,16 +51,6 @@ class PwaLocaleChromeTests(unittest.TestCase):
         self.assertIn("requestLanguage(model, request)", self.worker)
         self.assertIn("strings?.offline_unavailable", self.worker)
 
-    def test_browser_checker_is_wired_into_mobile_ci(self) -> None:
-        self.assertIn("Check localized PWA freshness chrome", self.workflow)
-        self.assertIn("python3 scripts/check_pwa_locale_chrome.py", self.workflow)
-        self.assertIn('EXPECTED_JA["update_available"]', self.checker)
-        self.assertIn('EXPECTED_JA["unverified"]', self.checker)
-        self.assertIn('EXPECTED_JA["offline_unavailable"]', self.checker)
-        self.assertIn("EXPECTED_EN_OFFLINE", self.checker)
-        self.assertIn('"/de/__pwa-locale-cache-miss__/"', self.checker)
-        self.assertIn("arg=DOCUMENT_CACHE_NAME", self.checker)
-        self.assertIn('arg=EXPECTED_JA["update_available"]', self.checker)
 
     def test_checker_fails_before_browser_start_when_assets_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

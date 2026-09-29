@@ -21,13 +21,13 @@ Git history、pull request、CI run、review thread は重要な provider fact �
 
 ## Requirement と evidence: 現在の product state
 
-[Implementation evidence](/lifecycle/implementation-evidence/) contract は、選択された Composition lifecycle における canonical requirement/evidence ledger です。stable requirement ID を contract target に結び付け、product mode ではさらに implementation boundary、positive/negative proof、authoritative command、execution capability、release gate に接続します。
+[Implementation evidence](template:composition/implementation-evidence) contract は、選択された Composition lifecycle における canonical requirement/evidence ledger です。stable requirement ID を contract target に結び付け、product mode ではさらに implementation boundary、positive/negative proof、authoritative command、execution capability、release gate に接続します。
 
 Planning mode は implementation evidence が存在する前に target-bound requirement を記録します。Product mode は stable requirement identity を維持したまま implementation/evidence graph を有効化します。したがって、この ledger が答えるのは「現在の product state では何が要求され、どの evidence がそれを支えるか」です。これらの claim 自体が consumer/product contract の一部なので、repository で追跡されます。
 
 ## Lifecycle checkpoint: validated transition history
 
-[Lifecycle checkpoints](/lifecycle/checkpoints/) contract は requirement/evidence ledger を置き換えずに historical transition evidence を保存します。planning checkpoint は product implementation が満たすべき exact validated contract baseline を固定し、product checkpoint がその transition を閉じます。後続の specification change は直前の product state を parent とする新しい planning checkpoint を作ります。
+[Lifecycle checkpoints](template:composition/lifecycle-checkpoints) contract は requirement/evidence ledger を置き換えずに historical transition evidence を保存します。planning checkpoint は product implementation が満たすべき exact validated contract baseline を固定し、product checkpoint がその transition を閉じます。後続の specification change は直前の product state を parent とする新しい planning checkpoint を作ります。
 
 Checkpoint chronology は sequence、parent edge、phase alternation、content hash で表されます。snapshot manifest は historical contract、schema、validation result、利用可能な Composition validation authority を binding します。これは current evidence とは別の「この product state はどの validated semantic state から来たか」という問いに答えます。
 
@@ -153,15 +153,15 @@ review 済み staged identity は、P1 / #754 head `c2e23789ebabee4d1f35653e86eb
 
 以下の canonical lifecycle semantics と source document は `composition` provider が所有します。この Site page は安定した `/lifecycle/` reader entry point を提供し、公開 destination をまとめます。
 
-- [Composition state](/lifecycle/composition-state/)
-- [Contract evolution](/lifecycle/contract-evolution/)
-- [Implementation evidence](/lifecycle/implementation-evidence/)
-- [Lifecycle checkpoints](/lifecycle/checkpoints/)
-- [Release execution](/lifecycle/release-execution/)
-- [Release evidence](/lifecycle/release-evidence/)
-- [Release bundle](/lifecycle/release-bundle/)
+- [Composition state](template:composition/composition-state)
+- [Contract evolution](template:composition/contract-evolution)
+- [Implementation evidence](template:composition/implementation-evidence)
+- [Lifecycle checkpoints](template:composition/lifecycle-checkpoints)
+- [Release execution](template:composition/release-execution)
+- [Release evidence](template:composition/release-evidence)
+- [Release bundle](template:composition/release-bundle)
 
-repository 全体の ownership model と Policy / Composition の分離については [Policy–Composition coexistence](/coexistence/) を参照してください。
+repository 全体の ownership model と Policy / Composition の分離については [Policy–Composition coexistence](template:site/policy-composition-coexistence) を参照してください。
 
 これらの reader path が別個の provider を作るわけではありません。build artifact 内の provenance は `build-provenance.json` に記録された exact provider revision に解決されます。
 

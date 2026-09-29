@@ -9,4 +9,4 @@ Repository topology and workspace topology answer different questions.
 
 They compose independently: **Hub-and-Orphan × Bare Worktree** is a valid combination. Selecting neither declaration does not infer a default repository or local checkout layout.
 
-The normative Bare Worktree contract, invariants, and validator remain [Composition-owned](../../workspace/bare-worktree/). This Site page is only reader navigation and orientation. A declaration expresses intended local-checkout semantics; live Git/worktree verification is a separate operational concern.
+The normative Bare Worktree contract, invariants, and validator remain [Composition-owned](template:composition/bare-worktree). This Site page is only reader navigation and orientation. A declaration expresses intended local-checkout semantics; live Git/worktree verification is a separate operational concern.

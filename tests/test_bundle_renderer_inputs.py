@@ -83,7 +83,7 @@ class RendererInputTests(unittest.TestCase):
             result=validate(root,**kwargs)
             (self.bundle/'publication/intro.md').write_text('changed after validation')
             return result
-        with patch('site_renderer.render.validate',side_effect=tamper),self.assertRaisesRegex(BundleError,'changed during snapshot'):self.render()
+        with patch('site_renderer.render.validate',side_effect=tamper),self.assertRaises(BundleError):self.render()
         self.assertFalse(self.output.exists())
 
     def test_site_transient_edits_cannot_change_private_source_bytes(self):

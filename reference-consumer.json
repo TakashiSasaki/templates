@@ -15,10 +15,10 @@
       "configuration": ".agent-policy.yml",
       "state": ".agent-policy.lock",
       "local_policy": "policy/project.md",
-      "validation_workflow": ".github/workflows/check-agent-policy.yml"
+      "validation_workflow": ".github/workflows/build-pages.yml"
     },
     "publication": {
-      "selection": "integration-source.json",
+      "selection": "publication-channel.json",
       "provenance": "/build-provenance.json"
     }
   },

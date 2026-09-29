@@ -152,7 +152,7 @@ Repeat the relevant side of this checklist after a managed operation from either
 
 Code duplication alone is not sufficient reason to couple the providers. A mechanism should be shared only when it implements one genuinely shared protocol with one semantic owner.
 
-The repository-wide publication catalog protocol is such a candidate: Integration owns publication integration and its catalog validation boundary. Site consumes the resulting Bundle and does not parse provider catalogs. Provider-specific publication classification, translation semantics, artifact inventory rules, and other domain-specific checks remain with their provider.
+The repository-wide publication catalog protocol is such a candidate: Integration owns publication assembly; providers validate their catalogs locally. Site consumes the resulting Bundle and does not parse provider catalogs. Provider-specific publication classification, translation semantics, artifact inventory rules, and other domain-specific checks remain with their provider.
 
 Small primitives with similar names do not automatically form a shared protocol. For example, Policy repository-write path safety and Composition portable material-destination safety have different contracts and may remain separate implementations. Likewise Policy diagnostics and Composer diagnostics encode different domain semantics and remain provider-owned.
 
@@ -161,13 +161,13 @@ The design rule is:
 ```text
 one semantics -> one authority
 one high-level tool -> one owner
-one genuinely shared protocol -> one implementation
+shared publication data format -> independent producer and consumer implementations
 small domain-specific primitives -> local implementation when that preserves independence
 ```
 
 ## Integration and Site responsibilities
 
-Integration validates coexistence at its selected reviewed provider revisions. Site adopts the resulting immutable Publication Bundle through `integration-source.json`; it does not repeat provider semantic qualification.
+Integration snapshots provider branches and validates their exported content. Site selects a complete successful publication through `publication-channel.json`; it does not repeat provider semantic qualification or write an adoption commit.
 
 Integration owns publication semantics at this boundary. Site renders the resulting Bundle and remains an observer with respect to provider consumer state. It does not become the authority for Policy or Composition semantics, and it does not perform consumer adoption, composition, update, render, recovery, or migration on behalf of either provider outside test fixtures.
 
@@ -188,71 +188,27 @@ Provider-internal changes that do not affect this surface remain independently r
 
 ## Self-hosting reference consumer
 
-This Site consumes the systems it provides. Its Website product uses the
-Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.
-The Website consumer explicitly excludes `capability.webmcp`; provider availability
-therefore does not imply adoption.
-The consumer relationships below are independent of the selected publication Bundle. The public machine projection supplies their canonical declarations and exact Bundle provenance.
+Site retains a Composition Website/PWA product example and an optional Policy
+progressive-discovery utility. These consumer declarations do not govern repository
+maintenance by implicit adoption. Maintainers follow the handwritten `AGENTS.md`
+and local skills. A Site presentation change requires no provider release or pin update.
 
-| Relationship | Immutable revision | Meaning |
+| Relationship | Local declaration | Meaning |
 | --- | --- | --- |
-| Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
-| Policy maintenance procedure | `9c2c538d5ee0b866379db40e5c24b29d60e155ba` | Landing Skill, rule, and review-scope planner |
-| Policy generation toolchain | `aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3` | Generates AGENTS.md, reviewer instructions, Policy lock, and the canonical progressive-discovery Skill projection |
-| Publication input | `integration-source.json` | Exact reviewed Integration release and Bundle; provider identities are supplied by that Bundle |
+| Composition example | `composition.json`, `.template-composition/lock.json` | Consumer product material and ownership |
+| Optional discovery utility | `.agent-policy.yml`, `.agent-policy.lock` | Local generated source indexes |
+| Publication input | `publication-channel.json` | Available successful Integration artifacts |
+| Presentation | `surfaces.json` | Consumer/maintainer routes and navigation |
 
-```mermaid
-flowchart TD
-  C["Composition: immutable consumer revision"] -->|"Website and PWA contracts"|S["Site product"]
-  P["Policy: immutable maintenance source"] -->|"Maintenance rules"|M["Site maintenance"]
-  M -->|"Changes and verifies"|S
-  CP["Explicitly selected Integration Bundle"] -->|"Reader content"|S
-```
+The public [machine-readable description](/reference-consumer.json) describes the
+consumer declarations and the publication actually used by a deployed build.
+[Build provenance](/build-provenance.json) identifies its exact Site and provider
+sources. Historical implementation-evidence counts describe the example's recorded
+coverage, not current deployment acceptance or a maintenance gate.
 
-This is a temporal bootstrap, not a runtime cycle: known provider revision N
-governs a later consumer revision N+1. Semantic source, toolchain, generated
-projection, and publication identities may differ. Advancing publication does
-not update either consumer, and consuming a candidate does not publish it.
-
-The public [machine-readable description](/reference-consumer.json) includes the
-full Composition ownership inventory, independent Policy configuration, and
-validation entrypoints. In the source tree, `reference-consumer.json` is the
-discovery index. `.template-composition/lock.json` records Composition ownership;
-`.agent-policy.yml` selects Policy and `.agent-policy.lock` remains Policy-owned.
-There is no combined lock or shared transaction manager.
-
-Composition-managed schemas, validators, and generated registry remain provider
-material. Site owns its implementation and customized seed worksheets. Its
-primary Site product entrypoints are described by consumer-owned worksheets in
-Website contracts. Generated source viewers, guided views, translations, and
-other secondary surfaces continue to use their existing Site acceptance tests;
-the primary Website inventory does not claim to enumerate those derived pages.
-
-Site-local normative constraints live in `policy/project.md`; procedural Skills
-remain under `.agents/skills/`. `AGENTS.md` and the review-authority document are
-generated by the selected Policy toolchain. The original handwritten routing
-instructions are retained as non-authoritative migration evidence.
-
-Adoption exposed two reusable model gaps: directory-style URLs needed routes v5,
-and contract inventory closure needed to follow Composition ownership rather
-than reserve every file in shared directories. Both fixes belong to Composition.
-The Site is an ordinary consumer of those semantics, not a privileged exception.
-
-Validation is executable and separate: Composition checks its own state and
-contracts, Policy checks its own outputs, and Site checks the real Pages artifact
-in a browser. The recorded planning checkpoint is this adoption assessment; it
-does not pretend to reconstruct the Website's original development history.
-Contract validation is not proof of deployment or release readiness; deferred
-browser evidence remains visible until the relevant proof actually runs.
-
-The ledger currently declares 558 verified proof entries
-and 20 deferred entries. These are coverage entries,
-not counts of independent tests or a release certificate. PWA tests use actual
-worker code with controlled fixture pages, and the Website test checks served
-manifest/icon packaging. Complete PWA product families remain deferred until
-actual controlled routes/fallbacks, visible revalidation, installation/platform
-presentation and product updates have corresponding acceptance. Viewport probes
-exercise declared widths and overflow; they do not establish full accessibility
-or every device/orientation/zoom combination.
+Source tests run locally. The real build checks all projected document links and
+both audience surfaces; browser checks exercise the behavior affected by a change.
+The Pages job deploys that completed artifact. Publication refresh, presentation
+changes and consumer product updates are separate operations.
 
 <!-- reference-consumer:end -->

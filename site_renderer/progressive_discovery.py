@@ -165,7 +165,7 @@ def _provider_entries(source: dict[str, Any], graph: dict[str, Any]) -> list[dic
             or not isinstance(provider.get("root_index"), str)
         ):
             raise BundleError("invalid guided provider for progressive discovery")
-        label = labels.get(provider["name"])
+        label = labels.get(provider["name"], {"label": provider["name"].capitalize(), "description": "Provider source navigation."})
         if (
             not isinstance(label, dict)
             or not isinstance(label.get("label"), str)
@@ -207,8 +207,8 @@ def project(
 ) -> str:
     """Return deterministic Markdown from Site source plus the selected Bundle model."""
     entries = _source_entries(source)
-    routes = _document_routes([d for d in documents if d.get("publication") != "site"])
-    routes.update(_document_routes(_site_documents(source, site_catalog or {})))
+    routes = _document_routes(_site_documents(source, site_catalog or {}))
+    routes.update(_document_routes(documents))
     lines = [GENERATED_MARKER, f"# {_markdown_prose(source['title'])}", ""]
     for section_index, section in enumerate(source["sections"]):
         lines.extend([f"## {_markdown_prose(section['title'])}", ""])

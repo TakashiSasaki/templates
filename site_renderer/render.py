@@ -7,6 +7,8 @@ import base64
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
+from publication_bundle.paths import public_path
 import shutil
 import subprocess
 import sys
@@ -163,6 +165,8 @@ def consume_snapshot(**inputs):
     payload={key:str(value) if isinstance(value,Path) else value for key,value in inputs.items()}
     code="""import json,sys
 from pathlib import Path
+from urllib.parse import urlsplit
+from publication_bundle.paths import public_path
 from site_renderer.render import render_snapshot
 args=json.load(sys.stdin)
 for key in ('bundle','site_root','output','original_bundle','original_site'):args[key]=Path(args[key])
@@ -178,9 +182,7 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
     bundle,site_root=Path(bundle).resolve(),Path(site_root).resolve()
     output=checked_output(output,(bundle,site_root))
     site_revision=require_clean_site(site_root)
-    selected=load_lock(regular(site_root,"integration-source.json"))
-    if expected_identity!=selected["bundle_identity"]:raise BundleError("renderer identity differs from Site Integration lock")
-    validate_locked(bundle,selected)
+    validate(bundle, expected_identity=expected_identity)
     with tempfile.TemporaryDirectory(prefix='site-input-snapshot-') as temporary:
         snapshot=Path(temporary)/'bundle'
         identity=snapshot_bundle(bundle,snapshot,expected_identity)
@@ -201,17 +203,35 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
 def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_identity,parent_directory,original_bundle,original_site,public_url,deployment_timestamp):
     with tempfile.TemporaryDirectory(prefix='site-render-') as temporary:
         build=Path(temporary)/'build';build.mkdir();docs=build/'docs';docs.mkdir()
-        for name in identity['files']:
-            if name.startswith('publication/'):
-                put(regular(bundle,name),docs/name.removeprefix('publication/'))
-        documents=read_json(bundle/'documents.json');nav=read_json(bundle/'navigation.json')
-        from site_renderer.progressive_discovery import extend_site_documents
-        documents=extend_site_documents(site_root,documents)
-        translations=fill(site_root,docs,documents,nav,read_json(bundle/'translation-publication.json'),read_json(bundle/'translation-availability.json'),build,site_revision=site_revision)
+        if identity['schema_version'] == 5:
+            from site_renderer.surfaces import project as project_surfaces, copy_publication
+            documents, nav, relocations, provider_translations, coverage = project_surfaces(site_root, bundle)
+            copy_publication(bundle, docs, identity, relocations)
+        else:
+            for name in identity['files']:
+                if name.startswith('publication/'):
+                    put(regular(bundle,name),docs/name.removeprefix('publication/'))
+            documents=read_json(bundle/'documents.json');nav=read_json(bundle/'navigation.json')
+            from site_renderer.progressive_discovery import extend_site_documents
+            documents=extend_site_documents(site_root,documents)
+            provider_translations=read_json(bundle/'translation-publication.json')
+            coverage=read_json(bundle/'translation-availability.json')
+            relocations={}
+        write(build/'presentation.json', {'documents': documents, 'relocations': relocations,
+                                         'audience_runtime': nav['audience_runtime']})
+        translations=fill(site_root,docs,documents,nav,provider_translations,coverage,build,site_revision=site_revision)
         source_revisions={'site':site_revision,'integration':identity['producer']['revision'],**identity['providers']}
+        document_routes = {d['publication']+'/'+d['document']: public_path(d['destination']) for d in documents}
+        def rewrite_source_url(url):
+            parsed = urlsplit(url)
+            if parsed.scheme == 'template':
+                if parsed.path not in document_routes:
+                    raise BundleError('unknown semantic document link: '+url)
+                return document_routes[parsed.path] + ('?'+parsed.query if parsed.query else '') + ('#'+parsed.fragment if parsed.fragment else '')
+            return immutable_github_source_url(url, source_revisions)
         for path in sorted(docs.rglob('*.md')):
             relative=path.relative_to(docs).as_posix()
-            text,_=_rewrite_markdown(path.read_text(encoding='utf-8'),source_document=Path(relative),site_document=Path(relative),document_targets={},asset_rules=[],docs_root=docs,publication='absolute-source-links',site_source_paths=None,absolute_url_rewriter=lambda url: immutable_github_source_url(url,source_revisions))
+            text,_=_rewrite_markdown(path.read_text(encoding='utf-8'),source_document=Path(relative),site_document=Path(relative),document_targets={},asset_rules=[],docs_root=docs,publication='absolute-source-links',site_source_paths=None,absolute_url_rewriter=rewrite_source_url)
             path.write_text(text,encoding='utf-8')
         # This script exposes the same pure Site-owned metadata function used by the old CLI.
         import importlib.util
@@ -227,7 +247,7 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         (build/'zensical.toml').write_text(template.replace('__GENERATED_NAV__',render_nav(navigation)),encoding='utf-8')
         run(site_root,'prepare_site_metadata.py','--config-file',build/'zensical.toml','--deployment-timestamp',deployment_timestamp,'--canonical-url',public_url)
         subprocess.run([zensical_executable(),'build','--config-file',str(build/'zensical.toml'),'--clean','--strict'],check=True)
-        site=build/'site';write(site/'glossary/index.json',read_json(bundle/'glossary.json'))
+        site=build/'site';shutil.copyfile(build/'presentation.json',site/'presentation.json');write(site/'glossary/index.json',read_json(bundle/'glossary.json'))
         run(site_root,'generate_glossary_viewer.py','--input',site/'glossary/index.json','--output',site/'glossary/index.html')
         run(site_root,'finalize_site_metadata.py','--site-root',site,'--canonical-url',public_url)
         graph=read_json(bundle/'guided-navigation.json');repository=graph['repository']

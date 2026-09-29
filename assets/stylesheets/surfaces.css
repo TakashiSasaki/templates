@@ -1,0 +1,23 @@
+/* Site-owned consumer and maintainer workspaces. */
+.surface-intro { max-width: 46rem; margin: 1rem 0 2.5rem; font-size: 1.15rem; line-height: 1.65; }
+.surface-intro > p:first-child { font-size: clamp(1.5rem, 4vw, 2.4rem); line-height: 1.2; font-weight: 700; letter-spacing: -.035em; color: var(--md-default-fg-color); }
+.surface-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin: 0 0 2rem; }
+.surface-card { padding: 1.5rem; border: 1px solid var(--md-default-fg-color--lightest); border-radius: .65rem; background: var(--md-code-bg-color); border-top: .25rem solid var(--md-primary-fg-color); }
+.surface-card-maintain { border-top-color: #8b6eb0; }
+.surface-card h2 { margin-top: 0; font-weight: 700; }
+.surface-card .md-button { margin-top: .8rem; white-space: normal; }
+.surface-card a:focus-visible { outline: .15rem solid var(--md-accent-fg-color); outline-offset: .2rem; }
+@media (max-width: 640px) { .surface-choices { grid-template-columns: 1fr; } .surface-card { padding: 1.1rem; } }
+
+/* One compact switcher shared by the two surfaces. */
+.audience-shell { padding: .4rem max(1rem, calc((100vw - 61rem) / 2)); gap: .4rem 1rem; }
+.audience-badge { display: none; }
+.audience-utilities { flex-basis: auto; font-size: .7rem; }
+.surface-intro { margin-bottom: 1.5rem; }
+@media (max-width: 640px) {
+  .audience-switcher { flex-wrap: nowrap; width: 100%; }
+  .audience-switcher button { flex: 1; padding-inline: .4rem; }
+  .audience-utilities { gap: .8rem; }
+  .surface-intro { font-size: .95rem; }
+  .surface-intro > p:first-child { font-size: 1.5rem; }
+}

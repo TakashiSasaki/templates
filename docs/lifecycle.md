@@ -36,7 +36,7 @@ authority.
 
 ## Requirement and evidence: current product state
 
-The [Implementation evidence](implementation-evidence/) contract is the
+The [Implementation evidence](template:composition/implementation-evidence) contract is the
 canonical requirement/evidence ledger for a selected Composition lifecycle.
 It connects stable requirement IDs to contract targets and, in product mode,
 to implementation boundaries, positive and negative proofs, authoritative
@@ -51,7 +51,7 @@ contract itself.
 
 ## Lifecycle checkpoints: validated transition history
 
-The [Lifecycle checkpoints](checkpoints/) contract preserves historical
+The [Lifecycle checkpoints](template:composition/lifecycle-checkpoints) contract preserves historical
 transition evidence without replacing the requirement/evidence ledger. A
 planning checkpoint freezes the exact validated contract baseline that product
 implementation is expected to satisfy. A product checkpoint closes that
@@ -274,16 +274,16 @@ The canonical lifecycle semantics and source documents below are owned by the
 `composition` provider. This Site page supplies the stable `/lifecycle/`
 reader entry point and groups the published destinations.
 
-- [Composition state](composition-state/)
-- [Contract evolution](contract-evolution/)
-- [Implementation evidence](implementation-evidence/)
-- [Lifecycle checkpoints](checkpoints/)
-- [Release execution](release-execution/)
-- [Release evidence](release-evidence/)
-- [Release bundle](release-bundle/)
+- [Composition state](template:composition/composition-state)
+- [Contract evolution](template:composition/contract-evolution)
+- [Implementation evidence](template:composition/implementation-evidence)
+- [Lifecycle checkpoints](template:composition/lifecycle-checkpoints)
+- [Release execution](template:composition/release-execution)
+- [Release evidence](template:composition/release-evidence)
+- [Release bundle](template:composition/release-bundle)
 
 For the repository-wide ownership model and the separation between Policy and
-Composition, see [Policy–Composition coexistence](../coexistence/).
+Composition, see [Policy–Composition coexistence](template:site/policy-composition-coexistence).
 
 These reader paths do not create a separate provider. Their provenance in a
 built artifact resolves to the exact provider revisions recorded in

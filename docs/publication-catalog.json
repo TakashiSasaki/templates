@@ -120,6 +120,18 @@
       "source": "docs/ci/site-performance.md",
       "optional": false,
       "home": false
+    },
+    {
+      "id": "use-home",
+      "source": "docs/use.md",
+      "home": false,
+      "optional": false
+    },
+    {
+      "id": "maintain-home",
+      "source": "docs/maintain.md",
+      "home": false,
+      "optional": false
     }
   ],
   "glossary": {

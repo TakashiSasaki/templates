@@ -10,7 +10,7 @@ START = "<!-- reference-consumer:start -->"
 END = "<!-- reference-consumer:end -->"
 
 
-def project(root: Path):
+def project(root: Path, publication_bundle=None):
     def read(path):
         return json.loads((root / path).read_text())
     discovery = read("reference-consumer.json")
@@ -20,7 +20,7 @@ def project(root: Path):
     composition = read(relations["product"]["state"])
     intent = read(relations["product"]["intent"])
     policy = yaml.safe_load((root / relations["maintenance"]["configuration"]).read_text())
-    publication = read(relations["publication"]["selection"])
+    publication = publication_bundle or read(relations["publication"]["selection"])
     evidence = read("contracts/implementation-evidence.json")
     proof_statuses = [proof["status"] for record in evidence["records"]
                       for field in ("positiveEvidence", "negativeEvidence")
@@ -38,7 +38,7 @@ def project(root: Path):
                         "deferred":proof_statuses.count("deferred")},
             "validation": {"composition":relations["product"]["validation"],
                            "policy_workflow":relations["maintenance"]["validation_workflow"],
-                           "site_acceptance_workflow":".github/workflows/reference-consumer.yml"}}
+                           "site_acceptance_workflow":".github/workflows/build-pages.yml"}}
 
 
 if __name__=='__main__':

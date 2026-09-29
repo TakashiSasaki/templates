@@ -29,52 +29,15 @@ A first-time application author normally starts with **Composition**, then uses 
 
 ### Maintain this repository
 
-If you are changing `TakashiSasaki/templates` itself, use the [maintainer onboarding guide](docs/maintainer-onboarding.md). It routes the task to one of the five authority branches, names the first document/skill and validation, and keeps consumer onboarding separate from provider maintenance and the publication controller. Start by recording the live branch, full `HEAD`, dirty worktree, and related PRs; use explicit remote authority/path links when the source is on another branch.
+Use the [maintainer guide](docs/maintainer-onboarding.md), [local preview](MAINTENANCE.md)
+and [publication runbook](PUBLISHING.md). Source flows one way:
 
-For a map of this authority's source documents, contracts, implementation, and checks, use [Site repository navigation](index.md).
+`Modeling + Composition + Policy + other providers -> Integration Bundle -> Site -> Pages`.
 
-The rest of this README documents the repository authority and publication model for maintainers and readers who need provenance or Site implementation details.
+Authorities retain independent Git histories. Integration resolves configured branches
+once per build and records exact provenance. Site consumes successful artifacts without
+adoption commits, provider checkouts or controller pins. A Site appearance change can be
+tested and released against an already downloaded publication. New catalog documents
+receive generated routes and navigation. There is no backward-compatibility requirement.
 
-## Repository authority model
-
-`composition + policy → integration → site → GitHub Pages`
-
-Each authority retains an independent Git history. Site is not a parent authority.
-The [authority model](docs/authority-model.md) and [machine discovery](agent.json)
-describe the same topology. The published discovery document receives exact
-provider provenance from the selected Bundle.
-
-## Publication model
-
-Site's only provider-publication selection is [integration-source.json](integration-source.json).
-It binds an exact Integration revision, Bundle schema, identity and content digest.
-Integration owns the provider tuple; Site has no independent provider publication
-lock. A new Integration release alone is not Site-adoption authorization and does
-not deploy Pages. After a separately activated controller path supplies a trusted
-promotion receipt, the guarded Site controller may create or reconcile an allowlisted
-lock PR, then stops. Independent exact-head review and separate human merge
-authorization precede landing; Site qualification, branch protection, and the
-deployment workflow remain separate states. A normal Site-only change retains the
-selected Integration lock.
-
-An explicit Integration adoption changes this lock. A Site-only UI, PWA or security
-fix retains it. Both use the same [Site qualification and deployment process](PUBLISHING.md).
-The renderer runs with only Site and the immutable Bundle; provider checkouts and
-Integration implementation source are absent.
-
-## Local publication validation
-
-Read [MAINTENANCE.md](MAINTENANCE.md), [PUBLISHING.md](PUBLISHING.md), the
-[publication automation handoff](docs/publication-automation.md), and
-[LANGUAGE.md](LANGUAGE.md). English is authoritative. Available stale translations
-carry a visible non-authoritative warning and a link to current English.
-
-The Site also independently consumes Composition's public Website contract and
-Policy's maintenance rules. [reference-consumer.json](reference-consumer.json)
-records these product/toolchain relationships separately from publication input.
-They do not select provider publication revisions.
-
-The [migration audit](migration/final-architecture-audit.md) records retirement of
-the transitional local Integration producer and historical audit dispositions.
-
-GitHub Pages environment restrictions are configured outside source control. Pull requests cannot change this setting; verify the environment allows only `site` before deployment.
+[Site source navigation](index.md) links the implementation and local documentation.
