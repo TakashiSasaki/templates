@@ -5,11 +5,11 @@
 - [Repository overview](README.md) - Explains the five-authority repository model, primary consumer entry points, and the Site publication boundary.
 - [Machine-readable agent discovery](agent.json) - Provides the repository entry point intended for coding-agent discovery.
 - [Templates maintainer onboarding](docs/maintainer-onboarding.md) - Routes maintenance work to the owning authority and its first validation path.
-- [Repository agent instructions](AGENTS.md) - Defines the active generated operating instructions for changes on the Site authority.
+- [Repository agent instructions](AGENTS.md) - Defines the local operating instructions for changes on the Site authority.
 
 ## Publication and maintenance
 
-- [Site publication and deployment](PUBLISHING.md) - Defines Integration adoption, Site qualification, Pages authorization, and deployment boundaries.
+- [Site publication and deployment](PUBLISHING.md) - Explains independent publication consumption, Site builds and Pages deployment.
 - [Site maintenance](MAINTENANCE.md) - Describes maintenance procedures and the local completion path.
 - [Freshness model](FRESHNESS.md) - Describes runtime freshness and cache behavior.
 - [Publication freshness](PUBLICATION_FRESHNESS.md) - Describes freshness semantics for publication inputs and deployed outputs.
@@ -23,7 +23,7 @@
 - [Documentation index](docs/index.md) - Routes reader-facing and maintainer-facing Site documentation and architecture material.
 - [Contracts](contracts/index.md) - Contains Site-owned contract instances and declared repository topology inputs.
 - [Reference consumer contract](reference-consumer.json) - Declares product, maintenance, and deployed publication relationships.
-- [Integration selection](publication-channel.json) - Binds the exact Integration revision and Bundle identity selected by Site.
+- [Integration selection](publication-channel.json) - Selects available successful Integration publication artifacts.
 - [Composition input](composition.json) - Records the Composition product input consumed by this Site authority.
 - [Site maintenance policy](policy/project.md) - Records the Site-local policy source routed by the maintenance configuration.
 - [Schemas](schemas/) - Contains Site-owned schema material used to validate Site contracts and publication inputs.
@@ -39,3 +39,7 @@
 
 - [Consumer surface](docs/use.md) - Entry for template users.
 - [Maintainer surface](docs/maintain.md) - Entry for source authors and maintainers.
+
+## Complete material discovery
+
+- [Canonical documents and agent materials](discovery/index.md) - Generated directly from the source catalogs and Git-tracked entrypoints; no separate membership list.

@@ -71,6 +71,7 @@ def build_reader_coverage(
         tuple[Path, dict[str, dict[str, Any]], list[dict[str, Any]]],
     ],
     included_pages: list[dict[str, Any]],
+    *, translation_publications=None,
 ) -> dict[str, Any]:
     """Return current/stale/missing coverage for declared reader languages.
 
@@ -80,7 +81,7 @@ def build_reader_coverage(
     language. This keeps coverage derived from authority metadata instead of a
     separately maintained translation target list.
     """
-    manifests = _load_manifests(publications)
+    manifests = _load_manifests(publications if translation_publications is None else translation_publications)
     languages = sorted(
         {
             entry.language

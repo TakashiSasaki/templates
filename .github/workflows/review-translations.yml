@@ -1,0 +1,23 @@
+name: Review translations
+on:
+  workflow_dispatch:
+    inputs:
+      authority:
+        description: Authority whose optional Japanese translations should be reviewed
+        type: choice
+        options: [composition, policy, site]
+        default: site
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.authority }}
+          persist-credentials: false
+      - name: Report missing and stale reference translations
+        run: |
+          python3 scripts/check_translation_status.py | tee "$RUNNER_TEMP/translation-status.txt"
+          cat "$RUNNER_TEMP/translation-status.txt" >> "$GITHUB_STEP_SUMMARY"

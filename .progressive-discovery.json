@@ -19,7 +19,8 @@
   ],
   "explicit_exclusions": [
     "publication",
-    "authority.json"
+    "authority.json",
+    "discovery"
   ],
   "publication_system": true,
   "surface_boundaries": {

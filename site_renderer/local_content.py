@@ -6,10 +6,8 @@ from publication_bundle.contract import BundleError, regular, safe_path
 from publication_bundle.paths import public_path
 from publication_bundle.markdown import _rewrite_markdown
 from site_renderer.git import tracked_paths
-from site_renderer.owned_content.publish_translations import publish_translations
-from site_renderer.owned_content.translation_fragment_reconciliation import reconcile_translation_fragments
+from site_renderer.owned_content.optional_translations import publish_optional_translations
 from site_renderer.owned_content.translation_link_selection import rewrite_current_localized_links
-from site_renderer.owned_content.translation_coverage import build_reader_coverage
 from site_renderer.owned_content.reader_navigation_locales import build_runtime_map, load_overlays
 from site_renderer.github import github_blob_url
 
@@ -58,10 +56,8 @@ def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output
         text,_=_rewrite_markdown(path.read_text(encoding='utf-8'),source_document=PurePosixPath(d['source']),site_document=PurePosixPath(d['destination']),document_targets=published,asset_rules=[],docs_root=docs_root,publication='site',site_source_paths=source_paths,site_source_url=site_source_url)
         path.write_text(text,encoding='utf-8')
     local={'site':(site_root,local_docs,[])}
-    records=publish_translations(local,pages,docs_root)
-    reconcile_translation_fragments(local,pages,records,docs_root)
+    records,local_coverage=publish_optional_translations(local,pages,docs_root)
     # Provider statuses are carried through unchanged; only Site-owned source is compiled here.
-    local_coverage=build_reader_coverage(local,pages)
     combined=provider_translations['translations']+[{'publication':'site','language':r.language,'canonical_destination':str(r.canonical_destination),'translation_destination':str(r.translation_destination)} for r in records]
     translations={**provider_translations,'translations':combined}
     write=lambda path,data:path.write_text(json.dumps(data,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')

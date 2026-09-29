@@ -150,6 +150,7 @@ def validate_translation_state(root, documents, providers):
             if not {'translation_source','canonical_blob_sha','current_blob_sha'}<=r.keys():raise BundleError('missing translation evidence')
             safe_path(r['translation_source'])
             if any(not isinstance(r[k],str) or not SHA.fullmatch(r[k]) for k in ('canonical_blob_sha','current_blob_sha')):raise BundleError('invalid translation evidence')
+            if status != ('current' if r['canonical_blob_sha']==r['current_blob_sha'] else 'stale'):raise BundleError('translation status contradicts canonical review evidence')
             expected[(r['publication'],lang,r['canonical_destination'])]=r
         elif {'translation_source','canonical_blob_sha','current_blob_sha'}&r.keys():raise BundleError('missing translation has declared evidence')
     if counts!=coverage.get('summary') or languages!=coverage.get('by_language'):raise BundleError('inconsistent translation summary')

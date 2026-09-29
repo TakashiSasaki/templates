@@ -13,7 +13,7 @@ The Site uses the same schema-v2 translation contract as external publications:
 
 Current Site-owned translations use the `reader` surface. Site itself is not added to the provider-owned guided-navigation graph merely because it owns reader translations.
 
-A stale translation is omitted from the localized reader surface while its canonical English page remains publishable. Malformed metadata, unsafe paths, missing declared files, duplicate mappings, and other structural errors remain hard failures.
+A stale translation remains available with a visible warning and a link to the current English canonical page. Missing translations fall back to English. Invalid translation inputs are omitted with diagnostics; they do not block canonical publication. Strict translation validation is a separate review operation.
 
 Provider-owned translations remain in their provider histories. Do not copy Policy or Composition translations into this directory.
 
@@ -28,3 +28,13 @@ After all publication manifests have been resolved at their reviewed revisions, 
 - external URLs, assets, fragments, code fences, and already-localized routes are not inferred or rewritten merely from path similarity.
 
 This selection is derived from the assembled canonical and translated destinations. It does not create a second translation authority and does not require Site-owned copies of provider translations. Relative links whose canonical source belongs to the same publication continue to be resolved by the provider translation publisher before this cross-publication availability pass.
+
+## Independent translation maintenance
+
+Canonical edits do not require translation updates. Review translations later, on
+the owning authority branch. `canonical_blob_sha` identifies the English bytes
+actually reviewed; never advance it merely to clear a stale report. Translation
+status is derived from content, and stale Japanese pages display a warning and a
+link to current English. Use `python scripts/check_translation_status.py` for the
+current backlog; the default-branch **Review translations** workflow offers the
+same report on manual dispatch. Missing Japanese pages simply use English.
