@@ -57,6 +57,11 @@ class ReleaseBoundaryTests(unittest.TestCase):
     def test_workflow_reaches_qualification_without_site_or_write_permissions(self):
         caller=yaml.safe_load((ROOT/'.github/workflows/validate-integration.yml').read_text())
         workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())
+        self.assertEqual(
+            workflow['jobs']['qualify']['outputs']['workflow_head'],
+            '${{ github.event.pull_request.head.sha || github.sha }}',
+        )
+        validate_actions_if_expression(workflow['jobs']['qualify']['outputs']['workflow_head'])
         self.assertEqual(caller['jobs']['qualification']['uses'],'./.github/workflows/integration-qualification.yml')
         self.assertEqual(caller['jobs']['qualification']['if'],'${{ github.event_name == \'workflow_dispatch\' }}')
         self.assertEqual(caller['jobs']['qualification']['with']['producer_ref'],'${{ inputs.producer_ref }}')
