@@ -4,33 +4,14 @@ This independent-root branch owns reusable information models explicitly accepte
 
 Read [AUTHORITY.md](AUTHORITY.md) and [AGENTS.md](AGENTS.md) before changing this branch.
 
-## Maintain this authority in `templates`
+## Maintain this authority
 
-This section is for maintainers of the `modeling` authority itself. It is not the
-consumer-facing discovery or adoption path. The repository-level maintainer map,
-including the other four authorities and the publication boundary, is maintained
-by the Site authority in the [templates maintainer onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
-
-For a Modeling task, confirm that the checked-out branch is `modeling`, record the
-current full `HEAD` SHA and dirty/untracked state, and read [AUTHORITY.md](AUTHORITY.md),
-[AGENTS.md](AGENTS.md), [the intake procedure](docs/intake.md), and the
-[registration skill](.agents/skills/register-information-model/SKILL.md). Use the
-skill only for record registration or revision. Source records in `records/` are
-editable; `CATALOG.md`, `catalog.json`, and `docs/resources/` are generated
-projections and must be regenerated with `python3 tools/catalog.py generate`.
-
-The local completion path is `python3 tools/qualify.py` after generation. This
-proves Modeling's record and catalog contract; it does not register an Integration
-release, create a Site adoption, or deploy Pages. Use the `modeling` branch name to
-find this entry point, but bind CI, review, and any downstream publication evidence
-to an immutable full SHA. References to another authority are remote, authority-
-qualified references or separate checkouts, never relative paths that pretend all
-branches share one filesystem.
-
-Record the scope, validation result, PR/Issue checkpoint, and next safe action in
-the existing Policy Work ledger. On resumption, re-check the live branch, exact
-head, PR dependencies, and prior evidence before creating anything; do not merge,
-rebase, cherry-pick, or infer downstream adoption from a passing local check.
+Read [AGENTS.md](AGENTS.md) and run its local checks. Modeling changes require
+no Integration checkout or Site release. Providers own their publication catalogs;
+Integration reads them asynchronously and publishes artifacts consumed by Site.
+An added catalog document gets a default route without an adoption or pin-update PR.
+Keep authority Git histories independent. Consumer runtime release pins remain separate
+from documentation publication. See the [maintainer guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
 
 ## Contents
 
@@ -73,4 +54,6 @@ full Modeling SHA with serial and parallel qualification results.
 
 ## Lifecycle boundary
 
-No existing authority history is imported. No Composition, Policy, Integration, or Site contract is transferred here. Integration adoption, Site publication, and deployment are **not enabled** by creating this authority. Model releases and downstream adoption remain separate explicit decisions.
+Keep authority histories independent. Source records belong to Modeling; Integration
+publishes their catalog asynchronously and Site renders the resulting Bundle. A Modeling
+change needs no downstream adoption decision or Site checkout.
