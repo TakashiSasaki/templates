@@ -32,3 +32,5 @@ Use `.agents/skills/land-templates-stack/SKILL.md` only for PR preparation/landi
 The optional progressive-discovery utility and reusable Policy/Composition products do
 not govern repository maintenance by implicit self-adoption. Release/runtime pins that
 identify executable consumer distributions are separate from publication selection.
+
+For model intake, use `.agents/skills/register-information-model/SKILL.md`.

@@ -49,10 +49,7 @@ Add focused positive and negative tests for new invariants. Recheck exact-head C
 
 ## Handoff
 
-Use the repository's stacked-PR workflow, durable PR checkpoints, and the
-Policy planner's adaptive review scope as instructed in `AGENTS.md`. A record
-delta may remain local to its exact source/projection closure; schema, meaning,
-ownership, provenance, or export changes expand the related Modeling stack.
-Do not merge or enable Integration/Site adoption without authorization. Include
-source verification limits, canonical language, rights uncertainty, exact
-tested head, next safe action, and stop boundary in the handoff.
+Report the changed records, generated outputs, source verification limits and checks
+actually run. Use local validation for the changed semantics. Integration and Site
+consume the resulting source asynchronously; their builds are not intake gates.
+Keep authority histories independent.

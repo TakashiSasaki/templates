@@ -10,7 +10,7 @@ It also owns its descriptive records and administrative record schemas. Ownershi
 
 Do not absorb a resource because its filename says schema, registry, catalog, profile, or vocabulary. Composition retains component/recipe, resolver/planner, lifecycle, topology, and managed-product contract semantics. Policy retains agent operating policy and repository-change orchestration. Integration retains cross-provider qualification, provider selection, publication protocols and bundles. Site retains presentation, browser runtime, accessibility, packaging, and deployment.
 
-This authority has no approval right over unrelated changes in those domains. No automatic provider following, downstream adoption, publication cutover, or deployment is authorized.
+This authority has no approval right over unrelated changes in those domains. Integration may read this branch and publish its catalog asynchronously. Site independently consumes successful Integration artifacts.
 
 ## External and local resources
 
@@ -34,7 +34,7 @@ Model-specific headless implementations may live here. Generic engines remain in
 
 ## Lifecycle and history
 
-This branch has its own root history. Never merge, rebase, or cherry-pick another authority's history into it. Adopt external/provider artifacts using explicitly selected immutable revisions and provenance instead.
+This branch has its own root history. Never merge, rebase, or cherry-pick another authority's history into it. Exchange artifacts and record their revisions as provenance instead.
 
 A model release, record correction, implementation release, consumer adoption, Integration qualification, Site adoption, and deployment are distinct boundaries. Discovery references do not create a normative dependency. Actual semantic dependencies must be explicit and must not form circular authority decision rights.
 
