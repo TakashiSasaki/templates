@@ -167,7 +167,7 @@ def _parse_document(raw: Any, index: int, label: str) -> Document:
         raise PublicationContractError(f"{field} must be an object")
     expected = {"id", "source", "optional", "home"}
     unknown = set(raw) - expected
-    missing = expected - set(raw)
+    missing = {"id", "source"} - set(raw)
     if unknown:
         raise PublicationContractError(
             f"{field} contains unsupported fields: {', '.join(sorted(unknown))}"
@@ -181,8 +181,8 @@ def _parse_document(raw: Any, index: int, label: str) -> Document:
     source = safe_relative_path(raw["source"], f"{field}.source")
     if source.suffix.lower() != ".md":
         raise PublicationContractError(f"{field}.source must be Markdown")
-    optional = raw["optional"]
-    home = raw["home"]
+    optional = raw.get("optional", False)
+    home = raw.get("home", False)
     if type(optional) is not bool:
         raise PublicationContractError(f"{field}.optional must be boolean")
     if type(home) is not bool:
