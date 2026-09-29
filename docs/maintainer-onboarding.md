@@ -16,4 +16,4 @@ failure does not block source implementation or mandate a cross-authority PR sta
 
 [Preview Site](../MAINTENANCE.md) using a downloaded publication. [Publish](../PUBLISHING.md)
 by consuming successful Integration artifacts. Add provider documents in the owning catalog;
-Integration supplies default routes. Customize routes only when a curated destination is useful.
+Integration includes them automatically; Site owns the public routes and navigation.
