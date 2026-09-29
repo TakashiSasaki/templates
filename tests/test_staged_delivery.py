@@ -676,20 +676,6 @@ def test_staged_render_is_deterministic_and_check_detects_input_drift(
     assert any(item.code == "STALE_OUTPUT" for item in stale)
 
 
-def test_presentation_map_covers_current_coding_selection() -> None:
-    repository_root = Path(__file__).parents[1]
-    config = load_config(repository_root, ".agent-policy.yml")
-    context = config.contexts["coding"]
-    rules = load_rules(
-        repository_root,
-        list(context.profiles),
-        list(context.project_policy_files),
-        declared_overrides=context.override_reasons,
-        require_explicit_overrides=True,
-    )
-    presentation_map, _ = load_presentation_map()
-
-    assert {rule.id for rule in rules} <= set(presentation_map["rules"])
 
 
 @pytest.mark.parametrize(

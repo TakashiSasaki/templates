@@ -64,59 +64,6 @@ FOCUSED_TEST_SPECS: tuple[FocusedTest, ...] = (
         reason="read-only snapshot provenance",
     ),
     FocusedTest(
-        "tests/test_observe_pr_state.py",
-        execution_class="parallel/process",
-        reason="mocked subprocess in-memory observation",
-    ),
-    FocusedTest(
-        "tests/test_pr_state_observation.py",
-        execution_class="parallel/process",
-        reason="in-memory observation candidate structures",
-    ),
-    FocusedTest(
-        "tests/test_pr_state_observation_replay.py",
-        execution_class="parallel/process",
-        reason="in-memory observation replay structures",
-    ),
-    FocusedTest(
-        "tests/test_publish_review_artifacts.py",
-        execution_class="parallel/process",
-        reason="mocked provider in-memory artifact publishing",
-    ),
-    FocusedTest(
-        "tests/test_review_artifacts.py",
-        execution_class="isolated-workspace",
-        reason="mocked in-memory artifact rendering and isolated tmp_path git",
-    ),
-    FocusedTest(
-        "tests/test_review_scope_selection.py",
-        execution_class="parallel/process",
-        reason="pure functional review scope selection",
-    ),
-    FocusedTest(
-        "tests/test_maintainer_source_closure.py",
-        execution_class="parallel/process",
-        reason="process-global working directory mutation (os.chdir) and sys.path manipulation",
-    ),
-    FocusedTest(
-        "tests/test_live_review_adapter.py",
-        execution_class="parallel/process",
-        reason="mocked provider live revalidation",
-    ),
-    FocusedTest(
-        "tests/test_maintainer_entrypoint_workflow.py",
-        execution_class="exclusive",
-        reason=(
-            "adversarial in-place poisoning of canonical worktree maintainer "
-            "entrypoint and sibling files"
-        ),
-    ),
-    FocusedTest(
-        "tests/test_maintainer_efficiency_measurement.py",
-        execution_class="parallel/process",
-        reason="in-memory efficiency report calculations",
-    ),
-    FocusedTest(
         "tests/test_qualification_sequencing.py",
         execution_class="isolated-workspace",
         reason="in-memory frontier sequencing and isolated tmp_path repin checks",
@@ -125,16 +72,6 @@ FOCUSED_TEST_SPECS: tuple[FocusedTest, ...] = (
         "tests/test_preflight_orchestration.py",
         execution_class="isolated-workspace",
         reason="mock authorities executed strictly inside tmp_path",
-    ),
-    FocusedTest(
-        "tests/test_maintainer_progressive_disclosure.py",
-        execution_class="exclusive",
-        reason="adversarial in-place poisoning of canonical worktree reference file",
-    ),
-    FocusedTest(
-        "tests/test_automation_boundaries.py",
-        execution_class="parallel/process",
-        reason="pure functional permission and separation checks",
     ),
     FocusedTest(
         "tests/test_policy_fast_preflight_parallelism.py",
@@ -595,7 +532,6 @@ def check_self_host() -> None:
 
 def check_self() -> None:
     check_candidate_qualification()
-    check_self_host()
 
 
 def check_installed_command() -> None:

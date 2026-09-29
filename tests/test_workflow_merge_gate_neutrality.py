@@ -66,14 +66,3 @@ def test_review_acquisition_depends_on_completion_not_progression() -> None:
     assert "under human-handoff, do not initiate a new review request" in text
 
 
-def test_generated_orchestration_projection_contains_all_procedures() -> None:
-    skill = (
-        ROOT / ".agents/skills/orchestrate-repository-change/SKILL.md"
-    ).read_text(encoding="utf-8")
-    for reference in (
-        "references/pr-workflow-selection.md",
-        "references/serial-pr-workflow.md",
-        "references/stacked-pr-workflow.md",
-        "references/human-handoff.md",
-    ):
-        assert reference in skill

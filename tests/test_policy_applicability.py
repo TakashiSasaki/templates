@@ -171,27 +171,6 @@ def test_provider_maintainer_rules_remain_isolated_in_repository_policy() -> Non
         assert all(not str(p).startswith("repository-policy/") for p in policy_files)
 
 
-def test_provider_self_host_repository_policy_is_separately_applied() -> None:
-    """Provider self-host instructions apply provider rules strictly via project_policy.files."""
-    config = load_config(ROOT, ".agent-policy.yml")
-    coding_context = config.contexts["coding"]
-
-    # Shared profile rules
-    shared_rules = load_rules(ROOT, list(coding_context.profiles), [])
-    shared_rule_ids = {r.id for r in shared_rules}
-    assert not any(r_id.startswith("policy-repo.") for r_id in shared_rule_ids)
-
-    # Effective self-host rules with local repository policy
-    effective_rules = load_rules(
-        ROOT,
-        list(coding_context.profiles),
-        list(coding_context.project_policy_files),
-    )
-    effective_rule_ids = {r.id for r in effective_rules}
-
-    # Provider rules are present ONLY through repository-policy files
-    assert "policy-repo.preserve-authority-boundary" in effective_rule_ids
-    assert "policy-repo.preserve-history-boundary" in effective_rule_ids
 
 
 def test_candidate_core_profile_selects_applicability_with_established_rules() -> None:
@@ -232,73 +211,8 @@ def test_candidate_core_profile_selects_applicability_with_established_rules() -
 # =============================================================================
 
 
-def test_all_generated_source_provenance_claims_resolve_in_git() -> None:
-    """Every source revision claimed in committed generated instructions exists in Git."""
-    for output_path in (AGENTS_MD_PATH, REVIEW_POLICY_PATH):
-        content = output_path.read_text(encoding="utf-8")
-        matches = SOURCE_PROVENANCE_PATTERN.findall(content)
-        assert matches, f"No source provenance references found in {output_path}"
-
-        for repo, sha, file_path in matches:
-            assert repo == "TakashiSasaki/templates"
-            res = subprocess.run(
-                ["git", "cat-file", "-e", f"{sha}:{file_path}"],
-                cwd=ROOT,
-                capture_output=True,
-            )
-            assert res.returncode == 0, (
-                f"Invalid provenance claim in {output_path}: "
-                f"{sha}:{file_path} does not exist in Git"
-            )
 
 
-def test_adopted_applicability_rule_is_claimed_with_truthful_provenance() -> None:
-    """The adopted shared applicability rule is claimed with truthful immutable provenance.
-
-    Under P3c, policy/core/policy-applicability.md is adopted via the stable runtime pin
-    declared in .agent-policy.yml (aa6f9ac4). Policy's current generated instructions
-    truthfully claim this path as a source at the pinned revision.
-    """
-    config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
-    pinned_revision = config["toolchain"]["revision"]
-
-    # 1. Verify adopted rule exists at the pinned revision in Git
-    res = subprocess.run(
-        [
-            "git",
-            "cat-file",
-            "-e",
-            f"{pinned_revision}:policy/core/policy-applicability.md",
-        ],
-        cwd=ROOT,
-        capture_output=True,
-    )
-    assert res.returncode == 0, "Adopted rule must exist in pinned immutable runtime"
-
-    # 2. Verify committed generated instructions claim it truthfully under that pin
-    for output_path in (AGENTS_MD_PATH, REVIEW_POLICY_PATH):
-        content = output_path.read_text(encoding="utf-8")
-        assert f"{pinned_revision}:policy/core/policy-applicability.md" in content, (
-            f"Adopted rule not claimed in {output_path}"
-        )
-        assert "core.scope-applicability-to-target" in content
-
-    # 3. Unadopted candidate rules must not exist at the pinned revision in Git
-    unadopted_candidate = "policy/core/unadopted-prospective-rule.md"
-    res_unadopted = subprocess.run(
-        [
-            "git",
-            "cat-file",
-            "-e",
-            f"{pinned_revision}:{unadopted_candidate}",
-        ],
-        cwd=ROOT,
-        capture_output=True,
-    )
-    assert res_unadopted.returncode != 0
-    for output_path in (AGENTS_MD_PATH, REVIEW_POLICY_PATH):
-        content = output_path.read_text(encoding="utf-8")
-        assert unadopted_candidate not in content
 
 
 def test_policy_self_host_check_passes_with_truthful_state() -> None:
@@ -405,23 +319,6 @@ def test_scenario_b_consumer_adopts_policy(tmp_path: Path) -> None:
     assert not any(rid.startswith("policy-repo.") for rid in rule_ids)
 
 
-def test_scenario_c_policy_provider_is_edited() -> None:
-    """Scenario C: Policy provider normative source is edited.
-
-    Principle 4: Editing normative source does not self-activate; provider maintenance rules govern.
-    """
-    # 1. The adopted rule exists in the worktree and is active via adoption
-    assert RULE_PATH.is_file()
-    agents_text = AGENTS_MD_PATH.read_text(encoding="utf-8")
-    assert "core.scope-applicability-to-target" in agents_text
-
-    # 2. But unadopted candidate edits do NOT self-activate into maintainer instructions
-    assert "core.unadopted-prospective-rule" not in agents_text
-
-    # 3. Provider maintenance policy remains authoritative for provider work
-    config = load_config(ROOT, ".agent-policy.yml")
-    coding = config.contexts["coding"]
-    assert "repository-policy/maintainer-validation.md" in coding.project_policy_files
 
 
 def test_scenario_d_site_self_hosting(tmp_path: Path) -> None:

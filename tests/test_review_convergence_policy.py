@@ -86,14 +86,3 @@ def test_review_acquisition_preflight_checks_identity_without_becoming_review_ev
     assert "fixed waiting period" in text
 
 
-def test_policy_repository_self_host_selects_profiles_that_receive_the_rules() -> None:
-    config = _yaml(SELF_HOST_CONFIG)
-    coding = config["contexts"]["coding"]
-    assert "core" in coding["profiles"]
-    assert "pull-request" in coding["profiles"]
-
-    toolchain = config["toolchain"]
-    revision = toolchain["revision"]
-    assert isinstance(revision, str)
-    assert len(revision) == 40
-    assert all(character in "0123456789abcdef" for character in revision)

@@ -103,7 +103,7 @@ build closure, and managed repository lock.
 
 ## Policy–Composition coexistence boundary
 
-Policy and Composition are independent authorities that may coexist in one consumer repository. The Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/) is the canonical cross-authority contract; this section states only Policy's provider-local guarantees.
+Policy and Composition are independent authorities that may coexist in one consumer repository. The Site-owned [Policy–Composition coexistence contract](template:site/policy-composition-coexistence) is the canonical cross-authority contract; this section states only Policy's provider-local guarantees.
 
 Policy exclusively owns its configuration and management metadata:
 

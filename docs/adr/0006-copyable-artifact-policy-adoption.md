@@ -29,7 +29,7 @@ Artifact-level instructions remain governed by the artifact ownership contract u
 - a Web application artifact is not required to add `AGENTS.md` merely to participate in the Web application contract; and
 - `.agent-policy.yml`, `.agent-policy.lock`, `.agent-policy/**`, generated Policy instructions, review adapters, and Policy workflows are not inherited from Composition by default.
 
-The canonical cross-authority ownership handoff and collision rules are defined by the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/). This ADR does not create a separate Policy-side copy of that contract.
+The canonical cross-authority ownership handoff and collision rules are defined by the Site-owned [Policy–Composition coexistence contract](template:site/policy-composition-coexistence). This ADR does not create a separate Policy-side copy of that contract.
 
 ## Rationale
 

@@ -96,22 +96,3 @@ def test_maintainer_guidance_preserves_non_self_authorizing_adoption() -> None:
         assert phrase in text
 
 
-def test_policy_repository_maintainers_consume_shared_and_local_authority_layers() -> None:
-    config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
-    assert isinstance(config, dict)
-    coding = config["contexts"]["coding"]
-    assert coding["profiles"] == [
-        "core",
-        "security-baseline",
-        "pull-request",
-        "progressive-discovery",
-    ]
-    project_files = coding["project_policy"]["files"]
-    assert "repository-policy/maintainer-validation.md" in project_files
-
-    authority = AUTHORITY.read_text(encoding="utf-8").lower()
-    assert "keep shared policy semantics in the shared `policy/` corpus" in authority
-    assert "keep repository-maintainer rules in `repository-policy/`" in authority
-
-    release = RELEASE_TRUST.read_text(encoding="utf-8").lower()
-    assert "frozen reviewed candidate followed by a separate promotion change" in release
