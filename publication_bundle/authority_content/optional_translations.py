@@ -4,9 +4,9 @@ import shutil
 import sys
 import tempfile
 
-from .publish_translations import publish_translations
-from .translation_coverage import build_reader_coverage
-from .translation_fragment_reconciliation import reconcile_translation_fragments
+from publication_bundle.authority_content.publish_translations import publish_translations
+from publication_bundle.authority_content.translation_coverage import build_reader_coverage
+from publication_bundle.authority_content.translation_fragment_reconciliation import reconcile_translation_fragments
 
 
 def publish_optional_translations(publications, pages, docs_root):

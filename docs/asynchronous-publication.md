@@ -129,6 +129,9 @@ Japanese is optional reference content. Missing translations use English. Curren
 and stale valid translations may be published, but stale pages display a prominent
 warning and a link to current English. Translation review evidence always names the
 English blob actually reviewed; an English edit does not advance that evidence.
+If a canonical heading has moved, Site makes the older translation's section link
+open the target page instead. This only changes the rendered reference page, never
+the translation source or its review evidence. Canonical links remain strictly checked.
 
 Translations are assembled separately. Invalid or orphaned translation inputs omit
 that provider's translation batch with a diagnostic, while canonical content still

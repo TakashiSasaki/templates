@@ -124,11 +124,12 @@ class ProgressiveDiscoveryGraphTests(unittest.TestCase):
         self.assertEqual(marked.sections, plain.sections)
         self.assertEqual(marked.links[0].raw_target, plain.links[0].raw_target)
         self.assertEqual(marked.links[0].line, plain.links[0].line + 1)
-        for malformed in ('<!-- arbitrary HTML -->\n' + text,
-                          text + '\n' + marker,
-                          marker + '<script>alert(1)</script>\n' + text):
-            with self.subTest(text=malformed), self.assertRaises(IndexNavigationError):
-                parse_index(malformed, 'index.md')
+        for commented in ('<!-- arbitrary comment -->\n' + text, text + '\n' + marker):
+            with self.subTest(text=commented):
+                self.assertEqual(parse_index(commented, 'index.md').links[0].raw_target,
+                                 plain.links[0].raw_target)
+        with self.assertRaises(IndexNavigationError):
+            parse_index(marker + '<script>alert(1)</script>\n' + text, 'index.md')
 
     def test_graph_schema_requires_an_exact_integer(self):
         with tempfile.TemporaryDirectory() as directory:

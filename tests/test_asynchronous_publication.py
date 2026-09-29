@@ -112,6 +112,11 @@ class PublicationTests(unittest.TestCase):
         self.assertTrue((self.base/'missing-translation/publication/additional/index.md').is_file())
         self.assertEqual(read_json(self.base/'missing-translation/translation-publication.json')['translations'],[])
 
+    def test_generated_index_comments_do_not_remove_optional_source_navigation(self):
+        from integration.generate_index_navigation import parse_index
+        parsed = parse_index('# Sources\n\n<!-- Generated locally. -->\n\n## Read\n\n- [Home](README.md) - Canonical source.\n', 'index.md')
+        self.assertEqual(len(parsed.links), 1)
+
     def test_dirty_provider_and_corrupt_payload_are_rejected(self):
         output=self.base/'bundle';self.build(output)
         (output/'publication/additional/index.md').write_text('corrupt')

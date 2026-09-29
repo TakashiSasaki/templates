@@ -144,7 +144,9 @@ def render(groups):
         for path in paths:
             target = quote(posixpath.relpath(path, "discovery"), safe="/.-_")
             label = path.replace("[", r"\[").replace("]", r"\]")
-            lines.append(f"- [{label}]({target}) - Declared source material or browsing entrypoint.")
+            lines.append(
+                f"- [{label}]({target}) - Declared source material or browsing entrypoint."
+            )
         lines.append("")
     return "\n".join(lines)
 
