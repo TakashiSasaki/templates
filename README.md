@@ -28,7 +28,7 @@ This is the authority-maintainer route, not the consumer's `Using Composition`
 guide. The repository-wide maintainer map and publication-chain overview live in
 the Site authority's [templates maintainer onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
 When working here, verify the checked-out branch is `composition`, record the
-current full `HEAD` and dirty/untracked state, then read [AGENTS.md](AGENTS.md),
+current full `HEAD` and dirty/untracked state, then read [AGENTS.md](https://github.com/TakashiSasaki/templates/blob/composition/AGENTS.md),
 the maintainer references below, and the applicable component/recipe contract.
 
 Edit semantic source under `components/`, `recipes/`, schemas, and the Composer
