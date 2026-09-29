@@ -130,7 +130,8 @@ jobs:
       compatibility_classification: ${{ steps.report.outputs.classification }}
       workflow_run_id: ${{ github.run_id }}
       workflow_attempt: ${{ github.run_attempt }}
-      workflow_head: ${{ github.sha }}
+      # Pull request runs are keyed by the PR head in Actions run metadata; github.sha may be the merge ref.
+      workflow_head: ${{ github.event.pull_request.head.sha || github.sha }}
       trusted_equivalence: ${{ steps.trusted_bundle.outputs.equivalence }}
       workflow_name: ${{ github.workflow }}
       workflow_event: ${{ github.event_name }}
