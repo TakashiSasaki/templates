@@ -82,12 +82,15 @@ def pin() -> object:
 
 
 def attestation(runtime_pin: object) -> dict[str, object]:
+    from runtime import CLOSURE_PATH, build_closure_binding
+
     return {
-        "schema_version": 1,
+        "schema_version": runtime_image.ATTESTATION_SCHEMA,
         "runtime": {
             "repository": runtime_pin.repository,
             "revision": runtime_pin.revision,
             "lock_sha256": runtime_pin.expected_lock_sha256,
+            **build_closure_binding(CLOSURE_PATH.read_bytes()),
             "python": runtime_image.python_token(),
             "platform": runtime_image.platform_token(),
         },

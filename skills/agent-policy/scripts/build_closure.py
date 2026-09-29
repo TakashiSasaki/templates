@@ -22,10 +22,12 @@ WHEEL_FILENAME = re.compile(
 )
 BUILD_CLOSURE_SCHEMA = 2
 BUILDER_CONTRACT = "policy-pep517-hatchling-v2"
+BUILD_RECORD_SCHEMA = 1
 SUPPORTED_FRONTEND = "pip"
 SUPPORTED_BACKEND = "hatchling.build"
 SUPPORTED_BUILD_REQUIREMENTS = ("hatchling>=1.25",)
 MAX_WHEEL_BYTES = 32 * 1024 * 1024
+MAX_PROJECT_WHEEL_BYTES = 128 * 1024 * 1024
 
 
 class BuildClosureError(ValueError):
@@ -212,7 +214,10 @@ def parse_build_closure(data: bytes | str) -> BuildClosure:
     if version_tuple < (1, 25, 0):
         raise BuildClosureError("reviewed Hatchling artifact does not satisfy hatchling>=1.25")
     frontend_artifacts = [item for item in artifacts if normalize_name(item.name) == "pip"]
-    if len(frontend_artifacts) != 1 or frontend_artifacts[0].version != frontend_version:
+    if (
+        len(frontend_artifacts) != 1
+        or frontend_artifacts[0].version != frontend_version
+    ):
         raise BuildClosureError("build closure must bind its exact pip frontend wheel")
 
     return BuildClosure(
@@ -235,6 +240,28 @@ def build_closure_binding(data: bytes | str) -> dict[str, str]:
         "build_frontend_artifact_sha256": closure.frontend.sha256,
         "builder_contract": closure.builder_contract,
     }
+
+
+def project_metadata_from_pyproject(data: bytes) -> tuple[str, str]:
+    try:
+        import tomllib
+
+        document = tomllib.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise BuildClosureError(f"target pyproject.toml is malformed: {exc}") from exc
+    project = document.get("project") if isinstance(document, dict) else None
+    if not isinstance(project, dict):
+        raise BuildClosureError("target pyproject.toml has no project table")
+    name = project.get("name")
+    version = project.get("version")
+    if not isinstance(name, str) or not name or not isinstance(version, str) or not version:
+        raise BuildClosureError("target project name and version must be static strings")
+    dynamic = project.get("dynamic", [])
+    if not isinstance(dynamic, list) or any(not isinstance(value, str) for value in dynamic):
+        raise BuildClosureError("target project dynamic metadata must be a string array")
+    if any(value in {"name", "version"} for value in dynamic):
+        raise BuildClosureError("target project name and version must not be dynamic")
+    return name, version
 
 
 def validate_build_system(pyproject_data: bytes, closure: BuildClosure) -> None:
@@ -283,6 +310,8 @@ def verify_wheel_artifact(path: Path, artifact: BuildArtifact) -> None:
             for info in infos:
                 relative = PurePosixPath(info.filename)
                 mode = info.external_attr >> 16
+                if relative.parts and relative.parts[0].endswith(".data"):
+                    raise BuildClosureError("reviewed build wheels may not contain .data layouts")
                 if (
                     relative.is_absolute()
                     or any(part in {"", ".", ".."} for part in relative.parts)
@@ -319,3 +348,165 @@ def verify_wheel_artifact(path: Path, artifact: BuildArtifact) -> None:
         raise BuildClosureError("build wheel is not a pure Python wheel")
     if "py3-none-any" not in wheel_metadata.get_all("Tag", []):
         raise BuildClosureError("build wheel does not have the reviewed universal tag")
+
+
+def verify_project_wheel(
+    path: Path,
+    *,
+    expected_name: str,
+    expected_version: str,
+) -> str:
+    if path.is_symlink() or not path.is_file():
+        raise BuildClosureError(f"built project wheel is missing or unsafe: {path}")
+    file_stat = path.stat(follow_symlinks=False)
+    if (
+        file_stat.st_size < 1
+        or file_stat.st_size > MAX_PROJECT_WHEEL_BYTES
+        or not stat.S_ISREG(file_stat.st_mode)
+        or file_stat.st_nlink != 1
+    ):
+        raise BuildClosureError(f"built project wheel has an invalid file type or size: {path}")
+    if PurePosixPath(path.name).name != path.name or not path.name.endswith(".whl"):
+        raise BuildClosureError("built project wheel filename is invalid")
+    try:
+        with zipfile.ZipFile(path) as wheel:
+            infos = wheel.infolist()
+            names = [info.filename for info in infos]
+            if len(names) != len(set(names)):
+                raise BuildClosureError("built project wheel contains duplicate paths")
+            for info in infos:
+                relative = PurePosixPath(info.filename)
+                mode = info.external_attr >> 16
+                if (
+                    relative.is_absolute()
+                    or any(part in {"", ".", ".."} for part in relative.parts)
+                    or "\\" in info.filename
+                    or stat.S_ISLNK(mode)
+                ):
+                    raise BuildClosureError("built project wheel contains an unsafe archive path")
+            metadata_paths = [name for name in names if name.endswith(".dist-info/METADATA")]
+            wheel_paths = [name for name in names if name.endswith(".dist-info/WHEEL")]
+            record_paths = [name for name in names if name.endswith(".dist-info/RECORD")]
+            if (
+                len(metadata_paths) != 1
+                or len(wheel_paths) != 1
+                or len(record_paths) != 1
+            ):
+                raise BuildClosureError(
+                    "built project wheel must contain one METADATA, WHEEL, and RECORD"
+                )
+            metadata = BytesParser(policy=default).parsebytes(wheel.read(metadata_paths[0]))
+            wheel_metadata = BytesParser(policy=default).parsebytes(wheel.read(wheel_paths[0]))
+    except (OSError, zipfile.BadZipFile, KeyError) as exc:
+        raise BuildClosureError(f"built project artifact is not a valid wheel: {path}") from exc
+    if normalize_name(metadata.get("Name", "")) != normalize_name(expected_name):
+        raise BuildClosureError("built project wheel package name does not match pyproject.toml")
+    if metadata.get("Version") != expected_version:
+        raise BuildClosureError("built project wheel version does not match pyproject.toml")
+    if wheel_metadata.get("Root-Is-Purelib", "").lower() != "true":
+        raise BuildClosureError("built Policy project wheel is not pure Python")
+    if "py3-none-any" not in wheel_metadata.get_all("Tag", []):
+        raise BuildClosureError("built Policy project wheel is not tagged py3-none-any")
+    return expected_version
+
+
+def verify_build_record(
+    directory: Path,
+    *,
+    repository: str,
+    revision: str,
+    closure_data: bytes,
+    expected_distribution: str,
+    expected_version: str | None,
+    expected_target_base_sha: str | None = None,
+) -> tuple[Path, dict[str, Any]]:
+    if directory.is_symlink() or not directory.is_dir():
+        raise BuildClosureError("prebuilt Policy build directory is missing or unsafe")
+    closure = parse_build_closure(closure_data)
+    binding = build_closure_binding(closure_data)
+    record_path = directory / "build-record.json"
+    if record_path.is_symlink() or not record_path.is_file():
+        raise BuildClosureError("prebuilt Policy wheel record is missing or unsafe")
+    record_stat = record_path.stat(follow_symlinks=False)
+    if record_stat.st_nlink != 1 or record_stat.st_size > 1024 * 1024:
+        raise BuildClosureError("prebuilt Policy wheel record must not be hard linked")
+    try:
+        record = json.loads(
+            record_path.read_text(encoding="utf-8"),
+            object_pairs_hook=_unique_object,
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise BuildClosureError("prebuilt Policy wheel record is invalid JSON") from exc
+    required = {
+        "schema_version",
+        "repository",
+        "revision",
+        "target_base_sha",
+        "build_closure_sha256",
+        "backend_artifact_sha256",
+        "build_frontend_artifact_sha256",
+        "builder_contract",
+        "pyproject_sha256",
+        "project",
+        "wheel",
+    }
+    if not isinstance(record, dict) or set(record) != required:
+        raise BuildClosureError("prebuilt Policy wheel record has an unsupported shape")
+    if (
+        type(record.get("schema_version")) is not int
+        or record["schema_version"] != BUILD_RECORD_SCHEMA
+    ):
+        raise BuildClosureError("prebuilt Policy wheel record schema is unsupported")
+    if record.get("repository") != repository or record.get("revision") != revision:
+        raise BuildClosureError(
+            "prebuilt Policy wheel record does not match the selected toolchain"
+        )
+    target_base_sha = record.get("target_base_sha")
+    if target_base_sha is not None and not re.fullmatch(r"[0-9a-f]{40}", str(target_base_sha)):
+        raise BuildClosureError("prebuilt Policy wheel target base SHA is invalid")
+    if target_base_sha != expected_target_base_sha:
+        raise BuildClosureError(
+            "prebuilt Policy wheel record does not match the selected target base"
+        )
+    if any(record.get(key) != value for key, value in binding.items()):
+        raise BuildClosureError(
+            "prebuilt Policy wheel record does not match the reviewed build closure"
+        )
+    if not SHA256.fullmatch(str(record.get("pyproject_sha256", ""))):
+        raise BuildClosureError("prebuilt Policy wheel record pyproject digest is invalid")
+    project = record.get("project")
+    if (
+        not isinstance(project, dict)
+        or set(project) != {"name", "version"}
+        or project.get("name") != expected_distribution
+        or not isinstance(project.get("version"), str)
+        or (expected_version is not None and project.get("version") != expected_version)
+    ):
+        raise BuildClosureError("prebuilt Policy wheel project identity is invalid")
+    wheel_info = record.get("wheel")
+    if (
+        not isinstance(wheel_info, dict)
+        or set(wheel_info) != {"filename", "sha256"}
+        or not isinstance(wheel_info.get("filename"), str)
+        or PurePosixPath(wheel_info["filename"]).name != wheel_info["filename"]
+        or not wheel_info["filename"].endswith(".whl")
+        or not isinstance(wheel_info.get("sha256"), str)
+        or not SHA256.fullmatch(wheel_info["sha256"])
+    ):
+        raise BuildClosureError("prebuilt Policy wheel identity is invalid")
+    wheel_path = directory / wheel_info["filename"]
+    matches = list(directory.glob("*.whl"))
+    if matches != [wheel_path]:
+        raise BuildClosureError(
+            "prebuilt Policy build directory must contain exactly its recorded wheel"
+        )
+    verify_project_wheel(
+        wheel_path,
+        expected_name=project["name"],
+        expected_version=project["version"],
+    )
+    if hashlib.sha256(wheel_path.read_bytes()).hexdigest() != wheel_info["sha256"]:
+        raise BuildClosureError("prebuilt Policy wheel SHA-256 does not match its record")
+    if closure.backend_artifact.sha256 != record["backend_artifact_sha256"]:
+        raise BuildClosureError("prebuilt Policy wheel backend digest is invalid")
+    return wheel_path, record

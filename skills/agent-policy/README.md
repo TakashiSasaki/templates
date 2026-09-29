@@ -8,7 +8,9 @@ The skill itself is a small stdlib bootstrap surface. It does not vendor the can
 
 - `scripts/bootstrap.py` — inspect and adopt an unmanaged repository. Fresh adoption may complete; migration adoption stops after prepare/preview and never finalizes.
 - `scripts/run.py` — run normal `agent-policy` commands using the repository-pinned runtime when `.agent-policy.lock` exists.
+- `build-closure.json` — bind the exact pip build frontend, Hatchling backend, and active transitive build wheels by SHA-256.
 - `scripts/runtime.py` — select immutable toolchain identity, construct/reuse the persistent runtime cache, and verify its distribution set.
+- `scripts/build_closure.py` / `scripts/prepare_runtime_wheel.py` — validate the closure, verify staged wheels, and build the exact selected Policy source in a disposable builder.
 - `scripts/install.py` / `scripts/uninstall.py` — atomically install or remove this skill directory.
 
 ## Pin selection
@@ -24,6 +26,7 @@ A runtime cache entry is identified by:
 - toolchain repository;
 - full toolchain revision;
 - SHA-256 of `requirements-runtime.lock`;
+- SHA-256 of `build-closure.json`, the pinned pip/Hatchling wheel digests, and builder contract;
 - Python major/minor version; and
 - platform plus machine architecture.
 
@@ -31,7 +34,7 @@ The default cache root is the platform cache directory (`$XDG_CACHE_HOME`/`~/.ca
 
 A valid cache entry is reused without network access and without requiring the cache root to be writable. On a cache miss, the runner first verifies that the selected cache root supports directory creation, file writes, cleanup, and same-filesystem atomic rename. If that preflight fails, the consumer-facing error names the cache path and instructs the user to set `AGENT_POLICY_RUNTIME_CACHE` to a writable directory.
 
-The first build for a new identity downloads the runtime lock from the exact full SHA, installs every locked runtime distribution with dependency resolution disabled, installs the same full-SHA `agent-policy` project with dependencies disabled, runs `pip check`, verifies the exact installed distribution set, and writes an identity marker only after validation succeeds. Both pip installation steps use `--no-cache-dir`, so `AGENT_POLICY_RUNTIME_CACHE` is sufficient for controlled or restricted environments; no separate pip cache or XDG cache override is required.
+The first build for a new identity validates the exact source `pyproject.toml`, verifies the reviewed build-wheel closure, and builds the exact Policy source with pip's index and build isolation disabled. Trusted-review construction performs that build in a separate `contents:read` job before the privileged job starts. The final runtime environment receives only the binary runtime lock plus the prebuilt Policy wheel, runs `pip check`, verifies the exact installed distribution set, and writes an identity marker after validation succeeds. Both runtime pip operations use `--no-cache-dir`, so `AGENT_POLICY_RUNTIME_CACHE` is sufficient for controlled or restricted environments; no separate pip cache or XDG cache override is required.
 
 Construction occurs in a sibling staging directory and is renamed into place only after validation. Existing invalid entries are replaced with rollback protection.
 

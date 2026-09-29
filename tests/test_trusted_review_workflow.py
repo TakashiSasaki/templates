@@ -25,6 +25,12 @@ def load_yaml(path: Path) -> dict[str, object]:
 def test_trusted_bootstrap_workflow_has_only_explicit_default_branch_dispatch() -> None:
     workflow = load_yaml(WORKFLOW_PATH)
     assert set(workflow["on"]) == {"workflow_dispatch"}
+    stage = workflow["jobs"]["stage-build"]
+    assert stage["permissions"] == {"contents": "read"}
+    assert "id-token" not in stage["permissions"]
+    assert "attestations" not in stage["permissions"]
+    assert "packages" not in stage["permissions"]
+    assert workflow["jobs"]["bootstrap"]["needs"] == "stage-build"
     job = workflow["jobs"]["bootstrap"]
     assert job["if"] == "github.repository_id == '1315875002' && github.ref == 'refs/heads/site'"
     assert job["permissions"] == {
@@ -41,6 +47,18 @@ def test_trusted_bootstrap_workflow_has_only_explicit_default_branch_dispatch() 
     assert "target_head" not in checkout["with"]["ref"]
 
     source = WORKFLOW_PATH.read_text(encoding="utf-8")
+    staging_source = source.split("\n  bootstrap:\n", 1)[0]
+    assert "resolve the pull request base without credentials" in staging_source.lower()
+    assert "prepare_runtime_wheel.py" in staging_source
+    assert "--target-base-sha" in staging_source
+    assert "--no-build-isolation" not in staging_source
+    assert "GITHUB_TOKEN" not in staging_source
+    assert "GH_TOKEN" not in staging_source
+    assert "AGENT_POLICY_REQUIRE_PREBUILT_BUILD: \"1\"" in source
+    assert "AGENT_POLICY_PREBUILT_BUILD_BASE_SHA" in source
+    assert "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093" in source
+    assert "STAGED_POLICY_BASE_SHA" in source
+    assert "--only-binary=:all:" in source
     for forbidden in (
         "pull_request_target",
         "workflow_run:",
@@ -67,6 +85,15 @@ def test_trusted_bootstrap_workflow_has_only_explicit_default_branch_dispatch() 
     login = source.index("name: Authenticate Docker to GHCR with the run-scoped token")
     materialize = source.index("name: Materialize the bootstrap image candidate")
     assert initialize < login < materialize
+
+
+def test_trusted_runtime_builder_fails_closed_without_prebuilt_artifact() -> None:
+    source = (ROOT / "skills/agent-policy/scripts/runtime.py").read_text(encoding="utf-8")
+    assert 'os.environ.get("AGENT_POLICY_REQUIRE_PREBUILT_BUILD") == "1"' in source
+    assert "requires the staged Policy build wheel" in source
+    assert "--no-build-isolation" in source
+    assert "--no-index" in source
+    assert "git+https://github.com/{pin.repository}.git@{pin.revision}" not in source
 
 
 @pytest.mark.parametrize("actor", ["maintainer", "github-actions[bot]"])

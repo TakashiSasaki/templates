@@ -25,9 +25,11 @@ def closure_document() -> dict[str, object]:
     return json.loads(CLOSURE_PATH.read_text(encoding="utf-8"))
 
 
-def make_wheel(path: Path, *, code: bytes) -> bytes:
-    dist_info = "hatchling-1.31.0.dist-info"
-    metadata = b"Metadata-Version: 2.1\nName: hatchling\nVersion: 1.31.0\n\n"
+def make_wheel(path: Path, *, code: bytes, version: str = "1.31.0") -> bytes:
+    dist_info = f"hatchling-{version}.dist-info"
+    metadata = (
+        f"Metadata-Version: 2.1\nName: hatchling\nVersion: {version}\n\n".encode()
+    )
     wheel_metadata = (
         b"Wheel-Version: 1.0\nGenerator: policy-test\nRoot-Is-Purelib: true\n"
         b"Tag: py3-none-any\n"
@@ -211,6 +213,26 @@ def test_wheel_with_matching_name_and_version_but_different_bytes_is_rejected(
     with pytest.raises(build_closure.BuildClosureError, match="SHA-256 mismatch"):
         build_closure.verify_wheel_artifact(tmp_path / artifact.filename, artifact)
     assert changed_bytes != original_bytes
+
+
+def test_hatchling_wheel_with_unexpected_version_metadata_is_rejected(
+    tmp_path: Path,
+) -> None:
+    closure = build_closure.parse_build_closure(CLOSURE_PATH.read_bytes())
+    artifact = closure.backend_artifact
+    path = tmp_path / artifact.filename
+    payload = make_wheel(path, code=b"# test backend\n", version="1.32.0")
+    path.write_bytes(payload)
+    mismatched = build_closure.BuildArtifact(
+        name=artifact.name,
+        version=artifact.version,
+        filename=artifact.filename,
+        url=artifact.url,
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+
+    with pytest.raises(build_closure.BuildClosureError, match="metadata version"):
+        build_closure.verify_wheel_artifact(path, mismatched)
 
 
 def test_missing_wheel_fails_closed(tmp_path: Path) -> None:

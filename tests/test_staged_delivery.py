@@ -930,11 +930,14 @@ def test_generated_guidance_commands_quote_bundle_paths(
         "agent-policy",
     )
     identity = runtime_module.RuntimeIdentity(
-        pin.repository,
-        pin.revision,
-        "c" * 64,
-        runtime_module.python_token(),
-        runtime_module.platform_token(),
+        repository=pin.repository,
+        revision=pin.revision,
+        lock_sha256="c" * 64,
+        **runtime_module.build_closure_binding(
+            runtime_module.CLOSURE_PATH.read_bytes()
+        ),
+        python=runtime_module.python_token(),
+        platform=runtime_module.platform_token(),
     )
     cached_runtime = cache / identity.digest()
     venv.EnvBuilder(with_pip=False, system_site_packages=True).create(
@@ -1905,4 +1908,3 @@ def test_staged_startup_framing_identifies_presentation_boundaries(
     assert "- Detail bundle: `.agent-policy/preview/policy-details.json`" in startup
     assert "This file presents rules already selected by the configured Policy context" in startup
     assert "Presentation metadata cannot select, add, or change rule applicability" in startup
-

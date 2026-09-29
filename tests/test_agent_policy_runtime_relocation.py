@@ -47,6 +47,7 @@ def identity() -> Any:
         repository="TakashiSasaki/templates",
         revision="a" * 40,
         lock_sha256="b" * 64,
+        **runtime.build_closure_binding(runtime.CLOSURE_PATH.read_bytes()),
         python=runtime.python_token(),
         platform=runtime.platform_token(),
     )
@@ -60,6 +61,14 @@ def fake_runtime_builder(
     fail_smoke: bool = False,
 ) -> list[list[str]]:
     commands: list[list[str]] = []
+    build_directory = target.parent / "staged-build"
+    build_directory.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("AGENT_POLICY_PREBUILT_BUILD_DIR", str(build_directory))
+    monkeypatch.setattr(
+        runtime,
+        "verify_prebuilt_build",
+        lambda *_args, **_kwargs: (build_directory / "policy.whl", {}),
+    )
 
     def fake_run(command: list[str], *, env: object) -> None:
         commands.append(command)
@@ -99,6 +108,16 @@ def test_build_runtime_smokes_module_entrypoint_after_final_rename(
     assert target.is_dir()
     assert commands[-1] == [*runtime.cli_command(target), "--help"]
     assert str(target) in commands[-1][0]
+    wheel_install = next(
+        command
+        for command in commands
+        if "pip" in command
+        and "install" in command
+        and any(item.endswith(".whl") for item in command)
+    )
+    assert "--no-index" in wheel_install
+    assert "--no-build-isolation" in wheel_install
+    assert not any(item.startswith("git+") for command in commands for item in command)
     assert not any(
         path.name.startswith(f".{target.name}.build-")
         for path in target.parent.iterdir()
@@ -134,6 +153,31 @@ def test_build_runtime_restores_previous_cache_when_post_rename_smoke_fails(
         path.name.startswith(f".{target.name}.build-")
         for path in target.parent.iterdir()
     )
+
+
+def test_trusted_runtime_build_fails_without_prebuilt_wheel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    runtime_pin = pin()
+    runtime_identity = identity()
+    monkeypatch.setenv("AGENT_POLICY_REQUIRE_PREBUILT_BUILD", "1")
+    monkeypatch.delenv("AGENT_POLICY_PREBUILT_BUILD_DIR", raising=False)
+    monkeypatch.setattr(
+        runtime,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("trusted build must fail before starting pip or venv")
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="requires the staged Policy build wheel"):
+        runtime.build_runtime(
+            tmp_path / runtime_identity.digest(),
+            runtime_identity,
+            runtime_pin,
+            b"Jinja2===3.1.6\n",
+        )
 
 
 def test_bootstrap_toolchain_preserves_module_entrypoint_prefix(

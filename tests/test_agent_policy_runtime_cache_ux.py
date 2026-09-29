@@ -62,11 +62,12 @@ def test_valid_warm_cache_skips_writability_probe_and_network(
 ) -> None:
     pin = runtime.pin_from_manifest(runtime.load_manifest())
     identity = runtime.RuntimeIdentity(
-        pin.repository,
-        pin.revision,
-        pin.expected_lock_sha256,
-        runtime.python_token(),
-        runtime.platform_token(),
+        repository=pin.repository,
+        revision=pin.revision,
+        lock_sha256=pin.expected_lock_sha256,
+        **runtime.build_closure_binding(runtime.CLOSURE_PATH.read_bytes()),
+        python=runtime.python_token(),
+        platform=runtime.platform_token(),
     )
     target = tmp_path / identity.digest()
     target.mkdir(parents=True)
@@ -92,6 +93,65 @@ def test_valid_warm_cache_skips_writability_probe_and_network(
     )
 
     assert runtime.ensure_runtime(pin, root=tmp_path) == target
+
+
+def test_runtime_identity_changes_when_reviewed_build_closure_changes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pin = runtime.pin_from_manifest(runtime.load_manifest())
+    lock_data = b"Jinja2===3.1.6\n"
+    original = runtime.identity_for(pin, lock_data)
+    changed_closure = tmp_path / "build-closure.json"
+    changed_closure.write_bytes(runtime.CLOSURE_PATH.read_bytes() + b"\n")
+
+    monkeypatch.setattr(runtime, "CLOSURE_PATH", changed_closure)
+    changed = runtime.identity_for(pin, lock_data)
+
+    assert original.backend_artifact_sha256 == changed.backend_artifact_sha256
+    assert original.build_closure_sha256 != changed.build_closure_sha256
+    assert original.digest() != changed.digest()
+
+
+def test_v1_unbound_runtime_cache_does_not_match_the_new_identity(
+    tmp_path: Path,
+) -> None:
+    pin = runtime.pin_from_manifest(runtime.load_manifest())
+    identity = runtime.identity_for(pin, b"Jinja2===3.1.6\n")
+    target = tmp_path / identity.digest()
+    target.mkdir()
+    write_fake_runtime_entrypoints(target, pin.executable)
+    old_marker = runtime.expected_marker(identity, pin)
+    old_marker["schema_version"] = 1
+    old_identity = old_marker["identity"]
+    for field in (
+        "build_closure_sha256",
+        "backend_artifact_sha256",
+        "build_frontend_artifact_sha256",
+        "builder_contract",
+    ):
+        old_identity.pop(field)
+    runtime.marker_path(target).write_text(json.dumps(old_marker), encoding="utf-8")
+
+    assert not runtime.marker_matches(target, identity, pin)
+
+
+def test_build_only_packages_are_rejected_from_the_final_runtime_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pin = runtime.pin_from_manifest(runtime.load_manifest())
+    installed = {
+        "jinja2": "3.1.6",
+        runtime.normalize_distribution_name(pin.project_distribution): pin.project_version,
+    }
+    monkeypatch.setattr(runtime, "installed_distributions", lambda *_args: installed)
+    assert runtime.verify_installed_set(
+        Path("unused"), {"jinja2": "3.1.6"}, pin, {}
+    ) == pin.project_version
+
+    installed["hatchling"] = "1.31.0"
+    with pytest.raises(RuntimeError, match="does not match requirements-runtime.lock"):
+        runtime.verify_installed_set(Path("unused"), {"jinja2": "3.1.6"}, pin, {})
 
 
 def test_runtime_build_disables_independent_pip_download_cache() -> None:

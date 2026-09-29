@@ -42,9 +42,12 @@ skills/agent-policy/
   SKILL.md
   README.md
   runtime-manifest.json
+  build-closure.json
   scripts/
     bootstrap.py
+    build_closure.py
     install.py
+    prepare_runtime_wheel.py
     run.py
     runtime.py
     uninstall.py
@@ -54,7 +57,10 @@ skills/agent-policy/
 |---|---|
 | `SKILL.md` | Defines when to bootstrap an unmanaged repository, when to run managed commands, cache/pin semantics, and migration-finalization safety. |
 | `runtime-manifest.json` | Pins the stable full SHA of `TakashiSasaki/templates`, the SHA-256 of its `requirements-runtime.lock`, stable project identity, and the closed bootstrap route set. It contains no finalize route. |
-| `scripts/runtime.py` | Resolves the stable or repository-pinned full SHA, constructs or reuses the persistent runtime cache, sanitizes Python/pip inputs, and verifies the exact installed distribution set. |
+| `build-closure.json` | Binds exact pip frontend, Hatchling backend, and active transitive build wheels by filename, version, direct URL, and SHA-256. |
+| `scripts/build_closure.py` | Validates the reviewed wheel closure, build-system declaration, artifact bytes, and prebuilt wheel record. |
+| `scripts/prepare_runtime_wheel.py` | Uses a disposable builder and the reviewed closure to build the exact selected Policy source without index resolution or build isolation. |
+| `scripts/runtime.py` | Resolves the stable or repository-pinned full SHA, includes the build closure in runtime/cache identity, constructs or reuses the persistent cache, and verifies the exact installed distribution set. |
 | `scripts/bootstrap.py` | Inspects unmanaged repository state and applies either the state-derived fresh adoption or migration adoption strategy when authorized. Migration bootstrap stops after preview. |
 | `scripts/run.py` | Runs normal managed commands through the cached runtime selected from `.agent-policy.lock`. |
 | `scripts/install.py` | Atomically installs or replaces the skill from a reviewed checkout after identity and path-safety checks. |

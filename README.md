@@ -136,7 +136,7 @@ python skills/agent-policy/scripts/install.py \
 
 That command installs the skill tree from the checkout being reviewed. It is not necessarily byte-for-byte identical to the currently published remote distribution unless the checkout matches the skill-source revision in `release/skill-installer.json`. Use the published remote command when reproducing the published distribution is the goal.
 
-`skills/agent-policy/runtime-manifest.json` records the stable default full SHA and the SHA-256 of that revision's `requirements-runtime.lock`. `release/toolchain.json` carries the same stable toolchain pin. Stable-pin movement uses a reviewed candidate commit followed by a separate promotion change, so no commit attempts to contain its own SHA.
+`skills/agent-policy/runtime-manifest.json` records the stable default full SHA and the SHA-256 of that revision's `requirements-runtime.lock`. `skills/agent-policy/build-closure.json` separately binds the exact pip build frontend, Hatchling backend, and active transitive build dependencies by wheel SHA-256. `release/toolchain.json` carries the same stable toolchain pin. Stable-pin movement uses a reviewed candidate commit followed by a separate promotion change, so no commit attempts to contain its own SHA.
 
 ### Persistent runtime cache
 
@@ -144,12 +144,13 @@ The skill does not reinstall the toolchain on every use. It reuses a validated p
 
 - toolchain repository and full commit SHA;
 - SHA-256 of `requirements-runtime.lock`;
+- SHA-256 of `build-closure.json`, plus the exact pip and Hatchling wheel digests and builder contract;
 - Python major/minor version; and
 - platform plus machine architecture.
 
-The default cache root is the platform cache directory under `agent-policy/runtime-v1`; `AGENT_POLICY_RUNTIME_CACHE` may override it for controlled environments and tests.
+The default cache root is the platform cache directory under `agent-policy/runtime-v2`; `AGENT_POLICY_RUNTIME_CACHE` may override it for controlled environments and tests. Runtime identities from before the build closure are not accepted by this cache schema.
 
-A valid cache hit requires no network access. A cache miss downloads the runtime lock from the exact full SHA, creates an isolated virtual environment in a staging directory, installs the exact runtime distribution set with dependency resolution disabled, installs the same pinned `agent-policy` project with dependencies disabled, runs `pip check`, verifies the installed distribution set, and writes the cache marker only after validation succeeds. The staged runtime is then switched into place atomically.
+A valid cache hit requires no network access. On a cache miss, trusted-review construction first stages the exact build wheels in a credential-minimal job. The disposable builder verifies every digest and the selected commit's build-system declaration, installs only that reviewed wheel closure, and builds the project with pip index resolution and PEP 517 isolation disabled. The privileged job verifies the selected commit, closure, pyproject digest, and built-wheel record before installing the Policy wheel. A separate runtime environment receives the binary-only runtime lock and that wheel, then runs `pip check` and exact installed-set verification before its cache marker is written.
 
 ## Development
 

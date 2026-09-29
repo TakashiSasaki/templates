@@ -55,19 +55,23 @@ filenames, versions, and SHA-256 digests for pip, Hatchling, and every active
 transitive build dependency. The selected frontend is pip 26.2.1, bound to
 `pip-26.2.1-py3-none-any.whl` and SHA-256
 `71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e`.
-Downloads are data until every digest and wheel identity verifies. A separate
-builder environment receives only those verified wheels, including pip, before
-the frontend is invoked; the exact Git source is checked out and its
-`pyproject.toml` is validated before the backend is imported. Dynamic build
-requirements must match the reviewed closure. The project wheel is built with
-isolation and index resolution disabled, then installed into a separate runtime
-environment that contains only the runtime lock plus the Policy project wheel.
+Downloads are data until every digest and wheel identity verifies. A
+disposable environment is created without `ensurepip`; Policy's small
+standard-library wheel installer populates it only from the verified
+wheelhouse, including pip, before the frontend is invoked. The pinned pip
+frontend then builds the exact Git source with `--no-build-isolation` and
+`--no-index`. The source's `pyproject.toml` is validated before the backend is
+imported, and dynamic build requirements must match the reviewed closure. The
+resulting Policy wheel is installed into a separate runtime environment that
+contains only the runtime lock plus the Policy project wheel.
 
 Trusted-review construction stages and verifies the wheel closure in a
 credential-minimal workflow job and builds the selected Policy wheel there.
 The privileged job verifies the source, closure, and wheel identities and
-installs the prebuilt wheel without executing the backend. Ordinary local
-runtime construction can perform the same digest-checked build in its
+installs the prebuilt wheel without executing the backend. The low-permission
+job receives only `contents:read`; it exposes no GitHub token, OIDC,
+attestation, or package-write permission to the builder subprocess. Ordinary
+local runtime construction can perform the same digest-checked build in its
 disposable builder environment.
 
 The runtime/cache identity binds the toolchain commit, runtime-lock digest,
