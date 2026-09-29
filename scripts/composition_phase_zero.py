@@ -45,8 +45,9 @@ def version_build(version: str) -> str:
 
 
 def check_source(root: Path = ROOT) -> None:
-    # Existing contamination is a separate condition from preventing new bytecode.
-    for directory in ('components', 'catalog', 'recipes', 'schemas', 'scripts', 'tests'):
+    # Exported product inputs must be clean. Ordinary Python caches produced by
+    # running local scripts/tests are ignored development state, not source drift.
+    for directory in ('components', 'catalog', 'recipes', 'schemas'):
         for path in (root / directory).rglob('*'):
             if path.name == '__pycache__' or path.suffix in {'.pyc', '.pyo'}:
                 raise RuntimeError(f'pre-existing generated source contamination: {path}')

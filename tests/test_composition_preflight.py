@@ -586,6 +586,19 @@ if __name__ == "__main__":
     unittest.main()
 
 class PhaseZeroBoundaryTests(unittest.TestCase):
+    def test_local_script_caches_do_not_block_source_validation(self):
+        import composition_phase_zero as phase_zero
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            cache = root / 'scripts/__pycache__/local.cpython-311.pyc'
+            cache.parent.mkdir(parents=True)
+            cache.write_bytes(b'local development cache')
+            with mock.patch('composer_core.load_source_state') as validate:
+                phase_zero.check_source(root)
+            validate.assert_called_once()
+            self.assertTrue(cache.exists())
+
     def test_existing_bytecode_is_rejected_before_source_loader(self):
         import tempfile
         import composition_phase_zero as phase_zero
