@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "toolchain": {
+    "repository": "TakashiSasaki/templates",
+    "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
+  },
+  "runtime_lock": {
+    "path": "requirements-runtime.lock",
+    "sha256": "b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8"
+  },
+  "project": {
+    "distribution": "takashisasaki-agent-policy",
+    "version": "0.1.0",
+    "executable": "agent-policy"
+  },
+  "routes": {
+    "inspect": ["adopt", "inspect"],
+    "fresh_prepare": ["init"],
+    "migration_prepare": ["adopt", "prepare"],
+    "migration_preview": ["adopt", "preview"],
+    "validate": ["validate"],
+    "check": ["check"]
+  }
+}

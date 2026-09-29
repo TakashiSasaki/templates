@@ -110,6 +110,38 @@ or rendered build artifacts directly. A Site-only task should keep
 `integration-source.json` unchanged. Provider publication, Bundle selection, and
 controller diagnosis route to Integration or the read-only publication handoff.
 
+## Trusted-review execution adoption
+
+The default-branch trusted-review bootstrap is Site-owned execution material
+projected from the reviewed Policy source recorded in
+trusted-review-adoption.json. Adopted files are byte-for-byte projections except
+where the record declares a deterministic Site integration transform with exact
+input and output digests. Run scripts/verify_trusted_review_adoption.py to
+compare each executable file and its Git mode with the exact immutable Policy
+commit and to check the recorded source tree, runtime inputs, transformation,
+and verifier identity. The verifier and focused workflow tests are part of
+normal Site source-ready validation.
+
+Policy remains the semantic authority. The workflow observes a target pull
+request through the authenticated GitHub API and requires its base ref to be
+policy. That observation binds the target's exact base commit and tree. At
+runtime, the bootstrap reads the installer descriptor from that base, fetches
+the immutable installer and skill revisions selected by it, and carries the
+Policy configuration and locked generated outputs from the observed base.
+trusted-review-adoption.json records the reviewed source's corresponding
+resolver and runtime closure; it does not substitute a mutable Policy branch
+or pin later target pull requests to the reviewed source commit. Site does not
+copy competing Policy semantic files. Only a separate maintainer may later
+dispatch the workflow after Site landing.
+
+The workflow is not publication or Pages automation. Its first OCI publication
+targets ghcr.io/takashisasaki/templates/trusted-review-authority with the
+repository-scoped workflow token and packages: write permission. GitHub's
+workflow token can create and automatically link a new package. If that package
+already exists but is not linked to this repository, a repository administrator
+must grant TakashiSasaki/templates write access under the package's Manage
+Actions access settings before the push can succeed.
+
 ## Translation maintenance
 
 English development does not wait for Japanese completion. Site owns only translations

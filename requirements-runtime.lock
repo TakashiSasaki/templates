@@ -1,0 +1,16 @@
+# Exact runtime distribution set for the agent-policy package.
+#
+# This file intentionally excludes development, test, and build-only dependencies.
+# Every entry is installed unconditionally with dependency resolution disabled so
+# supported Python versions and platforms receive the same reviewed runtime set.
+#
+# Update through a reviewed dependency-resolution change; do not edit incidentally.
+attrs===26.1.0
+Jinja2===3.1.6
+jsonschema===4.26.0
+jsonschema-specifications===2025.9.1
+MarkupSafe===3.0.3
+PyYAML===6.0.3
+referencing===0.37.0
+rpds-py===2026.6.3
+typing_extensions===4.16.0

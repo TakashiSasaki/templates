@@ -1,0 +1,535 @@
+{
+  "schema_version": 2,
+  "kind": "site-policy-execution-adoption",
+  "site_authority": "site",
+  "source": {
+    "repository": "TakashiSasaki/templates",
+    "authority": "policy",
+    "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+    "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+    "reviewed_prs": [
+      1090,
+      1095
+    ]
+  },
+  "adoption_procedure": {
+    "id": "site.trusted-review-source-projection",
+    "version": 4,
+    "verifier": "scripts/verify_trusted_review_adoption.py",
+    "verifier_sha256": "a5c7689613d6910aafe94a4d3ac89d9f7baec49efc04b96756f487d0a168e16a",
+    "tests": "tests/test_trusted_review_adoption.py",
+    "qualification_workflow": ".github/workflows/trusted-review-bootstrap.yml"
+  },
+  "runtime_inputs": [
+    {
+      "authority": "policy",
+      "path": "release/skill-installer.json",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "87116bb061d79b54dc0e2e2ea66566799d25a1ad",
+      "resolution": "authenticated-target-base-must-be-policy",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": ".agent-policy.yml",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "5f118905e4732c31934885fcc4b86620ab28ecac",
+      "resolution": "semantic-configuration-from-authenticated-target-base",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": ".agent-policy.lock",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "6d75b407b20089c7de9343dae57ecc527ce0bbbc",
+      "resolution": "semantic-input-and-generated-output-lock-from-authenticated-target-base",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": "AGENTS.md",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "e2c54e9979ca361fbce48f91a0c864943c14d77e",
+      "resolution": "generated-policy-output-from-authenticated-target-base",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": ".review-authority/review-policy.md",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "dde2a48868029769dbeef50fa049bbf433058b63",
+      "resolution": "provider-neutral-semantic-output-from-authenticated-target-base",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": "scripts/install_agent_policy_skill.py",
+      "revision": "f4457c90854db34c3ce8e1c381f67a4d7d5ea523",
+      "object_type": "blob",
+      "object_id": "b005370e9b7039d288ac65fe094e124e6908109d",
+      "resolution": "immutable-revision-selected-by-base-descriptor",
+      "tree": "2610a440d6864f4a7600f54dfabaf3906019baf2"
+    },
+    {
+      "authority": "policy",
+      "path": "skills/agent-policy",
+      "revision": "344aaf0b140e3c066363297012bb866efbc106e4",
+      "object_type": "tree",
+      "object_id": "a753a167c68fda0cb08393c35f0b13b79788309d",
+      "resolution": "immutable-revision-selected-by-installer",
+      "tree": "d2d3627c63064136eeee76e4f019ad7f7c542e90"
+    },
+    {
+      "authority": "policy",
+      "path": "skills/agent-policy/runtime-manifest.json",
+      "revision": "344aaf0b140e3c066363297012bb866efbc106e4",
+      "object_type": "blob",
+      "object_id": "06497eb775adb674539ab9fbf3d222d4024a6e47",
+      "resolution": "runtime-selection-record-inside-installed-skill",
+      "tree": "d2d3627c63064136eeee76e4f019ad7f7c542e90"
+    },
+    {
+      "authority": "policy",
+      "path": "requirements-runtime.lock",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "blob",
+      "object_id": "0514ecc1c5e13b1491cb582aa907df77bc3862ae",
+      "sha256": "b2fd430887774e9625dfbe7fdc1e1c4d855e1d5335b7c3e977e87d6278abdee8",
+      "resolution": "immutable-toolchain-runtime-lock-selected-by-skill",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "pyproject.toml",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "blob",
+      "object_id": "0b323c1b7282f2d36e2ae25abd47dcb38e719ce2",
+      "resolution": "immutable-toolchain-build-metadata",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "src/agent_policy",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "tree",
+      "object_id": "43912a315d2a5de90be5007a5b648a3d9cfb6fb9",
+      "resolution": "immutable-toolchain-package-source",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "requirements-runtime.lock",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "blob",
+      "object_id": "0514ecc1c5e13b1491cb582aa907df77bc3862ae",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "pyproject.toml",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "blob",
+      "object_id": "0b323c1b7282f2d36e2ae25abd47dcb38e719ce2",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "src/agent_policy",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "tree",
+      "object_id": "43912a315d2a5de90be5007a5b648a3d9cfb6fb9",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "LICENSE",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "blob",
+      "object_id": "c853b1437f5e9749f069308ac88883cc7b011681",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "README.md",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "blob",
+      "object_id": "5b4079e162f1030f2602a72edb8d93ef3180e6c2",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "schemas",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "tree",
+      "object_id": "065d6a032e5a0b9a69bdc808d69c1dd743fd3cf9",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "profiles",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "tree",
+      "object_id": "abf33a2fe19679d8a02a3aacc9b0aea872c348e5",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "policy",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "tree",
+      "object_id": "19d8f263db710c522d7e3180a7d54b65cb3d8776",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "templates",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "tree",
+      "object_id": "cb74ff9e5ee1239d14f9d577c58c8d3a1b496fb8",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "skills",
+      "revision": "9c702d755ddc42b941a63eafd8f9aee06969517d",
+      "object_type": "tree",
+      "object_id": "0d1042e7c8f86192475f1b646cea7e046bad21c6",
+      "resolution": "immutable-skill-default-toolchain-package-closure",
+      "tree": "a0b54b2415c887417d5255092d801830be18c49c"
+    },
+    {
+      "authority": "policy",
+      "path": "requirements-runtime.lock",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "blob",
+      "object_id": "0514ecc1c5e13b1491cb582aa907df77bc3862ae",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "pyproject.toml",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "blob",
+      "object_id": "0fe1e7498c9c7746defcac6cd40c830701a90ba0",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "src/agent_policy",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "tree",
+      "object_id": "604c2065eda78da9e8f5f150e0c6433b0eef3f7d",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "LICENSE",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "blob",
+      "object_id": "c853b1437f5e9749f069308ac88883cc7b011681",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "README.md",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "blob",
+      "object_id": "0a9c762fb121e65681d1123d07a98fe96e3284d6",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "schemas",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "tree",
+      "object_id": "0d3d8e6681e9456154fea3d0e1282022d8978891",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "profiles",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "tree",
+      "object_id": "d0bea91f6004737e4155401bd25d22fddbd88e86",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "policy",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "tree",
+      "object_id": "519b076014b1c05538aa99094870f2e0f96e8134",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "templates",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "tree",
+      "object_id": "e68eb2b28b3629d982946946cb16a381d3571bbd",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "skills",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "tree",
+      "object_id": "88804f9908e95dff6face0d6b92f273f684936c4",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "delivery",
+      "revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3",
+      "object_type": "tree",
+      "object_id": "79e6c537c271851848bab516ed23d611791c5585",
+      "resolution": "immutable-policy-lock-selected-toolchain-package-closure",
+      "tree": "a4e3d9a646c899458322e3d0ba7ba42a5c4ab3b1"
+    },
+    {
+      "authority": "policy",
+      "path": "skills/agent-policy/build-closure.json",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "72fd429832159362ad734327884c83c81f734a2d",
+      "sha256": "1ecbbab6b11197dc798e1da19ca1bbecfbec879e0102835f60e84832ef8b6ca4",
+      "resolution": "digest-bound-pep517-artifact-closure",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": "skills/agent-policy/scripts/build_closure.py",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "81f8041b489d6856675c29bbbb400b0846b650a2",
+      "sha256": "850d2ae7ba81e74c349e915ca4002a2185cf9840785a7fc5d028ec6d915aa43b",
+      "resolution": "strict-pep517-closure-parser-and-artifact-verifier",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": "skills/agent-policy/scripts/prepare_runtime_wheel.py",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "23f1eb6b985f0881076ce097001616f434853bf2",
+      "sha256": "a255e0280eba2d11a006254d598ae3e985caf44bc23b6150e37f8f4e0916d4de",
+      "resolution": "credential-minimal-deterministic-runtime-wheel-builder",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": "skills/agent-policy/scripts/runtime.py",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "650494ef61cb26c73a2545ff36df62efbb31a2b5",
+      "sha256": "d4c26251cc71cfc91f8289de760b7bc41a34a2d2d1ea1c3b3ed5effeb1aa0135",
+      "resolution": "build-closure-bound-runtime-and-cache-identity",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": "skills/agent-policy/scripts/runtime_image.py",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "dea400d196db2df40134c9ea33abee9a297881e7",
+      "sha256": "9b6a0565ae7e63f9ec560b92965ad5435a3207a3f39389bb02565778cd62a114",
+      "resolution": "build-closure-bound-runtime-attestation",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    },
+    {
+      "authority": "policy",
+      "path": "skills/agent-policy/runtime-manifest.json",
+      "revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "object_type": "blob",
+      "object_id": "f3b84b8b9f8e06a472d3a9f9299a9359168dbaf7",
+      "sha256": "242fde9f9a17cc6d33cd4b49eaee0dd24b324fefd5df424b5f604960169c71df",
+      "resolution": "build-source-runtime-pin-and-runtime-lock-input",
+      "tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
+    }
+  ],
+  "adopted_files": [
+    {
+      "role": "workflow",
+      "source_path": ".github/workflows/trusted-review-bootstrap.yml",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "6bb65f78998188da386bd5f7d4b9c23acadf7d00",
+      "source_mode": "100644",
+      "destination_path": ".github/workflows/trusted-review-bootstrap.yml",
+      "transformation": {
+        "id": "site.trusted-review-bootstrap-integration",
+        "version": 1,
+        "source_sha256": "2c7614303b3f3c2e779ad460a8ec09258a36931d98aab4b5ecbb341ed3f6bea9",
+        "output_sha256": "2a93f201425af1b12bb58737bb749f193060edd6c06aca3b632db6599ea71ab1"
+      }
+    },
+    {
+      "role": "local-action",
+      "source_path": ".github/actions/trusted-review-freeze-role/action.yml",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "6d2b93a752a105bd3093675084fc207b15d720f4",
+      "source_mode": "100644",
+      "destination_path": ".github/actions/trusted-review-freeze-role/action.yml"
+    },
+    {
+      "role": "runtime-lock",
+      "source_path": "requirements-runtime.lock",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "0514ecc1c5e13b1491cb582aa907df77bc3862ae",
+      "source_mode": "100644",
+      "destination_path": "requirements-runtime.lock"
+    },
+    {
+      "role": "handoff-tool",
+      "source_path": "scripts/prepare_trusted_review_handoff.py",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "7fce312601e640b5caffce2ea4bf3cfbc5ad3c8e",
+      "source_mode": "100644",
+      "destination_path": "scripts/prepare_trusted_review_handoff.py"
+    },
+    {
+      "role": "actions-observer",
+      "source_path": "scripts/trusted_review_actions.py",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "4c1ae88948dd25333bb9d2f8c4d228308d5a485b",
+      "source_mode": "100644",
+      "destination_path": "scripts/trusted_review_actions.py"
+    },
+    {
+      "role": "freeze-tool",
+      "source_path": "scripts/trusted_review_freeze.py",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "bd57fcdba9fd554e0ce91ec12c37418c7551f788",
+      "source_mode": "100644",
+      "destination_path": "scripts/trusted_review_freeze.py"
+    },
+    {
+      "role": "freeze-provider",
+      "source_path": "scripts/trusted_review_freeze_provider.py",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "212be2adf54767ee76706d6009ef7f6030ebd230",
+      "source_mode": "100644",
+      "destination_path": "scripts/trusted_review_freeze_provider.py"
+    },
+    {
+      "role": "provider-observation-schema",
+      "source_path": "schemas/trusted-review-provider-observation.schema.json",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "f2994df3321ff006113463c00a01614025750434",
+      "source_mode": "100644",
+      "destination_path": "schemas/trusted-review-provider-observation.schema.json"
+    },
+    {
+      "role": "role-freeze-schema",
+      "source_path": "schemas/trusted-review-role-freeze-evidence.schema.json",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "6e6c42895dd7a667ca12ca1d716474eb2ba29e7b",
+      "source_mode": "100644",
+      "destination_path": "schemas/trusted-review-role-freeze-evidence.schema.json"
+    },
+    {
+      "role": "aggregate-freeze-schema",
+      "source_path": "schemas/trusted-review-freeze-evidence.schema.json",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "1912ba8a7b19c9cf8f3d685b785680bd78350fe2",
+      "source_mode": "100644",
+      "destination_path": "schemas/trusted-review-freeze-evidence.schema.json"
+    },
+    {
+      "role": "protected-local-view-schema",
+      "source_path": "schemas/trusted-review-local-view.schema.json",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "a0339093439f843b85f50695d1b48400cba81309",
+      "source_mode": "100644",
+      "destination_path": "schemas/trusted-review-local-view.schema.json"
+    },
+    {
+      "role": "build-closure-manifest",
+      "source_path": "skills/agent-policy/build-closure.json",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "72fd429832159362ad734327884c83c81f734a2d",
+      "source_mode": "100644",
+      "destination_path": "skills/agent-policy/build-closure.json"
+    },
+    {
+      "role": "build-closure-validator",
+      "source_path": "skills/agent-policy/scripts/build_closure.py",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "81f8041b489d6856675c29bbbb400b0846b650a2",
+      "source_mode": "100644",
+      "destination_path": "skills/agent-policy/scripts/build_closure.py"
+    },
+    {
+      "role": "runtime-wheel-builder",
+      "source_path": "skills/agent-policy/scripts/prepare_runtime_wheel.py",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "23f1eb6b985f0881076ce097001616f434853bf2",
+      "source_mode": "100644",
+      "destination_path": "skills/agent-policy/scripts/prepare_runtime_wheel.py"
+    },
+    {
+      "role": "runtime-builder",
+      "source_path": "skills/agent-policy/scripts/runtime.py",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "650494ef61cb26c73a2545ff36df62efbb31a2b5",
+      "source_mode": "100644",
+      "destination_path": "skills/agent-policy/scripts/runtime.py"
+    },
+    {
+      "role": "runtime-attestation",
+      "source_path": "skills/agent-policy/scripts/runtime_image.py",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "dea400d196db2df40134c9ea33abee9a297881e7",
+      "source_mode": "100644",
+      "destination_path": "skills/agent-policy/scripts/runtime_image.py"
+    },
+    {
+      "role": "runtime-manifest",
+      "source_path": "skills/agent-policy/runtime-manifest.json",
+      "source_revision": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53",
+      "source_tree": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f",
+      "source_blob": "f3b84b8b9f8e06a472d3a9f9299a9359168dbaf7",
+      "source_mode": "100644",
+      "destination_path": "skills/agent-policy/runtime-manifest.json"
+    }
+  ]
+}
