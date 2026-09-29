@@ -2,12 +2,12 @@
   "base_lock_digest": "cb42dfc440b900cdd19e0f57aaa1f60f842a94b2f22d18784526281b3a072cfe",
   "boundary": "provider-to-integration",
   "bundle": {
-    "content_digest": "d6c0572b8a5f59e5fdf711fc8d2cdfd58d6b89d2c1b10aad21a38df874ce90de",
-    "identity": "9fedf27ca9824a923c80b92fa35b3731831ee93fed19a2940fbd6fc1785feb45",
+    "content_digest": "c09fa9e44984a0956668a5811fb62146bb205f9a1f156f393e8e82c7fa13ba1a",
+    "identity": "2c6cb583f49aa04ed17cfac9a93e644ca05ff461895a7e8ae623bda71566659e",
     "schema": 4
   },
-  "consumer_base_revision": "7f79bc5026a3edbc5b6f314899a7356a3af14877",
-  "idempotency_key": "0ed395c7606d67dd1d4489144769cec08cbfa4fb309731c7f90a9246a7ae5ae1",
+  "consumer_base_revision": "f8079d4249bbd0618ef7543604f3a6cd843f1bd6",
+  "idempotency_key": "1d51bfaa73f66112bcda3e4ec0f50762725d870be1c55173f7aa1fd5b0b91bae",
   "lock_update_required": false,
   "provider_tuple": {
     "composition": "d4d0e35485ea0c2030e902f462374f6fb8f8588a",
@@ -15,11 +15,11 @@
     "policy": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
   },
   "qualification_inputs": {
-    "bundle_content_digest": "d6c0572b8a5f59e5fdf711fc8d2cdfd58d6b89d2c1b10aad21a38df874ce90de",
-    "bundle_identity": "9fedf27ca9824a923c80b92fa35b3731831ee93fed19a2940fbd6fc1785feb45",
+    "bundle_content_digest": "c09fa9e44984a0956668a5811fb62146bb205f9a1f156f393e8e82c7fa13ba1a",
+    "bundle_identity": "2c6cb583f49aa04ed17cfac9a93e644ca05ff461895a7e8ae623bda71566659e",
     "bundle_schema": "4",
     "composition_revision": "d4d0e35485ea0c2030e902f462374f6fb8f8588a",
-    "integration_revision": "7f79bc5026a3edbc5b6f314899a7356a3af14877",
+    "integration_revision": "f8079d4249bbd0618ef7543604f3a6cd843f1bd6",
     "modeling_revision": "202afe0206d673b2e2195a2df271d76862f9323a",
     "policy_revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
   },
@@ -32,29 +32,29 @@
   "run_provenance": {
     "artifact_namespace": "reconciliation",
     "bundle_artifact": {
-      "digest": "sha256:2f3d0de3d57ff2f34722e556064c35a862b771389a84fbf4aa78554214787243",
-      "id": 11028743481,
-      "name": "publication-bundle-9fedf27ca9824a923c80b92fa35b3731831ee93fed19a2940fbd6fc1785feb45-1-reconciliation"
+      "digest": "sha256:8800a6f023334a7e43db5c7518f12a292cf134c4aea107726f1e856468351f88",
+      "id": 11031274182,
+      "name": "publication-bundle-2c6cb583f49aa04ed17cfac9a93e644ca05ff461895a7e8ae623bda71566659e-1-reconciliation"
     },
     "invocation_mode": "site-reusable",
     "qualification_artifact": {
-      "digest": "sha256:fdf79dfd74548242be7f5e052f96685c2698164fc05d52f6690810083a5c5ed5",
-      "id": 11028573582,
-      "name": "publication-compatibility-9fedf27ca9824a923c80b92fa35b3731831ee93fed19a2940fbd6fc1785feb45-1-reconciliation"
+      "digest": "sha256:0d100ed35bec3bc908cf8cebc08637f43a99bfdf12daf0691f48be4bf63bca10",
+      "id": 11031119540,
+      "name": "publication-compatibility-2c6cb583f49aa04ed17cfac9a93e644ca05ff461895a7e8ae623bda71566659e-1-reconciliation"
     },
     "repository": "TakashiSasaki/templates",
     "run_workflow_path": ".github/workflows/provider-publication-dispatch.yml",
-    "source_report_sha256": "addff3068dabff4a29935e1c729e0b1352d61e3c5003af03393894143d8e9368",
-    "verified_report_sha256": "1f0e19d47179a20148026adc92ea747a8da09e08787f62e8f130a6eb8411deb7",
+    "source_report_sha256": "9a37d704e3108b8ed270f5c8ffe7f1c2f39caa5981e5b6ef2555abd5bb77ba84",
+    "verified_report_sha256": "45598b56f9b120e91d071fa37dc6af2efa28a2f091f16650f37d5986123e8aea",
     "workflow_attempt": 1,
     "workflow_event": "workflow_dispatch",
-    "workflow_head": "3b0b875a95b0fd0988948967003bc888100ac262",
+    "workflow_head": "0f1ad73feaf61710e8ebed0b068ab4d14bf5f32b",
     "workflow_name": "Dispatch provider qualification to Integration",
-    "workflow_run_id": 36559045519
+    "workflow_run_id": 36565980755
   },
   "schema_version": 2,
   "selected_lock_digest": "cb42dfc440b900cdd19e0f57aaa1f60f842a94b2f22d18784526281b3a072cfe",
-  "source_integration_revision": "7f79bc5026a3edbc5b6f314899a7356a3af14877",
+  "source_integration_revision": "f8079d4249bbd0618ef7543604f3a6cd843f1bd6",
   "stage": "promotion-intent",
   "trusted": {
     "controller_revision": "56771bd5159461403cc0c44643e6387cb52940a7",
