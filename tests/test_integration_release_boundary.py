@@ -1,5 +1,7 @@
+import ast
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -8,6 +10,32 @@ import yaml
 from integration.freshness import classify,PublicationFreshnessError
 
 ROOT=Path(__file__).resolve().parents[1]
+
+
+_ACTIONS_EXPRESSION_TOKEN = re.compile(
+    r"(?P<string>'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\")"
+    r"|(?P<operator>&&|\|\|)"
+    r"|(?P<boolean>\btrue\b|\bfalse\b)",
+    re.IGNORECASE,
+)
+
+
+def validate_actions_if_expression(condition):
+    """Parse the complete expression subset used by these promotion job gates."""
+    expression = condition.strip()
+    if expression.startswith('${{') and expression.endswith('}}'):
+        expression = expression[3:-2].strip()
+
+    def translate(match):
+        token = match.group(0)
+        if match.lastgroup == 'operator':
+            return ' and ' if token == '&&' else ' or '
+        if match.lastgroup == 'boolean':
+            return 'True' if token.lower() == 'true' else 'False'
+        return token
+
+    ast.parse(_ACTIONS_EXPRESSION_TOKEN.sub(translate, expression), mode='eval')
+
 
 class ReleaseBoundaryTests(unittest.TestCase):
     def test_active_workflows_use_runner_python_without_runtime_selection(self):
@@ -29,6 +57,11 @@ class ReleaseBoundaryTests(unittest.TestCase):
     def test_workflow_reaches_qualification_without_site_or_write_permissions(self):
         caller=yaml.safe_load((ROOT/'.github/workflows/validate-integration.yml').read_text())
         workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())
+        self.assertEqual(
+            workflow['jobs']['qualify']['outputs']['workflow_head'],
+            '${{ github.event.pull_request.head.sha || github.sha }}',
+        )
+        validate_actions_if_expression(workflow['jobs']['qualify']['outputs']['workflow_head'])
         self.assertEqual(caller['jobs']['qualification']['uses'],'./.github/workflows/integration-qualification.yml')
         self.assertEqual(caller['jobs']['qualification']['if'],'${{ github.event_name == \'workflow_dispatch\' }}')
         self.assertEqual(caller['jobs']['qualification']['with']['producer_ref'],'${{ inputs.producer_ref }}')
@@ -120,7 +153,10 @@ class ReleaseBoundaryTests(unittest.TestCase):
         step = next(step for step in job['steps'] if step.get('name') == 'Revalidate the live target before every privileged PR action')
         script = step['run']
 
-        self.assertEqual(step['env']['BRANCH'], 'automation/publication-$IDEMPOTENCY_KEY')
+        self.assertEqual(
+            step['env']['BRANCH'],
+            'automation/publication-${{ needs.controller.outputs.idempotency_key }}',
+        )
         self.assertIn('gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH"', script)
         self.assertIn('open_pr_numbers()', script)
         self.assertIn('verify_existing "$existing"', script)
@@ -144,6 +180,49 @@ class ReleaseBoundaryTests(unittest.TestCase):
                 self.assertIn(required, notify)
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', workflow)
         self.assertNotIn('--intent producer-source/publication-promotion-intent.json', workflow)
+
+    def test_read_only_promotion_checks_run_fail_closed_before_notify(self):
+        workflow = yaml.safe_load(
+            (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
+        )
+        jobs = workflow['jobs']
+        read_only_jobs = (
+            'validate_promotion_intent',
+            'release_qualification',
+            'verify_release',
+        )
+        for name in read_only_jobs:
+            with self.subTest(job=name):
+                condition = jobs[name]['if']
+                self.assertNotIn("vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'", condition)
+                self.assertNotIn("vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'", condition)
+                permissions = jobs[name].get('permissions', {})
+                self.assertTrue(permissions)
+                self.assertTrue(all(value == 'read' for value in permissions.values()))
+
+        notify = jobs['notify']['if']
+        self.assertIn("vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'", notify)
+        self.assertIn("vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'", notify)
+
+    def test_promotion_job_conditions_parse_as_complete_actions_expressions(self):
+        workflow = yaml.safe_load(
+            (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
+        )
+        for name in (
+            'validate_promotion_intent',
+            'release_qualification',
+            'verify_release',
+            'notify',
+        ):
+            with self.subTest(job=name):
+                condition = workflow['jobs'][name]['if']
+                validate_actions_if_expression(condition)
+                for dangling_operator in ('&&', '||'):
+                    with self.subTest(dangling_operator=dangling_operator):
+                        with self.assertRaises(SyntaxError):
+                            validate_actions_if_expression(
+                                f'{condition} {dangling_operator}'
+                            )
 
     def test_post_merge_automation_pr_provenance_gates_the_trusted_chain(self):
         workflow = yaml.safe_load((ROOT / '.github/workflows/integration-promotion-notify.yml').read_text())
