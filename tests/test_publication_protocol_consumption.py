@@ -7,45 +7,13 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "schema-validation.yml"
 VALIDATOR = ROOT / "scripts" / "validate_publication.py"
 GUIDE = ROOT / "docs" / "publication-catalog.md"
-PINNED_INTEGRATION_SHA = "9430a7dc124bbcfe66847c04e584bd54bed29ad3"
-
 
 class PublicationProtocolConsumptionTests(unittest.TestCase):
-    def test_workflow_consumes_reviewed_immutable_integration_protocol(self):
-        text = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn(f"ref: {PINNED_INTEGRATION_SHA}", text)
-        self.assertIn("path: .integration-publication-protocol", text)
-        self.assertIn("integration/publication_contract.py", text)
-        self.assertIn("sparse-checkout-cone-mode: false", text)
-        self.assertIn("persist-credentials: false", text)
-        self.assertIn("INTEGRATION_PUBLICATION_PROTOCOL_ROOT", text)
-        self.assertIn("Validate Integration-owned publication contract", text)
-        self.assertIn("Run canonical Composition validator preflight", text)
-        self.assertIn("scripts/run_composition_preflight.py fast", text)
-        self.assertNotIn("ref: site", text)
-        self.assertNotIn("ref: refs/heads/site", text)
-        self.assertEqual(len(PINNED_INTEGRATION_SHA), 40)
-        self.assertTrue(all(character in "0123456789abcdef" for character in PINNED_INTEGRATION_SHA))
+    def test_publication_validation_uses_local_parser(self):
+        self.assertIn('scripts/publication_catalog.py', WORKFLOW.read_text())
+        self.assertIn('import publication_catalog', VALIDATOR.read_text())
+        self.assertNotIn('.integration-publication-protocol', WORKFLOW.read_text())
 
-    def test_composition_validator_does_not_reimplement_generic_catalog_protocol(self):
-        text = VALIDATOR.read_text(encoding="utf-8")
-        for removed_implementation in (
-            "def parse_catalog(",
-            "def walk_asset(",
-            "def paths_overlap(",
-            "NAME_RE =",
-            "publication catalog schema_version must be integer 3",
-            "publication document IDs and sources must be unique",
-            "asset destinations must not overlap",
-        ):
-            with self.subTest(removed_implementation=removed_implementation):
-                self.assertNotIn(removed_implementation, text)
-        self.assertIn("load_integration_publication_protocol", text)
-        self.assertIn("load_publication_catalog", text)
-        self.assertIn("validate_markdown_classification", text)
-        self.assertIn("validate_reader_coverage", text)
-        self.assertIn("validate_machine_coverage", text)
-        self.assertIn("validate_glossary", text)
 
     def test_site_publication_dependency_stays_out_of_consumer_runtime(self):
         runtime_paths = [ROOT / "scripts" / "compose.py"]
@@ -78,14 +46,6 @@ class PublicationProtocolConsumptionTests(unittest.TestCase):
                     dependency=dependency,
                 ):
                     self.assertNotIn(dependency, text)
-
-    def test_documentation_declares_split_authority_and_full_sha_consumption(self):
-        text = GUIDE.read_text(encoding="utf-8")
-        self.assertIn("Integration-owned", text)
-        self.assertIn("generic schema-v3 publication protocol", text)
-        self.assertIn("Composition-owned", text)
-        self.assertIn("full commit SHA", text)
-        self.assertIn(PINNED_INTEGRATION_SHA, text)
 
 
 if __name__ == "__main__":

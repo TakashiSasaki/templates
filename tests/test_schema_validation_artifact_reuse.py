@@ -29,7 +29,7 @@ class SchemaValidationArtifactReuseTests(unittest.TestCase):
         primary = job_block(self.workflow, "primary")
         materialize_command = "scripts/materialize_publication.py --source-root ."
         site_contract_command = (
-            '"$INTEGRATION_PUBLICATION_PROTOCOL_ROOT/integration/publication_contract.py" --source-root .'
+            'scripts/publication_catalog.py --source-root .'
         )
         composition_contract_command = "scripts/validate_publication.py"
 

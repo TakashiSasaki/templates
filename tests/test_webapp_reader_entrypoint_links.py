@@ -9,7 +9,7 @@ WEBAPP_OVERVIEWS = (
     ROOT / "components" / "artifact.webapp-core" / "files" / "README.md",
     ROOT / "translations" / "ja" / "components" / "artifact.webapp-core" / "files" / "README.md",
 )
-CURRENT_WALKTHROUGH_URL = "https://templates.moukaeritai.work/webapp/product-walkthrough/"
+CURRENT_WALKTHROUGH_URL = "https://templates.moukaeritai.work/use/composition/webapp-product-walkthrough/"
 LEGACY_WALKTHROUGH_URL = (
     "https://templates.moukaeritai.work/composition/use/webapp-product-walkthrough/"
 )

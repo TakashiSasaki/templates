@@ -137,16 +137,10 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
             with self.subTest(job=job_name):
                 self.assertIn(checkout_ref, _job_block(self.workflow, job_name))
 
-    def test_integration_protocol_checkout_is_limited_to_core_jobs_that_need_it(self) -> None:
-        integration_protocol_ref = "ref: 9430a7dc124bbcfe66847c04e584bd54bed29ad3"
-        for job_name in ("primary", "parallel"):
-            with self.subTest(job=job_name):
-                job = _job_block(self.workflow, job_name)
-                self.assertIn(integration_protocol_ref, job)
-                self.assertIn("Check out Integration publication protocol", job)
-        browser = _job_block(self.workflow, "real_browser")
-        self.assertNotIn(integration_protocol_ref, browser)
-        self.assertNotIn("Check out Integration publication protocol", browser)
+    def test_publication_validation_is_provider_local(self):
+        self.assertNotIn('.integration-publication-protocol', self.workflow)
+        self.assertIn('scripts/publication_catalog.py --source-root .', self.workflow)
+
 
     def test_workflow_uses_runner_python_without_runtime_selection(self) -> None:
         for path in sorted((ROOT / ".github/workflows").glob("*.yml")):

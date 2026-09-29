@@ -515,7 +515,7 @@ def run_owned_validators(
     component_version_base: str,
     *,
     shard_count: int = DEFAULT_JOBS,
-    include_integration_publication: bool = False,
+    include_publication: bool = True,
     publication_already_validated: bool = False,
 ) -> None:
     checks: list[tuple[str, list[str]]] = []
@@ -530,7 +530,7 @@ def run_owned_validators(
                 ),
             )
         )
-        if include_integration_publication:
+        if include_publication:
             checks.append(
                 ("composition-publication", command("-I", "scripts/validate_publication.py"))
             )
@@ -566,21 +566,6 @@ def run_owned_validators(
     for name, argv in checks:
         run_check(name, argv)
 
-
-def run_integration_publication_contract(protocol_root: Path) -> None:
-    validator = protocol_root / "integration" / "publication_contract.py"
-    if not validator.is_file():
-        raise PreflightFailure(
-            f"Integration publication protocol validator is missing: {validator}"
-        )
-    run_check(
-        "publication-materialization",
-        command("-I", "scripts/materialize_publication.py", "--source-root", "."),
-    )
-    run_check(
-        "integration-publication-contract",
-        command("-I", str(validator), "--source-root", "."),
-    )
 
 
 def run_consumer_spine() -> None:
@@ -708,11 +693,6 @@ def run_ready(
     require_clean_tree()
     run_check("phase-zero-source", command("-I", "scripts/composition_phase_zero.py"))
     run_owned_validators(component_version_base, shard_count=effective_core_jobs(jobs))
-    print(
-        "COMPOSITION_PREFLIGHT_CHECK_DEFERRED name=composition-publication "
-        "reason=reviewed Integration protocol checkout is an explicit cross-authority input",
-        flush=True,
-    )
     run_consumer_spine()
     run_core_ready(jobs)
     run_playground_provenance(expected_head)
@@ -763,7 +743,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--component-version-base")
     parser.add_argument("--expected-head")
-    parser.add_argument("--integration-publication-protocol", type=Path)
     parser.add_argument(
         "--validators-only",
         action="store_true",
@@ -812,13 +791,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         component_version_base = resolve_component_version_base(
             args.component_version_base
         )
-        if args.integration_publication_protocol is not None:
-            os.environ["INTEGRATION_PUBLICATION_PROTOCOL_ROOT"] = str(
-                args.integration_publication_protocol.resolve()
-            )
         if args.profile == "ready" and args.validators_only:
             raise PreflightFailure("ready does not support --validators-only")
-        include_integration_publication = True
+        include_publication = True
         if args.profile == "ready":
             try:
                 run_ready(component_version_base, head, requested_jobs)
@@ -836,7 +811,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_owned_validators(
             component_version_base,
             shard_count=effective,
-            include_integration_publication=include_integration_publication,
+            include_publication=include_publication,
             publication_already_validated=args.publication_already_validated,
         )
         if args.validators_only:

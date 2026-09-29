@@ -293,7 +293,7 @@ class CompositionPreflightTests(unittest.TestCase):
             preflight.run_owned_validators(
                 "base-sha",
                 shard_count=1,
-                include_integration_publication=True,
+                include_publication=True,
             )
 
         self.assertEqual(
@@ -352,7 +352,7 @@ class CompositionPreflightTests(unittest.TestCase):
 
         names = [name for name, _ in recorded]
         self.assertIn("playground-generated-state", names)
-        self.assertNotIn("composition-publication", names)
+        self.assertIn("composition-publication", names)
 
     def test_ready_cleanup_removes_validation_only_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -446,11 +446,6 @@ class CompositionPreflightTests(unittest.TestCase):
                 "run_full_tests",
                 side_effect=lambda _jobs: events.append("core-browser-smokes"),
             ) as full_tests,
-            mock.patch.object(
-                preflight,
-                "run_integration_publication_contract",
-                side_effect=lambda _protocol: events.append("publication"),
-            ),
             mock.patch.dict(
                 preflight.os.environ,
                 {"CHROMEWEBDRIVER": sys.executable},
@@ -462,7 +457,7 @@ class CompositionPreflightTests(unittest.TestCase):
         consumer_spine.assert_called_once_with()
         focused_tests.assert_not_called()
         full_tests.assert_called_once_with(2)
-        self.assertEqual(events, ["consumer", "core-browser-smokes", "publication"])
+        self.assertEqual(events, ["consumer", "core-browser-smokes"])
 
     def test_full_keeps_core_browser_and_runtime_smokes_in_order(self) -> None:
         events: list[tuple[str, object]] = []
