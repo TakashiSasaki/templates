@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build and verify one Site artifact from one already acquired publication."""
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
 
@@ -21,7 +21,7 @@ def main():
     manifest = validate(args.bundle)
     render(bundle=args.bundle, site_root=Path(__file__).resolve().parents[1],
            output=args.output, expected_identity=manifest['identity'],
-           deployment_timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'))
+           deployment_timestamp=datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S JST'))
     site = args.output / 'site'
     check_bundle_reader(site, args.bundle)
     check_artifact(site, args.bundle)
