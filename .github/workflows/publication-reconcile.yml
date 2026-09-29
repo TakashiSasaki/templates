@@ -175,7 +175,35 @@ jobs:
           CONTENT: ${{ steps.handoff.outputs.content_digest }}
           EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
           EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+          QUALIFICATION_ARTIFACT_ID: ${{ steps.handoff.outputs.qualification_artifact_id }}
+          QUALIFICATION_ARTIFACT_DIGEST: ${{ steps.handoff.outputs.qualification_artifact_digest }}
+          QUALIFICATION_ARTIFACT_NAME: ${{ steps.handoff.outputs.qualification_artifact_name }}
+          SOURCE_PR: ${{ steps.handoff.outputs.source_pr }}
         run: |
+          set -euo pipefail
+          dispatch_args=()
+          if [ "$GITHUB_EVENT_NAME" = repository_dispatch ]; then
+            test -n "$RECEIPT_ID" && test -n "$RECEIPT_DIGEST" && test -n "$RECEIPT_NAME"
+            test -n "$RECEIPT_CONTENT_DIGEST"
+            test -n "$BUNDLE_ID" && test -n "$BUNDLE_DIGEST" && test -n "$BUNDLE_NAME"
+            test -n "$RUN_ID" && test -n "$ATTEMPT" && test -n "$WORKFLOW_HEAD"
+            test -n "$WORKFLOW_NAME" && test -n "$WORKFLOW_EVENT"
+            test -n "$INTEGRATION" && test -n "$IDENTITY" && test -n "$CONTENT"
+            test -n "$SOURCE_PR"
+            test -n "$QUALIFICATION_ARTIFACT_ID"
+            test -n "$QUALIFICATION_ARTIFACT_DIGEST"
+            test -n "$QUALIFICATION_ARTIFACT_NAME"
+            dispatch_args+=(
+              --require-dispatch-provenance
+              --source-pr "$SOURCE_PR"
+              --qualification-artifact-id "$QUALIFICATION_ARTIFACT_ID"
+              --qualification-artifact-digest "$QUALIFICATION_ARTIFACT_DIGEST"
+              --qualification-artifact-name "$QUALIFICATION_ARTIFACT_NAME"
+            )
+          elif [ "$GITHUB_EVENT_NAME" != workflow_dispatch ]; then
+            echo "Unsupported acquisition event: $GITHUB_EVENT_NAME" >&2
+            exit 1
+          fi
           if [ -z "$RECEIPT_ID$RECEIPT_DIGEST$RECEIPT_NAME" ]; then
             echo 'available=false' >> "$GITHUB_OUTPUT"
             echo 'reason=MISSING_TRUSTED_INTEGRATION_RECEIPT' >> "$GITHUB_OUTPUT"
@@ -204,6 +232,7 @@ jobs:
             --integration-revision "$INTEGRATION"
             --output trusted-integration-receipt.json
           )
+          receipt_args+=("${dispatch_args[@]}")
           if [ -n "$EXPECTED_POLICY" ]; then receipt_args+=(--expected-policy-revision "$EXPECTED_POLICY"); fi
           if [ -n "$EXPECTED_CONTROLLER" ]; then receipt_args+=(--expected-controller-revision "$EXPECTED_CONTROLLER"); fi
           python3 scripts/acquire_trusted_integration_receipt.py "${receipt_args[@]}"

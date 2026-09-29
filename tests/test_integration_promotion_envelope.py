@@ -139,6 +139,41 @@ class IntegrationPromotionEnvelopeTests(unittest.TestCase):
                 f"${{{{ steps.handoff.outputs.{output} }}}}",
             )
 
+        receipt = next(
+            step for step in steps
+            if step.get("name") == "Acquire the trusted Integration promotion receipt"
+        )
+        self.assertEqual(
+            receipt["env"]["QUALIFICATION_ARTIFACT_ID"],
+            "${{ steps.handoff.outputs.qualification_artifact_id }}",
+        )
+        self.assertEqual(
+            receipt["env"]["QUALIFICATION_ARTIFACT_DIGEST"],
+            "${{ steps.handoff.outputs.qualification_artifact_digest }}",
+        )
+        self.assertEqual(
+            receipt["env"]["QUALIFICATION_ARTIFACT_NAME"],
+            "${{ steps.handoff.outputs.qualification_artifact_name }}",
+        )
+        self.assertEqual(receipt["env"]["SOURCE_PR"], "${{ steps.handoff.outputs.source_pr }}")
+        self.assertIn('if [ "$GITHUB_EVENT_NAME" = repository_dispatch ]', receipt["run"])
+        self.assertIn("--require-dispatch-provenance", receipt["run"])
+        self.assertIn('--source-pr "$SOURCE_PR"', receipt["run"])
+        self.assertIn('--qualification-artifact-id "$QUALIFICATION_ARTIFACT_ID"', receipt["run"])
+        self.assertLess(
+            next(index for index, step in enumerate(steps) if step is receipt),
+            next(
+                index for index, step in enumerate(steps)
+                if step.get("name") == "Acquire the exact qualified Integration Bundle"
+            ),
+        )
+        workflow_text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotRegex(workflow_text, r"(?m)^\s*gh\s+pr\s+merge(?:\s|$)")
+        self.assertNotRegex(workflow_text, r"(?m)^\s*gh\s+pr\s+auto-merge(?:\s|$)")
+        for deploy_marker in ("deploy-pages", "upload-pages-artifact", "pages: write"):
+            with self.subTest(deploy_marker=deploy_marker):
+                self.assertNotIn(deploy_marker, workflow_text)
+
     def test_valid_envelope_preserves_and_normalizes_all_handoff_identities(self):
         result, output = self.run_normalizer("repository_dispatch", valid_event())
         self.assertEqual(result.returncode, 0, result.stderr)

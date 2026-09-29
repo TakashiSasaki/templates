@@ -119,6 +119,89 @@ def _download_report(archive: Path, *, expected_digest: str, output: Path) -> No
     output.write_bytes(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n")
 
 
+def _download_artifact_archive(repository: str, artifact_id: int, output: Path) -> None:
+    with output.open("wb") as stream:
+        subprocess.run(
+            ["gh", "api", f"repos/{repository}/actions/artifacts/{artifact_id}/zip"],
+            stdout=stream,
+            check=True,
+        )
+
+
+def _validate_source_pr(
+    pr: dict[str, Any],
+    *,
+    repository: str,
+    source_pr: int,
+    workflow_head: str,
+    integration_revision: str,
+) -> None:
+    if (pr.get("number") != source_pr or pr.get("state") != "closed"
+            or pr.get("merged") is not True or not pr.get("merged_at")):
+        raise ReceiptError("source PR is not the exact merged pull request")
+    head = pr.get("head")
+    base = pr.get("base")
+    if not isinstance(head, dict) or not isinstance(base, dict):
+        raise ReceiptError("source PR branch identity is malformed")
+    head_repo = head.get("repo")
+    base_repo = base.get("repo")
+    if (not isinstance(head_repo, dict) or head_repo.get("full_name") != repository
+            or not isinstance(base_repo, dict) or base_repo.get("full_name") != repository):
+        raise ReceiptError("source PR is not from the same repository")
+    branch = head.get("ref")
+    if (not isinstance(branch, str) or not branch.startswith("automation/publication-")
+            or not branch.removeprefix("automation/publication-")):
+        raise ReceiptError("source PR head is outside the publication automation namespace")
+    if (base.get("ref") != "integration" or head.get("sha") != workflow_head
+            or pr.get("merge_commit_sha") != integration_revision):
+        raise ReceiptError("source PR does not identify the promoted Integration release")
+
+
+def _validate_qualification_artifact_metadata(
+    metadata: dict[str, Any],
+    *,
+    artifact_id: int,
+    artifact_digest: str,
+    artifact_name: str,
+    run_id: int,
+    workflow_head: str,
+    bundle_identity: str,
+    attempt: int,
+) -> None:
+    expected_name = f"publication-compatibility-{bundle_identity}-{attempt}-promoted"
+    workflow_run = metadata.get("workflow_run")
+    if (metadata.get("id") != artifact_id or metadata.get("digest") != artifact_digest
+            or metadata.get("name") != artifact_name or artifact_name != expected_name
+            or metadata.get("expired") is not False or not isinstance(workflow_run, dict)
+            or workflow_run.get("id") != run_id or workflow_run.get("head_sha") != workflow_head):
+        raise ReceiptError("qualification artifact metadata binding mismatch")
+
+
+def _read_qualification_report(archive: Path, *, expected_digest: str) -> bytes:
+    actual = "sha256:" + hashlib.sha256(archive.read_bytes()).hexdigest()
+    if actual != expected_digest:
+        raise ReceiptError("qualification artifact digest mismatch")
+    try:
+        with zipfile.ZipFile(archive) as zipped:
+            members = zipped.infolist()
+            files = []
+            for member in members:
+                path = PurePosixPath(member.filename)
+                if (path.is_absolute() or ".." in path.parts or "\\" in member.filename
+                        or member.filename == "" or member.is_dir()):
+                    raise ReceiptError("qualification archive contains an unsafe member")
+                if ((member.external_attr >> 16) & 0o170000) == 0o120000:
+                    raise ReceiptError("qualification archive contains a symlink")
+                files.append(path.as_posix())
+            if files != ["compatibility-report.json"]:
+                raise ReceiptError("qualification archive inventory is not exact")
+            payload = zipped.read("compatibility-report.json")
+    except (OSError, zipfile.BadZipFile, KeyError) as exc:
+        raise ReceiptError(f"unable to read qualification artifact: {exc}") from exc
+    _json_bytes(payload)
+    return payload
+
+
 def _validate_report(
     report: dict[str, Any],
     *,
@@ -250,6 +333,12 @@ def acquire(
     expected_controller_revision: str | None,
     output: Path,
     api_call: Callable[[str], dict[str, Any]] = api,
+    require_dispatch_provenance: bool = False,
+    source_pr: int | None = None,
+    qualification_artifact_id: int | None = None,
+    qualification_artifact_digest: str | None = None,
+    qualification_artifact_name: str | None = None,
+    archive_download: Callable[[str, int, Path], None] = _download_artifact_archive,
 ) -> dict[str, Any]:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise ReceiptError("repository is malformed")
@@ -270,8 +359,7 @@ def acquire(
         raise ReceiptError("trusted receipt workflow binding mismatch")
     with tempfile.TemporaryDirectory() as directory:
         archive = Path(directory) / "receipt.zip"
-        with archive.open("wb") as stream:
-            subprocess.run(["gh", "api", f"{prefix}/artifacts/{receipt_artifact_id}/zip"], stdout=stream, check=True)
+        archive_download(repository, receipt_artifact_id, archive)
         _download_report(archive, expected_digest=receipt_artifact_digest, output=output)
     report = json.loads(output.read_text(encoding="utf-8"))
     _validate_report(report, receipt_artifact_id=receipt_artifact_id,
@@ -285,6 +373,53 @@ def acquire(
                      bundle_content_digest=bundle_content_digest, integration_revision=integration_revision,
                      expected_policy_revision=expected_policy_revision, expected_controller_revision=expected_controller_revision,
                      workflow_path=workflow_path)
+
+    dispatch_values = (
+        source_pr,
+        qualification_artifact_id,
+        qualification_artifact_digest,
+        qualification_artifact_name,
+    )
+    if require_dispatch_provenance:
+        if (not isinstance(source_pr, int) or isinstance(source_pr, bool) or source_pr <= 0
+                or not isinstance(qualification_artifact_id, int)
+                or isinstance(qualification_artifact_id, bool) or qualification_artifact_id <= 0
+                or not isinstance(qualification_artifact_digest, str)
+                or not isinstance(qualification_artifact_name, str)):
+            raise ReceiptError("repository dispatch is missing source-PR or qualification-artifact provenance")
+        _archive(qualification_artifact_digest, "qualification artifact digest")
+        _validate_source_pr(
+            api_call(f"repos/{repository}/pulls/{source_pr}"),
+            repository=repository,
+            source_pr=source_pr,
+            workflow_head=workflow_head,
+            integration_revision=integration_revision,
+        )
+        qualification_metadata = api_call(
+            f"{prefix}/artifacts/{qualification_artifact_id}"
+        )
+        _validate_qualification_artifact_metadata(
+            qualification_metadata,
+            artifact_id=qualification_artifact_id,
+            artifact_digest=qualification_artifact_digest,
+            artifact_name=qualification_artifact_name,
+            run_id=run_id,
+            workflow_head=workflow_head,
+            bundle_identity=bundle_identity,
+            attempt=attempt,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            qualification_archive = Path(directory) / "qualification.zip"
+            archive_download(repository, qualification_artifact_id, qualification_archive)
+            source_report = _read_qualification_report(
+                qualification_archive,
+                expected_digest=qualification_artifact_digest,
+            )
+        expected_source_digest = report["verification"]["source_report_digest"]
+        if hashlib.sha256(source_report).hexdigest() != expected_source_digest:
+            raise ReceiptError("qualification report does not match trusted receipt source_report_digest")
+    elif any(value is not None for value in dispatch_values):
+        raise ReceiptError("dispatch provenance may only be supplied for repository_dispatch")
     return report
 
 
@@ -297,6 +432,11 @@ def main() -> int:
         parser.add_argument("--" + name, type=int, required=True)
     parser.add_argument("--expected-policy-revision")
     parser.add_argument("--expected-controller-revision")
+    parser.add_argument("--require-dispatch-provenance", action="store_true")
+    parser.add_argument("--source-pr", type=int)
+    parser.add_argument("--qualification-artifact-id", type=int)
+    parser.add_argument("--qualification-artifact-digest")
+    parser.add_argument("--qualification-artifact-name")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
@@ -308,7 +448,12 @@ def main() -> int:
                 workflow_path=args.workflow_path,
                 bundle_identity=args.bundle_identity, bundle_content_digest=args.bundle_content_digest,
                 integration_revision=args.integration_revision, expected_policy_revision=args.expected_policy_revision,
-                expected_controller_revision=args.expected_controller_revision, output=args.output)
+                expected_controller_revision=args.expected_controller_revision, output=args.output,
+                require_dispatch_provenance=args.require_dispatch_provenance,
+                source_pr=args.source_pr,
+                qualification_artifact_id=args.qualification_artifact_id,
+                qualification_artifact_digest=args.qualification_artifact_digest,
+                qualification_artifact_name=args.qualification_artifact_name)
     except (OSError, subprocess.SubprocessError, ReceiptError, ValueError) as exc:
         parser.error(str(exc))
     print(args.output)
