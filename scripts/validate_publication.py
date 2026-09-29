@@ -34,6 +34,7 @@ READER_BASENAMES = {
     "TOPOLOGY.md",
 }
 IGNORED_ROOT_MARKDOWN_DISCOVERY_DIRS = {
+    "discovery",  # Derived navigation, never a second source/publication catalog.
     ".git",
     ".mypy_cache",
     ".pytest_cache",

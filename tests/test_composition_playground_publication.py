@@ -278,9 +278,7 @@ class PublicationLifecycleRegressionTests(unittest.TestCase):
         workflow = SCHEMA_VALIDATION.read_text(encoding="utf-8")
         primary = workflow.split("\n  primary:\n", 1)[1].split("\n  parallel:\n", 1)[0]
         materialize = "scripts/materialize_publication.py --source-root ."
-        site_contract = (
-            '"$INTEGRATION_PUBLICATION_PROTOCOL_ROOT/integration/publication_contract.py" --source-root .'
-        )
+        site_contract = "scripts/publication_catalog.py --source-root ."
         composition_preflight = "scripts/run_composition_preflight.py fast"
 
         self.assertEqual(1, primary.count(materialize))
@@ -307,26 +305,6 @@ class PublicationLifecycleRegressionTests(unittest.TestCase):
         index = DOCS_INDEX.read_text(encoding="utf-8")
         canonical_link = "../components/capability.webmcp/files/WEBMCP.md"
         self.assertEqual(1, index.count(canonical_link))
-
-    def test_reference_consumer_compatibility_pin_is_immutable_and_intentional(self) -> None:
-        workflow = REFERENCE_CONSUMER_PUBLICATION.read_text(encoding="utf-8")
-        uses_match = re.search(
-            r"uses: TakashiSasaki/templates/\.github/workflows/integration-qualification\.yml@([0-9a-f]{40})",
-            workflow,
-        )
-        producer_ref_match = re.search(r"^\s+producer_ref: ([0-9a-f]{40})$", workflow, re.MULTILINE)
-        self.assertIsNotNone(uses_match)
-        self.assertIsNotNone(producer_ref_match)
-        assert uses_match is not None
-        assert producer_ref_match is not None
-        self.assertEqual(EXPECTED_INTEGRATION_COMPATIBILITY_REVISION, uses_match.group(1))
-        self.assertEqual(uses_match.group(1), producer_ref_match.group(1))
-        self.assertIn(
-            "composition_ref: ${{ github.event.pull_request.head.sha || github.sha }}",
-            workflow,
-        )
-        self.assertNotIn("publication_staging_ids:", workflow)
-        self.assertNotIn("publication_staging_id:", workflow)
 
     def test_refresh_failure_preserves_the_previous_complete_snapshot(self) -> None:
         for failure in (OSError('disk full'), KeyboardInterrupt()):

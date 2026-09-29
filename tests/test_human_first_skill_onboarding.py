@@ -92,9 +92,9 @@ class HumanFirstSkillOnboardingTests(unittest.TestCase):
         overview = (
             ROOT / "components" / "artifact.skill-core" / "files" / "README.md"
         ).read_text(encoding="utf-8")
-        self.assertIn("/composition/use/skill-first-use-walkthrough/", overview)
+        self.assertIn("/use/composition/skill-first-use-walkthrough/", overview)
         self.assertLess(
-            overview.index("/composition/use/skill-first-use-walkthrough/"),
+            overview.index("/use/composition/skill-first-use-walkthrough/"),
             overview.index("## Artifact model"),
         )
 

@@ -26,7 +26,8 @@
     "docs/migrations/pr2-skill-capabilities.md",
     "docs/migrations/pr3-webapp-lifecycle.md",
     "docs/guides/webmcp-capability.md",
-    "docs/glossary.yml"
+    "docs/glossary.yml",
+    "discovery"
   ],
   "closed_inventories": [
     "components"

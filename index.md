@@ -27,3 +27,7 @@
 - [Publication catalog](docs/publication-catalog.json) - Declares the exact reader documents and machine assets.
 - [Publication classification](docs/publication-classification.json) - Records source-only navigation and other publication exclusions.
 - [Composition glossary](docs/glossary.yml) - Maintains provider-owned terminology records.
+
+## Complete material discovery
+
+- [Canonical documents and agent materials](discovery/index.md) - Generated directly from the source catalogs and Git-tracked entrypoints; no separate membership list.

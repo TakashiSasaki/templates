@@ -536,7 +536,7 @@ def run_owned_validators(
             )
     checks.extend(
         [
-            ("translation-availability", command("-I", "scripts/validate_translations.py", "--allow-stale")),
+            ("translation-availability", command("-I", "scripts/check_translation_status.py")),
             (
                 "component-version-monotonicity",
                 command("scripts/validate_component_versions.py", "--base", component_version_base),

@@ -32,3 +32,7 @@ Use `.agents/skills/land-templates-stack/SKILL.md` only for PR preparation/landi
 The optional progressive-discovery utility and reusable Policy/Composition products do
 not govern repository maintenance by implicit self-adoption. Release/runtime pins that
 identify executable consumer distributions are separate from publication selection.
+
+Check source discovery with `python scripts/check_discovery.py`. After changing a
+source catalog or adding a top-level material, run `python scripts/check_discovery.py --write` to refresh the derived index. Do not hand-maintain a discovery catalog.
+The normal unit-test suite runs the same coverage check.
