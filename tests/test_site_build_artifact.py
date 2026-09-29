@@ -225,12 +225,26 @@ class BuildDependencyLockTests(unittest.TestCase):
             return result
         direct = packages(root / 'requirements.txt')
         locked = packages(root / 'requirements-build.lock')
+        self.assertEqual(direct['zensical'], '0.0.57')
+        self.assertEqual(locked['zensical'], '0.0.57')
         for name, version in direct.items():
             self.assertEqual(locked.get(name), version, name)
-        workflow = yaml.safe_load((root / ".github/workflows/site-producer.yml").read_text())
-        step = next(s for s in workflow['jobs']['build']['steps'] if s.get('name') == 'Install pinned contract and renderer dependencies')
-        self.assertIn('--no-deps --requirement site-source/requirements-build.lock', step['run'])
-        self.assertIn('python3 -m pip check', step['run'])
+        producer_workflow = yaml.safe_load((root / ".github/workflows/site-producer.yml").read_text())
+        producer_step = next(
+            s for s in producer_workflow['jobs']['build']['steps']
+            if s.get('name') == 'Install pinned contract and renderer dependencies'
+        )
+        self.assertIn('--no-deps --requirement site-source/requirements-build.lock', producer_step['run'])
+        self.assertIn('python3 -m pip check', producer_step['run'])
+        reconcile_workflow = yaml.safe_load(
+            (root / ".github/workflows/publication-reconcile.yml").read_text()
+        )
+        reconcile_step = next(
+            s for s in reconcile_workflow['jobs']['classify']['steps']
+            if s.get('name') == 'Install pinned Site renderer dependencies'
+        )
+        self.assertIn('--no-deps', reconcile_step['run'])
+        self.assertIn('--requirement requirements-build.lock', reconcile_step['run'])
 
 
 class PartialRetryTests(unittest.TestCase):

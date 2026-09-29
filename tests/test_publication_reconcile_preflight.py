@@ -17,6 +17,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/publication-reconcile.yml"
 STEP_NAME = "Site preflight against the selected public Bundle contract"
+INSTALL_STEP_NAME = "Install pinned Site renderer dependencies"
+DEPENDENCY_BOUNDARY_STEP_NAME = "Validate Site build dependency boundary"
 
 
 def preflight_script() -> str:
@@ -33,7 +35,63 @@ def rendered_script() -> str:
     return re.sub(r"\$\{\{.*?\}\}", "SAFE_GITHUB_EXPRESSION", preflight_script())
 
 
+def workflow() -> dict:
+    return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+
+
+def classify_steps() -> list[dict]:
+    return workflow()["jobs"]["classify"]["steps"]
+
+
 class PublicationPreflightShellTests(unittest.TestCase):
+    def test_classify_establishes_the_pinned_renderer_environment_before_preflight(self):
+        steps = classify_steps()
+        install_index = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("name") == INSTALL_STEP_NAME
+        )
+        boundary_index = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("name") == DEPENDENCY_BOUNDARY_STEP_NAME
+        )
+        preflight_index = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("name") == STEP_NAME
+        )
+        install = steps[install_index]["run"]
+        boundary = steps[boundary_index]["run"]
+
+        self.assertLess(install_index, boundary_index)
+        self.assertLess(boundary_index, preflight_index)
+        self.assertIn("python3 -m pip install", install)
+        self.assertIn("--no-deps", install)
+        self.assertIn("--requirement requirements-build.lock", install)
+        self.assertIn("python3 -m pip check", install)
+        self.assertEqual(
+            boundary,
+            "python3 scripts/check_python_dependencies.py . --environment build",
+        )
+
+    def test_reconciliation_keeps_renderer_install_out_of_adoption_job(self):
+        adoption_steps = workflow()["jobs"]["adopt_lock_pr"]["steps"]
+        adoption_source = "\n".join(step.get("run", "") for step in adoption_steps)
+
+        self.assertNotIn("requirements-build.lock", adoption_source)
+        self.assertNotIn("zensical", adoption_source)
+        self.assertNotIn("pip check", adoption_source)
+        self.assertNotIn("check_python_dependencies.py", adoption_source)
+
+    def test_reconciliation_uses_the_real_site_qualification_entrypoint(self):
+        preflight = next(step for step in classify_steps() if step.get("name") == STEP_NAME)
+        self.assertIn("python3 scripts/qualify_site_candidate.py", preflight["run"])
+
+    def test_workflow_does_not_install_an_unpinned_zensical_package(self):
+        source = WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotRegex(source, r"pip install[^\n]*zensical")
+
     def test_exact_preflight_step_is_valid_bash_after_expression_rendering(self):
         result = subprocess.run(
             ["bash", "-n", "-c", rendered_script()],
