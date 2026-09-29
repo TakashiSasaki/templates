@@ -148,6 +148,29 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', workflow)
         self.assertNotIn('--intent producer-source/publication-promotion-intent.json', workflow)
 
+    def test_read_only_promotion_checks_run_fail_closed_before_notify(self):
+        workflow = yaml.safe_load(
+            (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
+        )
+        jobs = workflow['jobs']
+        read_only_jobs = (
+            'validate_promotion_intent',
+            'release_qualification',
+            'verify_release',
+        )
+        for name in read_only_jobs:
+            with self.subTest(job=name):
+                condition = jobs[name]['if']
+                self.assertNotIn("vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'", condition)
+                self.assertNotIn("vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'", condition)
+                permissions = jobs[name].get('permissions', {})
+                self.assertTrue(permissions)
+                self.assertTrue(all(value == 'read' for value in permissions.values()))
+
+        notify = jobs['notify']['if']
+        self.assertIn("vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'", notify)
+        self.assertIn("vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'", notify)
+
     def test_post_merge_automation_pr_provenance_gates_the_trusted_chain(self):
         workflow = yaml.safe_load((ROOT / '.github/workflows/integration-promotion-notify.yml').read_text())
         jobs = workflow['jobs']
