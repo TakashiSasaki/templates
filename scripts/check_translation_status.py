@@ -15,18 +15,25 @@ def blob(path):
 def report(root):
     catalog = json.loads((root / "docs/publication-catalog.json").read_text())
     path = root / "translations/manifest.json"
-    manifest = json.loads(path.read_text()) if path.exists() else {"translations": []}
-    declared = {
-        item["canonical"]: item
-        for item in manifest["translations"]
-        if item["language"] == "ja" and "reader" in item["surfaces"]
-    }
+    diagnostics = []
+    declared = {}
+    try:
+        manifest = json.loads(path.read_text()) if path.exists() else {"translations": []}
+        for item in manifest["translations"]:
+            if item["language"] == "ja" and "reader" in item["surfaces"]:
+                for field in ("canonical", "translation", "canonical_blob_sha"):
+                    if not isinstance(item[field], str):
+                        raise ValueError(f"translation {field} must be a string")
+                declared[item["canonical"]] = item
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        diagnostics.append(f"Reference metadata needs review: {exc}")
+        declared = {}
     records = []
     for document in catalog["documents"]:
         source = document["source"]
         entry = declared.get(source)
         state = "missing"
-        if entry and (root / entry["translation"]).is_file():
+        if entry and (root / entry["translation"]).is_file() and (root / source).is_file():
             state = "current" if blob(root / source) == entry["canonical_blob_sha"] else "stale"
         records.append(
             {
@@ -43,6 +50,7 @@ def report(root):
             for state in ["current", "stale", "missing"]
         },
         "records": records,
+        "diagnostics": diagnostics,
     }
 
 
@@ -56,6 +64,8 @@ def main():
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         print("Japanese reference translations:", result["summary"])
+        for diagnostic in result["diagnostics"]:
+            print(diagnostic)
         for item in result["records"]:
             print(f"{item['status']:8} {item['canonical']}")
         print(

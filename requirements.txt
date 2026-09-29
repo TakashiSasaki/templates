@@ -3,3 +3,4 @@ idna==3.18
 Pygments==2.20.0
 PyYAML==6.0.3
 jsonschema==4.26.0
+Markdown==3.10.3
