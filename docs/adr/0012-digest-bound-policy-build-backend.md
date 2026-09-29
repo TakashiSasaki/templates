@@ -49,20 +49,24 @@ unbound and does not close transitive build dependencies.
 
 Policy owns a strict build-closure document containing the exact supported
 build-system declaration and direct wheel URLs, filenames, versions, and
-SHA-256 digests for Hatchling and every active transitive build dependency.
-Downloads are data until every digest and wheel identity verifies. A separate
-builder environment receives only those verified wheels; the exact Git source
-is checked out and its `pyproject.toml` is validated before the backend is
-imported. Dynamic build requirements must match the reviewed closure. The
-project wheel is built with isolation and index resolution disabled, then
+SHA-256 digests for the pip build frontend, Hatchling, and every active
+transitive Hatchling dependency. Downloads are data until every digest and
+wheel identity verifies. A disposable environment is created without
+`ensurepip`; Policy's small standard-library wheel installer populates it only
+from the verified wheelhouse. The pinned pip frontend then builds the exact Git
+source with `--no-build-isolation` and `--no-index`. The source's
+`pyproject.toml` is validated before the backend is imported, and dynamic build
+requirements must match the reviewed closure. The resulting Policy wheel is
 installed into a separate runtime environment that contains only the runtime
 lock plus the Policy project wheel.
 
 Trusted-review construction stages and verifies the wheel closure in a
 credential-minimal workflow job and builds the selected Policy wheel there.
 The privileged job verifies the source, closure, and wheel identities and
-installs the prebuilt wheel without executing the backend. Ordinary local
-runtime construction can perform the same digest-checked build in its
+installs the prebuilt wheel without executing the backend. The low-permission
+job receives only `contents:read`; it exposes no GitHub token, OIDC,
+attestation, or package-write permission to the builder subprocess. Ordinary
+local runtime construction can perform the same digest-checked build in its
 disposable builder environment.
 
 The runtime/cache identity binds the toolchain commit, runtime-lock digest,

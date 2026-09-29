@@ -15,6 +15,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from build_closure import (  # noqa: E402, I001
+    BuildClosureError,
+    build_closure_binding,
+    parse_build_closure,
+    project_metadata_from_pyproject,
+    validate_build_system,
+    verify_build_record,
+)
+
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9_.-]*===([A-Za-z0-9][A-Za-z0-9_.+!-]*)$"
@@ -22,7 +33,8 @@ EXACT_REQUIREMENT = re.compile(
 BOOTSTRAP_DISTRIBUTIONS = frozenset({"pip", "setuptools", "wheel"})
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = SKILL_ROOT / "runtime-manifest.json"
-CACHE_SCHEMA = 1
+CLOSURE_PATH = SKILL_ROOT / "build-closure.json"
+CACHE_SCHEMA = 2
 CLI_MODULE = "agent_policy.cli"
 
 
@@ -42,6 +54,10 @@ class RuntimeIdentity:
     repository: str
     revision: str
     lock_sha256: str
+    build_closure_sha256: str
+    backend_artifact_sha256: str
+    build_frontend_artifact_sha256: str
+    builder_contract: str
     python: str
     platform: str
 
@@ -50,6 +66,10 @@ class RuntimeIdentity:
             "repository": self.repository,
             "revision": self.revision,
             "lock_sha256": self.lock_sha256,
+            "build_closure_sha256": self.build_closure_sha256,
+            "backend_artifact_sha256": self.backend_artifact_sha256,
+            "build_frontend_artifact_sha256": self.build_frontend_artifact_sha256,
+            "builder_contract": self.builder_contract,
             "python": self.python,
             "platform": self.platform,
         }
@@ -267,7 +287,7 @@ def cache_root() -> Path:
     else:
         xdg = os.environ.get("XDG_CACHE_HOME")
         base = Path(xdg) if xdg else Path.home() / ".cache"
-    return base / "agent-policy" / "runtime-v1"
+    return base / "agent-policy" / "runtime-v2"
 
 
 def cache_error(path: Path, exc: OSError) -> RuntimeError:
@@ -349,13 +369,79 @@ def parse_runtime_lock(text: str) -> dict[str, str]:
 
 
 def identity_for(pin: RuntimePin, lock_data: bytes) -> RuntimeIdentity:
+    binding = build_closure_binding(CLOSURE_PATH.read_bytes())
     return RuntimeIdentity(
         repository=pin.repository,
         revision=pin.revision,
         lock_sha256=hashlib.sha256(lock_data).hexdigest(),
+        **binding,
         python=python_token(),
         platform=platform_token(),
     )
+
+
+def identity_for_lock_digest(pin: RuntimePin, lock_sha256: str) -> RuntimeIdentity:
+    binding = build_closure_binding(CLOSURE_PATH.read_bytes())
+    return RuntimeIdentity(
+        repository=pin.repository,
+        revision=pin.revision,
+        lock_sha256=lock_sha256,
+        **binding,
+        python=python_token(),
+        platform=platform_token(),
+    )
+
+
+def download_toolchain_pyproject(pin: RuntimePin) -> bytes:
+    url = (
+        f"https://raw.githubusercontent.com/{pin.repository}/"
+        f"{pin.revision}/pyproject.toml"
+    )
+    with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310
+        if response.geturl() != url:
+            raise RuntimeError("Pinned toolchain pyproject URL redirected")
+        data = response.read(2 * 1024 * 1024 + 1)
+    if len(data) > 2 * 1024 * 1024:
+        raise RuntimeError("Pinned toolchain pyproject.toml exceeds the size limit")
+    return data
+
+
+def verify_prebuilt_build(
+    pin: RuntimePin,
+    closure_data: bytes,
+    build_directory: Path,
+    expected_target_base_sha: str | None = None,
+) -> tuple[Path, dict[str, Any]]:
+    closure = parse_build_closure(closure_data)
+    pyproject_data = download_toolchain_pyproject(pin)
+    validate_build_system(pyproject_data, closure)
+    project_name, project_version = project_metadata_from_pyproject(pyproject_data)
+    if normalize_distribution_name(project_name) != normalize_distribution_name(
+        pin.project_distribution
+    ):
+        raise RuntimeError(
+            "Pinned toolchain project name does not match the Policy runtime contract"
+        )
+    if pin.project_version is not None and project_version != pin.project_version:
+        raise RuntimeError(
+            "Pinned toolchain project version does not match the Policy runtime manifest"
+        )
+    try:
+        wheel, record = verify_build_record(
+            build_directory,
+            repository=pin.repository,
+            revision=pin.revision,
+            closure_data=closure_data,
+            expected_distribution=project_name,
+            expected_version=project_version,
+            expected_target_base_sha=expected_target_base_sha,
+        )
+    except BuildClosureError as exc:
+        raise RuntimeError(f"Prebuilt Policy wheel is not trusted: {exc}") from exc
+    expected_pyproject_sha = hashlib.sha256(pyproject_data).hexdigest()
+    if record["pyproject_sha256"] != expected_pyproject_sha:
+        raise RuntimeError("Prebuilt Policy wheel was built from different pyproject.toml bytes")
+    return wheel, record
 
 
 def venv_python(root: Path) -> Path:
@@ -454,6 +540,7 @@ def cached_for_revision(root: Path, pin: RuntimePin) -> Path | None:
             repository=pin.repository,
             revision=pin.revision,
             lock_sha256=lock_digest,
+            **build_closure_binding(CLOSURE_PATH.read_bytes()),
             python=python_token(),
             platform=platform_token(),
         )
@@ -543,6 +630,40 @@ def build_runtime(
         lock = stage / "requirements-runtime.lock"
         lock.write_bytes(lock_data)
         requirements = parse_runtime_lock(lock_data.decode("utf-8"))
+        closure_data = CLOSURE_PATH.read_bytes()
+        build_directory_value = os.environ.get("AGENT_POLICY_PREBUILT_BUILD_DIR")
+        require_prebuilt = os.environ.get("AGENT_POLICY_REQUIRE_PREBUILT_BUILD") == "1"
+        expected_build_base = os.environ.get("AGENT_POLICY_PREBUILT_BUILD_BASE_SHA")
+        if expected_build_base is not None and FULL_SHA.fullmatch(expected_build_base) is None:
+            raise RuntimeError("Staged Policy build target base SHA is invalid")
+        if require_prebuilt and not build_directory_value:
+            raise RuntimeError(
+                "Trusted runtime construction requires the staged Policy build wheel"
+            )
+        if build_directory_value:
+            project_wheel, _build_record = verify_prebuilt_build(
+                pin,
+                closure_data,
+                Path(build_directory_value).expanduser(),
+                expected_build_base,
+            )
+        else:
+            from prepare_runtime_wheel import prepare_runtime_wheel
+
+            build_output = stage / "prebuilt-policy-wheel"
+            prepare_runtime_wheel(
+                None,
+                build_output,
+                closure_path=CLOSURE_PATH,
+                selected_pin=pin,
+                target_base_sha=expected_build_base,
+            )
+            project_wheel, _build_record = verify_prebuilt_build(
+                pin,
+                closure_data,
+                build_output,
+                expected_build_base,
+            )
         run(
             [sys.executable, "-I", "-m", "venv", str(stage / "venv")],
             env=env,
@@ -558,12 +679,12 @@ def build_runtime(
                 "--disable-pip-version-check",
                 "--no-cache-dir",
                 "--no-deps",
+                "--only-binary=:all:",
                 "--requirement",
                 str(lock),
             ],
             env=env,
         )
-        requirement = f"git+https://github.com/{pin.repository}.git@{pin.revision}"
         run(
             [
                 str(python),
@@ -574,7 +695,9 @@ def build_runtime(
                 "--disable-pip-version-check",
                 "--no-cache-dir",
                 "--no-deps",
-                requirement,
+                "--no-index",
+                "--no-build-isolation",
+                str(project_wheel),
             ],
             env=env,
         )
@@ -633,13 +756,7 @@ def ensure_runtime(pin: RuntimePin, *, root: Path | None = None) -> Path:
             return cached
 
     if pin.expected_lock_sha256 is not None:
-        identity = RuntimeIdentity(
-            repository=pin.repository,
-            revision=pin.revision,
-            lock_sha256=pin.expected_lock_sha256,
-            python=python_token(),
-            platform=platform_token(),
-        )
+        identity = identity_for_lock_digest(pin, pin.expected_lock_sha256)
         target = cache / identity.digest()
         if runtime_valid(target, identity, pin):
             return target

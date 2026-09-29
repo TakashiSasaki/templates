@@ -4,7 +4,7 @@
 
 Bootstrap is the unmanaged-repository operation of the single `skills/agent-policy/` skill. Empty repositories use fresh adoption; repositories with existing handwritten instructions use migration adoption. There is no separately installed bootstrap skill.
 
-The skill never executes the mutable `policy` branch tip. `runtime-manifest.json` pins a reviewed full commit SHA from `TakashiSasaki/templates` and the SHA-256 of that revision's `requirements-runtime.lock`. Bootstrap and managed operation share the same persistent runtime-cache implementation.
+The skill never executes the mutable `policy` branch tip. `runtime-manifest.json` pins a reviewed full commit SHA from `TakashiSasaki/templates` and the SHA-256 of that revision's `requirements-runtime.lock`. `build-closure.json` binds the pip frontend, Hatchling backend, and active transitive build dependencies by wheel SHA-256. Bootstrap and managed operation share the same persistent runtime-cache implementation and include this build closure in cache identity.
 
 ## Install the published skill
 

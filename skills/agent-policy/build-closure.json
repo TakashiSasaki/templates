@@ -1,7 +1,11 @@
 {
-  "schema_version": 1,
-  "builder_contract": "policy-pep517-hatchling-v1",
+  "schema_version": 2,
+  "builder_contract": "policy-pep517-hatchling-v2",
   "python_requires": ">=3.11",
+  "frontend": {
+    "name": "pip",
+    "version": "26.2.1"
+  },
   "build_system": {
     "backend": "hatchling.build",
     "requires": [
@@ -44,6 +48,13 @@
       "filename": "trove_classifiers-2026.6.1.19-py3-none-any.whl",
       "url": "https://files.pythonhosted.org/packages/7c/a4/81502f486f01db95bc8320646a8a12511f5e556cb63d5e224d91816605c4/trove_classifiers-2026.6.1.19-py3-none-any.whl",
       "sha256": "ab4c4ec93cc4a4e7815fa759906e05e6bb3f2fbd92ea0f897288c6a43efd15b3"
+    },
+    {
+      "name": "pip",
+      "version": "26.2.1",
+      "filename": "pip-26.2.1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/f3/6e/1736e5b4ae2b778ef2f81c47d797de9f891d4d8acb047a24ca37a60294dd/pip-26.2.1-py3-none-any.whl",
+      "sha256": "71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e"
     }
   ]
 }

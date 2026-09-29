@@ -49,11 +49,12 @@ def identity(
     platform: str = "linux-x86_64",
 ) -> object:
     return runtime.RuntimeIdentity(
-        "TakashiSasaki/templates",
-        revision,
-        lock_sha256,
-        python,
-        platform,
+        repository="TakashiSasaki/templates",
+        revision=revision,
+        lock_sha256=lock_sha256,
+        **runtime.build_closure_binding(runtime.CLOSURE_PATH.read_bytes()),
+        python=python,
+        platform=platform,
     )
 
 
@@ -75,6 +76,7 @@ def test_single_skill_layout_and_release_pin() -> None:
         "scripts/bootstrap.py",
         "scripts/build_closure.py",
         "scripts/install.py",
+        "scripts/prepare_runtime_wheel.py",
         "scripts/review_base.py",
         "scripts/run.py",
         "scripts/runtime.py",
@@ -217,11 +219,12 @@ def test_valid_default_cache_hit_requires_no_network(
 ) -> None:
     pin = runtime.pin_from_manifest(runtime.load_manifest())
     cache_identity = runtime.RuntimeIdentity(
-        pin.repository,
-        pin.revision,
-        pin.expected_lock_sha256,
-        runtime.python_token(),
-        runtime.platform_token(),
+        repository=pin.repository,
+        revision=pin.revision,
+        lock_sha256=pin.expected_lock_sha256,
+        **runtime.build_closure_binding(runtime.CLOSURE_PATH.read_bytes()),
+        python=runtime.python_token(),
+        platform=runtime.platform_token(),
     )
     target = tmp_path / cache_identity.digest()
     target.mkdir(parents=True)
@@ -250,11 +253,12 @@ def test_cached_nondefault_revision_can_be_reused_offline(tmp_path: Path) -> Non
         default.executable,
     )
     cache_identity = runtime.RuntimeIdentity(
-        pin.repository,
-        pin.revision,
-        "c" * 64,
-        runtime.python_token(),
-        runtime.platform_token(),
+        repository=pin.repository,
+        revision=pin.revision,
+        lock_sha256="c" * 64,
+        **runtime.build_closure_binding(runtime.CLOSURE_PATH.read_bytes()),
+        python=runtime.python_token(),
+        platform=runtime.platform_token(),
     )
     target = tmp_path / cache_identity.digest()
     target.mkdir(parents=True)

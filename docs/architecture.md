@@ -82,12 +82,24 @@ A runtime cache identity contains:
 
 - toolchain repository and full commit SHA;
 - SHA-256 of the selected revision's `requirements-runtime.lock`;
+- SHA-256 of `build-closure.json`, the pip frontend wheel, the Hatchling backend
+  wheel, and the builder contract;
 - Python major/minor version; and
 - platform plus machine architecture.
 
-A validated cache entry is reusable without network access. On cache miss, the skill downloads the runtime lock from the exact full SHA, creates an isolated virtual environment in a staging directory, installs the exact runtime distributions with dependency resolution disabled, installs the same full-SHA project with dependencies disabled, runs `pip check`, verifies the installed distribution set, writes a marker, and only then renames the staged runtime into its final cache identity.
+A validated cache entry is reusable without network access. Trusted-review
+construction stages digest-verified pip, Hatchling, and transitive build wheels
+in a credential-minimal job. The disposable builder validates the exact source
+commit's build-system declaration and builds the project with pip index access
+and PEP 517 isolation disabled. The privileged job verifies the build record
+and installs the prebuilt project wheel into a separate runtime environment.
+That environment installs only binary runtime dependencies, runs `pip check`,
+verifies the installed distribution set, writes a marker, and only then moves
+into its final cache identity.
 
-The cache contains derived execution state, not policy authority. The authoritative inputs remain the full commit SHA, runtime lock digest, and managed repository lock.
+The cache contains derived execution state, not policy authority. The
+authoritative inputs remain the full commit SHA, runtime lock digest, reviewed
+build closure, and managed repository lock.
 
 ## Policy–Composition coexistence boundary
 

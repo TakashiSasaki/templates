@@ -13,6 +13,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from build_closure import build_closure_binding  # noqa: E402, I001
 
 from runtime import (  # noqa: E402, I001
     RuntimeIdentity,
@@ -29,7 +32,7 @@ from runtime import (  # noqa: E402, I001
     venv_python,
 )
 
-ATTESTATION_SCHEMA = 1
+ATTESTATION_SCHEMA = 2
 RUNTIME_LIMIT = 512 * 1024 * 1024
 CHUNK_SIZE = 64 * 1024
 SKIPPED_SUFFIXES = (".pyc", ".pyo")
@@ -401,19 +404,36 @@ def _marker(root: Path) -> dict[str, Any]:
 
 def _identity_from_marker(marker: dict[str, Any]) -> RuntimeIdentity:
     value = marker.get("identity")
-    required = {"repository", "revision", "lock_sha256", "python", "platform"}
+    required = {
+        "repository",
+        "revision",
+        "lock_sha256",
+        "build_closure_sha256",
+        "backend_artifact_sha256",
+        "build_frontend_artifact_sha256",
+        "builder_contract",
+        "python",
+        "platform",
+    }
     if (
         not isinstance(value, dict)
         or set(value) != required
         or not all(isinstance(item, str) for item in value.values())
         or FULL_SHA.fullmatch(value["revision"]) is None
         or SHA256.fullmatch(value["lock_sha256"]) is None
+        or SHA256.fullmatch(value["build_closure_sha256"]) is None
+        or SHA256.fullmatch(value["backend_artifact_sha256"]) is None
+        or SHA256.fullmatch(value["build_frontend_artifact_sha256"]) is None
     ):
         raise ValueError("runtime marker identity is invalid")
     return RuntimeIdentity(
         repository=value["repository"],
         revision=value["revision"],
         lock_sha256=value["lock_sha256"],
+        build_closure_sha256=value["build_closure_sha256"],
+        backend_artifact_sha256=value["backend_artifact_sha256"],
+        build_frontend_artifact_sha256=value["build_frontend_artifact_sha256"],
+        builder_contract=value["builder_contract"],
         python=value["python"],
         platform=value["platform"],
     )
@@ -539,13 +559,26 @@ def _load_attestation(repository: Path, path: Path) -> dict[str, Any]:
     if value.get("schema_version") != ATTESTATION_SCHEMA:
         raise ValueError("runtime attestation schema is invalid")
     runtime = value.get("runtime")
-    runtime_fields = {"repository", "revision", "lock_sha256", "python", "platform"}
+    runtime_fields = {
+        "repository",
+        "revision",
+        "lock_sha256",
+        "build_closure_sha256",
+        "backend_artifact_sha256",
+        "build_frontend_artifact_sha256",
+        "builder_contract",
+        "python",
+        "platform",
+    }
     if (
         not isinstance(runtime, dict)
         or set(runtime) != runtime_fields
         or not all(isinstance(item, str) for item in runtime.values())
         or FULL_SHA.fullmatch(runtime["revision"]) is None
         or SHA256.fullmatch(runtime["lock_sha256"]) is None
+        or SHA256.fullmatch(runtime["build_closure_sha256"]) is None
+        or SHA256.fullmatch(runtime["backend_artifact_sha256"]) is None
+        or SHA256.fullmatch(runtime["build_frontend_artifact_sha256"]) is None
     ):
         raise ValueError("runtime attestation identity is invalid")
     selected = value.get("selected_pin")
@@ -646,6 +679,13 @@ def _attestation_for_pin(value: dict[str, Any], pin: RuntimePin) -> dict[str, An
         raise ValueError("runtime attestation lock digest does not match the trusted-base lock pin")
     if runtime["python"] != python_token() or runtime["platform"] != platform_token():
         raise ValueError("runtime attestation does not match current Python/platform identity")
+    from runtime import CLOSURE_PATH
+
+    if any(
+        runtime.get(name) != expected
+        for name, expected in build_closure_binding(CLOSURE_PATH.read_bytes()).items()
+    ):
+        raise ValueError("runtime attestation does not match the reviewed build closure")
     return value
 
 

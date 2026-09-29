@@ -2,7 +2,7 @@
 
 Bootstrap is an operation of the single `skills/agent-policy/` skill. It is not a separately installed skill and it does not contain a second policy compiler, renderer, or migration implementation.
 
-`skills/agent-policy/runtime-manifest.json` pins the reviewed stable `TakashiSasaki/templates` full commit SHA and the SHA-256 of that revision's `requirements-runtime.lock`. The bootstrap operation executes that immutable toolchain through the same persistent runtime cache used for managed operation.
+`skills/agent-policy/runtime-manifest.json` pins the reviewed stable `TakashiSasaki/templates` full commit SHA and the SHA-256 of that revision's `requirements-runtime.lock`. `skills/agent-policy/build-closure.json` binds the exact pip frontend, Hatchling backend, and transitive build wheels by SHA-256. The bootstrap operation builds the selected source in a disposable environment and includes that closure in the same persistent runtime cache identity used for managed operation.
 
 ## One onboarding operation: adoption
 
@@ -57,7 +57,7 @@ The selected strategy is derived from inspection state, not from a user-supplied
 
 For initial adoption, the skill uses its reviewed stable default pin. After `.agent-policy.lock` exists, managed operation prefers the full SHA recorded by the repository. The same skill therefore remains the entry point before and after adoption; what changes is the authoritative pin.
 
-Runtime identity includes repository, full revision, runtime-lock digest, Python major/minor, and platform. A validated cache hit is reused without network access. A cache miss constructs and verifies a staged runtime before switching it into place.
+Runtime identity includes repository, full revision, runtime-lock digest, build-closure digest, exact pip and Hatchling wheel digests, builder contract, Python major/minor, and platform. A validated cache hit is reused without network access. A cache miss constructs and verifies a staged runtime before switching it into place.
 
 After fresh adoption, or after migration has been finalized separately, the committed operating records are:
 
