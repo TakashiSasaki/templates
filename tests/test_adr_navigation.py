@@ -27,6 +27,14 @@ def test_mkdocs_separates_current_and_superseded_adrs() -> None:
         "              - ADR-0009 Review-result representation boundary: "
         "adr/0009-review-result-representation-boundary.md"
     )
+    adr11 = (
+        "              - ADR-0011 Actions-native trusted-review bootstrap: "
+        "adr/0011-actions-native-trusted-review-bootstrap.md"
+    )
+    adr12 = (
+        "              - ADR-0012 Digest-bound Policy build backend closure: "
+        "adr/0012-digest-bound-policy-build-backend.md"
+    )
     adr4 = (
         "              - ADR-0004 Integrated bootstrap skill (superseded): "
         "adr/0004-integrated-bootstrap-skill.md"
@@ -37,12 +45,16 @@ def test_mkdocs_separates_current_and_superseded_adrs() -> None:
     assert adr7 in text
     assert adr8 in text
     assert adr9 in text
+    assert adr11 in text
+    assert adr12 in text
     assert adr4 in text
     assert (
         text.index(current)
         < text.index(adr7)
         < text.index(adr8)
         < text.index(adr9)
+        < text.index(adr11)
+        < text.index(adr12)
         < text.index(superseded)
         < text.index(adr4)
     )
