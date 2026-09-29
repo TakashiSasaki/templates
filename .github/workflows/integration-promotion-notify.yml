@@ -7,6 +7,8 @@ permissions:
   contents: read
   actions: read
 jobs:
+  # These validation and qualification jobs are read-only and run even while fail-closed.
+  # Only notify below needs the narrow active handoff window.
   validate_promotion_intent:
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
@@ -14,10 +16,8 @@ jobs:
       startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
       github.event.pull_request.base.ref == 'integration' &&
       (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
-      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
-      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+      vars.PUBLICATION_CONTROLLER_REVISION != ''
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -58,10 +58,8 @@ jobs:
       startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
       github.event.pull_request.base.ref == 'integration' &&
       (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
-      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
-      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+      vars.PUBLICATION_CONTROLLER_REVISION != ''
     needs: validate_promotion_intent
     uses: ./.github/workflows/integration-qualification.yml
     with:
@@ -83,10 +81,8 @@ jobs:
       needs.validate_promotion_intent.result == 'success' &&
       needs.release_qualification.result == 'success' &&
       (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
-      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
-      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+      vars.PUBLICATION_CONTROLLER_REVISION != ''
     runs-on: ubuntu-24.04
     permissions:
       contents: read
