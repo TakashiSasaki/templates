@@ -1,32 +1,20 @@
 ---
 name: land-templates-stack
-description: Load the immutable repository-maintainer landing procedure for a single or stacked templates authority change.
+description: Prepare or land a composition change using local validation and GitHub repository settings.
 ---
 
-# Templates maintainer landing reference
+# Composition PR maintenance
 
-This is a thin Composition-local reference shim. It does not reproduce landing
-rules, CI/review acceptance, Composer semantics, or publication policy.
+Use this procedure only for a PR belonging to this authority. Read `AGENTS.md` and
+run the affected local validation. Open one PR for a coherent change; create a stack
+only if it makes review easier. All bases and commits remain in this authority's history.
 
-Read the adjacent version-2 `source.json`, require
-`kind: repository-maintainer-skill-reference`, a full lowercase commit SHA,
-the expected repository/path, the declared blob SHA, and the explicit
-rule/planner closure. Prove every declared object at the exact revision before
-reading it. The Skill's rule and review-scope planner must be loaded from that
-same snapshot as
-`repository-policy/stacked-pr-landing.md`; never substitute a Composition
-worktree file, mutable `policy` branch, latest ref, or an unverified copy.
-Missing, malformed, unavailable, or mismatched source identity or closure is
-blocked.
+Describe the problem, behavior, checks and remaining limitations. Check current PR
+state before creating another PR or review request. Review only the changed behavior
+and its actual dependencies. Existing hosting protections apply; there is no pinned
+external procedure, mandatory review planner, Work-ledger format or cross-authority gate.
 
-At the pinned snapshot, load the canonical landing Skill and then the separate
-local `.agents/skills/pr-merge-gate/SKILL.md` reference. The landing Skill
-orchestrates the shared gate; it does not call this shim recursively. Keep
-Composition implementation, schema, Composer, generated-output, release, and
-publication evidence separate from the shared merge gate. A single PR and a
-same-authority stack both use this route; actual merge authorization remains a
-human-controlled boundary.
-
-Report the repository, exact source revision, expected/observed blobs, exact
-PR head, Composition-specific evidence, and the shared gate result. Do not
-merge, auto-merge, publish, deploy, or use a mutable fallback from this shim.
+Respect the user's merge/deployment authorization. If landing is authorized, use the
+current proposed SHA as the merge precondition and verify the result. Otherwise hand
+off the implementation and validation result. A provider change never requires a Site
+adoption PR. An Integration artifact is consumed asynchronously by Site.

@@ -818,10 +818,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         if args.profile == "ready" and args.validators_only:
             raise PreflightFailure("ready does not support --validators-only")
-        include_integration_publication = bool(
-            args.integration_publication_protocol
-            or os.environ.get("INTEGRATION_PUBLICATION_PROTOCOL_ROOT")
-        )
+        include_integration_publication = True
         if args.profile == "ready":
             try:
                 run_ready(component_version_base, head, requested_jobs)
@@ -830,8 +827,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"COMPOSITION_PREFLIGHT_PASS profile={args.profile} head={head}", flush=True)
             return 0
         if not args.validators_only:
-            if args.profile == "full" and args.integration_publication_protocol is None:
-                raise PreflightFailure("full preflight requires --integration-publication-protocol")
             # Reject source/environment failures before publication generation or core.
             run_check("phase-zero-source", command("-I", "scripts/composition_phase_zero.py"))
             if args.profile == "full":
@@ -858,18 +853,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             run_focused_tests()
         else:
-            if args.integration_publication_protocol is None:
-                raise PreflightFailure(
-                    "full preflight requires --integration-publication-protocol pointing to "
-                    "the pinned Integration publication protocol checkout"
-                )
             # Full discovery contains the four focused modules.  Keep only the
             # distinct real-consumer spine before the broader core suite.
             run_consumer_spine()
             run_full_tests(requested_jobs)
             # Materialization intentionally runs after clean-source tests and
             # runtime smoke checks because it creates publication build products.
-            run_integration_publication_contract(args.integration_publication_protocol.resolve())
+            run_check("publication-catalog", command("-I", "scripts/publication_catalog.py", "--source-root", "."))
         print(f"COMPOSITION_PREFLIGHT_PASS profile={args.profile} head={head}", flush=True)
         return 0
     except (OSError, PreflightFailure) as exc:

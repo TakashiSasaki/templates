@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Validate Composition-specific publication semantics.
 
-The generic schema-v3 publication protocol is owned by Integration and is loaded from
-an explicitly supplied reviewed checkout. This module retains only
-Composition-owned publication classification, coverage, and glossary semantics.
+Catalog shape, publication classification, coverage and glossary semantics are
+validated locally. No Integration checkout is required.
 """
 
 from __future__ import annotations
@@ -17,10 +16,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
 CLASSIFICATION_PATH = ROOT / "docs" / "publication-classification.json"
 TRANSLATION_MANIFEST_PATH = ROOT / "translations" / "manifest.json"
-INTEGRATION_PROTOCOL_ENV = "INTEGRATION_PUBLICATION_PROTOCOL_ROOT"
-INTEGRATION_PROTOCOL_RELATIVE = Path("integration/publication_contract.py")
 TERM_RE = re.compile(r"^(?:templates|external)-[a-z0-9]+(?:-[a-z0-9]+)*$")
 READER_BASENAMES = {
     "README.md",
@@ -57,64 +55,12 @@ class PublicationError(RuntimeError):
     pass
 
 
-def _integration_protocol_root(explicit_root: Path | None = None) -> Path:
-    if explicit_root is not None:
-        root = explicit_root
-    else:
-        configured = os.environ.get(INTEGRATION_PROTOCOL_ENV)
-        if not configured:
-            raise PublicationError(
-                f"{INTEGRATION_PROTOCOL_ENV} must identify a reviewed Integration protocol checkout"
-            )
-        root = Path(configured)
-    if not root.is_absolute():
-        root = ROOT / root
+def load_publication_catalog() -> Any:
+    import publication_catalog as protocol
     try:
-        return root.resolve(strict=True)
-    except OSError as exc:
-        raise PublicationError(f"Integration publication protocol root is unavailable: {root}") from exc
-
-
-def load_integration_publication_protocol(explicit_root: Path | None = None) -> Any:
-    protocol_root = _integration_protocol_root(explicit_root)
-    protocol_path = protocol_root / INTEGRATION_PROTOCOL_RELATIVE
-    if not protocol_path.is_file() or protocol_path.is_symlink():
-        raise PublicationError(
-            "reviewed Integration publication protocol file is unavailable: "
-            f"{protocol_path}"
-        )
-
-    module_name = "_templates_integration_publication_contract"
-    spec = importlib.util.spec_from_file_location(module_name, protocol_path)
-    if spec is None or spec.loader is None:
-        raise PublicationError(f"unable to load Integration publication protocol: {protocol_path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    try:
-        spec.loader.exec_module(module)
-    except Exception as exc:
-        sys.modules.pop(module_name, None)
-        raise PublicationError(
-            f"unable to execute Integration publication protocol: {protocol_path}: {exc}"
-        ) from exc
-
-    for attribute in ("PublicationContractError", "load_publication_catalog"):
-        if not hasattr(module, attribute):
-            raise PublicationError(
-                f"Integration publication protocol is missing required interface: {attribute}"
-            )
-    return module
-
-
-def load_publication_catalog(explicit_protocol_root: Path | None = None) -> Any:
-    protocol = load_integration_publication_protocol(explicit_protocol_root)
-    try:
-        return protocol.load_publication_catalog(
-            ROOT,
-            label="composition publication catalog",
-        )
+        return protocol.load_publication_catalog(ROOT, label="composition publication catalog")
     except protocol.PublicationContractError as exc:
-        raise PublicationError(f"Integration publication protocol rejected catalog: {exc}") from exc
+        raise PublicationError(f"Composition publication catalog: {exc}") from exc
 
 
 def strict_json(path: Path, label: str) -> dict[str, Any]:

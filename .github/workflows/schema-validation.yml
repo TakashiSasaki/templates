@@ -48,8 +48,6 @@ jobs:
     name: publication + preflight + core tests (2/2)
     runs-on: ubuntu-24.04
     timeout-minutes: 8
-    env:
-      INTEGRATION_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.integration-publication-protocol
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,17 +55,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Check out Integration publication protocol
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: 9430a7dc124bbcfe66847c04e584bd54bed29ad3
-          path: .integration-publication-protocol
-          sparse-checkout: |
-            integration/publication_contract.py
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-          fetch-depth: 1
 
       # Keep this venv: the locked development dependencies are the validation
       # boundary, and the ephemeral runner's host Python is not that boundary.
@@ -89,8 +76,8 @@ jobs:
       - name: Materialize Composition publication once for primary validation
         run: .venv/bin/python -I scripts/materialize_publication.py --source-root .
 
-      - name: Validate Integration-owned publication contract once
-        run: .venv/bin/python -I "$INTEGRATION_PUBLICATION_PROTOCOL_ROOT/integration/publication_contract.py" --source-root .
+      - name: Validate provider-owned publication catalog once
+        run: .venv/bin/python -I scripts/publication_catalog.py --source-root .
 
       - name: Validate Composition-owned publication semantics once
         run: .venv/bin/python -I scripts/validate_publication.py
@@ -117,8 +104,6 @@ jobs:
     name: core tests (1/2)
     runs-on: ubuntu-24.04
     timeout-minutes: 8
-    env:
-      INTEGRATION_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.integration-publication-protocol
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -126,17 +111,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Check out Integration publication protocol
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: 9430a7dc124bbcfe66847c04e584bd54bed29ad3
-          path: .integration-publication-protocol
-          sparse-checkout: |
-            integration/publication_contract.py
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-          fetch-depth: 1
 
       # Keep this venv for the locked development-dependency boundary.
       - name: Create isolated validation environment
