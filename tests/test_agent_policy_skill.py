@@ -70,8 +70,10 @@ def test_single_skill_layout_and_release_pin() -> None:
     expected = {
         "README.md",
         "SKILL.md",
+        "build-closure.json",
         "runtime-manifest.json",
         "scripts/bootstrap.py",
+        "scripts/build_closure.py",
         "scripts/install.py",
         "scripts/review_base.py",
         "scripts/run.py",
