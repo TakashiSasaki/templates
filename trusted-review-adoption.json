@@ -14,9 +14,9 @@
   },
   "adoption_procedure": {
     "id": "site.trusted-review-source-projection",
-    "version": 3,
+    "version": 4,
     "verifier": "scripts/verify_trusted_review_adoption.py",
-    "verifier_sha256": "d59c08cc4e55455f3faef601e1914604b2bd861e79e866c90ffb93c27502003f",
+    "verifier_sha256": "a5c7689613d6910aafe94a4d3ac89d9f7baec49efc04b96756f487d0a168e16a",
     "tests": "tests/test_trusted_review_adoption.py",
     "qualification_workflow": ".github/workflows/trusted-review-bootstrap.yml"
   },
@@ -381,10 +381,10 @@
       "source_mode": "100644",
       "destination_path": ".github/workflows/trusted-review-bootstrap.yml",
       "transformation": {
-        "id": "site.trusted-review-add-role-protected-root-env",
+        "id": "site.trusted-review-bootstrap-integration",
         "version": 1,
         "source_sha256": "2c7614303b3f3c2e779ad460a8ec09258a36931d98aab4b5ecbb341ed3f6bea9",
-        "output_sha256": "ef124ee3e84a5dffefd29b1088fc85f0c3f511c8ab13c30f233c0a526066d03b"
+        "output_sha256": "2a93f201425af1b12bb58737bb749f193060edd6c06aca3b632db6599ea71ab1"
       }
     },
     {

@@ -62,11 +62,11 @@ jobs:
           if (
               not isinstance(repository, dict)
               or repository.get("id") != 1315875002
-              or base.get("ref") != "site"
+              or base.get("ref") != "policy"
               or not isinstance(sha, str)
               or re.fullmatch(r"[0-9a-f]{40}", sha) is None
           ):
-              raise SystemExit("pull request base is not the canonical Site authority")
+              raise SystemExit("pull request base is not the canonical Policy authority")
           print(f"base_sha={sha}")
           PY
 

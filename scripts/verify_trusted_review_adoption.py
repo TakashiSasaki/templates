@@ -426,7 +426,7 @@ def ensure_commit(revision: str) -> None:
 
 
 def project_site_workflow(source: bytes) -> bytes:
-    """Apply Site's one recorded workflow integration transform to exact Policy bytes."""
+    """Apply Site's recorded workflow integration to exact Policy source bytes."""
     anchor = (
         b"      ROLE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/role-protected\n"
         b"      AGGREGATE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected\n"
@@ -439,12 +439,32 @@ def project_site_workflow(source: bytes) -> bytes:
         source.count(anchor) == 1,
         "Policy workflow transform input anchor is not unique",
     )
-    return source.replace(
+    projected = source.replace(
         anchor,
         anchor.replace(
             b"      AGGREGATE_PROTECTED_ROOT:",
             insertion + b"      AGGREGATE_PROTECTED_ROOT:",
         ),
+        1,
+    )
+    base_ref = b'              or base.get("ref") != "site"\n'
+    require(
+        projected.count(base_ref) == 1,
+        "Policy workflow target-base transform anchor is not unique",
+    )
+    projected = projected.replace(
+        base_ref,
+        b'              or base.get("ref") != "policy"\n',
+        1,
+    )
+    site_authority_error = b'              raise SystemExit("pull request base is not the canonical Site authority")\n'
+    require(
+        projected.count(site_authority_error) == 1,
+        "Policy workflow target-base error anchor is not unique",
+    )
+    return projected.replace(
+        site_authority_error,
+        b'              raise SystemExit("pull request base is not the canonical Policy authority")\n',
         1,
     )
 
@@ -559,8 +579,7 @@ def main() -> int:
             source_bytes = git("show", f"{SOURCE_REVISION}:{path}", text=False)
             source_digest = hashlib.sha256(source_bytes).hexdigest()
             require(
-                transformation["id"]
-                == "site.trusted-review-add-role-protected-root-env"
+                transformation["id"] == "site.trusted-review-bootstrap-integration"
                 and transformation["version"] == 1,
                 f"unsupported Policy-to-Site transform for {path}",
             )

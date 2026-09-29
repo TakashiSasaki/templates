@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import ast
+from contextlib import redirect_stdout
 import hashlib
+from io import StringIO
 import json
 from pathlib import Path
 import re
 import subprocess
 import sys
 import unittest
+from unittest import mock
 
 import yaml
 
@@ -75,7 +78,7 @@ class TrustedReviewAdoptionTests(unittest.TestCase):
             workflow["jobs"]["stage-build"]["steps"][3]["run"],
         )
         manifest = json.loads(ADOPTION.read_text(encoding="utf-8"))
-        self.assertEqual(manifest["adoption_procedure"]["version"], 3)
+        self.assertEqual(manifest["adoption_procedure"]["version"], 4)
         self.assertEqual(manifest["source"]["revision"], SOURCE_REVISION)
         self.assertEqual(
             manifest["source"]["tree"], "96f85ca44c61de583a658bb41bd9f2b3d2c5549f"
@@ -85,7 +88,7 @@ class TrustedReviewAdoptionTests(unittest.TestCase):
         self.assertEqual(len(manifest["runtime_inputs"]), 38)
         self.assertEqual(
             manifest["adopted_files"][0]["transformation"]["id"],
-            "site.trusted-review-add-role-protected-root-env",
+            "site.trusted-review-bootstrap-integration",
         )
         checkout = workflow["jobs"]["bootstrap"]["steps"][0]["with"]
         self.assertEqual(checkout["ref"], "${{ github.workflow_sha }}")
@@ -229,6 +232,76 @@ class TrustedReviewAdoptionTests(unittest.TestCase):
         self.assertIn(
             ".review-authority/review-policy.md",
             [item["path"] for item in manifest["runtime_inputs"]],
+        )
+
+    def test_staging_preflight_accepts_policy_base_and_rejects_site_base(self) -> None:
+        workflow = yaml.load(
+            WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader
+        )
+        run = workflow["jobs"]["stage-build"]["steps"][1]["run"]
+        marker = 'python3 -I - "$PR_NUMBER" >> "$GITHUB_OUTPUT" <<\'PY\'\n'
+        self.assertEqual(run.count(marker), 1)
+        script = run.split(marker, 1)[1].split("\nPY", 1)[0]
+        self.assertIn('base.get("ref") != "policy"', script)
+
+        base_sha = "a" * 40
+
+        class FakeResponse:
+            status = 200
+
+            def __init__(self, request: object, base_ref: str) -> None:
+                self.request = request
+                self.base_ref = base_ref
+
+            def __enter__(self) -> FakeResponse:
+                return self
+
+            def __exit__(self, *_args: object) -> None:
+                return None
+
+            def geturl(self) -> str:
+                return self.request.full_url  # type: ignore[attr-defined]
+
+            def read(self, *_args: object) -> str:
+                return json.dumps(
+                    {
+                        "base": {
+                            "repo": {"id": 1315875002},
+                            "ref": self.base_ref,
+                            "sha": base_sha,
+                        }
+                    }
+                )
+
+        def execute_for(base_ref: str) -> tuple[str, str | None]:
+            request_result = StringIO()
+            namespace = {"__name__": "__main__"}
+            with (
+                mock.patch.object(sys, "argv", ["-", "123"]),
+                mock.patch(
+                    "urllib.request.urlopen",
+                    side_effect=lambda request, timeout: FakeResponse(
+                        request, base_ref
+                    ),
+                ),
+                redirect_stdout(request_result),
+            ):
+                try:
+                    exec(
+                        compile(script, "<workflow-target-base-preflight>", "exec"),
+                        namespace,
+                    )
+                except SystemExit as exc:
+                    return request_result.getvalue(), str(exc)
+            return request_result.getvalue(), None
+
+        output, error = execute_for("policy")
+        self.assertIsNone(error)
+        self.assertEqual(output.strip(), f"base_sha={base_sha}")
+        output, error = execute_for("site")
+        self.assertEqual(output, "")
+        self.assertEqual(
+            error, "pull request base is not the canonical Policy authority"
         )
 
     def test_schemas_parse_and_runtime_modules_compile(self) -> None:
