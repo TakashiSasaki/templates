@@ -23,6 +23,10 @@ python -m unittest discover -s tests -v
 node --test tests/*.test.mjs
 ```
 
+For service-worker or PWA translation changes, run the real-browser regression against
+an uncommitted preview before committing; see `MAINTENANCE.md` for the command. The
+ordinary unit-test preflight does not launch a browser.
+
 Keep authored source separate from generated output. Regenerate outputs with their local
 tool. Treat exact SHAs and hashes as build provenance; do not require a source commit just
 to adopt a new downstream publication. An unchanged artifact remains usable after its

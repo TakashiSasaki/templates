@@ -1,0 +1,50 @@
+name: Manual PWA browser validation
+on:
+  workflow_dispatch:
+    inputs:
+      publication_run:
+        description: Successful publication run to use; empty selects newest available success
+        type: string
+        default: ''
+permissions:
+  contents: read
+  actions: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install build and browser test dependencies
+        run: python3 -m pip install -r requirements-build.lock -r requirements-visual.txt
+      - name: Consume a complete successful publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLICATION_RUN: ${{ inputs.publication_run }}
+        run: |
+          args=(--output "$RUNNER_TEMP/publication")
+          if [ -n "$PUBLICATION_RUN" ]; then args+=(--run "$PUBLICATION_RUN"); fi
+          python3 scripts/fetch_publication.py "${args[@]}"
+      - name: Render and check the Site artifact
+        run: python3 scripts/build_site.py --bundle "$RUNNER_TEMP/publication" --output "$RUNNER_TEMP/build"
+      - name: Verify translation warnings and service worker updates in Chrome
+        timeout-minutes: 3
+        run: |
+          mkdir -p "$RUNNER_TEMP/pwa-evidence"
+          set -o pipefail
+          python3 scripts/check_stale_translation_runtime.py \
+            --site-root "$RUNNER_TEMP/build/site" \
+            --bundle "$RUNNER_TEMP/publication" \
+            --browser-channel chrome \
+            --output "$RUNNER_TEMP/pwa-evidence/translation-runtime.json" \
+            2>&1 | tee "$RUNNER_TEMP/pwa-evidence/browser.log"
+      - name: Preserve browser timings and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pwa-browser-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/pwa-evidence
+          if-no-files-found: ignore
+          retention-days: 14

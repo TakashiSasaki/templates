@@ -17,7 +17,26 @@ import traceback
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from publication_bundle.paths import public_path
-from site_renderer.bundle import load_lock, validate_locked
+from site_renderer.bundle import validate
+
+
+def _translation_routes(site, bundle, identity):
+    """Use Site's audience destinations, while checking the selected publication."""
+    rendered = json.loads((site / "publication-bundle.json").read_text())
+    if rendered["identity"] != identity["identity"]:
+        raise ValueError("Site artifact and supplied Bundle identities differ")
+    relocations = json.loads((site / "presentation.json").read_text())["relocations"]
+    records = json.loads((bundle / "translation-availability.json").read_text())["records"]
+    selected = {}
+    for status in ("stale", "current", "missing"):
+        record = next((r for r in records if r["status"] == status and r["language"] == "ja"), None)
+        if record is None:
+            raise ValueError(f"publication needs a {status} Japanese translation case for this regression check")
+        destination = relocations[record["canonical_destination"]]
+        selected[status + "_route"] = public_path("ja/" + destination)
+        if status == "stale":
+            selected["canonical_route"] = public_path(destination)
+    return selected
 
 
 def _utc_now():
@@ -593,7 +612,7 @@ def _assert(condition, message):
         raise AssertionError(message)
 
 
-def run(site, bundle, output=None):
+def run(site, bundle, output=None, *, browser_channel="chrome"):
     run_started = time.monotonic()
     evidence = {
         "status": "running",
@@ -625,40 +644,17 @@ def run(site, bundle, output=None):
 
     try:
         with _phase(evidence, "bundle.validate"):
-            lock = load_lock(Path(__file__).resolve().parents[1] / "integration-source.json")
-            identity = validate_locked(bundle, lock)
+            identity = validate(bundle)
             evidence.update(
                 integration=identity["producer"]["revision"],
                 bundle_identity=identity["identity"],
             )
-            records = json.loads(
-                (bundle / "translation-availability.json").read_text()
-            )["records"]
-            stale = next(
-                r
-                for r in records
-                if r["status"] == "stale" and r["language"] == "ja"
-            )
-            current = next(
-                r
-                for r in records
-                if r["status"] == "current" and r["language"] == "ja"
-            )
-            missing = next(
-                r
-                for r in records
-                if r["status"] == "missing" and r["language"] == "ja"
-            )
-            stale_route = public_path("ja/" + stale["canonical_destination"])
-            current_route = public_path("ja/" + current["canonical_destination"])
-            missing_route = public_path("ja/" + missing["canonical_destination"])
-            canonical_route = public_path(stale["canonical_destination"])
-            evidence.update(
-                stale_route=stale_route,
-                current_route=current_route,
-                missing_route=missing_route,
-                canonical_route=canonical_route,
-            )
+            routes = _translation_routes(site, bundle, identity)
+            evidence.update(routes)
+            stale_route = routes["stale_route"]
+            current_route = routes["current_route"]
+            missing_route = routes["missing_route"]
+            canonical_route = routes["canonical_route"]
             assert not (site / missing_route.lstrip("/") / "index.html").exists(), (
                 "missing translation route fabricated"
             )
@@ -751,8 +747,11 @@ def run(site, bundle, output=None):
 
             playwright = sync_playwright().start()
 
-        with _phase(evidence, "browser.launch.system_chrome"):
-            browser = playwright.chromium.launch(channel="chrome", headless=True)
+        with _phase(evidence, "browser.launch." + browser_channel):
+            browser = playwright.chromium.launch(
+                channel="chrome" if browser_channel == "chrome" else None, headless=True
+            )
+            evidence["browser_channel"] = browser_channel
             evidence["browser_version"] = browser.version
 
         with _phase(evidence, "browser.context.create"):
@@ -969,7 +968,7 @@ def run(site, bundle, output=None):
                         probe.update_status !== "pending" || probe.controller_changed
                     );
                 }""",
-                timeout=0,
+                timeout=30000,
             ),
         )
         _run_phase(
@@ -977,7 +976,7 @@ def run(site, bundle, output=None):
             "service_worker.wait_for_controllerchange",
             lambda: page.wait_for_function(
                 "window.__sitePwaUpdateProbe?.controller_changed === true",
-                timeout=0,
+                timeout=30000,
             ),
         )
         update_snapshot = _run_phase(
@@ -1120,8 +1119,10 @@ if __name__ == "__main__":
     parser.add_argument("--site-root", type=Path, required=True)
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--browser-channel", choices=("chrome", "chromium"), default="chrome")
     args = parser.parse_args()
-    result = run(args.site_root.resolve(), args.bundle.resolve(), args.output)
+    result = run(args.site_root.resolve(), args.bundle.resolve(), args.output,
+                 browser_channel=args.browser_channel)
     # Keep the existing concise stdout JSON contract; detailed evidence is written
     # to --output and emitted as individual SITE_PWA_DIAGNOSTIC log records.
     print(
