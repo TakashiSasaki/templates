@@ -44,7 +44,8 @@
   "explicit_exclusions": [
     ".agents",
     "tests",
-    "tools"
+    "tools",
+    "discovery"
   ],
   "closed_inventories": [
     "collections",

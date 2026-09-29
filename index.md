@@ -19,3 +19,7 @@
 
 - [Tools](tools/) - Contains catalog generation and canonical Modeling qualification commands.
 - [Tests](tests/) - Contains record, publication export, agent guidance, and qualification regression coverage.
+
+## Complete material discovery
+
+- [Canonical documents and agent materials](discovery/index.md) - Generated directly from the source catalogs and Git-tracked entrypoints; no separate membership list.

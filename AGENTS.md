@@ -34,3 +34,7 @@ not govern repository maintenance by implicit self-adoption. Release/runtime pin
 identify executable consumer distributions are separate from publication selection.
 
 For model intake, use `.agents/skills/register-information-model/SKILL.md`.
+
+Check source discovery with `python scripts/check_discovery.py`. After changing a
+source catalog or adding a top-level material, run `python scripts/check_discovery.py --write` to refresh the derived index. Do not hand-maintain a discovery catalog.
+The normal unit-test suite runs the same coverage check.
