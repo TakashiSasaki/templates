@@ -2,12 +2,12 @@
   "base_lock_digest": "cb42dfc440b900cdd19e0f57aaa1f60f842a94b2f22d18784526281b3a072cfe",
   "boundary": "provider-to-integration",
   "bundle": {
-    "content_digest": "7487f5a5530a2097f10da8e5bdd41329e36f595972ced56e38ed04992eae523a",
-    "identity": "ceada95daf3a4375c62647954901310eea7edbf45d2ed79218af80d7290f9336",
+    "content_digest": "8cb874978544d6dd3c3bab6d733c075c2b49cc4fa6f8309c9cee3020102f3a65",
+    "identity": "51f75d805d7164ff5940099ebc068b3a7ea0938d27f26a585f2fa25a115e38a2",
     "schema": 4
   },
-  "consumer_base_revision": "1979da9754b8ba5cdd02efdb9a16531c66518de9",
-  "idempotency_key": "b31468fcc2ca5a55f555cb8e37a09a368c3353d890ff9e9cbfc344580ba69196",
+  "consumer_base_revision": "647a4a86cbe036e062d0a03d77fe189acd7e8ff8",
+  "idempotency_key": "88f4511da44f7ee506bd5483ad525d195276530f52bc61f4eb3bbe21288e50db",
   "lock_update_required": false,
   "provider_tuple": {
     "composition": "d4d0e35485ea0c2030e902f462374f6fb8f8588a",
@@ -15,11 +15,11 @@
     "policy": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
   },
   "qualification_inputs": {
-    "bundle_content_digest": "7487f5a5530a2097f10da8e5bdd41329e36f595972ced56e38ed04992eae523a",
-    "bundle_identity": "ceada95daf3a4375c62647954901310eea7edbf45d2ed79218af80d7290f9336",
+    "bundle_content_digest": "8cb874978544d6dd3c3bab6d733c075c2b49cc4fa6f8309c9cee3020102f3a65",
+    "bundle_identity": "51f75d805d7164ff5940099ebc068b3a7ea0938d27f26a585f2fa25a115e38a2",
     "bundle_schema": "4",
     "composition_revision": "d4d0e35485ea0c2030e902f462374f6fb8f8588a",
-    "integration_revision": "1979da9754b8ba5cdd02efdb9a16531c66518de9",
+    "integration_revision": "647a4a86cbe036e062d0a03d77fe189acd7e8ff8",
     "modeling_revision": "202afe0206d673b2e2195a2df271d76862f9323a",
     "policy_revision": "aa6f9ac4822cbbb9b7bb6940525d54ad690d76d3"
   },
@@ -32,29 +32,29 @@
   "run_provenance": {
     "artifact_namespace": "reconciliation",
     "bundle_artifact": {
-      "digest": "sha256:4747e1c0a114a1a16d5ed04f3ecf9d0d79d2a84f73bf58dd3a902c47d81858a3",
-      "id": 11007484881,
-      "name": "publication-bundle-ceada95daf3a4375c62647954901310eea7edbf45d2ed79218af80d7290f9336-1-reconciliation"
+      "digest": "sha256:19323b7718aa49a17b82151fe93f0773d0ce771dc4ebae8a8ee4a06646786298",
+      "id": 11011973292,
+      "name": "publication-bundle-51f75d805d7164ff5940099ebc068b3a7ea0938d27f26a585f2fa25a115e38a2-1-reconciliation"
     },
     "invocation_mode": "site-reusable",
     "qualification_artifact": {
-      "digest": "sha256:01e804bc1fd6ee02716049431b62cae47b14ff7b33147a6d61453db2cc754540",
-      "id": 11007843783,
-      "name": "publication-compatibility-ceada95daf3a4375c62647954901310eea7edbf45d2ed79218af80d7290f9336-1-reconciliation"
+      "digest": "sha256:e843f72885c64e3e97421318b5397b7235c1ea29c76a13118293daff5d15a81d",
+      "id": 11011938099,
+      "name": "publication-compatibility-51f75d805d7164ff5940099ebc068b3a7ea0938d27f26a585f2fa25a115e38a2-1-reconciliation"
     },
     "repository": "TakashiSasaki/templates",
     "run_workflow_path": ".github/workflows/provider-publication-dispatch.yml",
-    "source_report_sha256": "a2b1d4e180681e36369ba9647d4006f234e6f3fda4221d6ca25d24c30c1f7f62",
-    "verified_report_sha256": "2cb08917e6218265b8d1fd20341aee3326d7147886dc8772d90fd291119d9c1d",
+    "source_report_sha256": "0a3cae02f02a88801c5f6491180af18cd777e210520b13cb9933f045ea3d62bd",
+    "verified_report_sha256": "b900722cda5f269e55c9c5c9e52eaa6abece1ffbd4347bf1b6601cd021d67f10",
     "workflow_attempt": 1,
     "workflow_event": "workflow_dispatch",
     "workflow_head": "a44f71b799f5e25a949a708428462ccc9ff77c0f",
     "workflow_name": "Dispatch provider qualification to Integration",
-    "workflow_run_id": 36508455049
+    "workflow_run_id": 36519161978
   },
   "schema_version": 2,
   "selected_lock_digest": "cb42dfc440b900cdd19e0f57aaa1f60f842a94b2f22d18784526281b3a072cfe",
-  "source_integration_revision": "1979da9754b8ba5cdd02efdb9a16531c66518de9",
+  "source_integration_revision": "647a4a86cbe036e062d0a03d77fe189acd7e8ff8",
   "stage": "promotion-intent",
   "trusted": {
     "controller_revision": "56771bd5159461403cc0c44643e6387cb52940a7",
