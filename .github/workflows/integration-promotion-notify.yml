@@ -246,28 +246,11 @@ jobs:
           VERIFIED_RECEIPT_ARTIFACT_DIGEST: ${{ needs.verify_release.outputs.artifact_digest }}
           VERIFIED_RECEIPT_ARTIFACT_NAME: ${{ needs.verify_release.outputs.artifact_name }}
         run: |
+          set -euo pipefail
           test -n "$GH_TOKEN"
+          PAYLOAD_FILE="$RUNNER_TEMP/integration-to-site-dispatch.json"
+          python3 scripts/build_integration_site_dispatch_payload.py \
+            --output "$PAYLOAD_FILE"
           gh api repos/TakashiSasaki/templates/dispatches \
             --method POST \
-            -f event_type='publication.integration-promoted' \
-            -f client_payload[boundary]='integration-to-site' \
-            -f "client_payload[integration_revision]=$PRODUCER_SHA" \
-            -f "client_payload[bundle_schema]=$BUNDLE_SCHEMA" \
-            -f "client_payload[bundle_identity]=$BUNDLE_IDENTITY" \
-            -f "client_payload[content_digest]=$CONTENT_DIGEST" \
-            -f "client_payload[artifact_id]=$ARTIFACT_ID" \
-            -f "client_payload[artifact_digest]=$ARTIFACT_DIGEST" \
-            -f "client_payload[artifact_name]=$ARTIFACT_NAME" \
-            -f "client_payload[run_id]=$RUN_ID" \
-            -f "client_payload[attempt]=$ATTEMPT" \
-            -f "client_payload[workflow_head]=$WORKFLOW_HEAD" \
-            -f "client_payload[workflow_name]=$WORKFLOW_NAME" \
-            -f "client_payload[workflow_event]=$WORKFLOW_EVENT" \
-            -f "client_payload[qualification_artifact_id]=$QUALIFICATION_ARTIFACT_ID" \
-            -f "client_payload[qualification_artifact_digest]=$QUALIFICATION_ARTIFACT_DIGEST" \
-            -f "client_payload[qualification_artifact_name]=$QUALIFICATION_ARTIFACT_NAME" \
-            -f "client_payload[verified_receipt_digest]=$VERIFIED_RECEIPT_DIGEST" \
-            -f "client_payload[verified_receipt_artifact_id]=$VERIFIED_RECEIPT_ARTIFACT_ID" \
-            -f "client_payload[verified_receipt_artifact_digest]=$VERIFIED_RECEIPT_ARTIFACT_DIGEST" \
-            -f "client_payload[verified_receipt_artifact_name]=$VERIFIED_RECEIPT_ARTIFACT_NAME" \
-            -f "client_payload[source_pr]=$PR_NUMBER"
+            --input "$PAYLOAD_FILE"

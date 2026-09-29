@@ -1,5 +1,6 @@
 import ast
 from io import BytesIO
+import json
 import os
 from pathlib import Path
 import re
@@ -249,6 +250,174 @@ class ReleaseBoundaryTests(unittest.TestCase):
                 self.assertEqual(archive.namelist(), ['compatibility-report.json'])
                 archive.extractall(target)
             self.assertTrue((target / 'compatibility-report.json').is_file())
+
+    def test_notify_builds_a_versioned_three_property_site_envelope(self):
+        workflow = yaml.safe_load(
+            (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
+        )
+        notify_steps = workflow['jobs']['notify']['steps']
+        dispatch = next(
+            step for step in notify_steps
+            if step.get('name') == 'Dispatch exact merged Integration identity to Site'
+        )
+        script = dispatch['run']
+        self.assertIn('python3 scripts/build_integration_site_dispatch_payload.py', script)
+        self.assertIn('--output "$PAYLOAD_FILE"', script)
+        self.assertIn('gh api repos/TakashiSasaki/templates/dispatches', script)
+        self.assertIn('--method POST', script)
+        self.assertIn('--input "$PAYLOAD_FILE"', script)
+        self.assertLess(script.index('build_integration_site_dispatch_payload.py'), script.index('gh api '))
+        self.assertNotRegex(script, r'client_payload\s*\[')
+        self.assertNotIn('-f client_payload', script)
+        expected_bindings = {
+            'PRODUCER_SHA': '${{ needs.release_qualification.outputs.producer_revision }}',
+            'BUNDLE_SCHEMA': '${{ needs.release_qualification.outputs.bundle_schema }}',
+            'BUNDLE_IDENTITY': '${{ needs.release_qualification.outputs.bundle_identity }}',
+            'CONTENT_DIGEST': '${{ needs.release_qualification.outputs.bundle_content_digest }}',
+            'ARTIFACT_ID': '${{ needs.release_qualification.outputs.artifact_id }}',
+            'ARTIFACT_DIGEST': '${{ needs.release_qualification.outputs.artifact_digest }}',
+            'ARTIFACT_NAME': '${{ needs.release_qualification.outputs.artifact_name }}',
+            'RUN_ID': '${{ needs.release_qualification.outputs.workflow_run_id }}',
+            'ATTEMPT': '${{ needs.release_qualification.outputs.workflow_attempt }}',
+            'PR_NUMBER': '${{ github.event.pull_request.number }}',
+            'WORKFLOW_HEAD': '${{ needs.release_qualification.outputs.workflow_head }}',
+            'WORKFLOW_NAME': '${{ needs.release_qualification.outputs.workflow_name }}',
+            'WORKFLOW_EVENT': '${{ needs.release_qualification.outputs.workflow_event }}',
+            'QUALIFICATION_ARTIFACT_ID': '${{ needs.release_qualification.outputs.qualification_artifact_id }}',
+            'QUALIFICATION_ARTIFACT_DIGEST': '${{ needs.release_qualification.outputs.qualification_artifact_digest }}',
+            'QUALIFICATION_ARTIFACT_NAME': '${{ needs.release_qualification.outputs.qualification_artifact_name }}',
+            'VERIFIED_RECEIPT_DIGEST': '${{ needs.verify_release.outputs.receipt_digest }}',
+            'VERIFIED_RECEIPT_ARTIFACT_ID': '${{ needs.verify_release.outputs.artifact_id }}',
+            'VERIFIED_RECEIPT_ARTIFACT_DIGEST': '${{ needs.verify_release.outputs.artifact_digest }}',
+            'VERIFIED_RECEIPT_ARTIFACT_NAME': '${{ needs.verify_release.outputs.artifact_name }}',
+        }
+        self.assertEqual(dispatch['env'], {'GH_TOKEN': '${{ secrets.PUBLICATION_AUTOMATION_TOKEN }}', **expected_bindings})
+
+        environment = {
+            'PRODUCER_SHA': 'a' * 40,
+            'BUNDLE_SCHEMA': '4',
+            'BUNDLE_IDENTITY': 'b' * 64,
+            'CONTENT_DIGEST': 'c' * 64,
+            'ARTIFACT_ID': '11018626853',
+            'ARTIFACT_DIGEST': 'sha256:' + 'd' * 64,
+            'ARTIFACT_NAME': 'publication-bundle-v4',
+            'RUN_ID': '36536060040',
+            'ATTEMPT': '1',
+            'WORKFLOW_HEAD': 'e' * 40,
+            'WORKFLOW_NAME': 'Notify Site after Integration adoption',
+            'WORKFLOW_EVENT': 'pull_request',
+            'QUALIFICATION_ARTIFACT_ID': '11018217633',
+            'QUALIFICATION_ARTIFACT_DIGEST': 'sha256:' + 'f' * 64,
+            'QUALIFICATION_ARTIFACT_NAME': 'publication-qualification-v4',
+            'VERIFIED_RECEIPT_DIGEST': '1' * 64,
+            'VERIFIED_RECEIPT_ARTIFACT_ID': '11019100564',
+            'VERIFIED_RECEIPT_ARTIFACT_DIGEST': 'sha256:' + '2' * 64,
+            'VERIFIED_RECEIPT_ARTIFACT_NAME': 'publication-verification-v4',
+            'PR_NUMBER': '1099',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'dispatch.json'
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / 'scripts/build_integration_site_dispatch_payload.py'),
+                    '--output',
+                    str(output),
+                ],
+                capture_output=True,
+                text=True,
+                env={**os.environ, **environment},
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            body = output.read_bytes()
+            request = json.loads(body)
+
+        self.assertEqual(request['event_type'], 'publication.integration-promoted')
+        payload = request['client_payload']
+        self.assertEqual(set(payload), {'schema_version', 'boundary', 'release'})
+        self.assertEqual(len(payload), 3)
+        self.assertEqual(payload['schema_version'], 1)
+        self.assertEqual(payload['boundary'], 'integration-to-site')
+        release = payload['release']
+        self.assertEqual(set(release), {
+            'integration_revision', 'bundle', 'workflow', 'qualification_artifact',
+            'verified_receipt', 'source_pr',
+        })
+        self.assertEqual(release['integration_revision'], environment['PRODUCER_SHA'])
+        self.assertEqual(release['bundle'], {
+            'schema': environment['BUNDLE_SCHEMA'],
+            'identity': environment['BUNDLE_IDENTITY'],
+            'content_digest': environment['CONTENT_DIGEST'],
+            'artifact': {
+                'id': environment['ARTIFACT_ID'],
+                'digest': environment['ARTIFACT_DIGEST'],
+                'name': environment['ARTIFACT_NAME'],
+            },
+        })
+        self.assertEqual(release['workflow'], {
+            'run_id': environment['RUN_ID'],
+            'attempt': environment['ATTEMPT'],
+            'head': environment['WORKFLOW_HEAD'],
+            'name': environment['WORKFLOW_NAME'],
+            'event': environment['WORKFLOW_EVENT'],
+        })
+        self.assertEqual(release['qualification_artifact'], {
+            'id': environment['QUALIFICATION_ARTIFACT_ID'],
+            'digest': environment['QUALIFICATION_ARTIFACT_DIGEST'],
+            'name': environment['QUALIFICATION_ARTIFACT_NAME'],
+        })
+        self.assertEqual(release['verified_receipt'], {
+            'digest': environment['VERIFIED_RECEIPT_DIGEST'],
+            'artifact': {
+                'id': environment['VERIFIED_RECEIPT_ARTIFACT_ID'],
+                'digest': environment['VERIFIED_RECEIPT_ARTIFACT_DIGEST'],
+                'name': environment['VERIFIED_RECEIPT_ARTIFACT_NAME'],
+            },
+        })
+        self.assertEqual(release['source_pr'], environment['PR_NUMBER'])
+        self.assertLess(len(body), 16 * 1024)
+
+    def test_notify_payload_validation_fails_before_creating_request_body(self):
+        environment = {
+            'PRODUCER_SHA': 'a' * 40,
+            'BUNDLE_SCHEMA': '4',
+            'BUNDLE_IDENTITY': 'b' * 64,
+            'CONTENT_DIGEST': 'c' * 64,
+            'ARTIFACT_ID': '11018626853',
+            'ARTIFACT_DIGEST': 'sha256:' + 'd' * 64,
+            'ARTIFACT_NAME': 'publication-bundle-v4',
+            'RUN_ID': '36536060040',
+            'ATTEMPT': '1',
+            'WORKFLOW_HEAD': 'e' * 40,
+            'WORKFLOW_NAME': 'Notify Site after Integration adoption',
+            'WORKFLOW_EVENT': 'pull_request',
+            'QUALIFICATION_ARTIFACT_ID': '11018217633',
+            'QUALIFICATION_ARTIFACT_DIGEST': 'sha256:' + 'f' * 64,
+            'QUALIFICATION_ARTIFACT_NAME': 'publication-qualification-v4',
+            'VERIFIED_RECEIPT_DIGEST': '1' * 64,
+            'VERIFIED_RECEIPT_ARTIFACT_ID': '11019100564',
+            'VERIFIED_RECEIPT_ARTIFACT_DIGEST': 'sha256:' + '2' * 64,
+            'VERIFIED_RECEIPT_ARTIFACT_NAME': 'publication-verification-v4',
+            'PR_NUMBER': '1099',
+        }
+        environment.pop('VERIFIED_RECEIPT_ARTIFACT_ID')
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'dispatch.json'
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / 'scripts/build_integration_site_dispatch_payload.py'),
+                    '--output',
+                    str(output),
+                ],
+                capture_output=True,
+                text=True,
+                env={**os.environ, **environment},
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(output.exists())
 
     def test_promotion_job_conditions_parse_as_complete_actions_expressions(self):
         workflow = yaml.safe_load(
