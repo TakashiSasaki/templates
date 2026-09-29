@@ -1,5 +1,7 @@
+import ast
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -8,6 +10,32 @@ import yaml
 from integration.freshness import classify,PublicationFreshnessError
 
 ROOT=Path(__file__).resolve().parents[1]
+
+
+_ACTIONS_EXPRESSION_TOKEN = re.compile(
+    r"(?P<string>'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\")"
+    r"|(?P<operator>&&|\|\|)"
+    r"|(?P<boolean>\btrue\b|\bfalse\b)",
+    re.IGNORECASE,
+)
+
+
+def validate_actions_if_expression(condition):
+    """Parse the complete expression subset used by these promotion job gates."""
+    expression = condition.strip()
+    if expression.startswith('${{') and expression.endswith('}}'):
+        expression = expression[3:-2].strip()
+
+    def translate(match):
+        token = match.group(0)
+        if match.lastgroup == 'operator':
+            return ' and ' if token == '&&' else ' or '
+        if match.lastgroup == 'boolean':
+            return 'True' if token.lower() == 'true' else 'False'
+        return token
+
+    ast.parse(_ACTIONS_EXPRESSION_TOKEN.sub(translate, expression), mode='eval')
+
 
 class ReleaseBoundaryTests(unittest.TestCase):
     def test_active_workflows_use_runner_python_without_runtime_selection(self):
@@ -170,6 +198,26 @@ class ReleaseBoundaryTests(unittest.TestCase):
         notify = jobs['notify']['if']
         self.assertIn("vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'", notify)
         self.assertIn("vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'", notify)
+
+    def test_promotion_job_conditions_parse_as_complete_actions_expressions(self):
+        workflow = yaml.safe_load(
+            (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
+        )
+        for name in (
+            'validate_promotion_intent',
+            'release_qualification',
+            'verify_release',
+            'notify',
+        ):
+            with self.subTest(job=name):
+                condition = workflow['jobs'][name]['if']
+                validate_actions_if_expression(condition)
+                for dangling_operator in ('&&', '||'):
+                    with self.subTest(dangling_operator=dangling_operator):
+                        with self.assertRaises(SyntaxError):
+                            validate_actions_if_expression(
+                                f'{condition} {dangling_operator}'
+                            )
 
     def test_post_merge_automation_pr_provenance_gates_the_trusted_chain(self):
         workflow = yaml.safe_load((ROOT / '.github/workflows/integration-promotion-notify.yml').read_text())

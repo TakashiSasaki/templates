@@ -17,7 +17,7 @@ jobs:
       github.event.pull_request.base.ref == 'integration' &&
       (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != ''
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -59,7 +59,7 @@ jobs:
       github.event.pull_request.base.ref == 'integration' &&
       (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != ''
     needs: validate_promotion_intent
     uses: ./.github/workflows/integration-qualification.yml
     with:
@@ -82,7 +82,7 @@ jobs:
       needs.release_qualification.result == 'success' &&
       (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
       vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != ''
     runs-on: ubuntu-24.04
     permissions:
       contents: read
