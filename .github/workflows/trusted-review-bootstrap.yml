@@ -16,8 +16,89 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  stage-build:
+    if: github.repository_id == '1315875002' && github.ref == 'refs/heads/site'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      base_sha: ${{ steps.target.outputs.base_sha }}
+    steps:
+      - name: Check out the trusted Policy build contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: policy-source
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Resolve the pull request base without credentials
+        id: target
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          python3 -I - "$PR_NUMBER" >> "$GITHUB_OUTPUT" <<'PY'
+          import json
+          import re
+          import sys
+          import urllib.request
+
+          number = sys.argv[1]
+          if not number.isdecimal():
+              raise SystemExit("pull request number must be decimal")
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/TakashiSasaki/templates/pulls/{number}",
+              headers={"Accept": "application/vnd.github+json", "User-Agent": "policy-build-stager"},
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              if response.status != 200 or response.geturl() != request.full_url:
+                  raise SystemExit("public pull request lookup failed")
+              pull = json.load(response)
+          base = pull.get("base")
+          repository = base.get("repo") if isinstance(base, dict) else None
+          sha = base.get("sha") if isinstance(base, dict) else None
+          if (
+              not isinstance(repository, dict)
+              or repository.get("id") != 1315875002
+              or base.get("ref") != "site"
+              or not isinstance(sha, str)
+              or re.fullmatch(r"[0-9a-f]{40}", sha) is None
+          ):
+              raise SystemExit("pull request base is not the canonical Site authority")
+          print(f"base_sha={sha}")
+          PY
+
+      - name: Check out the exact pull request base for Policy pin selection
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.target.outputs.base_sha }}
+          path: target-base
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Build the selected Policy wheel with the reviewed local closure
+        env:
+          TARGET_BASE_SHA: ${{ steps.target.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          python3 -I policy-source/skills/agent-policy/scripts/prepare_runtime_wheel.py \
+            --target-repository target-base \
+            --target-base-sha "$TARGET_BASE_SHA" \
+            --output-directory "$RUNNER_TEMP/policy-build"
+
+      - name: Upload the prebuilt Policy wheel as data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: policy-build-${{ github.run_id }}
+          path: ${{ runner.temp }}/policy-build/
+          if-no-files-found: error
+          retention-days: 1
+
   bootstrap:
     if: github.repository_id == '1315875002' && github.ref == 'refs/heads/site'
+    needs: stage-build
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -36,6 +117,10 @@ jobs:
       TRUSTED_REVIEW_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/role-protected
       AGGREGATE_PROTECTED_ROOT: ${{ runner.temp }}/trusted-review/aggregate-protected
       OCI_REPOSITORY: ghcr.io/takashisasaki/templates/trusted-review-authority
+      AGENT_POLICY_REQUIRE_PREBUILT_BUILD: "1"
+      AGENT_POLICY_PREBUILT_BUILD_DIR: ${{ runner.temp }}/policy-build
+      AGENT_POLICY_PREBUILT_BUILD_BASE_SHA: ${{ needs.stage-build.outputs.base_sha }}
+      STAGED_POLICY_BASE_SHA: ${{ needs.stage-build.outputs.base_sha }}
 
     steps:
       - name: Check out the trusted workflow revision
@@ -45,13 +130,19 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
+      - name: Download the credential-minimal Policy build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: policy-build-${{ github.run_id }}
+          path: ${{ runner.temp }}/policy-build
+
       - name: Install the trusted workflow runtime dependencies
         run: |
           set -euo pipefail
           mkdir -p "$WORK_ROOT"
           python3 -m venv "$WORK_ROOT/venv"
           "$WORK_ROOT/venv/bin/python" -m pip install \
-            --disable-pip-version-check --no-deps -r requirements-runtime.lock
+            --disable-pip-version-check --no-deps --only-binary=:all: -r requirements-runtime.lock
           mkdir -p "$WORK_ROOT/evidence" "$WORK_ROOT/output"
 
       - name: Observe the pull request through the authenticated GitHub API
@@ -80,6 +171,16 @@ jobs:
             --observation "$WORK_ROOT/provider-observation.json" \
             --output-root "$WORK_ROOT/authority" \
             --github-output "$GITHUB_OUTPUT"
+
+      - name: Require the staged wheel to match the authenticated target base
+        env:
+          TARGET_BASE: ${{ steps.initialize.outputs.target_base }}
+        run: |
+          set -euo pipefail
+          if [[ "$TARGET_BASE" != "$STAGED_POLICY_BASE_SHA" ]]; then
+            echo "pull request base changed after credential-minimal Policy build staging" >&2
+            exit 1
+          fi
 
       - name: Authenticate Docker to GHCR with the run-scoped token
         run: |

@@ -5,7 +5,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "kind", "site_authority", "source", "adoption_procedure", "runtime_inputs", "adopted_files"],
   "properties": {
-    "schema_version": { "const": 1 },
+    "schema_version": { "const": 2 },
     "kind": { "const": "site-policy-execution-adoption" },
     "site_authority": { "const": "site" },
     "source": {
@@ -15,9 +15,9 @@
       "properties": {
         "repository": { "const": "TakashiSasaki/templates" },
         "authority": { "const": "policy" },
-        "revision": { "const": "71fad184a072c9335af793ac1efb7e6332c449b0" },
-        "tree": { "const": "78d19c3683d9b4cb2d15deaec021021b3b43014d" },
-        "reviewed_prs": { "const": [1067, 1069, 1070, 1072] }
+        "revision": { "const": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53" },
+        "tree": { "const": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f" },
+        "reviewed_prs": { "const": [1090, 1095] }
       }
     },
     "adoption_procedure": {
@@ -26,7 +26,7 @@
       "required": ["id", "version", "verifier", "verifier_sha256", "tests", "qualification_workflow"],
       "properties": {
         "id": { "const": "site.trusted-review-source-projection" },
-        "version": { "const": 2 },
+        "version": { "const": 3 },
         "verifier": { "const": "scripts/verify_trusted_review_adoption.py" },
         "verifier_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "tests": { "const": "tests/test_trusted_review_adoption.py" },
@@ -35,15 +35,18 @@
     },
     "runtime_inputs": {
       "type": "array",
+      "minItems": 38,
+      "maxItems": 38,
       "uniqueItems": true,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["authority", "path", "revision", "object_type", "object_id", "resolution"],
+        "required": ["authority", "path", "revision", "tree", "object_type", "object_id", "resolution"],
         "properties": {
           "authority": { "const": "policy" },
           "path": { "type": "string", "minLength": 1 },
           "revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "tree": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
           "object_type": { "enum": ["blob", "tree"] },
           "object_id": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
           "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
@@ -53,14 +56,17 @@
     },
     "adopted_files": {
       "type": "array",
-      "minItems": 11,
+      "minItems": 17,
+      "maxItems": 17,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["role", "source_path", "source_blob", "source_mode", "destination_path"],
+        "required": ["role", "source_path", "source_revision", "source_tree", "source_blob", "source_mode", "destination_path"],
         "properties": {
           "role": { "type": "string", "minLength": 1 },
           "source_path": { "type": "string", "minLength": 1 },
+          "source_revision": { "const": "99bb2f7f68ff4af3e72cd4cd583f6bcc0908ea53" },
+          "source_tree": { "const": "96f85ca44c61de583a658bb41bd9f2b3d2c5549f" },
           "source_blob": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
           "source_mode": { "const": "100644" },
           "destination_path": { "type": "string", "minLength": 1 },
