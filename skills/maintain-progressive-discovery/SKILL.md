@@ -267,9 +267,15 @@ checkout, invoke this candidate distribution explicitly:
 python3 .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py --root . --candidate-v2 --format json
 ```
 
-The candidate requires exactly adapter version 2; the normal launcher rejects it.
-Do not send version 2 to an older installed runtime that lacks this gate. Replace
-runtime, schema, adapter and lock together in a separately authorized migration.
+The candidate requires exactly adapter version 2; the normal legacy launcher
+accepts a legacy adapter with `schema_version` omitted or set to `1`, but rejects
+the explicit version-2 declaration. It also rejects the known v2-only top-level
+keys `entries`, `inventories`, `projections`, `exclude`, `delegate`, `omit_from`,
+`generated`, and `retire` when the version is omitted or set to `1`. This explicit
+key boundary prevents a versionless v2 adapter from being interpreted as a
+successful legacy adapter. Do not send version 2 to an older installed runtime
+that lacks this gate. Replace runtime, schema, adapter and lock together in a
+separately authorized migration.
 The renderer embeds the canonical adapter/projection schemas; no consumer schema
 URL or executable hook is honored. Source-only fixtures and candidate checkouts
 are never evidence that an authority adopted this contract.

@@ -197,6 +197,60 @@ def test_machine_result_distinguishes_selected_and_unselected_consumers() -> Non
     assert skill.run(_fixture("consumer-unselected"))["result"] == "NOT_APPLICABLE"
 
 
+@pytest.mark.parametrize(
+    ("case", "accepted"),
+    [
+        ("legacy-versionless", True),
+        ("legacy-version-one", True),
+        ("v2-only-versionless", False),
+        ("v2-only-version-one", False),
+        ("mixed-versionless", False),
+        ("mixed-version-one", False),
+        ("explicit-version-two", False),
+        ("unknown-version", False),
+    ],
+)
+def test_legacy_cli_enforces_explicit_adapter_version_boundary(
+    tmp_path: Path, case: str, accepted: bool
+) -> None:
+    target = tmp_path / "consumer"
+    shutil.copytree(_fixture("simple-docs"), target)
+    adapter_path = target / ".progressive-discovery.json"
+    adapter = json.loads(adapter_path.read_text(encoding="utf-8"))
+
+    if case in {"legacy-version-one", "mixed-version-one"}:
+        adapter["schema_version"] = 1
+    if case in {"v2-only-versionless", "v2-only-version-one", "explicit-version-two"}:
+        adapter = {"entries": [{"path": "README.md", "kind": "file"}]}
+        if case == "v2-only-version-one":
+            adapter["schema_version"] = 1
+        elif case == "explicit-version-two":
+            adapter["schema_version"] = 2
+    if case in {"mixed-versionless", "mixed-version-one"}:
+        adapter["entries"] = [{"path": "README.md", "kind": "file"}]
+    if case == "unknown-version":
+        adapter["schema_version"] = 9
+    adapter_path.write_text(json.dumps(adapter), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--root", str(target), "--format", "json"],
+        capture_output=True,
+        text=True,
+    )
+    report = json.loads(result.stdout)
+    if accepted:
+        assert result.returncode == 0, result.stderr
+        assert report["validation"]["valid"] is True
+        assert report["result"] == "NO_UPDATE_REQUIRED"
+    else:
+        assert result.returncode != 0
+        assert report["validation"]["valid"] is False
+        assert report["result"] == "AUTHORITY_NEEDED"
+        assert report["plan"] == []
+        assert any("legacy runtime" in item or "v2-only fields" in item
+                   for item in report["notes"])
+
+
 def test_closed_inventory_and_curated_shortcuts_are_preserved() -> None:
     skill = _load_skill()
     closed = skill.run(_fixture("closed-inventory"))
